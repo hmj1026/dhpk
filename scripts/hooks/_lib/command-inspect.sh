@@ -300,8 +300,9 @@ _dhpk_ci_apply_set_allexport() {
 # can rebuild the words). A bare git value (g=git) stays with the subcommand
 # check at the use site.
 _dhpk_ci_git_value_risky() {
-    local val="$1" ifs="$2" i=1 n sub
+    local val="${1,,}" ifs="$2" i=1 n sub
     local -a ws_a
+    # Folded: ${l,,}, ${l^^}, ${l~~} and ${l@L} can rebuild git from other case.
     if [ "$ifs" = "1" ]; then
         case "$val" in *git*) return 0 ;; esac
         return 1
@@ -396,10 +397,11 @@ _dhpk_ci_scan_git_taint() {
     case "$rest" in
         *IFS=*|*IFS+=*) _dhpk_ci_taint_ifs=1 ;;
     esac
-    case "$rest" in
+    case "${rest,,}" in
         *git*) ;;
         *) return 0 ;;
     esac
+    _dhpk_ci_taint_gitassign=0
     while [[ "$rest" =~ $re_assign ]]; do
         name="${BASH_REMATCH[2]}"
         t="${BASH_REMATCH[5]}"
@@ -412,6 +414,7 @@ _dhpk_ci_scan_git_taint() {
         fi
         var="_dhpk_ci_tv_$name"
         printf -v "$var" '%s %s' "${!var:-}" "$v"
+        case "${v,,}" in *git*) _dhpk_ci_taint_gitassign=1 ;; esac
         case "$names" in *" $name "*) ;; *) names="$names$name " ;; esac
     done
     for name in $names; do
@@ -421,11 +424,12 @@ _dhpk_ci_scan_git_taint() {
         fi
         unset "$var"
     done
+    _dhpk_ci_scan_namerefs "$1"
     rest="$1"
     while [[ "$rest" =~ $re_build ]]; do
         seg="${BASH_REMATCH[2]}"
         rest="${rest#*"${BASH_REMATCH[0]}"}"
-        if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "$1"; then
+        if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "${1,,}"; then
             read -r -a ws_a <<<"$seg"
             for w in "${ws_a[@]}"; do
                 [[ "$w" =~ $re_id ]] && _dhpk_ci_taint_add "$w"
@@ -435,9 +439,42 @@ _dhpk_ci_scan_git_taint() {
     return 0
 }
 
+# declare/local/typeset -n NAME[=TARGET]: a nameref to a tainted variable is
+# tainted. A target that is not a plain visible name (or no target) cannot be
+# resolved, so the nameref is tainted when the text names git. Two passes let
+# a short chain of namerefs settle.
+_dhpk_ci_scan_namerefs() {
+    local rest="$1" pass name target
+    local re_ref='(declare|local|typeset)[[:space:]]+-[A-Za-z]*n[A-Za-z]*[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)(=([^[:space:];&|<>()]*))?'
+    local re_id='^[A-Za-z_][A-Za-z0-9_]*$'
+    [[ "$rest" =~ $re_ref ]] || return 0
+    for pass in 1 2; do
+        rest="$1"
+        while [[ "$rest" =~ $re_ref ]]; do
+            name="${BASH_REMATCH[2]}"
+            target="${BASH_REMATCH[4]}"
+            target="${target#[\'\"]}"
+            target="${target%[\'\"]}"
+            rest="${rest#*"${BASH_REMATCH[0]}"}"
+            if [[ "$target" =~ $re_id ]]; then
+                case "$_dhpk_ci_git_taint" in
+                    *" $target "*) _dhpk_ci_taint_add "$name" ;;
+                esac
+            else
+                _dhpk_ci_taint_add "$name"
+            fi
+        done
+    done
+}
+
 # True when the word expands a variable that holds risky git text.
 _dhpk_ci_word_uses_taint() {
     local w="$1" name re
+    if [ "${_dhpk_ci_taint_gitassign:-0}" = "1" ]; then
+        case "$w" in
+            *'${!'[A-Za-z_]*) return 0 ;;
+        esac
+    fi
     [ "${_dhpk_ci_git_taint:- }" != " " ] || return 1
     for name in $_dhpk_ci_git_taint; do
         re='\$\{?[!#]?'$name'([^A-Za-z0-9_]|$)'
@@ -3050,6 +3087,10 @@ _dhpk_ci_find_exec_has_git() {
                     git|*/git|'{}') has_git=1 ;;
                 esac
             else
+                if [ "$is_shell" -eq 1 ] && [ "${_dhpk_ci_u_dyn[$i]:-0}" = "1" ] \
+                    && _dhpk_ci_word_uses_taint "$w"; then
+                    has_git=1
+                fi
                 case "$w" in
                     git|*/git|git\ *|*/git\ *) has_git=1 ;;
                     *git*)
@@ -6924,7 +6965,7 @@ dhpk_inspect_command() {
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_taint_ifs _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 
