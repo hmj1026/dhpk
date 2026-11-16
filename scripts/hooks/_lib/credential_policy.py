@@ -14,7 +14,7 @@ import sys
 from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, lex, xargs_command
 from credential_expand import expand_variants
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
-from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES
+from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings
 from credential_scan import MAX_SECONDS, budget_seconds
 import time
 from credential_scan import scan_roots
@@ -227,6 +227,176 @@ def _invokes_reader(names, i):
     return i == 0 or names[i] not in WEAK_READERS or names[0] not in INERT_HEADS
 
 
+# (#1430) Execution entrances run a file as shell code rather than reading it for display, so they are
+# judged by their own rules and never planned as Readers. Startup-file variables may reuse the same
+# executed_file_verdict for the file they name.
+EXECUTION_ENTRANCES = ('source', '.')
+ENTRANCE_PREFIXES = {'!', '{', 'time', 'if', 'then', 'elif', 'else', 'do', 'while', 'until', 'command', 'builtin'}
+ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*\+?=')
+
+
+def _is_redirect(token):
+    return token.operator and token.value not in SEPARATORS and token.value not in ('&', '&!')
+
+
+def _entrance_index(tokens):
+    """Index of a source/dot word in command position, else None; redirects and prefixes are skipped."""
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token.operator:
+            i += 2 if _is_redirect(token) else 1
+            continue
+        nxt = tokens[i + 1] if i + 1 < len(tokens) else None
+        if token.value.isdigit() and nxt is not None and _is_redirect(nxt):
+            i += 1
+            continue
+        if token.value in EXECUTION_ENTRANCES:
+            return i
+        if token.value in ENTRANCE_PREFIXES or ASSIGNMENT.match(token.value):
+            i += 1
+            continue
+        return None
+    return None
+
+
+def _entrance_operands(tokens):
+    """Words after the entrance up to the next control operator, without redirect operands."""
+    operands, i = [], 0
+    while i < len(tokens):
+        if tokens[i].operator:
+            if not _is_redirect(tokens[i]):
+                break
+            i += 2
+            continue
+        operands.append(tokens[i])
+        i += 1
+    return operands
+
+
+def executed_file_verdict(token, patterns, cwd):
+    """Judge the file an execution entrance runs by its visible name only; its content is never read."""
+    if token.substitution or token.glob:
+        return verdict.ambiguous('execution entrance operand %s' % ascii(token.substitution or token.value),
+                                 'name the script to run as an explicit literal path without wildcards or command substitutions; '
+                                 'a Protected Path cannot be executed through source or a dot.')
+    if protected(token.value, patterns, cwd):
+        return verdict.protected('execution entrance operand')
+    return verdict.allow()
+
+
+def _background_parts(tokens):
+    """Split on `&`: each part starts a new command position."""
+    parts, current = [], []
+    for token in tokens:
+        if token.operator and token.value in ('&', '&!'):
+            parts.append(current)
+            current = []
+        else:
+            current.append(token)
+    return parts + [current]
+
+
+def _entrance_part_verdict(tokens, patterns, cwd):
+    index = _entrance_index(tokens)
+    if index is None:
+        return None
+    operands = _entrance_operands(tokens[index + 1:])
+    if operands and operands[0].value == '--':
+        operands = operands[1:]
+    if not operands:
+        return verdict.allow()
+    first = operands[0]
+    if first.value.startswith('-') and first.value != '-':
+        return verdict.unsupported(None, 'execution entrance option %s' % ascii(first.value))
+    return executed_file_verdict(first, patterns, cwd)
+
+
+def script_entrance_verdict(tokens, patterns, cwd):
+    """Judge every source or dot in a segment; None when the segment has no execution entrance."""
+    found = None
+    for part in _background_parts(tokens):
+        result = _entrance_part_verdict(part, patterns, cwd)
+        if result is not None and not result.allowed:
+            return result
+        found = found or result
+    return found
+
+
+# (#1451) A shell startup file is run as shell code, so the variables and options that name one are execution
+# entrances too: the file they name is judged by executed_file_verdict, never read.
+STARTUP_VARIABLES = re.compile(r'^(BASH_ENV|ENV)=(.*)$', re.S)
+STARTUP_OPTIONS = ('--rcfile', '--init-file')
+STARTUP_SHELLS = ('bash', 'sh', 'dash', 'ash', 'ksh', 'zsh', 'rbash')
+ASSIGNMENT_CARRIERS = ('export', 'env', 'declare', 'typeset', 'readonly', 'local')
+SHELL_VALUE_OPTIONS = ('-o', '+o', '-O', '+O')
+# Commands whose operands are data: a shell named after them is text, not an invocation.
+DATA_HEADS = ('echo', 'printf', 'grep', 'egrep', 'fgrep', 'rg', 'cat', 'ls')
+
+
+def _plain_words(tokens):
+    """Words of one command part without redirect operators and their targets."""
+    words, i = [], 0
+    while i < len(tokens):
+        if tokens[i].operator:
+            i += 2 if _is_redirect(tokens[i]) else 1
+            continue
+        words.append(tokens[i])
+        i += 1
+    return words
+
+
+def _startup_assignment_verdict(words, patterns, cwd):
+    """BASH_ENV= or ENV= in a prefix assignment, or after export, env and declaration builtins."""
+    carried = False
+    for word in words:
+        name = posixpath.basename(word.value)
+        match = STARTUP_VARIABLES.match(word.value)
+        if match and match.group(2):
+            found = executed_file_verdict(dataclasses.replace(word, value=match.group(2), parts=None), patterns, cwd)
+            if not found.allowed:
+                return found
+        if name in ASSIGNMENT_CARRIERS:
+            carried = True
+        elif not (carried or ASSIGNMENT.match(word.value) or name in ENTRANCE_PREFIXES):
+            return None
+    return None
+
+
+def _startup_option_verdict(words, patterns, cwd):
+    """--rcfile FILE and --init-file FILE among the options of a shell; the first operand ends the options."""
+    head = next((w for w in words if not (ASSIGNMENT.match(w.value) or w.value in ENTRANCE_PREFIXES)), None)
+    if head is None or posixpath.basename(head.value) in DATA_HEADS:
+        return None
+    shell = next((i for i, w in enumerate(words) if posixpath.basename(w.value) in STARTUP_SHELLS), None)
+    if shell is None:
+        return None
+    i = shell + 1
+    while i < len(words) and words[i].value.startswith(('-', '+')) and words[i].value not in ('-', '--'):
+        option = words[i].value
+        if option in STARTUP_OPTIONS and i + 1 < len(words):
+            found = executed_file_verdict(words[i + 1], patterns, cwd)
+            if not found.allowed:
+                return found
+            i += 2
+        elif option in SHELL_VALUE_OPTIONS or option in STARTUP_OPTIONS:
+            i += 2
+        else:
+            i += 1
+    return None
+
+
+def startup_file_verdict(tokens, patterns, cwd):
+    """Judge startup files named in a segment; None when it names none."""
+    for part in _background_parts(tokens):
+        words = _plain_words(part)
+        for check in (_startup_assignment_verdict, _startup_option_verdict):
+            found = check(words, patterns, cwd)
+            if found is not None:
+                return found
+    return None
+
+
 def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     """Judge one command segment between separators."""
     words = [t for t in tokens if not t.operator]
@@ -243,6 +413,15 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
                 return verdict.protected()
     if any(name.endswith('credential-extract.py') for name in names):
         return verdict.protected()
+    entrance = script_entrance_verdict(tokens, patterns, cwd)
+    if entrance is not None and not entrance.allowed:
+        return entrance
+    startup = startup_file_verdict(tokens, patterns, cwd)
+    if startup is not None:
+        return startup
+    found = exec_entrance_verdict(words, names, patterns)
+    if found is not None:
+        return found
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
@@ -263,6 +442,26 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     if not isinstance(plan, ReadPlan):
         return verdict.unsupported(adapter.exclusion_syntax, plan.detail)
     return judge(plan, patterns, cwd, index != 0)
+
+
+SSH_COMMAND_VARIABLE = 'GIT_SSH_COMMAND='
+
+
+def exec_entrance_verdict(words, names, patterns):
+    """(#1431) Judge command strings Git or its SSH variable will execute; None when the segment has none.
+
+    The string runs in a directory this text does not know, so it is judged like a Remote Wrapper command.
+    """
+    commands = [w.value[len(SSH_COMMAND_VARIABLE):] for w in words if w.value.startswith(SSH_COMMAND_VARIABLE)]
+    git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
+    reader_index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
+    if git_index is not None and (reader_index is None or git_index < reader_index):
+        commands += exec_strings(words[git_index + 1:])
+    for command in commands:
+        found = analyze(command, patterns, None, True) if command.strip() else verdict.allow()
+        if not found.allowed:
+            return found
+    return None
 
 
 def remote_wrapper_verdict(args, patterns):
