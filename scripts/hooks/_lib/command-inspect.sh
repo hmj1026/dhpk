@@ -300,7 +300,7 @@ _dhpk_ci_apply_set_allexport() {
 # can rebuild the words). A bare git value (g=git) stays with the subcommand
 # check at the use site.
 _dhpk_ci_git_value_risky() {
-    local val="${1,,}" ifs="$2" i=1 n sub
+    local raw="$1" val="${1,,}" ifs="$2" i=1 n sub
     local -a ws_a
     # Folded: ${l,,}, ${l^^}, ${l~~} and ${l@L} can rebuild git from other case.
     if [ "$ifs" = "1" ]; then
@@ -311,7 +311,9 @@ _dhpk_ci_git_value_risky() {
     case "$val" in
         *--no-verify*|*';'*|*'&'*|*'|'*|*$'\n'*|*'$('*|*'`'*|*'('*|*'<'*|*'>'*) return 0 ;;
     esac
-    read -r -a ws_a <<<"$val"
+    # Words keep their case (-C is not -c); the folded text only decides
+    # whether git is named and whether a mutation marker is present.
+    read -r -a ws_a <<<"$raw"
     n="${#ws_a[@]}"
     case "${ws_a[0]:-}" in
         git|*/git) ;;
