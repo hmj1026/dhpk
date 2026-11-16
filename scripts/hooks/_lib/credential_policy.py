@@ -227,6 +227,102 @@ def _invokes_reader(names, i):
     return i == 0 or names[i] not in WEAK_READERS or names[0] not in INERT_HEADS
 
 
+# (#1430) Execution entrances run a file as shell code rather than reading it for display, so they are
+# judged by their own rules and never planned as Readers. Startup-file variables may reuse the same
+# executed_file_verdict for the file they name.
+EXECUTION_ENTRANCES = ('source', '.')
+ENTRANCE_PREFIXES = {'!', '{', 'time', 'if', 'then', 'elif', 'else', 'do', 'while', 'until', 'command', 'builtin'}
+ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*\+?=')
+
+
+def _is_redirect(token):
+    return token.operator and token.value not in SEPARATORS and token.value not in ('&', '&!')
+
+
+def _entrance_index(tokens):
+    """Index of a source/dot word in command position, else None; redirects and prefixes are skipped."""
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token.operator:
+            i += 2 if _is_redirect(token) else 1
+            continue
+        nxt = tokens[i + 1] if i + 1 < len(tokens) else None
+        if token.value.isdigit() and nxt is not None and _is_redirect(nxt):
+            i += 1
+            continue
+        if token.value in EXECUTION_ENTRANCES:
+            return i
+        if token.value in ENTRANCE_PREFIXES or ASSIGNMENT.match(token.value):
+            i += 1
+            continue
+        return None
+    return None
+
+
+def _entrance_operands(tokens):
+    """Words after the entrance up to the next control operator, without redirect operands."""
+    operands, i = [], 0
+    while i < len(tokens):
+        if tokens[i].operator:
+            if not _is_redirect(tokens[i]):
+                break
+            i += 2
+            continue
+        operands.append(tokens[i])
+        i += 1
+    return operands
+
+
+def executed_file_verdict(token, patterns, cwd):
+    """Judge the file an execution entrance runs by its visible name only; its content is never read."""
+    if token.substitution or token.glob:
+        return verdict.ambiguous('execution entrance operand %s' % ascii(token.substitution or token.value),
+                                 'name the script to run as an explicit literal path without wildcards or command substitutions; '
+                                 'a Protected Path cannot be executed through source or a dot.')
+    if protected(token.value, patterns, cwd):
+        return verdict.protected('execution entrance operand')
+    return verdict.allow()
+
+
+def _background_parts(tokens):
+    """Split on `&`: each part starts a new command position."""
+    parts, current = [], []
+    for token in tokens:
+        if token.operator and token.value in ('&', '&!'):
+            parts.append(current)
+            current = []
+        else:
+            current.append(token)
+    return parts + [current]
+
+
+def _entrance_part_verdict(tokens, patterns, cwd):
+    index = _entrance_index(tokens)
+    if index is None:
+        return None
+    operands = _entrance_operands(tokens[index + 1:])
+    if operands and operands[0].value == '--':
+        operands = operands[1:]
+    if not operands:
+        return verdict.allow()
+    first = operands[0]
+    if first.value.startswith('-') and first.value != '-':
+        return verdict.unsupported(None, 'execution entrance option %s' % ascii(first.value))
+    return executed_file_verdict(first, patterns, cwd)
+
+
+def script_entrance_verdict(tokens, patterns, cwd):
+    """Judge every source or dot in a segment; None when the segment has no execution entrance."""
+    found = None
+    for part in _background_parts(tokens):
+        result = _entrance_part_verdict(part, patterns, cwd)
+        if result is not None and not result.allowed:
+            return result
+        found = found or result
+    return found
+
+
 def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     """Judge one command segment between separators."""
     words = [t for t in tokens if not t.operator]
@@ -243,6 +339,9 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
                 return verdict.protected()
     if any(name.endswith('credential-extract.py') for name in names):
         return verdict.protected()
+    entrance = script_entrance_verdict(tokens, patterns, cwd)
+    if entrance is not None and not entrance.allowed:
+        return entrance
     found = exec_entrance_verdict(words, names, patterns)
     if found is not None:
         return found
