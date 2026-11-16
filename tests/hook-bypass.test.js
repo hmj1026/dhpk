@@ -2709,4 +2709,164 @@ for (const [label, command, hooks, repos, reason] of UNVERIFIED_FAMILY_ALREADY_B
   });
 }
 
+// ---------------------------------------------------------------------------
+// #1435: read-only wrappers (watch, su, unbuffer, flock, $SHELL -c, $EDITOR,
+// find -exec data) are allowed when semantics prove read-only/data; dangerous
+// counterparts, dynamic git subcommands, and source-before-git stay blocked.
+// ---------------------------------------------------------------------------
+
+const READ_ONLY_WRAPPER_ALLOWED_1435 = [
+  ['watch -n1 git status', 'watch -n1 git status'],
+  ['watch -n 1 git log', 'watch -n 1 git log --oneline'],
+  ['watch -d git status', 'watch -d git status'],
+  // git diff / rg under a wrapper stay blocked by the credential guard (recursive read, unknown cwd); not a #1435 concern.
+  ['watch -x git status', 'watch -x git status'],
+  ['su -c git status', "su -c 'git status'"],
+  ['su -c git status as root', 'su -c "git status" root'],
+  ['su login -c git status', 'su - -c "git status"'],
+  ['unbuffer git log', 'unbuffer git log'],
+  ['unbuffer -p git status', 'unbuffer -p git status'],
+  ['flock git status', 'flock /tmp/l git status'],
+  ['flock -n git log', 'flock -n /tmp/l git log'],
+  ['$SHELL -c git status', '$SHELL -c "git status"'],
+  ['$SHELL -lc git log', "$SHELL -lc 'git log -n 1'"],
+  ['$EDITOR bare git filename', '$EDITOR git'],
+  ['$EDITOR with flag and bare git filename', '$EDITOR -w git'],
+  ['find -exec grep git', 'find . -exec grep -l git {} +'],
+  ['find -exec grep -c git', 'find . -exec grep -c git {} +'],
+  ['find -execdir grep git', 'find . -execdir grep -n git {} \\;'],
+];
+
+for (const [label, command] of READ_ONLY_WRAPPER_ALLOWED_1435) {
+  test(`#1435 allows read-only/data wrapper form on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
+const WRAPPER_MUTATION_ON_MAIN_1435 = [
+  ['watch -n1 git commit', 'watch -n1 git commit -m x'],
+  ['su -c git commit', 'su -c "git commit -m x" root'],
+  ['unbuffer git commit', 'unbuffer git commit -m x'],
+  ['flock git commit', 'flock /tmp/l git commit -m x'],
+  ['$SHELL -c git commit', '$SHELL -c "git commit -m x"'],
+];
+
+for (const [label, command] of WRAPPER_MUTATION_ON_MAIN_1435) {
+  test(`#1435 blocks mutating git on main behind unwrapped/inspected wrapper: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const WRAPPER_NO_VERIFY_1435 = [
+  ['watch -n1 --no-verify', 'watch -n1 git commit --no-verify -m x'],
+  ['su -c --no-verify', 'su -c "git commit --no-verify -m x"'],
+  ['unbuffer --no-verify', 'unbuffer git commit --no-verify -m x'],
+  ['flock --no-verify', 'flock /tmp/l git commit --no-verify -m x'],
+  ['$SHELL -c --no-verify', '$SHELL -c "git commit --no-verify -m x"'],
+  ['$EDITOR git commit --no-verify', '$EDITOR git commit --no-verify -m x'],
+  ['find -exec git commit --no-verify', 'find . -exec git commit --no-verify -m x \\;'],
+];
+
+for (const [label, command] of WRAPPER_NO_VERIFY_1435) {
+  test(`#1435 blocks --no-verify behind wrapper: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const WRAPPER_ALL_HOOKS_BLOCKED_1435 = [
+  ['watch quoted command string', "watch -n1 'git commit -m x'", /unmodelled wrapper before git/],
+  ['watch quoted shell command string', "watch -n1 'sh -c \"git commit -m x\"'", /unmodelled wrapper before git/],
+  ['watch unknown option', 'watch --unknown git commit -m x', /wrapper with unmodelled options before git/],
+  ['su -c with unknown option', 'su --unknown -c "git commit -m x"', /wrapper with unmodelled options before git|unmodelled wrapper before git/],
+  ['unbuffer unknown option', 'unbuffer --unknown git commit -m x', /wrapper with unmodelled options before git/],
+  ['flock -c command string', 'flock /tmp/l -c "git commit -m x"', /wrapper with unmodelled options before git|unmodelled wrapper before git/],
+  ['$SHELL reassigned before -c', 'SHELL=eval; $SHELL -c "git commit -m x"', /dynamic command word|unmodelled wrapper/],
+  ['$SHELL -c with dynamic payload and git', '$SHELL -c "$cmd" git commit', /dynamic command word/],
+  ['$EDITOR followed by git commit', '$EDITOR git commit -m x', /dynamic command word/],
+  ['dynamic head with quoted git commit', '$W "git commit -m x"', /dynamic command word/],
+  ['find -exec git commit', 'find . -exec git commit -m x {} +', /find -exec with git/],
+  ['find -exec sh -c git commit', "find . -exec sh -c 'git commit -m x' \\;", /find -exec with git/],
+  ['find second -exec git commit after grep', 'find . -exec grep -l git {} + -exec git commit -m x \\;', /find -exec with git/],
+  ['dynamic git subcommand', 'git $cmd', /dynamic git subcommand/],
+  ['dynamic git subcommand with --no-verify', 'git "$sub" --no-verify', /dynamic git subcommand|--no-verify/],
+];
+
+for (const [label, command, reason] of WRAPPER_ALL_HOOKS_BLOCKED_1435) {
+  test(`#1435 keeps blocking across all three hooks: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          const res = bashHook(hook, command, { cwd, env: BLOCK_MODE });
+          expectStatus(res, BLOCK, `${hook}: ${command}`);
+          assert.match(res.stderr, reason);
+          assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+          assert.doesNotMatch(res.stderr, /disable the guard/);
+        }
+      }
+    });
+  });
+}
+
+// Review follow-up: SHELL reassigned by an untracked form, trailing words
+// after the -c payload, and a dynamic or {} find -exec head stay blocked.
+const WRAPPER_REVIEW_BLOCKED_1435 = [
+  ['for SHELL in', 'for SHELL in git; do $SHELL -c a=b commit -m x; done'],
+  ['printf -v SHELL', 'printf -v SHELL git; $SHELL -c a=b commit -m x'],
+  ['${SHELL:=git}', ': ${SHELL:=git}; $SHELL -c a=b commit -m x'],
+  ['getopts SHELL', 'getopts x SHELL -x; $SHELL -c a=b commit -m x'],
+  ['mapfile SHELL', 'mapfile SHELL < /dev/null; $SHELL -c a=b commit -m x'],
+  ['$SHELL -c with trailing words', '$SHELL -c a.b=c commit -m x'],
+  ['find -exec dynamic head', 'find . -exec cat {} \\; -exec ${G:-git} commit \\;'],
+  ['find -exec {} head', 'find . -exec cat {} \\; -exec {} commit \\;'],
+];
+
+for (const [label, command] of WRAPPER_REVIEW_BLOCKED_1435) {
+  test(`#1435 blocks reassigned or unprovable wrapper heads on main: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+test('#1435 keeps existing conservative source-before-git restriction unchanged', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = 'source .venv/bin/activate && git status';
+    for (const cwd of [protectedRepo, featureRepo]) {
+      for (const hook of ALL_BASH_HOOKS) {
+        const res = bashHook(hook, command, { cwd, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, /git with source/);
+      }
+    }
+  });
+});
+
+test('#1435 su login -c blocks mutating git even from a feature branch (cwd changes)', () => {
+  withRepos(({ featureRepo }) => {
+    for (const command of ['su - -c "git commit -m x"', 'su -l -c "git commit -m x"']) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, /target repository is not a literal path/);
+      }
+    }
+  });
+});
+
 run('hook-bypass');
