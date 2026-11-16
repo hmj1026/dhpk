@@ -1755,7 +1755,7 @@ function verifyCodexSync(root, version, options = {}) {
     const res = spawnSync('bash', [installer, '--force'], {
       cwd: project,
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PLUGIN_ROOT: root, DHPK_CODEX_CONSUMER_EVIDENCE: '' },
+      env: { ...process.env, DHPK_INSTALLER_ROOT: root, DHPK_CODEX_CONSUMER_EVIDENCE: '' },
     });
     commands.push({ cmd: `bash ${path.relative(root, installer).split(path.sep).join('/')} --force (in clean project)`, exitCode: res.status });
     if (res.status !== 0) {
@@ -2304,7 +2304,7 @@ function verifyCursorSync(root, version) {
       encoding: 'utf8',
       env: {
         ...process.env,
-        CLAUDE_PLUGIN_ROOT: root,
+        DHPK_INSTALLER_ROOT: root,
         DHPK_HARNESS_KIND: 'cursor',
         DHPK_SRC_REL: 'cursor',
         DHPK_DEST_REL: '.cursor',

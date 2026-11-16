@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./copy-dereferenced');
 
 // Receipt, adoption, legacy, and recovery cases install this synthetic package
 // through the real installer. It does not copy the repository skill trees.
@@ -122,7 +123,7 @@ fs.writeFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), `${JSON.
 process.on('exit', () => fs.rmSync(ROOT, { recursive: true, force: true }));
 
 function copyDistributionInventory(plugin) {
-  fs.cpSync(path.join(ROOT, 'manifests'), path.join(plugin, 'manifests'), { recursive: true, dereference: true });
+  copyDereferenced(path.join(ROOT, 'manifests'), path.join(plugin, 'manifests'));
   fs.mkdirSync(path.join(plugin, 'scripts', 'lib'), { recursive: true });
   fs.copyFileSync(
     path.join(base.ROOT, 'scripts', 'lib', 'portable-skill-metadata.js'),

@@ -7,6 +7,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { resolveOwningPackageRoot } = require('./package-root');
 const { extractInvocationClass, KNOWN_INVOCATION_CLASSES } = require('../ci/_lib/frontmatter');
 
 function isContainedPath(parent, child) {
@@ -93,8 +94,15 @@ function resolveInvocationClass(root, rawTarget) {
 }
 
 if (require.main === module) {
-  const root = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
-  const value = resolveInvocationClass(root, process.argv[2]);
+  // The root is the package that physically holds this script (ADR 0038);
+  // CLAUDE_PLUGIN_ROOT is deliberately not consulted.
+  let root = null;
+  try {
+    root = resolveOwningPackageRoot({ fromDir: __dirname, levelsUp: 2, requiredAsset: 'skills' });
+  } catch (_error) {
+    root = null;
+  }
+  const value = root ? resolveInvocationClass(root, process.argv[2]) : null;
   if (value) process.stdout.write(`${value}\n`);
   else process.exitCode = 1;
 }

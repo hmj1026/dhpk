@@ -118,7 +118,7 @@ function packagedShell() {
 }
 
 function shellEnv(bin, home, plugin) {
-  return { PATH: bin ? `${CODEX_STUB_BIN}:${bin}` : `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, HOME: home, CLAUDE_PLUGIN_ROOT: plugin };
+  return { PATH: bin ? `${CODEX_STUB_BIN}:${bin}` : `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, HOME: home, DHPK_INSTALLER_ROOT: plugin };
 }
 
 function observe(host, argv, setup, layout = 'checkout') {

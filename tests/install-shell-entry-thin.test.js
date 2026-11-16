@@ -62,7 +62,7 @@ test('testShell_codex_prefersTheBundleBesideItAndNeedsOnlyNode', () => {
     }
     const result = spawnSync('bash', [path.join(lib, 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: project,
-      env: { PATH: `${CODEX_STUB_BIN}:${bin}`, CLAUDE_PLUGIN_ROOT: plugin },
+      env: { PATH: `${CODEX_STUB_BIN}:${bin}`, DHPK_INSTALLER_ROOT: plugin },
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
@@ -83,7 +83,7 @@ test('testShell_codex_withoutAnyInstallerEntry_failsWithExit2', () => {
     fs.copyFileSync(SCRIPTS.codex, path.join(lib, 'install-codex-skills.sh'));
     const result = spawnSync('bash', [path.join(lib, 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: project,
-      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, CLAUDE_PLUGIN_ROOT: plugin },
+      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, DHPK_INSTALLER_ROOT: plugin },
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 2);
@@ -109,7 +109,7 @@ test('testShell_codex_refusesASymlinkedBundle', () => {
     fs.symlinkSync(path.join(root, 'elsewhere.cjs'), path.join(lib, 'dhpk-installer.cjs'));
     const result = spawnSync('bash', [path.join(lib, 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: project,
-      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, CLAUDE_PLUGIN_ROOT: plugin },
+      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, DHPK_INSTALLER_ROOT: plugin },
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 2, result.stderr);
@@ -161,7 +161,7 @@ test('testShell_codex_runsTheGeneratedBundleAsTheInstaller', () => {
     fs.writeFileSync(path.join(lib, 'dhpk-installer.cjs'), buildInstallerBundle());
     const result = spawnSync('bash', [path.join(lib, 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: project,
-      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, CLAUDE_PLUGIN_ROOT: plugin },
+      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, DHPK_INSTALLER_ROOT: plugin },
       encoding: 'utf8',
       timeout: 60_000,
     });

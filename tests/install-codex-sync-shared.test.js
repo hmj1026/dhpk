@@ -22,7 +22,7 @@ const CURSOR_HOOK = path.join(REPO, 'scripts', 'hooks', 'install-cursor-harness.
 function runCursorInstaller(project, args, pluginRoot, extraEnv) {
   return spawnSync('bash', [CURSOR_HOOK, ...args], {
     cwd: project,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, ...(extraEnv || {}) },
+    env: { ...process.env, DHPK_INSTALLER_ROOT: pluginRoot, ...(extraEnv || {}) },
     encoding: 'utf8',
     timeout: 20000,
   });

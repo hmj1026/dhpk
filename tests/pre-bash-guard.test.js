@@ -484,11 +484,20 @@ test('active module pass hooks compose in order and a block stops later hooks', 
       fs.writeFileSync(path.join(hooksDir, `pre-bash-${name}.sh`), `#!/usr/bin/env bash\nprintf '%s\\n' '${label}' >> "$DHPK_TEST_MARKER"\nexit ${exitCode}\n`);
     }
 
-    const res = runHook('echo active module composition', repo, {
-      DHPK_ACTIVE_MODULES: 'batch-probe',
-      DHPK_BRANCH_SAFETY: 'off',
-      DHPK_TEST_MARKER: marker,
-    }, pluginRoot);
+    // Run the copied dispatcher: modules resolve from the package that owns
+    // the executing script, not from CLAUDE_PLUGIN_ROOT (ADR 0038).
+    const res = runHookRaw(path.join(pluginRoot, 'scripts', 'hooks', HOOK), {
+      payload: { tool_input: { command: 'echo active module composition' } },
+      cwd: repo,
+      projectDir: repo,
+      pluginRoot,
+      env: {
+        DHPK_ACTIVE_MODULES: 'batch-probe',
+        DHPK_BRANCH_SAFETY: 'off',
+        DHPK_TEST_MARKER: marker,
+      },
+      deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_MODULES'],
+    });
     assert.strictEqual(res.status, 2, `expected active module block to bubble up: ${res.stderr}`);
     assert.deepStrictEqual(fs.readFileSync(marker, 'utf8').trim().split('\n'), ['pass', 'block']);
   } finally {
@@ -515,7 +524,7 @@ test('module hook that exits without reading stdin does not turn a later block i
     // a stdin-ignoring child exits 0. The size sits in an ignored tool_input
     // field (a large `command` makes the core guard quadratic-slow, and the
     // harness env var caps at 128 KiB), so the command itself stays harmless.
-    const res = runHookRaw(HOOK, {
+    const res = runHookRaw(path.join(pluginRoot, 'scripts', 'hooks', HOOK), {
       payload: { tool_input: { command: 'echo active module composition', padding: 'a'.repeat(100 * 1024) } },
       cwd: repo,
       projectDir: repo,
@@ -710,6 +719,26 @@ test('parses sh/bash -c across option clusters and option terminators (#1409)', 
     const res = runHook(command);
     assert.strictEqual(res.status, 0, `${command}: expected allowed, got ${res.status} / ${res.stderr}`);
   }
+});
+
+test('pre-bash-dispatch fails closed (exit 2) when the package root cannot be resolved', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { spawnSync } = require('node:child_process');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prebash-root-'));
+  try {
+    const hooks = path.join(base, 'my pkg', 'scripts', 'hooks');
+    fs.mkdirSync(path.join(hooks, '_lib'), { recursive: true });
+    const src = path.join(__dirname, '..', 'scripts', 'hooks');
+    fs.copyFileSync(path.join(src, 'pre-bash-dispatch.sh'), path.join(hooks, 'pre-bash-dispatch.sh'));
+    fs.copyFileSync(path.join(src, '_lib', 'plugin-root.sh'), path.join(hooks, '_lib', 'plugin-root.sh'));
+    const res = spawnSync('bash', [path.join(hooks, 'pre-bash-dispatch.sh')], {
+      input: JSON.stringify({ tool_input: { command: 'echo hi' } }), encoding: 'utf8', cwd: base,
+    });
+    assert.strictEqual(res.status, 2, res.stderr);
+    assert.match(res.stderr, /\[pre-bash-dispatch\] cannot resolve dhpk package root; blocking/);
+  } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
 
 run('pre-bash-guard');

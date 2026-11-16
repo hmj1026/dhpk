@@ -64,7 +64,15 @@ if [ "$PLAN" -eq 1 ] && [ -n "$ADOPT_PATHS" ]; then die "ERROR: --plan cannot be
 
 SRC_REL="${DHPK_SRC_REL:-codex}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$HERE/../.." && pwd)}"
+# Data source (ADR 0038): DHPK_INSTALLER_ROOT is the only explicit selector and
+# must name an existing directory; otherwise this script's own package. The
+# CLAUDE_PLUGIN_ROOT environment value never selects a root, and an invalid
+# explicit source stops here with no fallback. Code still loads from $HERE.
+if [ -n "${DHPK_INSTALLER_ROOT:-}" ]; then
+    PLUGIN_ROOT="$(CDPATH="" cd -P -- "$DHPK_INSTALLER_ROOT" >/dev/null 2>&1 && pwd -P)" || die "ERROR: DHPK_INSTALLER_ROOT is not an existing directory: $DHPK_INSTALLER_ROOT"
+else
+    PLUGIN_ROOT="$(cd "$HERE/../.." && pwd -P)"
+fi
 PROJECT_ROOT="$(pwd)"
 if [ ! -d "$PLUGIN_ROOT/$SRC_REL" ]; then
     echo "[$NAME] ERROR: plugin $SRC_REL/ source not found" >&2
@@ -96,7 +104,7 @@ if ! command -v node >/dev/null 2>&1; then die "ERROR: node is required for the 
 export DHPK_HARNESS_KIND="${DHPK_HARNESS_KIND:-codex}" DHPK_SRC_REL="$SRC_REL"
 export DHPK_DEST_REL="${DHPK_DEST_REL:-.codex}" DHPK_INSTALLER_NAME="$NAME"
 export DHPK_SOURCE_KINDS="${DHPK_SOURCE_KINDS:-skills,agents}"
-export DHPK_PLUGIN_ROOT="$PLUGIN_ROOT" DHPK_INSTALLER_ROOT="${DHPK_INSTALLER_ROOT:-$(cd "$HERE/../.." && pwd)}"
+export DHPK_PLUGIN_ROOT="$PLUGIN_ROOT" DHPK_INSTALLER_ROOT="$PLUGIN_ROOT"
 export DHPK_PROJECT_ROOT="$PROJECT_ROOT" DHPK_MODE="$MODE" DHPK_MODE_EXPLICIT="$MODE_EXPLICIT"
 export DHPK_UPDATE="$UPDATE" DHPK_MIGRATE="$MIGRATE" DHPK_UNINSTALL="$UNINSTALL" DHPK_PLAN="$PLAN"
 export DHPK_RECOVER="$RECOVER" DHPK_JSON_OUTPUT="$JSON_OUTPUT"

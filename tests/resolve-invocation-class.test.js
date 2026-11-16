@@ -8,6 +8,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -91,6 +92,27 @@ test('accepts canonical in-root symlinks and a symlinked plugin root', () => {
   } finally {
     fs.rmSync(rootAlias, { recursive: true, force: true });
     fs.rmSync(pluginRoot, { recursive: true, force: true });
+  }
+});
+
+test('CLI answers from its own package even when CLAUDE_PLUGIN_ROOT names a foreign tree', () => {
+  const foreign = makeResolverFixture();
+  try {
+    fs.mkdirSync(path.join(foreign, 'skills', 'change-verdict'), { recursive: true });
+    fs.writeFileSync(
+      path.join(foreign, 'skills', 'change-verdict', 'SKILL.md'),
+      '---\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\n',
+    );
+    for (const value of [foreign, '', path.join(foreign, 'missing')]) {
+      const res = spawnSync(process.execPath, [SCRIPT, 'dhpk:change-verdict'], {
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PLUGIN_ROOT: value },
+      });
+      assert.strictEqual(res.status, 0, `env=${value}: ${res.stderr}`);
+      assert.strictEqual(res.stdout.trim(), 'implicit-eligible', `env=${value}`);
+    }
+  } finally {
+    fs.rmSync(foreign, { recursive: true, force: true });
   }
 });
 

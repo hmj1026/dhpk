@@ -36,7 +36,7 @@ const USER_RULE = '---\nname: prefer-const\ndescription: user edit\nalwaysApply:
 function shell(project, args, plugin, env = {}) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
-    env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, CLAUDE_PLUGIN_ROOT: plugin, ...env },
+    env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, DHPK_INSTALLER_ROOT: plugin, ...env },
     encoding: 'utf8',
     timeout: 60_000,
   });

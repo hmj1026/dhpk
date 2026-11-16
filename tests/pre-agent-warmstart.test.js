@@ -125,4 +125,22 @@ test('monitor receives process identity only within the 300-character budget', (
   assert.ok(!context.includes('OpenSpec active change:'));
 }));
 
+test('routing hint names this package absolute path, not CLAUDE_PLUGIN_ROOT', () => {
+  withScratchProject((scratch) => {
+    const foreign = path.join(scratch, 'foreign plugin');
+    fs.mkdirSync(foreign);
+    const payload = JSON.stringify({ tool_input: { subagent_type: 'explorer', prompt: '' } });
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: scratch, CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'standard',
+      DHPK_AGENT_WARMSTART: '1', CLAUDE_PLUGIN_ROOT: foreign };
+    const res = spawnSync('bash', ['-c', 'printf %s "$1" | bash "$2"', '_', payload, HOOK], {
+      cwd: scratch, env, encoding: 'utf8', timeout: 10000,
+    });
+    const context = parseOutput(res);
+    const expected = path.join(fs.realpathSync(ROOT), 'rules', 'tool-routing.md');
+    assert.ok(context.includes(`(see ${expected})`), context);
+    assert.ok(!context.includes('${CLAUDE_PLUGIN_ROOT}'), context);
+    assert.ok(!context.includes(foreign), context);
+  });
+});
+
 run('pre-agent-warmstart');

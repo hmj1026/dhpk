@@ -113,6 +113,8 @@ jobs:
       - name: Validate JavaScript guardrails
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-js-guardrails.js
+      - name: Validate plugin root resolution
+        run: node scripts/ci/validate-plugin-root-resolution.js
 
       # Structure check (bash). Exit 1 = errors (fail); exit 2 = warnings (ok).
       - name: Harness structure
