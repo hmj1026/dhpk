@@ -6,9 +6,9 @@ UnsupportedSyntax so the policy fails closed.
 """
 
 from collections import namedtuple
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-READERS = ('cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg')
+READERS = ('cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg', 'base64', 'dd')
 # Only Readers that can recurse have exclusion syntax for an Exclusion Proof.
 EXCLUSION_SYNTAX = {'rg': '--glob "!pattern"', 'grep': '--exclude="pattern"'}
 
@@ -54,6 +54,12 @@ RECURSE = (False, 'recursive')
 def _grammar(name):
     short = {}
     long = {}
+    if name == 'base64':
+        # -i 在 GNU 是忽略雜訊（無值）、在 BSD 是輸入檔；一律當作帶值的輸入檔處理，
+        # 兩種解讀下被讀取的檔案都會被檢查。-o 只決定輸出，不是讀取來源。
+        short.update({'d': NEUTRAL, 'D': NEUTRAL, 'h': NEUTRAL, 'w': VALUE, 'b': VALUE, 'i': FILE, 'o': VALUE})
+        long.update({'--decode': NEUTRAL, '--ignore-garbage': NEUTRAL, '--help': NEUTRAL, '--version': NEUTRAL,
+                     '--wrap': VALUE, '--break': VALUE, '--input': FILE, '--output': VALUE})
     if name in ('cat', 'less'):
         short.update({c: NEUTRAL for c in 'AbBenstuvETNXRSFiM'})
     if name in ('head', 'tail'):
@@ -207,7 +213,45 @@ class ReaderAdapter:
                     else:
                         invalid = True
             i += 1
-        return ReadPlan(name, tuple(positional), tuple(auxiliary), recursive, follow, tuple(exclusions), not invalid)
+        return ReadPlan(name, tuple(positional), tuple(auxiliary), recursive, follow, tuple(exclusions), not invalid,
+                        recovery=FILE_INPUT_RECOVERY if name == 'base64' else None)
 
 
-ADAPTERS = {name: ReaderAdapter(name, *_grammar(name)) for name in READERS}
+# `if=` operands that dd reads as data; every other operand only shapes the copy.
+DD_VALUE_OPERANDS = frozenset((
+    'of', 'bs', 'ibs', 'obs', 'cbs', 'count', 'skip', 'seek', 'iseek', 'oseek', 'conv',
+    'iflag', 'oflag', 'status', 'skip_bytes', 'count_bytes', 'seek_bytes'))
+
+# 這兩個 Reader 的輸入是檔案路徑，不是搜尋目錄，所以不建議 git grep。
+FILE_INPUT_RECOVERY = Recovery(
+    'name each input as an explicit literal path without wildcards or shell expansions.', None)
+
+
+@dataclass(frozen=True)
+class DdAdapter:
+    """dd names its input with the `if=` operand, not with dashes or bare filenames."""
+    name: str = 'dd'
+    exclusion_syntax = None
+
+    def plan(self, args):
+        if len(args) == 1 and args[0].value in ('--help', '--version'):
+            return ReadPlan('dd', (), (), False, False, (), True)
+        # 反引號內的字會被詞法切成多個字；含命令替換就直接交給政策判定為無法確定的來源。
+        substituted = tuple(t for t in args if t.substitution)
+        if substituted:
+            return ReadPlan('dd', substituted, (), False, False, (), True, recovery=FILE_INPUT_RECOVERY)
+        targets = []
+        for token in args:
+            key, sep, value = token.value.partition('=')
+            # 只回報運算元名稱，不回報值，避免受保護路徑出現在訊息中。
+            if token.operator or not sep:
+                return UnsupportedSyntax('dd operand is not name=value')
+            if key == 'if':
+                targets.append(replace(token, value=value))
+            elif key not in DD_VALUE_OPERANDS:
+                return UnsupportedSyntax('dd operand %s' % ascii(key))
+        return ReadPlan('dd', tuple(targets), (), False, False, (), True, recovery=FILE_INPUT_RECOVERY)
+
+
+ADAPTERS = {name: ReaderAdapter(name, *_grammar(name)) for name in READERS if name != 'dd'}
+ADAPTERS['dd'] = DdAdapter()
