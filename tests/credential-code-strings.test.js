@@ -47,6 +47,9 @@ const blocked = [
   "sudo -u nobody sh -c 'cat .env'",
   "f=.env; bash -c 'cat $f'",
   'bash -c "bash -c \\"cat .env\\""',
+  // source 與 dot 在字串裡也走 #1430 的執行入口判定
+  'bash -c ". .env"',
+  'eval "source .env"',
   // trap 動作（T03 T05 T08）
   "trap 'cat .env' DEBUG; :",
   "trap 'cat .env' EXIT",
@@ -88,6 +91,8 @@ const allowed = [
   "bash -c 'cat ordinary'",
   "bash -c 'git status'",
   "bash -c 'ls -l'",
+  'bash -c ". ordinary"',
+  'eval "source ordinary"',
   'bash -c "$cmd"',
   'bash ./script.sh',
   "echo bash -c 'cat .env'",

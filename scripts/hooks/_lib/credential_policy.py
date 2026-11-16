@@ -13,6 +13,7 @@ import sys
 
 from credential_shell import lex
 from credential_expand import expand_variants
+from credential_code import code_strings, expand_aliases
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings
 from credential_scan import MAX_SECONDS, budget_seconds
@@ -387,6 +388,32 @@ def exec_entrance_verdict(words, names, patterns):
     return None
 
 
+CODE_DEPTH_LIMIT = 6
+_code_depth = [0]
+
+
+def code_string_verdict(tokens, patterns, cwd, remote, checked):
+    """(#1450) Judge every command string the text runs through eval, a shell, trap, an alias or arithmetic.
+
+    Each string goes through `analyze` again, so a string follows the same policy as the same text typed directly.
+    """
+    for command in code_strings(tokens):
+        if command in checked:
+            continue
+        checked.add(command)
+        if _code_depth[0] >= CODE_DEPTH_LIMIT:
+            return verdict.ambiguous('shell code string nesting', 'run each nested shell code string as its own command, '
+                                     'or write the command directly instead of nesting it more than %d levels.' % CODE_DEPTH_LIMIT)
+        _code_depth[0] += 1
+        try:
+            found = analyze(command, patterns, cwd, remote, True)
+        finally:
+            _code_depth[0] -= 1
+        if not found.allowed:
+            return found
+    return verdict.allow()
+
+
 def remote_wrapper_verdict(args, patterns):
     """`ssh` is a Remote Wrapper: its command is judged with no local knowledge."""
     i = 0
@@ -483,8 +510,13 @@ def analyze(command, patterns, cwd, remote=False, nested=False, executed=False, 
     git_relocated = any(not t.operator and (RELOCATING_VARIABLES.match(t.value) or RELOCATING_VARIABLES.match(t.value + '='))
                         for t in tokens)
     # 同一段文字可見的大括號、參數預設值與先前指派，先解成可能的詞再逐一判斷（#1427）。
+    checked = set()
     for variant in expand_variants(tokens) or [tokens]:
-        found = _judge_segments(variant, patterns, cwd, git_relocated)
+        # 先套用可見的 alias 改綁，再判斷 eval 等價的程式碼字串與各段讀取（#1450）。
+        variant = expand_aliases(variant)
+        found = code_string_verdict(variant, patterns, cwd, remote, checked)
+        if found.allowed:
+            found = _judge_segments(variant, patterns, cwd, git_relocated)
         if not found.allowed:
             return found
     return verdict.allow()
