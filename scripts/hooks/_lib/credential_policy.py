@@ -12,7 +12,7 @@ import sys
 
 from credential_shell import lex
 from credential_expand import expand_variants
-from credential_options import ADAPTERS, READERS, ReadPlan, exclusion_syntax
+from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES
 from credential_scan import MAX_SECONDS, budget_seconds
 import time
@@ -152,8 +152,8 @@ def judge(plan, patterns, cwd, wrapped):
     if not plan.recursive:
         return verdict.allow()
     syntax = exclusion_syntax(plan.reader)
-    # rg only escapes recursive scope for explicit, known regular local files.
-    if plan.reader == 'rg' and plan.targets and cwd is not None and not wrapped and not any(t.dynamic for t in plan.targets):
+    # rg, tar and cp only escape recursive scope for explicit, known regular local files.
+    if plan.reader in ('rg', 'tar', 'cp') and plan.targets and cwd is not None and not wrapped and not any(t.dynamic for t in plan.targets):
         try:
             if all(stat.S_ISREG(os.lstat(os.path.join(cwd, t.value)).st_mode) for t in plan.targets):
                 return verdict.allow()
@@ -219,6 +219,13 @@ def listing_verdict(plan, patterns, cwd):
     return None
 
 
+def _invokes_reader(names, i):
+    """A Reader word is an invocation, except a weak name such as `tar` after an information-only head."""
+    if names[i] not in READERS:
+        return False
+    return i == 0 or names[i] not in WEAK_READERS or names[0] not in INERT_HEADS
+
+
 def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     """Judge one command segment between separators."""
     words = [t for t in tokens if not t.operator]
@@ -236,7 +243,7 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     if any(name.endswith('credential-extract.py') for name in names):
         return verdict.protected()
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
-    index = next((i for i, name in enumerate(names) if name in READERS or name == 'ssh'), None)
+    index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
     if git_index is not None and (index is None or git_index < index):
         plan = GIT_ADAPTER.plan(words[git_index + 1:], words[:git_index], git_relocated)
