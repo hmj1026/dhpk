@@ -86,7 +86,7 @@ const allowed = [
   'eval "cat .env.example"',
   'eval : .env',
   "eval 'echo .env'",
-  'eval "$cmd"',
+  'eval "echo ok"',
   `bash ${HS} 'echo hello'`,
   "bash -c 'cat ordinary'",
   "bash -c 'git status'",
