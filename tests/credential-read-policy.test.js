@@ -636,4 +636,64 @@ test('pretool-git-gate allows a heredoc commit message whose body holds quotes (
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
+// #1432: a substitution shortcut trusts a familiar command name, so a visible
+// function of that name invalidates it. Every shadowed form keeps a control
+// where the same function names are unrelated to the substitution.
+const shadowedSubstitutions = [
+  'pwd(){ echo .env; }; cat $(pwd)',
+  'function pwd { echo .env; }; cat $(pwd)',
+  'pwd () { echo .env; }; cat "$(pwd)"',
+  'function pwd() { echo .env; }; cat $(pwd)',
+  '"pwd"(){ echo .env; }; cat $(pwd)',
+  'pwd(){ echo .; }; cat $(pwd)/ordinary',
+  'git(){ echo .env; }; cat $(git rev-parse --show-toplevel)',
+  'git(){ echo .; }; cat $(git rev-parse --show-toplevel)/ordinary',
+  'pwd(){ echo .env; }; echo "$(cat $(pwd))"',
+  'pwd(){ echo .env; }\ncat $(pwd)',
+  'pwd(){ echo .env; } && cat $(pwd)',
+];
+const unshadowedSubstitutions = [
+  'cat $(pwd)/ordinary',
+  'cat "$(pwd)/ordinary"',
+  'cat $(git rev-parse --show-toplevel)/ordinary',
+  'ls(){ echo x; }; cat $(pwd)/ordinary',
+  'git(){ :; }; cat $(pwd)/ordinary',
+  'pwd(){ :; }; cat $(git rev-parse --show-toplevel)/ordinary',
+  'echo pwd; cat $(pwd)/ordinary',
+  'echo "pwd(){ echo .env; }"; cat $(pwd)/ordinary',
+  'pwd; cat $(pwd)/ordinary',
+];
+// Reader operands that a substitution produces stay blocked: its output is unknown before it runs.
+const substitutionOperands = [
+  'cat $(echo .env)', 'cat `echo .env`', 'cat "$(ls)"', 'cat $(cat list)', 'cat $(pwd; echo .env)',
+  'cat $(pwd)/$(echo .env)', 'head -n 1 $(basename ordinary)',
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
+  test(`${hook} blocks a trusted substitution shortcut when a visible function shadows it (#1432)`, () => {
+    for (const command of shadowedSubstitutions) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /command substitution/, JSON.stringify(command));
+      assert.ok(!result.stderr.includes('synthetic'), 'no file content in the reason');
+    }
+  });
+  test(`${hook} keeps the pwd and git toplevel shortcuts when no function shadows them (#1432)`, () => {
+    for (const command of unshadowedSubstitutions) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+    assert.strictEqual(decide('cat $(pwd)/.env').status, 2);
+    assert.strictEqual(decide('cat $(git rev-parse --show-toplevel)/.env').status, 2);
+  });
+  test(`${hook} keeps a reason and a rewrite direction for a Reader substitution operand (#1432)`, () => {
+    for (const command of substitutionOperands) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /command substitution/, JSON.stringify(command));
+      assert.match(result.stderr, /explicit|literal|narrow/i, `rewrite direction: ${result.stderr}`);
+    }
+  });
+}
+
 run('credential-read-policy');

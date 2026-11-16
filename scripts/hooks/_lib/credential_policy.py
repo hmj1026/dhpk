@@ -1,6 +1,7 @@
 """Credential path and invocation policy, without reading target contents."""
 
 import fnmatch
+import dataclasses
 import functools
 import hashlib
 import os
@@ -288,7 +289,38 @@ def remote_wrapper_verdict(args, patterns):
     return analyze(' '.join(t.value for t in args[i:]), patterns, None, True)
 
 
-def analyze(command, patterns, cwd, remote=False, nested=False, executed=False):
+# (#1432) command a trusted `$(...)` shortcut runs; a visible function of that name voids the shortcut.
+SHORTCUT_COMMANDS = {'pwd': 'pwd', 'git rev-parse --show-toplevel': 'git'}
+SHORTCUT_TEXT = re.compile(r'\$\(\s*(pwd|git rev-parse --show-toplevel)\s*\)')
+
+
+def shadowed_commands(tokens):
+    """Names a shortcut relies on that the visible text redefines as a function."""
+    defined = set()
+    for index, token in enumerate(tokens[:-1]):
+        if token.operator:
+            continue
+        following = tokens[index + 1:index + 3]
+        if token.value == 'function' and not following[0].operator:
+            defined.add(following[0].value)
+        elif len(following) == 2 and [(t.operator, t.value) for t in following] == [(True, '('), (True, ')')]:
+            defined.add(token.value)
+    return defined & set(SHORTCUT_COMMANDS.values())
+
+
+def distrust_shadowed(tokens, shadowed):
+    """Turn a `$(pwd)` or `$(git rev-parse --show-toplevel)` word whose command is shadowed into a substitution."""
+    if not shadowed:
+        return tokens
+    result = []
+    for token in tokens:
+        found = None if token.operator or token.substitution or not token.dynamic else next(
+            (m for m in SHORTCUT_TEXT.finditer(token.value) if SHORTCUT_COMMANDS[m.group(1)] in shadowed), None)
+        result.append(dataclasses.replace(token, substitution=found.group()) if found else token)
+    return result
+
+
+def analyze(command, patterns, cwd, remote=False, nested=False, executed=False, shadowed=frozenset()):
     """Return the Credential Verdict for one agent command."""
     try:
         # 一次詞法分析取得字詞、命令替換與 heredoc 展開，三者共用同一個引號狀態機。
@@ -296,7 +328,9 @@ def analyze(command, patterns, cwd, remote=False, nested=False, executed=False):
     except ValueError as error:
         # scanner 以固定字串拒絕有歧義的 shell 語法；這是語法不支援，不是檢查失敗。
         return verdict.unsupported(None, 'shell syntax: %s' % error)
-    tokens, bodies = lexed.tokens, lexed.bodies
+    # 同一段文字可見的函式若重新定義 pwd 或 git，受信任的替換捷徑就不再可信（#1432）。
+    shadowed = shadowed | shadowed_commands(lexed.tokens)
+    tokens, bodies = distrust_shadowed(lexed.tokens, shadowed), lexed.bodies
     # 原始字串會漏掉引號或跳脫後的 cd，也會誤判 heredoc 資料；先以正規化 token 判斷範圍。
     command_head = True
     for token in tokens:
@@ -313,11 +347,11 @@ def analyze(command, patterns, cwd, remote=False, nested=False, executed=False):
     if remote:
         cwd = None
     for body in bodies:
-        found = analyze(body, patterns, cwd, remote, True, lexed.executed)
+        found = analyze(body, patterns, cwd, remote, True, lexed.executed, shadowed)
         if not found.allowed:
             return found
     for body in lexed.executed_bodies:
-        found = analyze(body, patterns, cwd, remote, True, True)
+        found = analyze(body, patterns, cwd, remote, True, True, shadowed)
         if not found.allowed:
             return found
     if not nested and safe_extraction(tokens, remote):
