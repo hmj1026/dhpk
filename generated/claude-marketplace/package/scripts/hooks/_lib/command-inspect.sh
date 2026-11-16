@@ -426,16 +426,16 @@ _dhpk_ci_fn_name_from_last() {
     [ "$ncmd" -gt 0 ] || return 0
     start="${DHPK_CMD_START[$((ncmd - 1))]}"
     len="${DHPK_CMD_LEN[$((ncmd - 1))]}"
-    w="${DHPK_WORDS[$start]:-}"
-    if [ "$w" = "function" ] && [ "$len" -gt 1 ]; then
-        _dhpk_ci_fn_pending_name="${DHPK_WORDS[$((start + 1))]:-}"
-    else
-        _dhpk_ci_fn_pending_name="$w"
-    fi
+    # The name is the word just before `(`. A leading `{`, `then`, or `do`
+    # opens a body and is not the name.
+    [ "$len" -gt 0 ] || return 0
+    w="${DHPK_WORDS[$((start + len - 1))]:-}"
+    _dhpk_ci_fn_pending_name="$w"
 }
 
 # A later definition replaces the body. The call is judged from this text.
 # fn_keep: a definition that may not run must not erase a body that is still live.
+# frozen is cleared here. A definition that cannot run seals it again.
 _dhpk_ci_fn_reset() {
     local name="$1" i=0
     [ -n "$name" ] || return 0
@@ -444,24 +444,138 @@ _dhpk_ci_fn_reset() {
             if [ "${_dhpk_ci_fn_keep:-0}" != "1" ]; then
                 _dhpk_ci_shfn_body[$i]=""
             fi
+            _dhpk_ci_shfn_frozen[$i]=0
             return 0
         fi
         i=$((i + 1))
     done
     _dhpk_ci_shfn_name+=("$name")
     _dhpk_ci_shfn_body+=("")
+    _dhpk_ci_shfn_frozen+=("0")
+}
+
+# This definition's text is not executed. Keep the body that is still live.
+_dhpk_ci_fn_freeze() {
+    local name="$1" i=0
+    while [ "$i" -lt "${#_dhpk_ci_shfn_name[@]}" ]; do
+        if [ "${_dhpk_ci_shfn_name[$i]}" = "$name" ]; then
+            _dhpk_ci_shfn_frozen[$i]=1
+            return 0
+        fi
+        i=$((i + 1))
+    done
+}
+
+# Open the definition named by fn_pending. A conditional keeps the old body.
+# A literal `false &&` or `true ||` seals it so the new text is not recorded.
+_dhpk_ci_fn_open_def() {
+    local name="$1"
+    _dhpk_ci_fn_keep=0
+    if [ "${_dhpk_ci_fn_pending_cond:-0}" = "1" ] || [ "${_dhpk_ci_fn_pending_dead:-0}" = "1" ]; then
+        _dhpk_ci_fn_keep=1
+    fi
+    _dhpk_ci_fn_reset "$name"
+    _dhpk_ci_fn_sealed=0
+    if [ "${_dhpk_ci_fn_pending_dead:-0}" = "1" ]; then
+        _dhpk_ci_fn_freeze "$name"
+        _dhpk_ci_fn_sealed=1
+    fi
+    _dhpk_ci_fn_keep=0
+    _dhpk_ci_fn_pending=0
+    _dhpk_ci_fn_pending_cond=0
+    _dhpk_ci_fn_pending_dead=0
+}
+
+# The previous command is a literal false/true, so this && / || side cannot run.
+# The current command is not in DHPK_CMD yet.
+_dhpk_ci_note_intro_dead() {
+    local ncmd start len w
+    _dhpk_ci_cmd_intro_dead=0
+    case "${_dhpk_ci_prev_sep:-}" in
+        and|or) ;;
+        *) return 0 ;;
+    esac
+    ncmd="${#DHPK_CMD_START[@]}"
+    [ "$ncmd" -ge 1 ] || return 0
+    start="${DHPK_CMD_START[$((ncmd - 1))]}"
+    len="${DHPK_CMD_LEN[$((ncmd - 1))]}"
+    [ "$len" -eq 1 ] || return 0
+    w="${DHPK_WORDS[$start]:-}"
+    case "${_dhpk_ci_prev_sep:-}" in
+        and) [ "$w" != "false" ] || _dhpk_ci_cmd_intro_dead=1 ;;
+        or) [ "$w" != "true" ] || _dhpk_ci_cmd_intro_dead=1 ;;
+    esac
+    return 0
+}
+
+# if/while/until/for/select/case after `name()` or `function name` is the body.
+_dhpk_ci_fn_is_compound_body() {
+    local i=0 w skipped_name=0
+    while [ "$i" -lt "${#_dhpk_ci_words[@]}" ]; do
+        [ "${_dhpk_ci_quoted[$i]:-0}" != "0" ] && return 1
+        w="${_dhpk_ci_words[$i]}"
+        case "$w" in
+            function) skipped_name=1; i=$((i + 1)) ;;
+            '!'|time|coproc) i=$((i + 1)) ;;
+            if|while|until|for|select|case) return 0 ;;
+            *)
+                if [ "$skipped_name" -eq 1 ]; then
+                    skipped_name=0
+                    i=$((i + 1))
+                    continue
+                fi
+                return 1
+                ;;
+        esac
+    done
+    return 1
+}
+
+_dhpk_ci_fn_compound_open() {
+    local d="${_dhpk_ci_fn_cdepth:-0}" name="${_dhpk_ci_fn_pending_name:-}"
+    _dhpk_ci_fn_open_def "$name"
+    _dhpk_ci_fn_cname[$d]="$name"
+    _dhpk_ci_fn_cbase[$d]="${_dhpk_ci_block:-0}"
+    _dhpk_ci_fn_cexport[$d]="${_dhpk_ci_allexport:-0}"
+    _dhpk_ci_fn_csticky[$d]="${_dhpk_ci_git_env_sticky:-0}"
+    _dhpk_ci_fn_clast[$d]="${_dhpk_ci_lastpipe:-0}"
+    _dhpk_ci_fn_cifs[$d]="${_dhpk_ci_ifs_custom:-0}"
+    _dhpk_ci_fn_cdepth=$((d + 1))
+    _dhpk_ci_fn_copened=1
+}
+
+_dhpk_ci_fn_compound_close() {
+    local top
+    while [ "${_dhpk_ci_fn_cdepth:-0}" -gt 0 ] \
+        && [ "${_dhpk_ci_block:-0}" -eq "${_dhpk_ci_fn_cbase[$((_dhpk_ci_fn_cdepth - 1))]}" ]; do
+        _dhpk_ci_fn_cdepth=$((_dhpk_ci_fn_cdepth - 1))
+        top="$_dhpk_ci_fn_cdepth"
+        if [ "${_dhpk_ci_allexport:-0}" -eq 0 ]; then
+            _dhpk_ci_allexport="${_dhpk_ci_fn_cexport[$top]}"
+        fi
+        if [ "${_dhpk_ci_fn_csticky[$top]:-0}" = "1" ]; then
+            _dhpk_ci_git_env_sticky=1
+        fi
+        if [ "${_dhpk_ci_lastpipe:-0}" -eq 0 ]; then
+            _dhpk_ci_lastpipe="${_dhpk_ci_fn_clast[$top]}"
+        fi
+        if [ "${_dhpk_ci_fn_cifs[$top]:-0}" = "1" ]; then
+            _dhpk_ci_ifs_custom=1
+        fi
+    done
 }
 
 # The live function table, so a subshell can redefine names and then give
 # them back. Length prefixes keep names and bodies that contain the separator.
 _dhpk_ci_fn_save_live() {
-    local i=0 n=0 out="" name body sep=$'\x1f'
+    local i=0 n=0 out="" name body fr sep=$'\x1f'
     n="${#_dhpk_ci_shfn_name[@]}"
     out="$n"
     while [ "$i" -lt "$n" ]; do
         name="${_dhpk_ci_shfn_name[$i]}"
         body="${_dhpk_ci_shfn_body[$i]-}"
-        out+="${sep}${#name}${sep}${name}${sep}${#body}${sep}${body}"
+        fr="${_dhpk_ci_shfn_frozen[$i]:-0}"
+        out+="${sep}${#name}${sep}${name}${sep}${#body}${sep}${body}${sep}${fr}"
         i=$((i + 1))
     done
     _dhpk_ci_shfn_snap[$1]="$out"
@@ -493,9 +607,10 @@ _dhpk_ci_fn_set_body() {
     _dhpk_ci_shfn_body+=("$body")
 }
 _dhpk_ci_fn_restore_live() {
-    local raw="${_dhpk_ci_shfn_snap[$1]-}" sep=$'\x1f' n=0 i=0 len=0 name="" body=""
+    local raw="${_dhpk_ci_shfn_snap[$1]-}" sep=$'\x1f' n=0 i=0 len=0 name="" body="" fr=0
     _dhpk_ci_shfn_name=()
     _dhpk_ci_shfn_body=()
+    _dhpk_ci_shfn_frozen=()
     [ -n "$raw" ] || return 0
     n="${raw%%"$sep"*}"
     case "$n" in
@@ -514,8 +629,15 @@ _dhpk_ci_fn_restore_live() {
         raw="${raw#*"$sep"}"
         body="${raw:0:$len}"
         raw="${raw:$len}"
+        raw="${raw#*"$sep"}"
+        fr="${raw%%"$sep"*}"
+        case "$fr" in
+            1) ;;
+            *) fr=0 ;;
+        esac
         _dhpk_ci_shfn_name+=("$name")
         _dhpk_ci_shfn_body+=("$body")
+        _dhpk_ci_shfn_frozen+=("$fr")
         i=$((i + 1))
         if [ "$i" -lt "$n" ]; then
             raw="${raw#*"$sep"}"
@@ -523,22 +645,118 @@ _dhpk_ci_fn_restore_live() {
     done
 }
 
+# Innermost `name()` body. Its tokens stay off the live table until `)`.
+_dhpk_ci_fn_paren_slot_for() {
+    local name="$1" p
+    _dhpk_ci_fn_paren_slot=-1
+    [ "${_dhpk_ci_fn_depth:-0}" -eq 0 ] || return 1
+    [ "${_dhpk_ci_fn_cdepth:-0}" -eq 0 ] || return 1
+    [ "${_dhpk_ci_fn_simple:-0}" -eq 0 ] || return 1
+    p=$((${_dhpk_ci_paren:-0} - 1))
+    while [ "$p" -ge 0 ]; do
+        if [ "${_dhpk_ci_shfn_saved[$p]:-0}" = "2" ]; then
+            if [ "${_dhpk_ci_fn_paren_stk[$p]:-}" = "$name" ]; then
+                _dhpk_ci_fn_paren_slot=$p
+                return 0
+            fi
+            return 1
+        fi
+        p=$((p - 1))
+    done
+    return 1
+}
+
+# Turn `C name` into S or U from the table as it is before a subshell restore.
+_dhpk_ci_fn_resolve_calls() {
+    local rest="$1" line="" out="" name=""
+    _dhpk_ci_fn_resolved_body=""
+    while [ -n "$rest" ]; do
+        line="${rest%%$'\n'*}"
+        case "$rest" in
+            *$'\n'*) rest="${rest#*$'\n'}" ;;
+            *) rest="" ;;
+        esac
+        case "$line" in
+            C\ *)
+                name="${line#C }"
+                _dhpk_ci_fn_kind_of "$name"
+                case "${_dhpk_ci_fn_resolved:-none}" in
+                    stdin) line="S" ;;
+                    opaque) line="U" ;;
+                esac
+                ;;
+        esac
+        if [ -n "$out" ]; then
+            out="${out}"$'\n'"$line"
+        else
+            out="$line"
+        fi
+    done
+    _dhpk_ci_fn_resolved_body="$out"
+}
+
+# `name` before `()` was recorded as a call. It is the definition, not a call.
+_dhpk_ci_fn_strip_line() {
+    local text="$1" line="$2" nl=$'\n'
+    _dhpk_ci_fn_stripped="$text"
+    if [ "$text" = "$line" ]; then
+        _dhpk_ci_fn_stripped=""
+        return 0
+    fi
+    case "$text" in
+        *"$nl$line") _dhpk_ci_fn_stripped="${text%"$nl$line"}" ;;
+    esac
+}
+
+_dhpk_ci_fn_drop_def_token() {
+    local name="$1" text="" slot=0
+    [ -n "$name" ] || return 0
+    _dhpk_ci_fn_defining_name || return 0
+    if _dhpk_ci_fn_paren_slot_for "$_dhpk_ci_fn_def_name"; then
+        slot="$_dhpk_ci_fn_paren_slot"
+        text="${_dhpk_ci_fn_pbuf[$slot]:-}"
+        _dhpk_ci_fn_strip_line "$text" "C $name"
+        _dhpk_ci_fn_pbuf[$slot]="$_dhpk_ci_fn_stripped"
+        return 0
+    fi
+    _dhpk_ci_fn_body_of "$_dhpk_ci_fn_def_name" || return 0
+    text="${_dhpk_ci_fn_one-}"
+    _dhpk_ci_fn_strip_line "$text" "C $name"
+    _dhpk_ci_fn_set_body "$_dhpk_ci_fn_def_name" "$_dhpk_ci_fn_stripped"
+}
+
 _dhpk_ci_fn_add_token() {
-    local name="$1" token="$2" i=0
+    local name="$1" token="$2" i=0 found=0 slot=0 cur=""
     [ -n "$name" ] || return 0
     while [ "$i" -lt "${#_dhpk_ci_shfn_name[@]}" ]; do
         if [ "${_dhpk_ci_shfn_name[$i]}" = "$name" ]; then
-            if [ -n "${_dhpk_ci_shfn_body[$i]:-}" ]; then
-                _dhpk_ci_shfn_body[$i]="${_dhpk_ci_shfn_body[$i]}"$'\n'"$token"
-            else
-                _dhpk_ci_shfn_body[$i]="$token"
-            fi
-            return 0
+            [ "${_dhpk_ci_shfn_frozen[$i]:-0}" = "1" ] && return 0
+            found=1
+            break
         fi
         i=$((i + 1))
     done
+    if _dhpk_ci_fn_paren_slot_for "$name"; then
+        slot="$_dhpk_ci_fn_paren_slot"
+        cur="${_dhpk_ci_fn_pbuf[$slot]:-}"
+        if [ -n "$cur" ]; then
+            _dhpk_ci_fn_pbuf[$slot]="${cur}"$'\n'"$token"
+        else
+            _dhpk_ci_fn_pbuf[$slot]="$token"
+        fi
+        return 0
+    fi
+    if [ "$found" -eq 1 ]; then
+        if [ -n "${_dhpk_ci_shfn_body[$i]:-}" ]; then
+            _dhpk_ci_shfn_body[$i]="${_dhpk_ci_shfn_body[$i]}"$'\n'"$token"
+        else
+            _dhpk_ci_shfn_body[$i]="$token"
+        fi
+        return 0
+    fi
     _dhpk_ci_shfn_name+=("$name")
     _dhpk_ci_shfn_body+=("$token")
+    _dhpk_ci_shfn_frozen+=("0")
 }
 
 # stdin: the body runs a shell that reads stdin. opaque: the body may, and
@@ -603,6 +821,11 @@ _dhpk_ci_fn_defining_name() {
     fi
     if [ "${_dhpk_ci_fn_depth:-0}" -gt 0 ]; then
         _dhpk_ci_fn_def_name="${_dhpk_ci_fn_name_stk[$((_dhpk_ci_fn_depth - 1))]:-}"
+        [ -n "$_dhpk_ci_fn_def_name" ]
+        return $?
+    fi
+    if [ "${_dhpk_ci_fn_cdepth:-0}" -gt 0 ]; then
+        _dhpk_ci_fn_def_name="${_dhpk_ci_fn_cname[$((_dhpk_ci_fn_cdepth - 1))]:-}"
         [ -n "$_dhpk_ci_fn_def_name" ]
         return $?
     fi
@@ -1488,11 +1711,7 @@ _dhpk_ci_fn_see_open_brace() {
     if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ]; then
         _dhpk_ci_fn_name_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_fn_pending_name:-}"
         # &&, ||, and a conditional block may not run this definition.
-        _dhpk_ci_fn_keep=0
-        [ "${_dhpk_ci_fn_pending_cond:-0}" = "1" ] && _dhpk_ci_fn_keep=1
-        _dhpk_ci_fn_reset "${_dhpk_ci_fn_pending_name:-}"
-        _dhpk_ci_fn_keep=0
-        _dhpk_ci_fn_pending_cond=0
+        _dhpk_ci_fn_open_def "${_dhpk_ci_fn_pending_name:-}"
         _dhpk_ci_fn_allexport_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_allexport:-0}"
         _dhpk_ci_fn_sticky_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_git_env_sticky:-0}"
         _dhpk_ci_fn_lastpipe_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_lastpipe:-0}"
@@ -3508,9 +3727,11 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_ifs_stamp_at="${_dhpk_ci_ifs_stamp:-0}"
         _dhpk_ci_cmd_prev_sep="${_dhpk_ci_prev_sep:-}"
         _dhpk_ci_cmd_intro_cond=0
-        if [ "${_dhpk_ci_prev_sep:-}" = "and" ] || [ "${_dhpk_ci_prev_sep:-}" = "or" ] || [ "${_dhpk_ci_block:-0}" -gt 0 ] || [ "${_dhpk_ci_fn_depth:-0}" -gt 0 ]; then
+        if [ "${_dhpk_ci_prev_sep:-}" = "and" ] || [ "${_dhpk_ci_prev_sep:-}" = "or" ] || [ "${_dhpk_ci_block:-0}" -gt 0 ] || [ "${_dhpk_ci_fn_depth:-0}" -gt 0 ] || [ "${_dhpk_ci_fn_cdepth:-0}" -gt 0 ]; then
             _dhpk_ci_cmd_intro_cond=1
         fi
+        _dhpk_ci_fn_copened=0
+        _dhpk_ci_note_intro_dead
         _dhpk_ci_cmd_ifs_set=1
         _dhpk_ci_rf_at="${#_dhpk_ci_rf_name[@]}"
         _dhpk_ci_last_group_cmd0=-1
@@ -3580,6 +3801,7 @@ _dhpk_ci_flush_command() {
                 _dhpk_ci_func=1
                 _dhpk_ci_fn_pending=1
                 _dhpk_ci_fn_pending_cond="${_dhpk_ci_cmd_intro_cond:-0}"
+                _dhpk_ci_fn_pending_dead="${_dhpk_ci_cmd_intro_dead:-0}"
                 _dhpk_ci_fn_pending_name=""
                 if [ $((h + 1)) -lt "$n" ]; then
                     _dhpk_ci_fn_pending_name="${_dhpk_ci_words[$((h + 1))]}"
@@ -3601,12 +3823,18 @@ _dhpk_ci_flush_command() {
                 esac
                 k=$((k + 1))
             done
-            if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ] && [ "$head" != "function" ]; then
+            if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ] && _dhpk_ci_fn_is_compound_body; then
+                _dhpk_ci_fn_compound_open
+            elif [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ] && [ "$head" != "function" ]; then
                 _dhpk_ci_fn_simple_allexport="${_dhpk_ci_allexport:-0}"
                 _dhpk_ci_fn_simple_sticky="${_dhpk_ci_git_env_sticky:-0}"
                 _dhpk_ci_fn_simple_lastpipe="${_dhpk_ci_lastpipe:-0}"
                 _dhpk_ci_fn_simple_name="${_dhpk_ci_fn_pending_name:-}"
-                _dhpk_ci_fn_pending=0
+                if [ "${_dhpk_ci_fn_pending_dead:-0}" = "1" ]; then
+                    _dhpk_ci_fn_open_def "${_dhpk_ci_fn_pending_name:-}"
+                else
+                    _dhpk_ci_fn_pending=0
+                fi
                 _dhpk_ci_fn_simple=1
             fi
             case "$_dhpk_ci_u_head" in
@@ -3930,6 +4158,28 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_cwd=""
         fi
         _dhpk_ci_prev_sep="$sep"
+        # `function name if ...` keeps the opener after the head, so the
+        # pre-head walk never counts it. Count it once before the frame closes.
+        if [ "${_dhpk_ci_fn_copened:-0}" = "1" ]; then
+            k=0
+            while [ "$k" -lt "$n" ]; do
+                case "${_dhpk_ci_words[$k]}" in
+                    if|while|until|for|select|case)
+                        if [ "$k" -ge "$h" ] && [ "$kwhead" != "${_dhpk_ci_words[$k]}" ]; then
+                            _dhpk_ci_block=$((_dhpk_ci_block + 1))
+                            case "${_dhpk_ci_words[$k]}" in
+                                if) _dhpk_ci_grp_push if "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                                case) _dhpk_ci_grp_push case "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                                *) _dhpk_ci_grp_push loop "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                            esac
+                        fi
+                        break
+                        ;;
+                esac
+                k=$((k + 1))
+            done
+        fi
+        _dhpk_ci_fn_compound_close
         _dhpk_ci_finish_command_input
     fi
     # Heredocs opened by this command: the body is data for cat, tee, and
@@ -4868,21 +5118,31 @@ _dhpk_ci_list_run() {
         local _dhpk_ci_ifs_outer="${_dhpk_ci_ifs_custom:-0}"
         local _dhpk_ci_ifs_custom="$_dhpk_ci_ifs_outer"
     fi
-    local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
-    local _dhpk_ci_fn_pending_name="" _dhpk_ci_pipe_text="" _dhpk_ci_pipe_known=1
+    local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_fn_cdepth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
+    local _dhpk_ci_fn_pending_name="" _dhpk_ci_fn_pending_dead=0 _dhpk_ci_cmd_intro_dead=0
+    local _dhpk_ci_pipe_text="" _dhpk_ci_pipe_known=1
     local _dhpk_ci_subst_text="" _dhpk_ci_subst_known=1 _dhpk_ci_ps_hold=0
     # A nested list inherits functions already defined outside it. Copy
     # before the local arrays below hide the caller's table. Definitions
-    # inside this list stay here.
-    local -a _dhpk_ci_shfn_name_in _dhpk_ci_shfn_body_in
-    _dhpk_ci_shfn_name_in=()
-    _dhpk_ci_shfn_body_in=()
-    if [ -n "${_dhpk_ci_shfn_name+x}" ]; then
-        _dhpk_ci_shfn_name_in=("${_dhpk_ci_shfn_name[@]+"${_dhpk_ci_shfn_name[@]}"}")
-        _dhpk_ci_shfn_body_in=("${_dhpk_ci_shfn_body[@]+"${_dhpk_ci_shfn_body[@]}"}")
+    # inside this list stay here, unless eval or source runs in this shell.
+    local _dhpk_ci_share_fns=0
+    if [ "$_dhpk_ci_kind" = "body" ] && [ "$_dhpk_ci_share_here" = "1" ]; then
+        _dhpk_ci_share_fns=1
     fi
-    local -a _dhpk_ci_shfn_name _dhpk_ci_shfn_body _dhpk_ci_fn_name_stk _dhpk_ci_fn_paren_stk
+    if [ "$_dhpk_ci_share_fns" = "0" ]; then
+        local -a _dhpk_ci_shfn_name_in _dhpk_ci_shfn_body_in
+        _dhpk_ci_shfn_name_in=()
+        _dhpk_ci_shfn_body_in=()
+        if [ -n "${_dhpk_ci_shfn_name+x}" ]; then
+            _dhpk_ci_shfn_name_in=("${_dhpk_ci_shfn_name[@]+"${_dhpk_ci_shfn_name[@]}"}")
+            _dhpk_ci_shfn_body_in=("${_dhpk_ci_shfn_body[@]+"${_dhpk_ci_shfn_body[@]}"}")
+        fi
+        local -a _dhpk_ci_shfn_name _dhpk_ci_shfn_body _dhpk_ci_shfn_frozen
+    fi
+    local -a _dhpk_ci_fn_name_stk _dhpk_ci_fn_paren_stk
     local -a _dhpk_ci_shfn_snap _dhpk_ci_shfn_saved
+    local -a _dhpk_ci_fn_pbuf _dhpk_ci_fn_pkeep
+    local -a _dhpk_ci_fn_cname _dhpk_ci_fn_cbase _dhpk_ci_fn_cexport _dhpk_ci_fn_csticky _dhpk_ci_fn_clast _dhpk_ci_fn_cifs
     local -a _dhpk_ci_ps_at _dhpk_ci_ps_body _dhpk_ci_ps_ok _dhpk_ci_outps_q
     local -a _dhpk_ci_pin_text _dhpk_ci_pin_known _dhpk_ci_pin_live
     local -a _dhpk_ci_gpin_text _dhpk_ci_gpin_known _dhpk_ci_gpin_live
@@ -4896,12 +5156,28 @@ _dhpk_ci_list_run() {
     _dhpk_ci_rf_mark=()
     _dhpk_ci_ifs_stk=()
     _dhpk_ci_paren_stamp=()
-    _dhpk_ci_shfn_name=("${_dhpk_ci_shfn_name_in[@]+"${_dhpk_ci_shfn_name_in[@]}"}")
-    _dhpk_ci_shfn_body=("${_dhpk_ci_shfn_body_in[@]+"${_dhpk_ci_shfn_body_in[@]}"}")
+    if [ "$_dhpk_ci_share_fns" = "0" ]; then
+        _dhpk_ci_shfn_name=("${_dhpk_ci_shfn_name_in[@]+"${_dhpk_ci_shfn_name_in[@]}"}")
+        _dhpk_ci_shfn_body=("${_dhpk_ci_shfn_body_in[@]+"${_dhpk_ci_shfn_body_in[@]}"}")
+        _dhpk_ci_shfn_frozen=()
+        local _dhpk_ci_fr_i=0
+        while [ "$_dhpk_ci_fr_i" -lt "${#_dhpk_ci_shfn_name[@]}" ]; do
+            _dhpk_ci_shfn_frozen+=("0")
+            _dhpk_ci_fr_i=$((_dhpk_ci_fr_i + 1))
+        done
+    fi
     _dhpk_ci_shfn_snap=()
     _dhpk_ci_shfn_saved=()
     _dhpk_ci_fn_name_stk=()
     _dhpk_ci_fn_paren_stk=()
+    _dhpk_ci_fn_pbuf=()
+    _dhpk_ci_fn_pkeep=()
+    _dhpk_ci_fn_cname=()
+    _dhpk_ci_fn_cbase=()
+    _dhpk_ci_fn_cexport=()
+    _dhpk_ci_fn_csticky=()
+    _dhpk_ci_fn_clast=()
+    _dhpk_ci_fn_cifs=()
     _dhpk_ci_ps_at=()
     _dhpk_ci_ps_body=()
     _dhpk_ci_ps_ok=()
@@ -5090,14 +5366,13 @@ _dhpk_ci_list_run() {
                 # so it must not also be scanned as a simple function body.
                 if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ]; then
                     _dhpk_ci_fn_paren_stk[$_dhpk_ci_paren]="${_dhpk_ci_fn_pending_name:-}"
-                    _dhpk_ci_fn_keep=0
-                    [ "${_dhpk_ci_fn_pending_cond:-0}" = "1" ] && _dhpk_ci_fn_keep=1
-                    _dhpk_ci_fn_reset "${_dhpk_ci_fn_pending_name:-}"
-                    _dhpk_ci_fn_keep=0
-                    _dhpk_ci_fn_pending=0
-                    _dhpk_ci_fn_pending_cond=0
-                    # The body runs in a subshell when called. Keep this
-                    # function's new text, and put every other name back.
+                    _dhpk_ci_fn_open_def "${_dhpk_ci_fn_pending_name:-}"
+                    _dhpk_ci_fn_pbuf[$_dhpk_ci_paren]=""
+                    _dhpk_ci_fn_pkeep[$_dhpk_ci_paren]=0
+                    [ "${_dhpk_ci_fn_sealed:-0}" = "1" ] && _dhpk_ci_fn_pkeep[$_dhpk_ci_paren]=1
+                    # The body runs in a subshell when called. Tokens stay in
+                    # pbuf so an inner definition cannot replace them. `)`
+                    # resolves calls, then puts every other name back.
                     _dhpk_ci_fn_save_live "$_dhpk_ci_paren"
                     _dhpk_ci_shfn_saved[$_dhpk_ci_paren]=2
                 else
@@ -5152,17 +5427,24 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_func=1
                     _dhpk_ci_fn_pending=1
                     _dhpk_ci_fn_pending_cond="${_dhpk_ci_cmd_intro_cond:-0}"
+                    _dhpk_ci_fn_pending_dead="${_dhpk_ci_cmd_intro_dead:-0}"
                     _dhpk_ci_fn_name_from_last
+                    _dhpk_ci_fn_drop_def_token "${_dhpk_ci_fn_pending_name:-}"
                 fi
                 _dhpk_ci_paren_empty=0
                 if [ "$_dhpk_ci_paren" -gt 0 ] && [ "$_dhpk_ci_grp_depth" -gt 0 ] \
                     && [ "${_dhpk_ci_grp_kind[$((_dhpk_ci_grp_depth - 1))]}" = "paren" ]; then
                     _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
                     if [ "${_dhpk_ci_shfn_saved[$_dhpk_ci_paren]:-0}" = "2" ]; then
-                        _dhpk_ci_fn_body_of "${_dhpk_ci_fn_paren_stk[$_dhpk_ci_paren]:-}"
-                        _dhpk_ci_fn_kept="${_dhpk_ci_fn_one-}"
+                        _dhpk_ci_fn_paren_name="${_dhpk_ci_fn_paren_stk[$_dhpk_ci_paren]:-}"
+                        if [ "${_dhpk_ci_fn_pkeep[$_dhpk_ci_paren]:-0}" != "1" ]; then
+                            _dhpk_ci_fn_resolve_calls "${_dhpk_ci_fn_pbuf[$_dhpk_ci_paren]:-}"
+                            _dhpk_ci_fn_kept="${_dhpk_ci_fn_resolved_body-}"
+                        fi
                         _dhpk_ci_fn_restore_live "$_dhpk_ci_paren"
-                        _dhpk_ci_fn_set_body "${_dhpk_ci_fn_paren_stk[$_dhpk_ci_paren]:-}" "$_dhpk_ci_fn_kept"
+                        if [ "${_dhpk_ci_fn_pkeep[$_dhpk_ci_paren]:-0}" != "1" ] && [ -n "$_dhpk_ci_fn_paren_name" ]; then
+                            _dhpk_ci_fn_set_body "$_dhpk_ci_fn_paren_name" "$_dhpk_ci_fn_kept"
+                        fi
                     elif [ "${_dhpk_ci_shfn_saved[$_dhpk_ci_paren]:-0}" = "1" ]; then
                         _dhpk_ci_fn_restore_live "$_dhpk_ci_paren"
                     fi
@@ -5387,10 +5669,12 @@ _dhpk_ci_list_run() {
         done
     fi
     if [ "$_dhpk_ci_kind" = "top" ] && [ "${DHPK_GIT_COUNT:-0}" -gt 0 ]; then
-        if [ "$_dhpk_ci_saw_eval" -eq 1 ]; then
-            _dhpk_ci_unsupported "git with eval"
-        elif [ "${_dhpk_ci_saw_shell_feed:-0}" -eq 1 ]; then
+        # A shell fed git text wins: an eval that only defined the shell
+        # function must not soften the reason.
+        if [ "${_dhpk_ci_saw_shell_feed:-0}" -eq 1 ]; then
             _dhpk_ci_unsupported "git fed to a shell"
+        elif [ "$_dhpk_ci_saw_eval" -eq 1 ]; then
+            _dhpk_ci_unsupported "git with eval"
         elif [ "$_dhpk_ci_saw_source" -eq 1 ]; then
             _dhpk_ci_unsupported "git with source"
         elif [ "$_dhpk_ci_saw_cd_dash" -eq 1 ]; then
@@ -5399,8 +5683,6 @@ _dhpk_ci_list_run() {
             _dhpk_ci_unsupported "git with CDPATH"
         elif [ "$_dhpk_ci_saw_shell_hs" -eq 1 ]; then
             _dhpk_ci_unsupported "git with here-string fed to shell"
-        elif [ "${_dhpk_ci_saw_shell_feed:-0}" -eq 1 ]; then
-            _dhpk_ci_unsupported "git fed to a shell"
         fi
     fi
     if [ "$_dhpk_ci_kind" != "top" ]; then
