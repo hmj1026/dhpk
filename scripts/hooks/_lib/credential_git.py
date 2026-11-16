@@ -781,7 +781,7 @@ GIT_ADAPTER = GitAdapter()
 GLOBAL_VALUES = ('-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--exec-path',
                  '--super-prefix', '--attr-source', '--list-cmds')
 # 各子指令中帶值的短選項；叢集裡遇到它就停止，後面的字元是它的值。
-SHORT_VALUES = {'rebase': 'sXCSm', 'difftool': 't'}
+SHORT_VALUES = {'rebase': 'sXCSm', 'difftool': 't', 'clone': 'obcjl'}
 
 
 # (#1454) 不會啟動 pager 的子指令；其餘（含解析不出的別名）一律當成會分頁，因為判定字串只有在含可見的
@@ -927,6 +927,33 @@ def git_pages(args, injected=()):
 UNRESOLVED_CONFIG = 'config value that cannot be paired with its key'
 
 
+def _remote_command(text):
+    """(#1455 r3) The command part of an `ext::` remote URL (`% ` is a space, `%%` a percent); other text as is."""
+    if not text.startswith('ext::'):
+        return text
+    return text[5:].replace('% ', ' ').replace('%%', '%')
+
+
+# (#1455 r3) 子指令帶的「遠端程式」選項：(長選項, 短選項)。值是 git 會執行的命令。
+REMOTE_PROGRAM_OPTIONS = {
+    'fetch': (('upload-pack', ''),), 'pull': (('upload-pack', ''),),
+    'ls-remote': (('upload-pack', ''), ('exec', '')), 'clone': (('upload-pack', 'u'),),
+    'push': (('receive-pack', ''), ('exec', '')), 'archive': (('exec', ''),),
+}
+
+
+def _remote_program_strings(subcommand, rest):
+    found = []
+    for long_name, short_letter in REMOTE_PROGRAM_OPTIONS.get(subcommand, ()):
+        j = 0
+        while j < len(rest) and rest[j].value != '--':
+            hit = _option_value(rest, j, long_name, short_letter, subcommand)
+            if hit:
+                found.append(hit[0])
+            j = hit[1] if hit else j + 1
+    return found
+
+
 def exec_strings(args, env=None, injected=()):
     """(command strings, unresolved keys) of a git invocation: command-valued `-c`/injected settings,
     `rebase --exec`, `submodule foreach`, `difftool --extcmd` and `bisect run`. `args` follow the `git` word.
@@ -943,20 +970,23 @@ def exec_strings(args, env=None, injected=()):
             unresolved.append(key)
     settings = list(settings) + list(injected)
     resolved = _resolved_subcommand(subcommand, _aliases(settings))
-    page = paging is not False and (paging is True or pages(resolved))
+    # 沒有 git 參數（只是匯出設定）時不知道之後跑什麼，pager 設定照樣判定。
+    page = not args or (paging is not False and (paging is True or pages(resolved)))
     found = []
     for key, value in settings:
         kind = _config_kind(key)
-        if kind is None or kind.startswith('alias:') and not value.startswith('!'):
-            continue
         if kind == 'pager' and not page:
             continue
-        if kind.startswith('pager:') and (paging is False or kind[6:] not in (subcommand.lower(), resolved.lower())):
+        if kind is not None and kind.startswith('pager:') and (
+                paging is False or kind[6:] not in (subcommand.lower(), resolved.lower())):
             continue
-        found.append(_command_text(key, value))
+        # (#1455 r3) 其餘的值也可能是命令；只有字串帶可見的受保護讀取才會擋下，`-c user.name=x` 不受影響。
+        found.append(_remote_command(_command_text(key, value)))
     if i >= len(args):
         return [text for text in found if text.strip()], unresolved
     rest = args[i + 1:]
+    found += _remote_program_strings(subcommand, rest)
+    found += [_remote_command(a.value) for a in rest if a.value.startswith('ext::')]
     if subcommand == 'rebase':
         j = 0
         while j < len(rest) and rest[j].value != '--':
