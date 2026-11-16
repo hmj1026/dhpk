@@ -3039,4 +3039,74 @@ for (const [label, command] of EXEC_ENTRANCE_ALLOWED_1448) {
   });
 }
 
+// #1452: a variable whose value is visibly assigned in the same command and
+// then used as the command word (or as a shell -c payload) is command-word
+// construction. A value that names git and is not provably read-only blocks
+// with the stable "dynamic command word" reason.
+const GIT_VAR_BLOCKED_1452 = [
+  ['quoted value used as the word', "l='git commit --no-verify -m x'; $l"],
+  ['value with trailing arguments', "c='git commit --no-verify'; $c -m x"],
+  ['plain commit value', "l='git commit -m x'; $l"],
+  ['value as shell -c payload', "l='git commit --no-verify -m x'; bash -c \"$l\""],
+  ['value as sh -c payload', "l='git commit --no-verify -m x'; sh -c \"$l\""],
+  ['export assignment', "export l='git commit --no-verify -m x'; $l"],
+  ['declare assignment', "declare l='git commit --no-verify -m x'; $l"],
+  ['local assignment in a function', "f() { local l='git commit --no-verify -m x'; $l; }; f"],
+  ['braced expansion', "l='git commit --no-verify -m x'; ${l}"],
+  ['double-quoted single word', "l='git commit --no-verify -m x'; \"$l\""],
+  ['array expansion', 'a=(git commit --no-verify -m x); "${a[@]}"'],
+  ['use after &&', "l='git commit --no-verify -m x'; true && $l"],
+  ['use after several statements', "l='git commit --no-verify -m x'; echo hi; echo there; $l"],
+  ['push value', "l='git push --force origin main'; $l"],
+];
+
+for (const [label, command] of GIT_VAR_BLOCKED_1452) {
+  test(`#1452 blocks on main (gate and dispatcher): ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+  test(`#1452 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+test('#1452 names the dynamic command word and a rewrite direction', () => {
+  withRepos(({ featureRepo }) => {
+    const res = bashHook('pre-bash-guard.sh', "l='git commit --no-verify -m x'; $l", { cwd: featureRepo, env: BLOCK_MODE });
+    expectStatus(res, BLOCK, 'guard');
+    assert.match(res.stderr, /dynamic command word/);
+    assert.match(res.stderr, /rewrite/i);
+  });
+});
+
+const GIT_VAR_ALLOWED_1452 = [
+  ['value without git', 'p=ls; $p'],
+  ['multi-word value without git', "p='ls -l'; $p"],
+  ['read-only git status value', "l='git status'; $l"],
+  ['read-only git log value', "l='git log --oneline'; $l"],
+  ['single-word git value with read-only use', 'g=git; $g status'],
+  ['value only echoed', "l='git commit -m x'; echo \"$l\""],
+  ['assignment never used as a word', "l='git commit -m x'"],
+  ['git text inside echo', "echo \"l='git commit'\""],
+];
+
+for (const [label, command] of GIT_VAR_ALLOWED_1452) {
+  test(`#1452 allows on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
 run('hook-bypass');
