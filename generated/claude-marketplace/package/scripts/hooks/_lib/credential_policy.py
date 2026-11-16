@@ -957,13 +957,17 @@ def _judge_segments(tokens, patterns, cwd, git_relocated):
     resume, depth = None, 0
     for token in _join_pipelines(tokens) + [type('End', (), {'operator': True, 'value': ';'})()]:
         if token.operator and token.value in SEPARATORS:
-            found = segment_verdict(segment, patterns, uncertain_cwd, git_relocated)
-            if found.allowed:
-                found = xargs_stdin_verdict(segment, feeders.producers, patterns, uncertain_cwd, git_relocated)
-            if not found.allowed:
-                return found
-            if any(not t.operator and posixpath.basename(t.value) == 'cd' for t in segment):
-                uncertain_cwd = None
+            # The outer words before a `$(` are resumed after its `)` and judged once,
+            # when the outer command ends; judging every prefix again is quadratic.
+            opens_substitution = not depth and token.value == '(' and segment and segment[-1].substitution
+            if not opens_substitution:
+                found = segment_verdict(segment, patterns, uncertain_cwd, git_relocated)
+                if found.allowed:
+                    found = xargs_stdin_verdict(segment, feeders.producers, patterns, uncertain_cwd, git_relocated)
+                if not found.allowed:
+                    return found
+                if any(not t.operator and posixpath.basename(t.value) == 'cd' for t in segment):
+                    uncertain_cwd = None
             continued = None
             if depth:
                 depth += (token.value == '(') - (token.value == ')')
