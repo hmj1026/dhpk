@@ -2948,4 +2948,95 @@ for (const [label, command] of STARTUP_FILE_ALLOWED_1449) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// #1448: a trap action, an alias rebinding and an arithmetic consumer's
+// subscript evaluation of quoted text or variable values run command text like
+// eval does. Each form blocks on the protected fixture (all three hooks) and,
+// through the shared unsupported-syntax verdict, on the feature fixture
+// (guard + dispatcher). Legitimate neighbours stay allowed.
+// ---------------------------------------------------------------------------
+
+const EXEC_ENTRANCE_BLOCKED_1448 = [
+  // RC1 trap
+  ['trap DEBUG literal commit (T01)', "trap 'git commit -m x' DEBUG; :", /git with trap/],
+  ['trap DEBUG verify-skip (T02)', "trap 'git commit --no-verify -m x' DEBUG; :", /git with trap/],
+  ['trap EXIT literal commit (T04)', "trap 'git commit -m x' EXIT", /git with trap/],
+  ['trap ERR literal commit (T06)', "trap 'git commit -m x' ERR; false", /git with trap/],
+  ['trap action from a visible variable (T07)', "x='git commit -m x'; trap \"$x\" DEBUG; :", /unresolved trap action/],
+  ['trap action with no visible source (T09, P1)', 'trap "$CMD" DEBUG; :', /unresolved trap action/],
+  ['trap option terminator (T13)', "trap -- 'git commit -m x' DEBUG; :", /git with trap/],
+  ['trap signal 0 (T14)', "trap 'git commit -m x' 0", /git with trap/],
+  ['bash -c wrapping DEBUG trap (N01)', "bash -c \"trap 'git commit -m x' DEBUG; :\"", /git with trap/],
+  ['bash -c wrapping DEBUG trap verify-skip (N05)', "bash -c \"trap 'git commit --no-verify -m x' DEBUG; :\"", /git with trap/],
+  // RC2 alias
+  ['alias echo to eval, later line (L01)', "shopt -s expand_aliases\nalias echo=eval\necho 'git commit -m x'", /alias/],
+  ['alias name for git (L03)', 'shopt -s expand_aliases\nalias g=git\ng commit -m x', /alias/],
+  ['alias echo to eval verify-skip (L08)', "shopt -s expand_aliases\nalias echo=eval\necho 'git commit --no-verify -m x'", /alias/],
+  ['alias used in a function body (L10)', "shopt -s expand_aliases; alias e=eval\nf() { e 'git commit -m x'; }; f", /alias/],
+  ['alias with full git subcommand (L11)', "shopt -s expand_aliases\nalias gc='git commit'\ngc -m x", /alias/],
+  ['alias used in a brace group (L12)', "shopt -s expand_aliases; alias e=eval\n{ e 'git commit -m x'; }", /alias/],
+  ['bash -O expand_aliases -c alias to eval (X14)', "bash -O expand_aliases -c 'alias e=eval\ne \"git commit -m x\"'", /alias/],
+  ['sh -c alias to eval (X15)', "sh -c 'alias e=eval\ne \"git commit -m x\"'", /alias/],
+  ['alias through BASH_ALIASES', 'BASH_ALIASES[e]=eval\ne \'git commit -m x\'', /alias/],
+  ['alias to a wrapper hiding git', "alias w='env git'\nw commit -m x", /alias/],
+  ['trap action from a command substitution', 'trap "$(echo git commit -m x)" EXIT', /git with trap|unresolved/],
+  // RC3 arithmetic consumers
+  ['declare value with a quoted subscript in (( ))', "declare x='a[$(git commit -m x)]'; (( x ))", /arithmetic/],
+  ['$(( x )) with a quoted subscript value', "x='a[$(git commit -m x)]'; echo $(( x ))", /arithmetic/],
+  ['(( x )) with a quoted subscript value (A01)', "x='a[$(git commit -m x)]'; (( x ))", /arithmetic/],
+  ['[[ x -eq 0 ]] with a quoted subscript value (A03)', "x='a[$(git commit -m x)]'; [[ x -eq 0 ]]", /arithmetic/],
+  ['let y=x with a quoted subscript value (A05)', "x='a[$(git commit -m x)]'; let y=x", /arithmetic/],
+  ['let with a quoted literal (A07)', "let 'y=a[$(git commit -m x)]'", /arithmetic/],
+  ['(( x )) verify-skip (A14)', "x='a[$(git commit --no-verify -m x)]'; (( x ))", /arithmetic/],
+  ['bash -c wrapping (( x )) (N02)', "bash -c \"x='a[\\$(git commit -m x)]'; (( x ))\"", /arithmetic/],
+];
+
+for (const [label, command, reason] of EXEC_ENTRANCE_BLOCKED_1448) {
+  test(`#1448 blocks on main across all hooks: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, reason);
+        assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+      }
+    });
+  });
+
+  test(`#1448 blocks on the feature branch through guard and dispatcher: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        const res = bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, reason);
+      }
+    });
+  });
+}
+
+// Legitimate neighbours of each entrance stay allowed on both fixtures.
+const EXEC_ENTRANCE_ALLOWED_1448 = [
+  ['trap cleanup with a trailing variable', 'trap "rm -f $tmp" EXIT'],
+  ['trap naming a function', 'trap cleanup EXIT'],
+  ['trap ignoring a signal', "trap '' INT"],
+  ['trap listing', 'trap -p EXIT'],
+  ['read-only alias', "alias ll='ls -l'"],
+  ['alias with a flag-only value', "alias gl='ls -la'"],
+  ['arithmetic over a non-git subscript', "x='a[$(date)]'; (( x ))"],
+  ['quoted git subscript with no arithmetic consumer', "x='a[$(git status)]'; echo \"$x\""],
+  ['let over plain integers', "let 'j=1+2'; (( j++ )); [[ j -eq 4 ]]"],
+];
+
+for (const [label, command] of EXEC_ENTRANCE_ALLOWED_1448) {
+  test(`#1448 allows on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
 run('hook-bypass');

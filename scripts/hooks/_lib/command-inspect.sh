@@ -2182,6 +2182,204 @@ _dhpk_ci_eval_word_seen() {
     return 1
 }
 
+# --- Execution entrances equivalent to eval (#1448) -------------------------
+# A trap action, an alias value and an arithmetic consumer's subscript run
+# command text the way eval does. They are judged with the same rules: visible
+# text is inspected as a body, an action that starts with a parameter has no
+# visible command and is unresolved.
+
+# _dhpk_ci_trap_action
+#   Judges the action of `trap [--] ACTION SIGNAL...` in _dhpk_ci_u_words.
+#   `trap -`, `trap ''`, `trap -p` and `trap -l` run nothing and are allowed.
+_dhpk_ci_trap_action() {
+    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" action="" payload="" before="$DHPK_GIT_COUNT"
+    while [ "$k" -lt "$n" ]; do
+        case "${_dhpk_ci_u_words[$k]}" in
+            --) k=$((k + 1)); break ;;
+            -?*) k=$((k + 1)) ;;
+            *) break ;;
+        esac
+    done
+    [ "$k" -lt "$n" ] || return 0
+    action="${_dhpk_ci_u_words[$k]}"
+    case "$action" in
+        ''|-) return 0 ;;
+    esac
+    if _dhpk_ci_eval_starts_unseen "$action"; then
+        _dhpk_ci_unsupported "unresolved trap action"
+        return 0
+    fi
+    _dhpk_ci_eval_piece=""
+    _dhpk_ci_eval_see_word "$action"
+    if [ -n "${_dhpk_ci_eval_piece:-}" ]; then
+        payload="$_dhpk_ci_eval_piece"
+    elif ! _dhpk_ci_eval_word_seen "$action"; then
+        payload="$action"
+    fi
+    [ -n "$payload" ] || return 0
+    _dhpk_ci_inspect_body_cwd "$payload" "" "unresolved" 1
+    # The action runs later, in a state this decoder does not follow.
+    [ "$DHPK_GIT_COUNT" -gt "$before" ] && _dhpk_ci_unsupported "git with trap"
+    return 0
+}
+
+# _dhpk_ci_alias_value_risky <value> <dynamic>
+#   True when an alias value rebinds a name to eval, source, a shell, a
+#   wrapper, git or a parameter. The alias name is then a command word the
+#   decoder cannot see through.
+_dhpk_ci_alias_value_risky() {
+    local value="$1" dyn="$2" seg="" w="" base="" rest="" before=0
+    [ -n "$value" ] || return 1
+    if [ "$dyn" = "1" ]; then
+        case "$value" in
+            '$'*|*'`'*) return 0 ;;
+        esac
+    fi
+    rest="${value//$'\n'/;}"
+    rest="${rest//&/;}"
+    rest="${rest//|/;}"
+    rest="${rest//(/;}"
+    rest="${rest//\{/;}"
+    while [ -n "$rest" ]; do
+        seg="${rest%%;*}"
+        if [ "$seg" = "$rest" ]; then
+            rest=""
+        else
+            rest="${rest#*;}"
+        fi
+        seg="${seg#"${seg%%[![:space:]]*}"}"
+        # Leading NAME=value assignments do not change the command word.
+        while :; do
+            w="${seg%%[[:space:]]*}"
+            case "$w" in
+                [A-Za-z_]*=*) seg="${seg#"$w"}"; seg="${seg#"${seg%%[![:space:]]*}"}" ;;
+                *) break ;;
+            esac
+        done
+        w="${seg%%[[:space:]]*}"
+        w="${w//[\'\"\\]/}"
+        [ -n "$w" ] || continue
+        base="${w##*/}"
+        case "$base" in
+            eval|source|.|trap|let|git|exec|xargs|find|ssh|*'$'*|*'`'*) return 0 ;;
+        esac
+        if _dhpk_ci_is_shell_word "$w" || _dhpk_ci_is_wrapper_word "$w" || _dhpk_ci_is_wrapper_word "$base"; then
+            return 0
+        fi
+    done
+    # git deeper in the value, after a separator or an option word.
+    case "${value,,}" in
+        *git*) ;;
+        *) return 1 ;;
+    esac
+    before="$DHPK_GIT_COUNT"
+    _dhpk_ci_inspect_body_cwd "$value" "" "unresolved" 1
+    [ "$DHPK_GIT_COUNT" -gt "$before" ] && return 0
+    return 1
+}
+
+# _dhpk_ci_alias_see <name=value>
+_dhpk_ci_alias_see() {
+    local w="$1" dyn="$2"
+    case "$w" in
+        *=*) ;;
+        *) return 0 ;;
+    esac
+    if _dhpk_ci_alias_value_risky "${w#*=}" "$dyn"; then
+        _dhpk_ci_unsupported "alias rebinding eval, git, a shell or a wrapper"
+    fi
+}
+
+# _dhpk_ci_alias_words
+#   `alias [-p] [--] name=value...` and `BASH_ALIASES[name]=value` assignments.
+_dhpk_ci_alias_words() {
+    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}"
+    while [ "$k" -lt "$n" ]; do
+        case "${_dhpk_ci_u_words[$k]}" in
+            --|-p) ;;
+            *) _dhpk_ci_alias_see "${_dhpk_ci_u_words[$k]}" "${_dhpk_ci_u_dyn[$k]:-0}" ;;
+        esac
+        k=$((k + 1))
+    done
+}
+
+# _dhpk_ci_arith_note_inert <text> <dynamic>
+#   Quoted text that carries a command substitution is only data until an
+#   arithmetic consumer reads it. Remember it for the end-of-command check.
+_dhpk_ci_arith_note_inert() {
+    [ "$2" = "1" ] && return 0
+    case "$1" in
+        *'$('*|*'`'*) _dhpk_ci_arith_texts+=("$1") ;;
+    esac
+}
+
+# _dhpk_ci_arith_collect_assignments
+#   Records prefix assignments, BASH_ALIASES assignments, and the NAME=value
+#   arguments of export, declare, typeset, local and readonly.
+_dhpk_ci_arith_collect_assignments() {
+    local k=0 w=""
+    while [ "$k" -lt "$h" ]; do
+        w="${_dhpk_ci_words[$k]}"
+        case "$w" in
+            BASH_ALIASES\[*\]=*) _dhpk_ci_alias_see "${w#*\]}" "${_dhpk_ci_dyn[$k]:-0}" ;;
+        esac
+        case "$w" in
+            [A-Za-z_]*=*) _dhpk_ci_arith_note_inert "${w#*=}" "${_dhpk_ci_dyn[$k]:-0}" ;;
+        esac
+        k=$((k + 1))
+    done
+    case "$_dhpk_ci_u_head" in
+        export|declare|typeset|local|readonly)
+            k=$((_dhpk_ci_u_idx + 1))
+            while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
+                w="${_dhpk_ci_u_words[$k]}"
+                case "$w" in
+                    [A-Za-z_]*=*) _dhpk_ci_arith_note_inert "${w#*=}" "${_dhpk_ci_u_dyn[$k]:-0}" ;;
+                esac
+                k=$((k + 1))
+            done
+            ;;
+    esac
+}
+
+# _dhpk_ci_arith_consumer_words
+#   `let` and `[[ a -eq b ]]` evaluate an operand as arithmetic, subscripts
+#   included. A quoted operand that carries a command substitution is run.
+_dhpk_ci_arith_consumer_words() {
+    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" before="$DHPK_GIT_COUNT" w=""
+    if [ "$_dhpk_ci_u_head" = "[[" ]; then
+        case " ${_dhpk_ci_u_words[*]} " in
+            *" -eq "*|*" -ne "*|*" -lt "*|*" -le "*|*" -gt "*|*" -ge "*) ;;
+            *) return 0 ;;
+        esac
+    fi
+    _dhpk_ci_saw_arith_consumer=1
+    while [ "$k" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        if [ "${_dhpk_ci_u_dyn[$k]:-0}" != "1" ]; then
+            case "$w" in
+                *'$('*|*'`'*) _dhpk_ci_inspect_body_cwd "$w" "" "unresolved" 1 ;;
+            esac
+        fi
+        k=$((k + 1))
+    done
+    [ "$DHPK_GIT_COUNT" -gt "$before" ] && _dhpk_ci_unsupported "git with arithmetic subscript"
+    return 0
+}
+
+# _dhpk_ci_arith_resolve
+#   End of the command: when an arithmetic consumer ran and quoted text with a
+#   command substitution was assigned, inspect that text. Git inside it runs.
+_dhpk_ci_arith_resolve() {
+    local before="$DHPK_GIT_COUNT" t=""
+    [ "${_dhpk_ci_saw_arith_consumer:-0}" -eq 1 ] || return 0
+    for t in ${_dhpk_ci_arith_texts[@]+"${_dhpk_ci_arith_texts[@]}"}; do
+        _dhpk_ci_inspect_body_cwd "$t" "" "unresolved" 1
+    done
+    [ "$DHPK_GIT_COUNT" -gt "$before" ] && _dhpk_ci_unsupported "git with arithmetic subscript"
+    return 0
+}
+
 # A read here-string is the later unquoted command word's visible text.
 # Bash uses only the last here-string. An expansion in that text, or a
 # read with no here-string, has no visible command.
@@ -4374,7 +4572,11 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_record_git
         _git_before="$DHPK_GIT_COUNT"
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
+            _dhpk_ci_arith_collect_assignments
             case "$_dhpk_ci_u_head" in
+                trap) _dhpk_ci_trap_action ;;
+                alias) _dhpk_ci_alias_words ;;
+                let|'[[') _dhpk_ci_arith_consumer_words ;;
                 eval)
                     # The body sees this command's prefix IFS. A later
                     # restore drops that prefix unless the body assigns IFS.
@@ -5000,6 +5202,7 @@ _dhpk_ci_arith() {
                     depth=$((depth - 1))
                 elif [ "${_p:$((_o + 1)):1}" = ")" ]; then
                     [ -z "$reason" ] || _dhpk_ci_unsupported "$reason"
+                    _dhpk_ci_saw_arith_consumer=1
                     _dhpk_ci_end=$((k + 2))
                     return 0
                 else
@@ -5037,6 +5240,7 @@ _dhpk_ci_brack() {
             '[') depth=$((depth + 1)) ;;
             ']')
                 if [ "$depth" -eq 0 ]; then
+                    _dhpk_ci_saw_arith_consumer=1
                     _dhpk_ci_end=$((k + 1))
                     return 0
                 fi
@@ -6169,6 +6373,9 @@ _dhpk_ci_list_run() {
             _hs_j=$((_hs_j + 1))
         done
     fi
+    if [ "$_dhpk_ci_kind" = "top" ]; then
+        _dhpk_ci_arith_resolve
+    fi
     if [ "$_dhpk_ci_kind" = "top" ] && [ "${DHPK_GIT_COUNT:-0}" -gt 0 ]; then
         # A shell fed git text wins: an eval that only defined the shell
         # function must not soften the reason.
@@ -6217,6 +6424,7 @@ dhpk_command_is_trivial() {
             [Cc][Dd]|*/[Cc][Dd]|[Rr][Mm]|*/[Rr][Mm]|[Tt][Ee][Ee]|*/[Tt][Ee][Ee]) return 1 ;;
             [Pp][Uu][Ss][Hh][Dd]|*/[Pp][Uu][Ss][Hh][Dd]|[Pp][Oo][Pp][Dd]|*/[Pp][Oo][Pp][Dd]) return 1 ;;
             [Cc][Oo][Pp][Rr][Oo][Cc]|*/[Cc][Oo][Pp][Rr][Oo][Cc]|[Ee][Vv][Aa][Ll]|*/[Ee][Vv][Aa][Ll]) return 1 ;;
+            [Aa][Ll][Ii][Aa][Ss]|*/[Aa][Ll][Ii][Aa][Ss]) return 1 ;;
             [Ss][Oo][Uu][Rr][Cc][Ee]|*/[Ss][Oo][Uu][Rr][Cc][Ee]) return 1 ;;
         esac
         n=$((n + 1))
@@ -6525,6 +6733,8 @@ dhpk_inspect_command() {
     _dhpk_ci_all_hs_flat=()
     _dhpk_ci_saw_shell_head=0
     _dhpk_ci_saw_shell_assign=0
+    _dhpk_ci_saw_arith_consumer=0
+    _dhpk_ci_arith_texts=()
     # Any SHELL mention other than a plain $SHELL or ${SHELL} expansion
     # (for SHELL in, printf -v SHELL, ${SHELL:=x}, getopts, mapfile) may
     # reassign it, so the $SHELL -c allow is withdrawn for the command.
@@ -6537,7 +6747,7 @@ dhpk_inspect_command() {
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_outps_depth _dhpk_ci_outps_acc
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 
