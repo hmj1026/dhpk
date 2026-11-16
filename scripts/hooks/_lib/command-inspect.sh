@@ -379,7 +379,8 @@ _dhpk_ci_note_git_assign() {
 
 # Text-level view over the raw command: every NAME=value, NAME+=value,
 # NAME[i]=value and NAME=(...) is gathered per name (order independent), then
-# classified. printf -v / read / mapfile targets are opaque builders: they are
+# classified. printf -v targets are opaque builders (read/mapfile are modelled
+# precisely elsewhere): they are
 # tainted whenever the text names git.
 _dhpk_ci_scan_git_taint() {
     local rest="$1" sq="'" name t v var names=" " seg w
@@ -388,7 +389,7 @@ _dhpk_ci_scan_git_taint() {
     local re_dq='^"([^"]*)"(.*)$'
     local re_par='^\(([^)]*)\)(.*)$'
     local re_bare='^([^[:space:];&|<>()]*)(.*)$'
-    local re_build='(printf[[:space:]]+-v|read|mapfile|readarray)[[:space:]]+([^;&|<]*)'
+    local re_build='(printf[[:space:]]+-v)[[:space:]]+([^;&|<]*)'
     local re_id='^[A-Za-z_][A-Za-z0-9_]*$'
     local -a ws_a
     _dhpk_ci_taint_ifs=0
