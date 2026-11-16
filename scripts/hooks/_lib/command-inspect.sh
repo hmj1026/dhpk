@@ -290,12 +290,59 @@ _dhpk_ci_apply_set_allexport() {
     done
 }
 
+# A visibly assigned value that names git and is later used as a command word
+# or a shell -c payload hides the git call from the text scan. The value is
+# judged here: a read-only subcommand is left alone, anything else (a write,
+# an option before the subcommand, --no-verify, an array element list) marks
+# the command so the dynamic use blocks as "dynamic command word". A bare
+# git value (g=git) stays with the subcommand check at the use site.
+_dhpk_ci_note_git_assign() {
+    local w="$1" val g=-1 i=0 n sub
+    local -a ws_a
+    case "$w" in
+        [A-Za-z_]*=*) ;;
+        *) return 0 ;;
+    esac
+    val="${w#*=}"
+    val="${val#(}"
+    val="${val%)}"
+    _dhpk_ci_word_mentions_git "$val" || return 0
+    # Substitution text is not re-run when the variable expands; other
+    # rules (arithmetic, eval) judge it.
+    case "$val" in
+        *'$('*|*'`'*|*'['*) return 0 ;;
+    esac
+    case "$val" in
+        *--no-verify*) _dhpk_ci_git_assign_risky=1; return 0 ;;
+    esac
+    read -r -a ws_a <<<"$val"
+    n="${#ws_a[@]}"
+    while [ "$i" -lt "$n" ]; do
+        case "${ws_a[$i]}" in
+            git|*/git) g="$i"; break ;;
+        esac
+        i=$((i + 1))
+    done
+    if [ "$g" -lt 0 ]; then
+        # git appears inside a longer word or after an unmodelled prefix.
+        _dhpk_ci_git_assign_risky=1
+        return 0
+    fi
+    [ "$n" -gt 1 ] || return 0
+    sub="${ws_a[$((g + 1))]:-}"
+    case "$sub" in
+        status|log|diff|show|rev-parse|ls-files|ls-tree|describe|blame|shortlog|cat-file|rev-list) ;;
+        *) _dhpk_ci_git_assign_risky=1 ;;
+    esac
+}
+
 # A prefix or env assignment the child command can see. += is an assignment
 # when the variable is unset. SHELLOPTS and BASH_ENV change how a child shell
 # starts; the file named by BASH_ENV is not read.
 _dhpk_ci_note_assign() {
     local w="$1" val
     _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_u_git_env_unresolved=1
+    _dhpk_ci_note_git_assign "$w"
     case "$w" in
         IFS+=*)
             _dhpk_ci_ifs_custom=1
@@ -3028,6 +3075,15 @@ _dhpk_ci_parse_su_c() {
     return 0
 }
 
+_dhpk_ci_tail_has_dyn_word() {
+    local j="$1" n="${#_dhpk_ci_u_words[@]}"
+    while [ "$j" -lt "$n" ]; do
+        [ "${_dhpk_ci_u_dyn[$j]:-0}" = "1" ] && return 0
+        j=$((j + 1))
+    done
+    return 1
+}
+
 _dhpk_ci_dyn_shell_c_literal() {
     local j=$(($1 + 1)) n="${#_dhpk_ci_u_words[@]}" w opt oi olen skip_ops saw_c=0
     [ "${_dhpk_ci_saw_shell_assign:-0}" -eq 0 ] || return 1
@@ -3926,6 +3982,8 @@ _dhpk_ci_unwrap_head() {
             elif [ "$k" -lt "$n" ] && [ "${_dhpk_ci_u_dyn[$k]}" = "1" ]; then
                 if _dhpk_ci_dyn_shell_c_literal "$k"; then
                     :
+                elif [ "${_dhpk_ci_git_assign_risky:-0}" -eq 1 ]; then
+                    _dhpk_ci_u_unsupported="dynamic command word"
                 elif _dhpk_ci_dynamic_head_is_write "$k"; then
                     _dhpk_ci_u_unsupported="dynamic command word"
                 elif _dhpk_ci_tail_has_wrapped_git_risk "$((k + 1))"; then
@@ -3956,6 +4014,11 @@ _dhpk_ci_unwrap_head() {
                     ssh)
                         ;;
                     *)
+                        if [ "${_dhpk_ci_git_assign_risky:-0}" -eq 1 ] \
+                            && _dhpk_ci_is_shell_word "$_dhpk_ci_u_head" \
+                            && _dhpk_ci_tail_has_dyn_word "$((k + 1))"; then
+                            _dhpk_ci_u_unsupported="dynamic command word"
+                        fi
                         # An unlisted head is not proof the following git is
                         # data. ssh is a remote command, not a local wrapper.
                         # _dhpk_ci_operands_are_data skips utilities that never
@@ -4517,6 +4580,7 @@ _dhpk_ci_flush_command() {
                     done
                     k=$((_dhpk_ci_u_idx + 1))
                     while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
+                        _dhpk_ci_note_git_assign "${_dhpk_ci_u_words[$k]}"
                         case "${_dhpk_ci_u_words[$k]}" in
                             CDPATH|CDPATH=*|CDPATH+=*) _dhpk_ci_saw_cdpath=1 ;;
                             SHELL|SHELL=*|SHELL+=*) _dhpk_ci_saw_shell_assign=1 ;;
@@ -6733,6 +6797,7 @@ dhpk_inspect_command() {
     _dhpk_ci_all_hs_flat=()
     _dhpk_ci_saw_shell_head=0
     _dhpk_ci_saw_shell_assign=0
+    _dhpk_ci_git_assign_risky=0
     _dhpk_ci_saw_arith_consumer=0
     _dhpk_ci_arith_texts=()
     # Any SHELL mention other than a plain $SHELL or ${SHELL} expansion
@@ -6747,7 +6812,7 @@ dhpk_inspect_command() {
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_assign_risky _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 
