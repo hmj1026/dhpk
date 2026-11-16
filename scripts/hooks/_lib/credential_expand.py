@@ -24,6 +24,7 @@ MAX_VALUES = 32
 MAX_DEPTH = 4
 ASSIGNMENT = re.compile(r'([A-Za-z_][A-Za-z0-9_]*)(\+?)=', re.S)
 SEQUENCE = re.compile(r'(-?\d+)\.\.(-?\d+)(?:\.\.(-?\d+))?$|([A-Za-z])\.\.([A-Za-z])(?:\.\.(-?\d+))?$')
+NAME_WORD = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 GLOB_CHARS = re.compile(r'[*?\[]')
 # Private-use stand-ins keep quoted braces and expansions out of brace parsing.
 QUOTED_BRACES = {'{': '\ue100', '}': '\ue101', ',': '\ue102'}
@@ -32,6 +33,8 @@ EXPANSION_BASE = 0xE200
 _UNKNOWN = object()
 _KEEP = object()
 _UNRESOLVED = object()
+# A name set by `read` or `printf -v`: its value is unseen, so a word that mixes it with literal text is blocked.
+_OPAQUE = object()
 
 
 class _TooMany(Exception):
@@ -50,7 +53,7 @@ def expand_variants(tokens):
 
 def visible_values(tokens):
     """(#1450) Values each name may hold as plain strings; a name with too many values is left out."""
-    return {name: list(values) for name, values in _variables(tokens).items() if values is not _UNKNOWN}
+    return {name: list(values) for name, values in _variables(tokens).items() if values not in (_UNKNOWN, _OPAQUE)}
 
 
 def _limit(alternatives, tokens):
@@ -88,12 +91,30 @@ def _variables(tokens):
                 end += 1
             index = end
             continue
+        if token.value in ('read', 'mapfile', 'readarray', 'getopts', 'printf'):
+            _mark_opaque(tokens, index, variables)
         found = ASSIGNMENT.match(token.value)
         if not found:
             continue
         for combined in _joined(token, variables):
             _remember(variables, found.group(1), bool(found.group(2)), combined[found.end():])
     return variables
+
+
+def _mark_opaque(tokens, index, variables):
+    """Names that `read`, `mapfile`, `getopts` or `printf -v` set from input the text does not show."""
+    words = []
+    for token in tokens[index:]:
+        if token.operator:
+            break
+        words.append(token.value)
+    if tokens[index - 1].value == 'printf':
+        names = [words[i + 1] for i, word in enumerate(words[:-1]) if word == '-v']
+    else:
+        names = [word for word in words if NAME_WORD.fullmatch(word)]
+    for name in names:
+        if variables.get(name) is None:
+            variables[name] = _OPAQUE
 
 
 def _joined(token, variables):
@@ -125,7 +146,8 @@ def _alternatives(token, variables, assignment, depth):
     if not token.parts:
         return [[token]]
     expansions = [part for part in token.parts if not isinstance(part, tuple)]
-    values = [_values(part, variables, depth) for part in expansions]
+    literal = any(isinstance(part, tuple) for part in token.parts)
+    values = [_values(part, variables, depth, literal) for part in expansions]
     if any(value is _UNRESOLVED for value in values):
         return [[_unresolved(token)]]
     template = _template(token.parts, expansions)
@@ -216,10 +238,13 @@ def _build(token, template, expansions, combination, assignment):
     return words
 
 
-def _values(expansion, variables, depth):
+def _values(expansion, variables, depth, literal=False):
     """Candidate strings for one expansion, _KEEP when its source is not visible, or _UNRESOLVED."""
     known = variables.get(expansion.name)
     op = expansion.op
+    if expansion.name.startswith('!') or known is _OPAQUE:
+        # Indirect expansion and read/printf -v values are unseen; next to literal text they could spell anything.
+        return _UNRESOLVED if literal else _KEEP
     if op == 'other':
         return _KEEP if known is None else _UNRESOLVED
     if known is _UNKNOWN:

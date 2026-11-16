@@ -305,6 +305,9 @@ def tokenize(text):
 
 
 NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+SPECIAL_PARAMETER = re.compile(r'[0-9@*#?$!-]')
+# `${1}`, `${@}`, `${!x}` (indirect); `${#x}` is a length and stays an opaque word.
+BRACED_SPECIAL = re.compile(r'\d+|[@*#?$!-](?![A-Za-z_0-9])|![A-Za-z_][A-Za-z0-9_]*')
 ANSI_C_SIMPLE = {'a': '\a', 'b': '\b', 'e': '\x1b', 'E': '\x1b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t',
                  'v': '\v', '\\': '\\', "'": "'", '"': '"', '?': '?'}
 ANSI_C_NUMERIC = {'x': ('0123456789abcdefABCDEF', 2, 16), 'u': ('0123456789abcdefABCDEF', 4, 16),
@@ -375,6 +378,10 @@ def _parse_expansion(text, i, quoted):
     found = NAME.match(text, i)
     if found:
         return Expansion(text[i - 1:found.end()], found.group(), '', '', quoted), found.end()
+    # (#1453) positional and special parameters are expansions whose value no text shows.
+    special = SPECIAL_PARAMETER.match(text, i)
+    if special and not text.startswith('{', i):
+        return Expansion(text[i - 1:special.end()], special.group(), '', '', quoted), special.end()
     if not text.startswith('{', i):
         return None
     depth, k = 1, i + 1
@@ -391,7 +398,12 @@ def _parse_expansion(text, i, quoted):
     inner = text[i + 1:k - 1]
     named = NAME.match(inner)
     if not named:
-        return None
+        named = BRACED_SPECIAL.match(inner)
+        if not named:
+            return None
+        rest = inner[named.end():]
+        # No operator semantics are modelled for these: the word stays an unknown value.
+        return Expansion(text[i - 1:k], named.group(), 'other' if rest else '', rest, quoted), k
     rest = inner[named.end():]
     operator = re.match(r':?[-=+?]', rest)
     if operator:

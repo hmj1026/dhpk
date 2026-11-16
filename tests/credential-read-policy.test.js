@@ -42,6 +42,10 @@ const blocked = [
   'rg -E utf8 package.json', 'rg -E . ordinary', 'rg -E utf8 -e x ordinary', 'grep -E "a|b" .env', 'grep -F needle credentials.json',
   // (#1453) 沒有可見來源的 parameter expansion 夾在字面中；去掉後可組成 Protected Path 就不能放行。
   'cat .e${x}nv', "cat .e$x'nv'", 'cat ${x}.env', 'cat .env${x}', 'base64 .e${x}nv', 'cat .e${x}n${y}v', 'cat "${x}.env"',
+  // positional and special parameters, other input entrances, and values set in unseen ways
+  'cat .e$1nv', 'cat .e${1}nv', 'cat .e$@nv', 'cat .e$!nv', "bash -c 'cat .e$1nv' _", 'f(){ cat .e${1}nv; }; f',
+  'python3 x.py < .e${x}nv', 'source .e${x}nv', '. .e${x}nv', 'BASH_ENV=.e${x}nv bash -c true',
+  'y=nv; x=y; cat .e${!x}', 'read x <<< nv; cat .e$x', 'printf -v x nv; cat .e$x',
 ];
 const allowed = [
   "echo 'cat .env'", "echo '$(cat .env)'", 'echo literal#hash', "echo '# literal'", 'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
@@ -54,6 +58,7 @@ const allowed = [
   "sed -i 's/\\r//' script.sh",
   // (#1453) 沒有受保護字面的 expansion、template 例外與 quoted 單獨變數仍可讀。
   'cat ordinary${x}', 'cat "$f"', 'cat $f', 'cat ${x}ordinary', 'cat .e${x}',
+  'cat ordinary$1', 'echo $? $$ $1', 'read line; cat "$line"', 'python3 x.py < ordinary${x}', 'source ordinary${x}',
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   test(`${hook} names a parameter expansion without a visible source and a rewrite direction (#1453)`, () => {
