@@ -135,7 +135,7 @@ def _alternatives(token, variables, assignment, depth):
     except _TooMany:
         return [[_unresolved(token)]]
     if all(value is _KEEP for value in values) and templates == [template]:
-        return [[token]]
+        return [[replace(token, residue=_residue(template, len(expansions)))]]
     seen, out = set(), []
     for text in templates:
         for combination in combos:
@@ -145,6 +145,12 @@ def _alternatives(token, variables, assignment, depth):
                 seen.add(key)
                 out.append(words)
     return out
+
+
+def _residue(template, count):
+    """(#1453) The template's literal text without its expansion stand-ins."""
+    kept = {chr(EXPANSION_BASE + index) for index in range(count)}
+    return ''.join(char for char in template if char not in kept).translate(RESTORE)
 
 
 def _combinations(values):
@@ -172,25 +178,29 @@ def _template(parts, expansions):
 def _build(token, template, expansions, combination, assignment):
     """Turn one filled-in template into words, splitting unquoted expansion values."""
     words, current, started, glob, dynamic = [], [], False, token.glob, False
+    literal, opaque = [], False
 
     def close():
-        nonlocal current, started, dynamic
+        nonlocal current, started, dynamic, literal
         if started:
-            words.append(Token(''.join(current).translate(RESTORE), glob, dynamic, substitution=token.substitution))
-        current, started, dynamic = [], False, False
+            words.append(Token(''.join(current).translate(RESTORE), glob, dynamic, substitution=token.substitution,
+                               residue=''.join(literal).translate(RESTORE) if opaque else ''))
+        current, started, dynamic, literal = [], False, False, []
 
     for char in template:
         index = ord(char) - EXPANSION_BASE
         if not 0 <= index < len(expansions):
             current.append(char)
+            literal.append(char)
             started = True
             continue
         expansion, value = expansions[index], combination[index]
         if value is _KEEP:
             current.append(expansion.text)
-            started = dynamic = True
+            started = dynamic = opaque = True
         elif assignment or expansion.quoted:
             current.append(value)
+            literal.append(value)
             started = True
         else:
             glob = glob or bool(GLOB_CHARS.search(value))
@@ -200,6 +210,7 @@ def _build(token, template, expansions, combination, assignment):
                     close()
                 if piece:
                     current.append(piece)
+                    literal.append(piece)
                     started = True
     close()
     return words

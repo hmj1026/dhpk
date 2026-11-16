@@ -85,6 +85,9 @@ class Token:
     parts: object = None
     # (#1427) set by the policy's expansion step when the word's value cannot be resolved
     unresolved: bool = False
+    # (#1453) the literal text left once each parameter expansion with no visible
+    # source is removed; '' when the word has no such expansion
+    residue: str = ''
 
 
 @dataclass(frozen=True)
