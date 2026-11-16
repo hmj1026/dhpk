@@ -15,7 +15,7 @@ from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex
 from credential_expand import expand_variants
 from credential_code import code_strings, expand_aliases
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
-from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_subcommand, pages
+from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages
 from credential_scan import MAX_SECONDS, budget_seconds
 import time
 from credential_scan import scan_roots
@@ -441,7 +441,7 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     if index is None:
         return verdict.allow()
     if names[index] == 'ssh':
-        return remote_wrapper_verdict(words[index + 1:], patterns)
+        return remote_wrapper_verdict(words[index + 1:], patterns, cwd)
     adapter = ADAPTERS[names[index]]
     plan = adapter.plan(words[index + 1:])
     if not isinstance(plan, ReadPlan):
@@ -466,11 +466,12 @@ def _program_verdict(value, patterns, cwd):
 
 
 def _pager_runs(words, names):
-    """(#1454) A pager variable matters when a paging git subcommand follows, or when it is only being exported."""
+    """(#1454) A pager variable matters when git will page, or when the variable is only being exported."""
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
     if git_index is not None:
-        return pages(git_subcommand(words[git_index + 1:]))
-    return all(ASSIGNMENT.match(w.value) or name in ASSIGNMENT_CARRIERS for w, name in zip(words, names))
+        return git_pages(words[git_index + 1:])
+    return all(ASSIGNMENT.match(w.value) or name in ASSIGNMENT_CARRIERS or w.value.startswith('-')
+               for w, name in zip(words, names))
 
 
 def _variable_commands(words, names, patterns, cwd):
@@ -551,30 +552,52 @@ def proxy_command_verdict(command, patterns):
     return analyze(command, patterns, None, True)
 
 
-def remote_wrapper_verdict(args, patterns):
-    """`ssh` is a Remote Wrapper: its command is judged with no local knowledge."""
+SSH_VALUE_LETTERS = 'BbcDEeFIiJLlmOopQRSWw'
+
+
+def _ssh_option_verdict(token, value, letter, patterns, cwd):
+    """(#1454) `-o ProxyCommand` runs its command; `-F` and `-J` name a config or jump target, judged by name only."""
+    if letter == 'o':
+        command = _proxy_command(value)
+        return proxy_command_verdict(command, patterns) if command is not None else verdict.allow()
+    if letter in 'FJ' and value:
+        return executed_file_verdict(dataclasses.replace(token, value=value, parts=None), patterns, cwd)
+    return verdict.allow()
+
+
+def _ssh_options(args, patterns, cwd):
+    """(#1454) Walk ssh short-option clusters (`-vo`, `-4oProxyCommand=..`); (index after the options, verdict)."""
     i = 0
-    takes_value = set('BbcDEeFIiJLlmOopQRSWw')
     while i < len(args):
         arg = args[i].value
         if arg == '--':
-            i += 1
-            break
+            return i + 1, verdict.allow()
         if not arg.startswith('-') or arg == '-':
             break
-        setting = None
-        if arg == '-o' and i + 1 < len(args):
-            setting = args[i + 1].value
-        elif arg.startswith('-o') and len(arg) > 2:
-            setting = arg[2:]
-        command = _proxy_command(setting) if setting is not None else None
-        if command is not None:
-            found = proxy_command_verdict(command, patterns)
+        for position, letter in enumerate(arg[1:], 1):
+            if letter not in SSH_VALUE_LETTERS:
+                continue
+            attached = arg[position + 1:]
+            if attached:
+                value, token = attached, args[i]
+            elif i + 1 < len(args):
+                i += 1
+                value, token = args[i].value, args[i]
+            else:
+                value, token = '', args[i]
+            found = _ssh_option_verdict(token, value, letter, patterns, cwd)
             if not found.allowed:
-                return found
-        if len(arg) == 2 and arg[1] in takes_value:
-            i += 1
+                return i, found
+            break
         i += 1
+    return i, verdict.allow()
+
+
+def remote_wrapper_verdict(args, patterns, cwd=None):
+    """`ssh` is a Remote Wrapper: its command is judged with no local knowledge."""
+    i, found = _ssh_options(args, patterns, cwd)
+    if not found.allowed:
+        return found
     i += 1  # host
     if i >= len(args):
         return verdict.allow()
