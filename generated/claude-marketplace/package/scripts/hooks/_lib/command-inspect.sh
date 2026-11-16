@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# ShellCheck data-flow analysis does not finish on this file in CI time (the
+# recursive body inspection added for trap, alias and arithmetic, #1448); the
+# regular checks still run. Remove once the file is split (#1438-#1440).
+# shellcheck extended-analysis=false
 # command-inspect.sh — bounded command segments and git argv for hook gates.
 # Source-only. bash 3.2. Never executes the command under inspection.
 #
@@ -446,11 +450,11 @@ _dhpk_ci_scan_git_taint() {
 # resolved, so the nameref is tainted when the text names git. Two passes let
 # a short chain of namerefs settle.
 _dhpk_ci_scan_namerefs() {
-    local rest="$1" pass name target
+    local rest="$1" name target
     local re_ref='(declare|local|typeset)[[:space:]]+-[A-Za-z]*n[A-Za-z]*[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)(=([^[:space:];&|<>()]*))?'
     local re_id='^[A-Za-z_][A-Za-z0-9_]*$'
     [[ "$rest" =~ $re_ref ]] || return 0
-    for pass in 1 2; do
+    for _ in 1 2; do
         rest="$1"
         while [[ "$rest" =~ $re_ref ]]; do
             name="${BASH_REMATCH[2]}"
