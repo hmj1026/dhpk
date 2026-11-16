@@ -3109,4 +3109,62 @@ for (const [label, command] of GIT_VAR_ALLOWED_1452) {
   });
 }
 
+// #1452 round 2: taint is kept per variable over the whole command text, the
+// --no-verify and mutation tests never skip on substitution or bracket text,
+// and a read-only first subcommand is no proof when the value holds a
+// separator or a second git. Each row: label, main command, feature command
+// (the feature row carries --no-verify or -n, the only mutation the guard sees).
+const GIT_VAR_ROUND2_1452 = [
+  ['no-verify with bracket text', "l='git commit --no-verify -m a[b]'; $l", "l='git commit --no-verify -m a[b]'; $l"],
+  ['-n with bracket text', "l='git commit -n -m a[b]'; $l", "l='git commit -n -m a[b]'; $l"],
+  ['no-verify with substitution text', "l='git commit --no-verify -m $(x)'; $l", "l='git commit --no-verify -m $(x)'; $l"],
+  ['read-only prefix then &&', "l='git status && git commit -m x'; bash -c \"$l\"", "l='git status && git commit --no-verify -m x'; bash -c \"$l\""],
+  ['read-only prefix then ;', "l='git status ; git commit -m x'; bash -c \"$l\"", "l='git status ; git commit -n -m x'; bash -c \"$l\""],
+  ['read-only prefix then newline', "l='git status\ngit commit -m x'; bash -c \"$l\"", "l='git status\ngit commit -n -m x'; bash -c \"$l\""],
+  ['+= builds the value', "l=git; l+=' commit -m x'; $l", "l=git; l+=' commit --no-verify -m x'; $l"],
+  ['printf -v builds the value', "printf -v l 'git commit -m x'; $l", "printf -v l 'git commit --no-verify -m x'; $l"],
+  ['indexed assignments', 'a[0]=git; a[1]=commit; "${a[@]}" -m x', 'a[0]=git; a[1]=commit; a[2]=--no-verify; "${a[@]}" -m x'],
+  ['use before textual assignment in a loop', "for i in 1 2; do $l; l='git commit -m x'; done", "for i in 1 2; do $l; l='git commit --no-verify -m x'; done"],
+  ['function body uses a later assignment', "f(){ $l; }; l='git commit -m x'; f", "f(){ $l; }; l='git commit --no-verify -m x'; f"],
+  ['custom IFS rebuilds the words', 'IFS=_; m=git_commit_-m_x; $m', 'IFS=_; m=git_commit_--no-verify_-m_x; $m'],
+];
+
+for (const [label, mainCmd, featureCmd] of GIT_VAR_ROUND2_1452) {
+  test(`#1452 r2 blocks on main (gate and dispatcher): ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, mainCmd, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${mainCmd}`);
+      }
+    });
+  });
+  test(`#1452 r2 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, featureCmd, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${featureCmd}`);
+      }
+    });
+  });
+}
+
+// Taint follows the variable that holds git text, not the whole command; a
+// provably read-only value stays usable as a command word.
+const GIT_VAR_ROUND2_ALLOWED_1452 = [
+  ['git text in a variable never run as a word', "msg='docs: explain git commit hooks'; cmd=ls; $cmd"],
+  ['read-only value with -C', "g='git -C repo status'; $g"],
+  ['read-only value with --no-pager', "g='git --no-pager log -1'; $g"],
+  ['read-only branch --show-current', "g='git branch --show-current'; $g"],
+  ['read-only stash list', "g='git stash list'; $g"],
+  ['read-only worktree list', "g='git worktree list'; $g"],
+];
+
+for (const [label, command] of GIT_VAR_ROUND2_ALLOWED_1452) {
+  test(`#1452 r2 allows on feature: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
 run('hook-bypass');

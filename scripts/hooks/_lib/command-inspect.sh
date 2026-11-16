@@ -291,49 +291,159 @@ _dhpk_ci_apply_set_allexport() {
 }
 
 # A visibly assigned value that names git and is later used as a command word
-# or a shell -c payload hides the git call from the text scan. The value is
-# judged here: a read-only subcommand is left alone, anything else (a write,
-# an option before the subcommand, --no-verify, an array element list) marks
-# the command so the dynamic use blocks as "dynamic command word". A bare
-# git value (g=git) stays with the subcommand check at the use site.
-_dhpk_ci_note_git_assign() {
-    local w="$1" val g=-1 i=0 n sub
+# or a shell -c payload hides the git call from the text scan. Taint is kept
+# per variable name over the whole command text, so use before the textual
+# assignment (loops, functions) is covered. A value is provably read-only only
+# when it is one simple git command with a listed read-only subcommand; any
+# separator, substitution, second git word, --no-verify or mutation is risky.
+# With a custom IFS in the text any git substring is risky (word splitting
+# can rebuild the words). A bare git value (g=git) stays with the subcommand
+# check at the use site.
+_dhpk_ci_git_value_risky() {
+    local val="$1" ifs="$2" i=1 n sub
     local -a ws_a
+    if [ "$ifs" = "1" ]; then
+        case "$val" in *git*) return 0 ;; esac
+        return 1
+    fi
+    _dhpk_ci_word_mentions_git "$val" || return 1
+    case "$val" in
+        *--no-verify*|*';'*|*'&'*|*'|'*|*$'\n'*|*'$('*|*'`'*|*'('*|*'<'*|*'>'*) return 0 ;;
+    esac
+    read -r -a ws_a <<<"$val"
+    n="${#ws_a[@]}"
+    case "${ws_a[0]:-}" in
+        git|*/git) ;;
+        *) return 0 ;;
+    esac
+    [ "$n" -gt 1 ] || return 1
+    while [ "$i" -lt "$n" ]; do
+        case "${ws_a[$i]}" in
+            -C) i=$((i + 2)) ;;
+            --no-pager|-P|--paginate|-p) i=$((i + 1)) ;;
+            *) break ;;
+        esac
+    done
+    [ "$i" -lt "$n" ] || return 0
+    sub="${ws_a[$i]}"
+    i=$((i + 1))
+    case "$sub" in
+        status|log|diff|show|rev-parse|ls-files|ls-tree|describe|blame|shortlog|cat-file|rev-list) ;;
+        branch)
+            while [ "$i" -lt "$n" ]; do
+                case "${ws_a[$i]}" in
+                    --show-current|-a|-r|-v|-vv|--list|-l|--all|--remotes) ;;
+                    *) return 0 ;;
+                esac
+                i=$((i + 1))
+            done
+            return 1
+            ;;
+        stash|worktree)
+            [ "${ws_a[$i]:-}" = "list" ] || return 0
+            ;;
+        *) return 0 ;;
+    esac
+    # A later word naming git (second git) is not provably read-only.
+    while [ "$i" -lt "$n" ]; do
+        _dhpk_ci_word_mentions_git "${ws_a[$i]}" && return 0
+        i=$((i + 1))
+    done
+    return 1
+}
+
+_dhpk_ci_taint_add() {
+    case "$_dhpk_ci_git_taint" in
+        *" $1 "*) ;;
+        *) _dhpk_ci_git_taint="${_dhpk_ci_git_taint}$1 " ;;
+    esac
+}
+
+# Word-level view: one NAME=value word (prefix, export, declare, local).
+_dhpk_ci_note_git_assign() {
+    local w="$1" name val
     case "$w" in
         [A-Za-z_]*=*) ;;
         *) return 0 ;;
     esac
+    name="${w%%=*}"
+    name="${name%+}"
+    name="${name%%\[*}"
     val="${w#*=}"
     val="${val#(}"
     val="${val%)}"
-    _dhpk_ci_word_mentions_git "$val" || return 0
-    # Substitution text is not re-run when the variable expands; other
-    # rules (arithmetic, eval) judge it.
-    case "$val" in
-        *'$('*|*'`'*|*'['*) return 0 ;;
-    esac
-    case "$val" in
-        *--no-verify*) _dhpk_ci_git_assign_risky=1; return 0 ;;
-    esac
-    read -r -a ws_a <<<"$val"
-    n="${#ws_a[@]}"
-    while [ "$i" -lt "$n" ]; do
-        case "${ws_a[$i]}" in
-            git|*/git) g="$i"; break ;;
-        esac
-        i=$((i + 1))
-    done
-    if [ "$g" -lt 0 ]; then
-        # git appears inside a longer word or after an unmodelled prefix.
-        _dhpk_ci_git_assign_risky=1
-        return 0
+    if _dhpk_ci_git_value_risky "$val" "${_dhpk_ci_taint_ifs:-0}"; then
+        _dhpk_ci_taint_add "$name"
     fi
-    [ "$n" -gt 1 ] || return 0
-    sub="${ws_a[$((g + 1))]:-}"
-    case "$sub" in
-        status|log|diff|show|rev-parse|ls-files|ls-tree|describe|blame|shortlog|cat-file|rev-list) ;;
-        *) _dhpk_ci_git_assign_risky=1 ;;
+}
+
+# Text-level view over the raw command: every NAME=value, NAME+=value,
+# NAME[i]=value and NAME=(...) is gathered per name (order independent), then
+# classified. printf -v targets are opaque builders (read/mapfile are modelled
+# precisely elsewhere): they are
+# tainted whenever the text names git.
+_dhpk_ci_scan_git_taint() {
+    local rest="$1" sq="'" name t v var names=" " seg w
+    local re_assign='(^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)(\[[^]]*\])?(\+?)=(.*)$'
+    local re_sq='^\$?'$sq'([^'$sq']*)'$sq'(.*)$'
+    local re_dq='^"([^"]*)"(.*)$'
+    local re_par='^\(([^)]*)\)(.*)$'
+    local re_bare='^([^[:space:];&|<>()]*)(.*)$'
+    local re_build='(printf[[:space:]]+-v)[[:space:]]+([^;&|<]*)'
+    local re_id='^[A-Za-z_][A-Za-z0-9_]*$'
+    local -a ws_a
+    _dhpk_ci_taint_ifs=0
+    case "$rest" in
+        *IFS=*|*IFS+=*) _dhpk_ci_taint_ifs=1 ;;
     esac
+    case "$rest" in
+        *git*) ;;
+        *) return 0 ;;
+    esac
+    while [[ "$rest" =~ $re_assign ]]; do
+        name="${BASH_REMATCH[2]}"
+        t="${BASH_REMATCH[5]}"
+        if [[ "$t" =~ $re_sq ]] || [[ "$t" =~ $re_dq ]] || [[ "$t" =~ $re_par ]] || [[ "$t" =~ $re_bare ]]; then
+            v="${BASH_REMATCH[1]}"
+            rest="${BASH_REMATCH[2]}"
+        else
+            v=""
+            rest="$t"
+        fi
+        var="_dhpk_ci_tv_$name"
+        printf -v "$var" '%s %s' "${!var:-}" "$v"
+        case "$names" in *" $name "*) ;; *) names="$names$name " ;; esac
+    done
+    for name in $names; do
+        var="_dhpk_ci_tv_$name"
+        if _dhpk_ci_git_value_risky "${!var}" "$_dhpk_ci_taint_ifs"; then
+            _dhpk_ci_taint_add "$name"
+        fi
+        unset "$var"
+    done
+    rest="$1"
+    while [[ "$rest" =~ $re_build ]]; do
+        seg="${BASH_REMATCH[2]}"
+        rest="${rest#*"${BASH_REMATCH[0]}"}"
+        if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "$1"; then
+            read -r -a ws_a <<<"$seg"
+            for w in "${ws_a[@]}"; do
+                [[ "$w" =~ $re_id ]] && _dhpk_ci_taint_add "$w"
+            done
+        fi
+    done
+    return 0
+}
+
+# True when the word expands a variable that holds risky git text.
+_dhpk_ci_word_uses_taint() {
+    local w="$1" name re
+    [ "${_dhpk_ci_git_taint:- }" != " " ] || return 1
+    for name in $_dhpk_ci_git_taint; do
+        re='\$\{?[!#]?'$name'([^A-Za-z0-9_]|$)'
+        [[ "$w" =~ $re ]] && return 0
+    done
+    return 1
 }
 
 # A prefix or env assignment the child command can see. += is an assignment
@@ -3075,10 +3185,12 @@ _dhpk_ci_parse_su_c() {
     return 0
 }
 
-_dhpk_ci_tail_has_dyn_word() {
+_dhpk_ci_tail_uses_taint() {
     local j="$1" n="${#_dhpk_ci_u_words[@]}"
     while [ "$j" -lt "$n" ]; do
-        [ "${_dhpk_ci_u_dyn[$j]:-0}" = "1" ] && return 0
+        if [ "${_dhpk_ci_u_dyn[$j]:-0}" = "1" ] && _dhpk_ci_word_uses_taint "${_dhpk_ci_u_words[$j]}"; then
+            return 0
+        fi
         j=$((j + 1))
     done
     return 1
@@ -3982,7 +4094,7 @@ _dhpk_ci_unwrap_head() {
             elif [ "$k" -lt "$n" ] && [ "${_dhpk_ci_u_dyn[$k]}" = "1" ]; then
                 if _dhpk_ci_dyn_shell_c_literal "$k"; then
                     :
-                elif [ "${_dhpk_ci_git_assign_risky:-0}" -eq 1 ]; then
+                elif _dhpk_ci_word_uses_taint "${_dhpk_ci_u_words[$k]}"; then
                     _dhpk_ci_u_unsupported="dynamic command word"
                 elif _dhpk_ci_dynamic_head_is_write "$k"; then
                     _dhpk_ci_u_unsupported="dynamic command word"
@@ -4014,9 +4126,8 @@ _dhpk_ci_unwrap_head() {
                     ssh)
                         ;;
                     *)
-                        if [ "${_dhpk_ci_git_assign_risky:-0}" -eq 1 ] \
-                            && _dhpk_ci_is_shell_word "$_dhpk_ci_u_head" \
-                            && _dhpk_ci_tail_has_dyn_word "$((k + 1))"; then
+                        if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head" \
+                            && _dhpk_ci_tail_uses_taint "$((k + 1))"; then
                             _dhpk_ci_u_unsupported="dynamic command word"
                         fi
                         # An unlisted head is not proof the following git is
@@ -6797,7 +6908,8 @@ dhpk_inspect_command() {
     _dhpk_ci_all_hs_flat=()
     _dhpk_ci_saw_shell_head=0
     _dhpk_ci_saw_shell_assign=0
-    _dhpk_ci_git_assign_risky=0
+    _dhpk_ci_git_taint=" "
+    _dhpk_ci_scan_git_taint "$cmd"
     _dhpk_ci_saw_arith_consumer=0
     _dhpk_ci_arith_texts=()
     # Any SHELL mention other than a plain $SHELL or ${SHELL} expansion
@@ -6812,7 +6924,7 @@ dhpk_inspect_command() {
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_assign_risky _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_taint_ifs _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 
