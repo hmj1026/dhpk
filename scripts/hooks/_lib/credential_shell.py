@@ -48,6 +48,18 @@ SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
 PARAMETER = re.compile(r'\$[A-Za-z0-9_{@*#?!$-]')
 # 其引數只會被當成資料的指令：雙引號中含 heredoc 的替換輸出在這些指令的引數位置才視為資料。
 DATA_COMMANDS = frozenset(('git', 'gh', 'glab', 'echo', 'printf'))
+# git、gh、glab 只在這些子命令的訊息選項中把值當成文字儲存；其他選項（--exec、-c、alias 等）可能執行它。
+TEXT_SUBCOMMANDS = {
+    'git': frozenset(('commit', 'tag', 'merge', 'notes', 'stash')),
+    'gh': frozenset(('issue', 'pr', 'release')),
+    'glab': frozenset(('issue', 'mr', 'release')),
+}
+TEXT_OPTIONS = {
+    'git': frozenset(('-m', '-am', '--message')),
+    'gh': frozenset(('-b', '--body', '-t', '--title', '-n', '--notes')),
+    'glab': frozenset(('-d', '--description', '-t', '--title', '-m', '--message')),
+}
+GIT_VALUE_OPTIONS = frozenset(('-C', '-c', '--git-dir', '--work-tree', '--namespace'))
 ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*\+?=')
 
 CONTINUATION = 'continuation'
@@ -66,6 +78,8 @@ class Token:
     # text of the first command substitution (`$(` or a backtick) outside single
     # quotes in the word, or '' when it has none or its body is resolvable
     substitution: str = ''
+    # an unquoted parameter expansion: the shell splits and globs its value into words
+    bare: bool = False
     # (#1427) the word's pieces when it holds a parameter expansion or an
     # unquoted brace list: `(char, quoted)` pairs and `Expansion` items; else None
     parts: object = None
@@ -199,17 +213,17 @@ def tokenize(text):
     tokens = []
     value = []
     pieces = []
-    glob = dynamic = started = False
+    glob = dynamic = started = bare = False
     substitution = ''
     has_expansion = False
     skip_until = 0
 
     def flush():
-        nonlocal value, pieces, glob, dynamic, started, substitution, has_expansion
+        nonlocal value, pieces, glob, dynamic, started, substitution, has_expansion, bare
         if started:
             parts = tuple(pieces) if has_expansion or _brace_list(pieces) else None
-            tokens.append(Token(''.join(value), glob, dynamic, substitution=substitution, parts=parts))
-        value, pieces, glob, dynamic, started, substitution, has_expansion = [], [], False, False, False, '', False
+            tokens.append(Token(''.join(value), glob, dynamic, substitution=substitution, bare=bare, parts=parts))
+        value, pieces, glob, dynamic, started, substitution, has_expansion, bare = [], [], False, False, False, '', False, False
 
     while not cursor.at_end():
         start = cursor.i
@@ -273,6 +287,7 @@ def tokenize(text):
                 has_expansion = True
         if ch in '$`' and cursor.quote != "'":
             dynamic = True
+            bare = bare or (not quoted and bool(PARAMETER.match(text, start)))
             substitution = substitution or _unresolved_substitution(text, cursor.i, ch)
         if ch in '*?[' and not quoted:
             glob = True
@@ -779,20 +794,72 @@ def _defines_function(tokens):
     return False
 
 
+def _head_index(words):
+    return next((i for i, word in enumerate(words) if word.value not in RESERVED_WORDS and not ASSIGNMENT.match(word.value)), None)
+
+
+def _git_subcommand(words, head):
+    """The git subcommand named after the global options, or '' when none is visible."""
+    skip = False
+    for word in words[head + 1:]:
+        if skip:
+            skip = False
+        elif word.value in GIT_VALUE_OPTIONS:
+            skip = True
+        elif not word.value.startswith('-'):
+            return word.value
+    return ''
+
+
+def _text_option_value(words, head, index, name):
+    """True when `words[index]` is the value of a message option of a recognised subcommand."""
+    subcommand = _git_subcommand(words, head) if name == 'git' else next(
+        (word.value for word in words[head + 1:] if not word.value.startswith('-')), '')
+    if subcommand not in TEXT_SUBCOMMANDS[name]:
+        return False
+    options = TEXT_OPTIONS[name]
+    value = words[index].value
+    return words[index - 1].value in options or any(
+        option.startswith('--') and value.startswith(option + '=') for option in options)
+
+
+def _data_argument(words, head, index):
+    """True when the command at `head` only prints or stores `words[index]` as text.
+
+    The consumer and the option decide: `echo` and `printf` print every argument;
+    git, gh and glab store the value of a message option of a recognised
+    subcommand. An unquoted parameter is split into words that may name options,
+    and `${x@P}` expands prompt escapes that run substitutions, so neither is text.
+    """
+    if head is None or index <= head or words[head].dynamic:
+        return False
+    word = words[index]
+    if '@P' in word.value or any(other.value == '-v' for other in words):
+        return False
+    name = words[head].value.rsplit('/', 1)[-1]
+    if name in ('echo', 'printf'):
+        return True
+    if name not in TEXT_OPTIONS or word.bare:
+        return False
+    return _text_option_value(words, head, index, name)
+
+
 def _output_may_run(tokens):
     """True unless every heredoc-bearing substitution is a data argument.
 
-    Data position: a double-quoted word after the name of a command in
-    DATA_COMMANDS (`git commit -m "$(cat <<EOF ...)"`), with no function in the
-    command. A substitution assigned to a variable is data only while no word
-    expands any parameter, because the stored text could be run later.
+    Data position: the message value of a data consumer (`git commit -m
+    "$(cat <<EOF ...)"`, `gh issue create --body "$(...)"`, `echo "$(...)"`),
+    with no function in the command. A substitution assigned to a variable is
+    data only while every parameter expansion in the command is such an
+    argument, because any other use could run the stored text later.
     """
     if _defines_function(tokens):
         return True
-    expands = any(not token.operator and token.dynamic and PARAMETER.search(token.value) and not ASSIGNMENT.match(token.value)
-                  for token in tokens)
-    for words in _segments(tokens):
-        head = next((i for i, word in enumerate(words) if word.value not in RESERVED_WORDS and not ASSIGNMENT.match(word.value)), None)
+    segments = [(words, _head_index(words)) for words in _segments(tokens)]
+    expands = any(word.dynamic and PARAMETER.search(word.value) and not ASSIGNMENT.match(word.value)
+                  and not _data_argument(words, head, index)
+                  for words, head in segments for index, word in enumerate(words))
+    for words, head in segments:
         for index, word in enumerate(words):
             if not _holds_heredoc_substitution(word):
                 continue
@@ -800,9 +867,7 @@ def _output_may_run(tokens):
                 if expands:
                     return True
                 continue
-            if head is None or index <= head or words[head].dynamic or words[head].value.rsplit('/', 1)[-1] not in DATA_COMMANDS:
-                return True
-            if any(other.value == '-v' for other in words):
+            if not _data_argument(words, head, index):
                 return True
     return False
 
