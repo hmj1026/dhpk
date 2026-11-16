@@ -1540,7 +1540,7 @@ _dhpk_ci_pin_take() {
     # such as ls does not, so `echo git | { ls; bash; }` still runs git.
     base="${_dhpk_ci_u_head##*/}"
     case "$base" in
-        echo|printf|true|false|:|test|'['|for|select|case|fi|done|esac) return 0 ;;
+        echo|printf|true|false|:|test|'['|for|select|case|'fi'|'done'|'esac') return 0 ;;
         cat)
             _dhpk_ci_cat_reads_pipe || return 0
             _dhpk_ci_pin_drop "$slot" "$p"

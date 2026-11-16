@@ -83,6 +83,9 @@ const TIMEOUT_HINTS = Object.freeze({
   'consumer-gate-cli.test.js': 300000,
   // About 115s alone: every case spawns the real Bash hooks.
   'credential-read-policy.test.js': 300000,
+  // About 115s alone for 556 cases that each spawn the real Bash hooks;
+  // 180s overran in CI shard 1 for #1426.
+  'hook-bypass.test.js': 300000,
   // Crash and failure sweeps re-run the installer once per step: 130-155s
   // alone; 180s overran under the four-way local publish gate for 0.73.0.
   'install-codex-adapter-journal.test.js': 300000,
