@@ -6,6 +6,7 @@ import functools
 import hashlib
 import os
 import posixpath
+import shlex
 from pathlib import Path
 import re
 import stat
@@ -15,7 +16,7 @@ from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex
 from credential_expand import expand_variants
 from credential_code import code_strings, expand_aliases
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
-from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages
+from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages, is_command_key
 from credential_scan import MAX_SECONDS, budget_seconds
 import time
 from credential_scan import scan_roots
@@ -453,6 +454,14 @@ SSH_COMMAND_VARIABLE = 'GIT_SSH_COMMAND='
 # (#1454) GIT_SSH names a program; GIT_PAGER and PAGER name a command line run only when git pages.
 PROGRAM_VARIABLE = re.compile(r'^GIT_SSH=(.*)$', re.S)
 PAGER_VARIABLE = re.compile(r'^(?:GIT_PAGER|PAGER)=(.*)$', re.S)
+# (#1455) Variables whose value git or ssh runs as a command; analyzed whenever git or ssh is in the segment.
+COMMAND_VARIABLE = re.compile(r'^(?:GIT_EDITOR|VISUAL|EDITOR|GIT_SEQUENCE_EDITOR|GIT_EXTERNAL_DIFF|GIT_ASKPASS|'
+                              r'SSH_ASKPASS|GIT_PROXY_COMMAND)=(.*)$', re.S)
+CONFIG_KEY_VARIABLE = re.compile(r'^GIT_CONFIG_KEY_(\d+)=(.*)$', re.S)
+CONFIG_VALUE_VARIABLE = re.compile(r'^GIT_CONFIG_VALUE_(\d+)=(.*)$', re.S)
+CONFIG_PARAMETERS = 'GIT_CONFIG_PARAMETERS='
+CONFIG_RECOVERY = ('set the command with an explicit `git -c key=value` option next to a literal value, '
+                   'or write the command directly instead of passing it through git configuration.')
 
 
 def _program_verdict(value, patterns, cwd):
@@ -465,17 +474,37 @@ def _program_verdict(value, patterns, cwd):
     return analyze(value, patterns, None, True)
 
 
+def command_text_verdict(command, patterns, cwd):
+    """(#1455) A command string a config key or variable names: the program path by name, the text recursively."""
+    if not command.strip():
+        return verdict.allow()
+    if len(command.split()) == 1:
+        found = executed_file_verdict(Token(command), patterns, cwd)
+        if not found.allowed:
+            return found
+    return analyze(command, patterns, None, True)
+
+
+def _carrier_only(words, names):
+    return all(ASSIGNMENT.match(w.value) or name in ASSIGNMENT_CARRIERS or w.value.startswith('-')
+               for w, name in zip(words, names))
+
+
 def _pager_runs(words, names):
     """(#1454) A pager variable matters when git will page, or when the variable is only being exported."""
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
     if git_index is not None:
         return git_pages(words[git_index + 1:])
-    return all(ASSIGNMENT.match(w.value) or name in ASSIGNMENT_CARRIERS or w.value.startswith('-')
-               for w, name in zip(words, names))
+    return _carrier_only(words, names)
+
+
+def _command_variable_runs(words, names):
+    """(#1455) Editor, askpass and external-diff variables matter next to git or ssh, or when only exported."""
+    return any(name in ('git', 'ssh') for name in names) or _carrier_only(words, names)
 
 
 def _variable_commands(words, names, patterns, cwd):
-    """(#1454) Verdict for GIT_SSH, GIT_PAGER and PAGER assignments in one segment; None when all are fine."""
+    """(#1454, #1455) Verdict for GIT_SSH, pager and command-valued variables in one segment; None when fine."""
     for word in words:
         program = PROGRAM_VARIABLE.match(word.value)
         if program:
@@ -487,7 +516,52 @@ def _variable_commands(words, names, patterns, cwd):
             found = analyze(pager.group(1), patterns, None, True)
             if not found.allowed:
                 return found
+        command = COMMAND_VARIABLE.match(word.value)
+        if command and _command_variable_runs(words, names):
+            found = command_text_verdict(command.group(1), patterns, cwd)
+            if not found.allowed:
+                return found
     return None
+
+
+def _assignments(words):
+    """NAME -> value of every visible assignment word in the segment."""
+    pairs = (w.value.split('=', 1) for w in words if ASSIGNMENT.match(w.value))
+    return {name.rstrip('+'): value for name, value in pairs}
+
+
+def _injected_settings(words):
+    """(#1455) (key, value) pairs from GIT_CONFIG_KEY_n/VALUE_n and GIT_CONFIG_PARAMETERS; (pairs, problems).
+
+    A value without a visible key is analyzed as a command anyway, and a command-valued key without a
+    visible value is a problem: the text cannot say what git will run."""
+    keys, values, pairs, problems = {}, {}, [], []
+    for word in words:
+        key = CONFIG_KEY_VARIABLE.match(word.value)
+        value = CONFIG_VALUE_VARIABLE.match(word.value)
+        if key:
+            keys[key.group(1)] = key.group(2).lower()
+        elif value:
+            values[value.group(1)] = value.group(2)
+        elif word.value.startswith(CONFIG_PARAMETERS):
+            try:
+                entries = shlex.split(word.value[len(CONFIG_PARAMETERS):])
+            except ValueError:
+                problems.append('GIT_CONFIG_PARAMETERS')
+                continue
+            pairs += [(k.lower(), v) for k, _, v in (entry.partition('=') for entry in entries)]
+    for index in sorted(set(keys) | set(values)):
+        if index in keys and index in values:
+            pairs.append((keys[index], values[index]))
+        elif index in values:
+            pairs.append(('', values[index]))
+        elif is_command_key(keys[index]):
+            problems.append('GIT_CONFIG_KEY_' + index)
+    return pairs, problems
+
+
+def _unpaired_values(pairs):
+    return [value for key, value in pairs if not key]
 
 
 def exec_entrance_verdict(words, names, patterns, cwd=None):
@@ -499,14 +573,20 @@ def exec_entrance_verdict(words, names, patterns, cwd=None):
     if found is not None:
         return found
     commands = [w.value[len(SSH_COMMAND_VARIABLE):] for w in words if w.value.startswith(SSH_COMMAND_VARIABLE)]
+    injected, problems = _injected_settings(words)
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
     reader_index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
     if git_index is not None and (reader_index is None or git_index < reader_index):
-        commands += exec_strings(words[git_index + 1:])
+        strings, unresolved = exec_strings(words[git_index + 1:], _assignments(words), injected)
+        commands += strings
+        problems += unresolved
+    commands += _unpaired_values(injected)
     for command in commands:
-        found = analyze(command, patterns, None, True) if command.strip() else verdict.allow()
+        found = command_text_verdict(command, patterns, cwd) if command.strip() else verdict.allow()
         if not found.allowed:
             return found
+    if problems and git_index is not None:
+        return verdict.ambiguous('git configuration %s' % ascii(problems[0]), CONFIG_RECOVERY)
     return None
 
 
@@ -536,11 +616,11 @@ def code_string_verdict(tokens, patterns, cwd, remote, checked):
     return verdict.allow()
 
 
-PROXY_COMMAND = re.compile(r'^\s*proxycommand(?:\s*=\s*|\s+)(.*)$', re.I | re.S)
+PROXY_COMMAND = re.compile(r'^\s*(?:proxycommand|localcommand|knownhostscommand)(?:\s*=\s*|\s+)(.*)$', re.I | re.S)
 
 
 def _proxy_command(setting):
-    """(#1454) The command an `-o ProxyCommand` setting runs, or None for another setting."""
+    """(#1454, #1455) The command an `-o ProxyCommand`, `LocalCommand` or `KnownHostsCommand` setting runs."""
     match = PROXY_COMMAND.match(setting)
     return match.group(1) if match else None
 
