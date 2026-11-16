@@ -2869,4 +2869,83 @@ test('#1435 su login -c blocks mutating git even from a feature branch (cwd chan
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1449 (spec #1422, RC4): BASH_ENV=, ENV=, --rcfile and --init-file paired
+// with a process substitution are shell input. The startup file named by a
+// path is never read (ADR 0037); only text the command itself carries is judged.
+// ---------------------------------------------------------------------------
+
+const STARTUP_FILE_BLOCKED_1449 = [
+  ['B01 BASH_ENV process substitution', "BASH_ENV=<(echo 'git commit -m x') bash -c :"],
+  ['B10 env wrapper BASH_ENV', "env BASH_ENV=<(echo 'git commit -m x') bash -c :"],
+  ['B11 BASH_ENV with a script-file child', "BASH_ENV=<(echo 'git commit -m x') bash ./ordinary"],
+  ['B12 ENV for sh -i', "ENV=<(echo 'git commit -m x') sh -i -c : </dev/null"],
+  ['B13 BASH_ENV with -i (conservative)', "BASH_ENV=<(echo 'git commit -m x') bash -i -c : </dev/null"],
+  ['R01 --rcfile -i', "bash --rcfile <(echo 'git commit -m x') -i </dev/null"],
+  ['R07 --rcfile without -i', "bash --rcfile <(echo 'git commit -m x') -c :"],
+  ['--init-file process substitution', "bash --init-file <(echo 'git commit -m x') -i -c : </dev/null"],
+  ['verify-skip text in BASH_ENV', "BASH_ENV=<(echo 'git commit --no-verify -m x') bash -c :"],
+  ['quote-split git text in rcfile', "bash --rcfile <(echo 'g\"it\" commit -m x') -i </dev/null"],
+  ['BASH_ENV procsub fed to a script-file child under env -i', "env -i BASH_ENV=<(echo 'git commit -m x') bash ./ordinary"],
+  ['rcfile procsub with a dynamic body', 'bash --rcfile <(echo "$X") -i </dev/null'],
+  ['BASH_ENV=/dev/stdin fed by a pipe', "echo 'git commit -m x' | BASH_ENV=/dev/stdin bash -c :"],
+  ['rcfile /dev/stdin fed by a pipe', "echo 'git commit -m x' | bash --rcfile /dev/stdin -i"],
+  ['BASH_ENV=/dev/stdin fed by a stdin process substitution', "BASH_ENV=/dev/stdin bash -c : < <(echo 'git commit -m x')"],
+  ['B03 BASH_ENV=/dev/stdin here-string (already blocked)', "BASH_ENV=/dev/stdin bash -c : <<< 'git commit -m x'"],
+  ['R08 rcfile /dev/stdin here-string (already blocked)', "bash --rcfile /dev/stdin -i <<< 'git commit -m x'"],
+];
+
+const STARTUP_FILE_ALLOWED_1449 = [
+  ['B07 BASH_ENV file contents are not read', 'BASH_ENV=./hook.sh bash -c :'],
+  ['B09 ordinary BASH_ENV file', 'BASH_ENV=./ordinary bash -c :'],
+  ['R05 rcfile contents are not read', 'bash --rcfile ./hook.sh -i -c : </dev/null'],
+  ['R06 ordinary rcfile', 'bash --rcfile ./ordinary -i -c : </dev/null'],
+  ['R09 rcfile shell running read-only git', "bash --rcfile ./ordinary -i -c 'git status' </dev/null"],
+  ['BASH_ENV procsub without git text', "BASH_ENV=<(echo 'export FOO=1') bash -c :"],
+  ['rcfile procsub without git text', "bash --rcfile <(echo 'alias ll=ls') -i -c : </dev/null"],
+  ['ENV procsub without git text', "ENV=<(echo 'PS1=x') sh -i -c : </dev/null"],
+  ['procsub as a non-startup operand', 'diff <(echo a) <(echo b)'],
+];
+
+test('#1449 judges a heredoc fed to BASH_ENV=/dev/stdin as a script on main', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `BASH_ENV=/dev/stdin bash -c : ${'<' + '<'}EOF\ngit commit -m x\nEOF`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook} feature: ${command}`);
+    }
+  });
+});
+
+function seedStartupFixtures(repo) {
+  fs.writeFileSync(path.join(repo, 'hook.sh'), 'git commit -m x\n');
+  fs.writeFileSync(path.join(repo, 'ordinary'), 'echo ordinary\n');
+}
+
+for (const [label, command] of STARTUP_FILE_BLOCKED_1449) {
+  test(`#1449 blocks a startup-file shell input on main and a feature branch: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        seedStartupFixtures(cwd);
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
+for (const [label, command] of STARTUP_FILE_ALLOWED_1449) {
+  test(`#1449 allows a startup file that carries no visible git text: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        seedStartupFixtures(cwd);
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
 run('hook-bypass');

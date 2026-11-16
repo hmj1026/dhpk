@@ -1558,6 +1558,50 @@ _dhpk_ci_pin_take() {
     return 0
 }
 
+# BASH_ENV=, ENV=, --rcfile and --init-file name a script a shell runs before
+# its own input, whether or not -i or -c is given (Debian can read BASH_ENV or
+# an rcfile for a non-interactive shell too). Text the command itself carries,
+# a process substitution or the stdin device fed by a pipe, is judged like any
+# other shell input. A path is not read (ADR 0037).
+_dhpk_ci_feed_startup_files() {
+    local i=0 w prev="" kind val stdin_startup=0 shell_head=0
+    _dhpk_ci_is_shell_word "$_dhpk_ci_u_head" && shell_head=1
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_words[$i]}"
+        kind=""
+        case "$w" in
+            BASH_ENV=*|BASH_ENV+=*|ENV=*|ENV+=*) kind=1; val="${w#*=}" ;;
+            *)
+                if [ "$shell_head" -eq 1 ]; then
+                    case "$prev" in
+                        --rcfile|--init-file) kind=1; val="$w" ;;
+                    esac
+                fi
+                ;;
+        esac
+        prev="$w"
+        i=$((i + 1))
+        [ -n "$kind" ] || continue
+        if _dhpk_ci_ps_at_index $((i - 1)); then
+            _dhpk_ci_feed_text "$_dhpk_ci_ps_one_text" "$_dhpk_ci_ps_one_known"
+        elif _dhpk_ci_stdin_device "$val"; then
+            stdin_startup=1
+        fi
+    done
+    [ "$stdin_startup" -eq 1 ] || return 0
+    i=0
+    while [ "$i" -lt "$n" ]; do
+        if _dhpk_ci_is_stdin_op "${_dhpk_ci_words[$i]}" && _dhpk_ci_ps_at_index $((i + 1)); then
+            _dhpk_ci_feed_text "$_dhpk_ci_ps_one_text" "$_dhpk_ci_ps_one_known"
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    if [ "${_dhpk_ci_after_pipe:-0}" = "1" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
+        _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pipe_text:-}" "${_dhpk_ci_pipe_known:-0}"
+    fi
+}
+
 # Record a function body, then judge stdin that reaches a shell or `.`.
 _dhpk_ci_finish_command_input() {
     local def="" token="" reads=0 i=0 w fed=0 stdin_at=-1 kind="none" file_at=-1
@@ -1682,6 +1726,9 @@ _dhpk_ci_finish_command_input() {
             fi
             fi
         fi
+    fi
+    if [ "${#_dhpk_ci_ps_at[@]}" -gt 0 ] || [ "${_dhpk_ci_after_pipe:-0}" = "1" ]; then
+        _dhpk_ci_feed_startup_files
     fi
     _dhpk_ci_outps_classify
     _dhpk_ci_pin_take
