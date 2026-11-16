@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./copy-dereferenced');
 
 // Behavioral coverage for install-codex-skills.sh. The fixtures deliberately
 // exercise ownership boundaries rather than only checking shell syntax.
@@ -65,8 +66,8 @@ function projectRoot() {
 }
 
 function copyDistributionInventory(plugin) {
-  fs.cpSync(path.join(ROOT, 'manifests'), path.join(plugin, 'manifests'), { recursive: true, dereference: true });
-  fs.cpSync(path.join(ROOT, 'agent-traps'), path.join(plugin, 'agent-traps'), { recursive: true, dereference: true });
+  copyDereferenced(path.join(ROOT, 'manifests'), path.join(plugin, 'manifests'));
+  copyDereferenced(path.join(ROOT, 'agent-traps'), path.join(plugin, 'agent-traps'));
   fs.mkdirSync(path.join(plugin, 'docs'), { recursive: true });
   fs.copyFileSync(
     path.join(ROOT, 'docs', 'subagent-prompt-template.md'),
@@ -167,7 +168,7 @@ function materializeFixtureSkill(fakePlugin, name) {
   }
   const resolvedSource = fs.realpathSync(skillSource);
   fs.rmSync(skillSource, { recursive: true, force: true });
-  fs.cpSync(resolvedSource, skillSource, { recursive: true, dereference: true });
+  copyDereferenced(resolvedSource, skillSource);
 }
 
 function runtimeSupportSkillNames() {

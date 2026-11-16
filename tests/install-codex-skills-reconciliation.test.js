@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./_lib/copy-dereferenced');
 
 // Behavioral coverage for install-codex-skills.sh (install-codex-skills-reconciliation).
 // Every installer invocation remains a real child process so exit status,
@@ -99,7 +100,7 @@ function rewriteSkillAsHistoricalManagedSymlink(project, skillName, pluginRoot =
 
 function reconciliationPlugin() {
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-recovery-plugin-')));
-  fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+  copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
   copyDistributionInventory(fakePlugin);
@@ -317,7 +318,7 @@ test('copy-mode legacy migration preserves a receipt-owned retargeted symlink wi
     assert.ok(currentEntry, `expected initial receipt entry for ${currentName}`);
 
     fs.renameSync(currentTarget, legacyTarget);
-    fs.cpSync(source, replacement, { recursive: true, dereference: true });
+    copyDereferenced(source, replacement);
     fs.rmSync(legacyTarget, { recursive: true, force: true });
     fs.symlinkSync(replacement, legacyTarget, 'dir');
     delete receipt.managed_entries.skills[currentName];
@@ -348,13 +349,10 @@ test('skill sources fail closed when distribution metadata is missing', () => {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-missing-metadata-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills'), { recursive: true, force: true });
     fs.mkdirSync(path.join(fakePlugin, 'codex', 'skills'), { recursive: true });
-    fs.cpSync(path.join(ROOT, 'skills', 'tdd-workflow'), path.join(fakePlugin, 'codex', 'skills', 'tdd-workflow'), {
-      recursive: true,
-      dereference: true,
-    });
+    copyDereferenced(path.join(ROOT, 'skills', 'tdd-workflow'), path.join(fakePlugin, 'codex', 'skills', 'tdd-workflow'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     const res = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
@@ -372,13 +370,10 @@ test('skill sources fail closed when distribution metadata is incomplete', () =>
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-incomplete-metadata-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills'), { recursive: true, force: true });
     fs.mkdirSync(path.join(fakePlugin, 'codex', 'skills'), { recursive: true });
-    fs.cpSync(path.join(ROOT, 'skills', 'tdd-workflow'), path.join(fakePlugin, 'codex', 'skills', 'tdd-workflow'), {
-      recursive: true,
-      dereference: true,
-    });
+    copyDereferenced(path.join(ROOT, 'skills', 'tdd-workflow'), path.join(fakePlugin, 'codex', 'skills', 'tdd-workflow'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
@@ -403,7 +398,7 @@ for (const brokenSource of [false, true]) {
     const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-plugin-')));
     const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-outside-')));
     try {
-      fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+      copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
       fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
       fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
       copyDistributionInventory(fakePlugin);
@@ -445,7 +440,7 @@ test('malformed retirement metadata fails closed before receipt mutation', () =>
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-retirement-metadata-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -482,7 +477,7 @@ test('agent retirement successors must exist in the inventory-owned roster', () 
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-agent-roster-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -521,14 +516,14 @@ for (const brokenSymlink of [false, true]) {
     const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-plugin-')));
     const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-outside-')));
     try {
-      fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+      copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
       const fixtureSkills = path.join(fakePlugin, 'codex', 'skills');
       for (const name of fs.readdirSync(fixtureSkills)) {
         const skillRoot = path.join(fixtureSkills, name);
         if (fs.lstatSync(skillRoot).isSymbolicLink()) {
           const resolvedSource = fs.realpathSync(skillRoot);
           fs.rmSync(skillRoot);
-          fs.cpSync(resolvedSource, skillRoot, { recursive: true, dereference: true });
+          copyDereferenced(resolvedSource, skillRoot);
         }
         assert.ok(fs.lstatSync(skillRoot).isDirectory(), 'fixture skill roots must be physical directories');
         assert.ok(fs.realpathSync(skillRoot).startsWith(`${fakePlugin}${path.sep}`), 'fixture skill roots must remain inside the plugin');
@@ -656,7 +651,7 @@ test('supporting-only installs remain compatible without skill metadata', () => 
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-supporting-only-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills'), { recursive: true, force: true });
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
@@ -694,7 +689,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     'standalone-fixture.pyc',
   );
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -822,13 +817,10 @@ test('same plugin version but changed source content is not treated as up-to-dat
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills'), { recursive: true, force: true });
-    fs.cpSync(
-      path.join(ROOT, 'skills', 'tdd-workflow'),
-      path.join(fakePlugin, 'codex', 'skills', 'tdd-workflow'),
-      { recursive: true, dereference: true }
-    );
+    copyDereferenced(path.join(ROOT, 'skills', 'tdd-workflow'),
+      path.join(fakePlugin, 'codex', 'skills', 'tdd-workflow'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -928,7 +920,7 @@ test('hybrid mode adopts a new plugin root while keeping agent roles physical', 
   const firstPlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plugin-v1-')));
   const secondPlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plugin-v2-')));
   const preparePlugin = (plugin) => {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(plugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(plugin, 'codex'));
     fs.mkdirSync(path.join(plugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(plugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(plugin);
@@ -967,7 +959,7 @@ test('path-safe install handles apostrophes in plugin and project roots', () => 
   fs.renameSync(basePlugin, fakePlugin);
   fs.mkdirSync(path.join(scratch, '.git'));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -986,7 +978,7 @@ test('inventory supporting sources reject unsafe paths before materialization', 
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-inventory-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -1102,7 +1094,7 @@ test('--update prunes only unchanged removed sources and preserves edited/unrela
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -1143,7 +1135,7 @@ test('--migrate adopts exact legacy copies but never overwrites mismatches', () 
     const source = path.join(ROOT, 'codex', 'skills', skillName);
     const exactTarget = path.join(scratch, '.codex', 'skills', skillName);
     fs.mkdirSync(path.dirname(exactTarget), { recursive: true });
-    fs.cpSync(source, exactTarget, { recursive: true, dereference: true });
+    copyDereferenced(source, exactTarget);
     const mismatch = names[1] || 'user-owned-skill';
     const mismatchTarget = path.join(scratch, '.codex', 'skills', mismatch);
     fs.mkdirSync(mismatchTarget, { recursive: true });
@@ -1170,7 +1162,7 @@ test('legacy migration remains available after stale inspection', () => {
     const source = path.join(ROOT, 'codex', 'skills', skillName);
     const target = path.join(scratch, '.codex', 'skills', skillName);
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.cpSync(source, target, { recursive: true, dereference: true });
+    copyDereferenced(source, target);
     fs.writeFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), JSON.stringify({
       fingerprint_algorithm: 'tree-merkle-v1', plugin_version: 'legacy', mode: 'copy', installed_at: '2020-01-01T00:00:00Z',
     }));
@@ -1351,7 +1343,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-evidence-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
@@ -1405,7 +1397,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     const updatedPath = path.join(fakePlugin, 'codex', 'skills', updated);
     if (fs.lstatSync(updatedPath).isSymbolicLink()) {
       fs.rmSync(updatedPath, { recursive: true, force: true });
-      fs.cpSync(path.join(ROOT, 'skills', updated), updatedPath, { recursive: true, dereference: true });
+      copyDereferenced(path.join(ROOT, 'skills', updated), updatedPath);
     }
     fs.appendFileSync(path.join(updatedPath, 'SKILL.md'), '\nsource update for evidence\n');
 

@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./_lib/copy-dereferenced');
 
 // Self-contained Codex Skills are installed as their complete physical
 // directories.  The retired per-Skill descriptor can no longer inject files
@@ -23,10 +24,7 @@ const LOCAL_SCRIPT = path.join('scripts', 'fixture-runtime.js');
 
 function makePlugin() {
   const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-runtime-plugin-')));
-  fs.cpSync(path.join(ROOT, 'codex'), path.join(plugin, 'codex'), {
-    recursive: true,
-    dereference: true,
-  });
+  copyDereferenced(path.join(ROOT, 'codex'), path.join(plugin, 'codex'));
   fs.mkdirSync(path.join(plugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(
     path.join(ROOT, '.claude-plugin', 'plugin.json'),

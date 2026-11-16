@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./_lib/copy-dereferenced');
 
 const fs = require('node:fs');
 const crypto = require('node:crypto');
@@ -57,7 +58,7 @@ function skillPaths(host, project) {
 
 function legacyPluginRoot(host) {
   const pluginRoot = fs.realpathSync(fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-legacy-metadata-plugin-')));
-  fs.cpSync(path.join(ROOT, host.source), path.join(pluginRoot, host.source), { recursive: true, dereference: true });
+  copyDereferenced(path.join(ROOT, host.source), path.join(pluginRoot, host.source));
   fs.mkdirSync(path.join(pluginRoot, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(pluginRoot, '.claude-plugin', 'plugin.json'));
   copyDistributionInventory(pluginRoot);
