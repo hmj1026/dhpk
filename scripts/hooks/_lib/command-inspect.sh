@@ -3698,7 +3698,7 @@ _dhpk_ci_extract_shell_c() {
 }
 
 _dhpk_ci_flush_command() {
-    local sep="$1" n h head k cond kwhead="" git_has_c cmd_idx="${#DHPK_CMD_START[@]}"
+    local sep="$1" n h head k cond kwhead="" git_has_c forge_text cmd_idx="${#DHPK_CMD_START[@]}"
     local -a _dhpk_ci_u_words _dhpk_ci_u_dyn _dhpk_ci_u_quoted _dhpk_ci_u_flat
     local _dhpk_ci_u_idx=0 _dhpk_ci_u_head="" _dhpk_ci_u_cwd="$_dhpk_ci_cwd" _dhpk_ci_u_cwd_state="$_dhpk_ci_cwd_state"
     local _dhpk_ci_u_chdir_set=0 _dhpk_ci_u_query_only=0 _dhpk_ci_u_quoted_wrapper=0
@@ -4188,6 +4188,14 @@ _dhpk_ci_flush_command() {
     # the text writes into a process or a FIFO. Any other body is a script.
     if [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; then
         git_has_c=0
+        # gh and glab only store a standard-input body for their own issue,
+        # pull request and release subcommands; any other word may name an
+        # extension or alias that runs the text.
+        forge_text=0
+        case "$_dhpk_ci_u_head" in
+            gh|*/gh) case "${_dhpk_ci_u_words[$((_dhpk_ci_u_idx + 1))]:-}" in issue|pr|release) forge_text=1 ;; esac ;;
+            glab|*/glab) case "${_dhpk_ci_u_words[$((_dhpk_ci_u_idx + 1))]:-}" in issue|mr|release) forge_text=1 ;; esac ;;
+        esac
         case "$_dhpk_ci_u_head" in
             git|*/git)
                 k=$((_dhpk_ci_u_idx + 1))
@@ -4206,6 +4214,13 @@ _dhpk_ci_flush_command() {
             case "$_dhpk_ci_u_head" in
                 cat|*/cat|tee|*/tee|git|*/git)
                     if [ "$git_has_c" -eq 1 ] || [ "$sep" = "pipe" ] || [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
+                        _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1
+                    else
+                        _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=0
+                    fi
+                    ;;
+                gh|*/gh|glab|*/glab)
+                    if [ "$forge_text" -eq 0 ] || [ "$sep" = "pipe" ] || [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
                         _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1
                     else
                         _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=0
