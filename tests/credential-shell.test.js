@@ -147,6 +147,21 @@ test('lex reads a substitution whose output may run from the unmasked text (#141
   assert.strictEqual(dollar.executed, false);
 });
 
+test('lex keeps a stored heredoc message data only for a message option of a recognised consumer (#1434)', () => {
+  const raw = `cat ${SHL}'EOF'\ncat .env\nEOF\n`;
+  const data = [
+    'git commit -m "$x"', 'git commit --message="$x"', 'git -C . commit -am "$x"', 'gh issue create --body "$x"',
+    'glab mr create --description "$x"', 'echo "$x"', 'echo $x',
+  ];
+  const runs = [
+    'git commit -m $x', 'git rebase --exec "$x" main', 'git commit -x "$x"', 'gh alias set a "$x"',
+    'gh issue create --body "${x@P}"', 'git config alias.c "$x"', 'git commit -m "$x"; $x', 'printf -v y "$x"',
+  ];
+  const lexed = lexAll([...data, ...runs].map((consumer) => `x="${HEREDOC_SUB}"; ${consumer}`));
+  lexed.slice(0, data.length).forEach((result, i) => assert.deepStrictEqual(result.executed_bodies, [], data[i]));
+  lexed.slice(data.length).forEach((result, i) => assert.deepStrictEqual(result.executed_bodies, [raw], runs[i]));
+});
+
 test('lex with executed reads heredoc text as code (#1411)', () => {
   const body = `cat ${SHL}'EOF'\ncat .env\nEOF\n`;
   const [result] = lexAll([body], true);
