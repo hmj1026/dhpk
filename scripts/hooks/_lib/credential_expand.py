@@ -39,6 +39,8 @@ _KEEP = object()
 _UNRESOLVED = object()
 # A name set by `read` or `printf -v`: its value is unseen, so a word that mixes it with literal text is blocked.
 _OPAQUE = object()
+# (#1462) Key in a copy of the variables: the positionals the text proves set, as {position: literal}.
+_DEFINITE = object()
 BT = chr(96)
 
 
@@ -51,7 +53,10 @@ def expand_variants(tokens):
     if not any(token.parts for token in tokens if not token.operator):
         return None
     variables = _variables(tokens)
-    alternatives = [[[token]] if token.operator else _alternatives(token, variables, False, 0) for token in tokens]
+    definite = _definite_positionals(tokens, function_names(tokens))
+    proven = None if definite is None else {**variables, _DEFINITE: definite[2]}
+    alternatives = [[[token]] if token.operator else _alternatives(token, _view(variables, proven, definite, index), False, 0)
+                    for index, token in enumerate(tokens)]
     _limit(alternatives, tokens)
     return [[word for part in combination for word in part] for combination in itertools.product(*alternatives)]
 
@@ -59,6 +64,13 @@ def expand_variants(tokens):
 def visible_values(tokens):
     """(#1450) Values each name may hold as plain strings; a name with too many values is left out."""
     return {name: list(values) for name, values in _variables(tokens).items() if values not in (_UNKNOWN, _OPAQUE)}
+
+
+def _view(variables, proven, definite, index):
+    """The variables a token at `index` sees: the copy that also carries the proven positionals inside their range."""
+    if definite is None or not definite[0] <= index < definite[1]:
+        return variables
+    return proven
 
 
 def _limit(alternatives, tokens):
@@ -165,6 +177,188 @@ def function_names(tokens):
         elif len(following) == 2 and [(t.operator, t.value) for t in following] == [(True, '('), (True, ')')]:
             defined.add(token.value)
     return defined
+
+
+LITERAL_FREE = ('{', '$', BT)
+# Words whose mention in the text keeps the fallback: `shift` rebinds, IFS splits, and these names feed tilde expansion.
+UNPROVABLE_WORDS = ('shift', 'IFS', 'HOME', 'PWD', 'OLDPWD')
+TILDE_SITES = ('=~', ':~')
+# An unquoted use of a value with white space or glob characters could split or expand into other words.
+UNSAFE_VALUE = re.compile(r'[\s*?\[]')
+SCOPE_OPENERS = frozenset(('{', '(', 'if', 'while', 'until', 'for', 'case', 'select', 'then', 'do', 'elif', 'else'))
+
+
+def _definite_positionals(tokens, functions):
+    """(#1462) (start, end, {position: literal}) when the text proves what the positionals hold, else None.
+
+    Proves only in a structurally narrow text: no redirection, substitution or here-doc, no `shift`, at most one
+    function and no nested one, and one positional source (one `set --`, or one call of that function).
+    The range is where the proven values hold.
+    """
+    definitions = _definition_count(tokens)
+    if definitions > 1 or not _is_plain(tokens) or _rebinds_positionals(tokens) or _may_rebind(tokens):
+        return None
+    if any(_mentions(tokens, word) for word in UNPROVABLE_WORDS) or len(functions) != definitions:
+        return None
+    sources = [i for i in _head_indexes(tokens) if _is_source(tokens, i, functions)]
+    if len(sources) != 1:
+        return None
+    at, sets = sources[0], _mentions(tokens, 'set')
+    if tokens[at].value == 'set':
+        return _definite_set(tokens, at) if sets == 1 and not definitions else None
+    return _definite_call(tokens, at) if not sets else None
+
+
+def _command_words(tokens, start=0):
+    """Indexes of the words in command position, reserved words such as `{` and `}` included."""
+    head = True
+    for index in range(start, len(tokens)):
+        token = tokens[index]
+        if token.operator:
+            head = head or token.value in HEAD_OPERATORS
+        elif head:
+            yield index
+            head = token.value in HEAD_KEEPERS or bool(ASSIGNMENT.match(token.value))
+
+
+def _head_indexes(tokens):
+    return [i for i in _command_words(tokens) if tokens[i].value not in HEAD_KEEPERS and not ASSIGNMENT.match(tokens[i].value)]
+
+
+def _is_source(tokens, index, functions):
+    word = tokens[index].value
+    if word == 'set':
+        return True
+    return word in functions and not _is_definition_head(tokens, index)
+
+
+def _is_definition_head(tokens, index):
+    following = tokens[index + 1:index + 3]
+    return [(t.operator, t.value) for t in following] == [(True, '('), (True, ')')]
+
+
+def _rebinds_positionals(tokens):
+    """A `for name;` loop walks the positionals, so no position is proven."""
+    for index, token in enumerate(tokens):
+        if token.operator or token.value != 'for':
+            continue
+        if index + 2 < len(tokens) and not tokens[index + 1].operator and tokens[index + 2].operator and tokens[index + 2].value == ';':
+            return True
+    return False
+
+
+PLAIN_OPERATORS = frozenset((';', '&&', '||', '|', '(', ')'))
+
+
+def _is_plain(tokens):
+    """No redirection, here-doc, process or command substitution anywhere: only list operators and `()` of a definition."""
+    for token in tokens:
+        if token.operator and token.value not in PLAIN_OPERATORS:
+            return False
+        if not token.operator and (token.substitution or '$(' in token.value or BT in token.value):
+            return False
+    return True
+
+
+def _definition_count(tokens):
+    """Number of `name()` definitions, or 2 (too many) when parentheses appear anywhere else."""
+    heads = sum(1 for i, token in enumerate(tokens) if not token.operator and _is_definition_head(tokens, i))
+    opens = sum(1 for token in tokens if token.operator and token.value == '(')
+    closes = sum(1 for token in tokens if token.operator and token.value == ')')
+    return heads if opens == closes == heads else 2
+
+
+REBINDERS = frozenset(('eval', 'source', 'trap', 'alias', 'builtin', 'command', 'getopts', 'shopt', 'exec', 'enable'))
+INTERPRETER = re.compile(r'(?:ba|da|z|k|a|c|tc)?sh|fish|python[0-9.]*|perl|ruby|node|php|lua|g?awk')
+
+
+def _may_rebind(tokens):
+    """True when the text has a way to rebind the positionals that this module does not model (#1462)."""
+    words = [token for token in tokens if not token.operator]
+    if any(word.value in REBINDERS or INTERPRETER.fullmatch(word.value.rsplit('/', 1)[-1]) for word in words):
+        return True
+    return any(not _is_plain_word(tokens[i]) or tokens[i].value == '.' for i in _head_indexes(tokens))
+
+
+def _is_plain_word(token):
+    """An unquoted literal with no glob, brace, tilde, quote, escape or expansion: it cannot name a hidden command."""
+    if token.parts or token.glob or token.dynamic or token.substitution or token.value.startswith('~'):
+        return False
+    return not any(mark in token.value for mark in '*?[{\\\'"$' + BT)
+
+
+def _literal_positionals(words):
+    """{position: value} when every word is a plain literal that fits the tracked positions, else None."""
+    if len(words) > POSITIONAL_LIMIT:
+        return None
+    for word in words:
+        if word.parts or word.glob or word.dynamic or word.substitution or _expands_tilde(word.value) or any(mark in word.value for mark in LITERAL_FREE):
+            return None
+    return {str(position): word.value for position, word in enumerate(words, 1) if not UNSAFE_VALUE.search(word.value)}
+
+
+def _expands_tilde(value):
+    """A word that starts with `~`, or has one after `=` or `:`, is tilde-expanded at runtime."""
+    return value.startswith('~') or any(site in value for site in TILDE_SITES)
+
+
+def _definite_set(tokens, at):
+    """A top-level `set -- WORDS;` followed by the rest of the text."""
+    if at and not (tokens[at - 1].operator and tokens[at - 1].value == ';'):
+        return None
+    if any(token.value in SCOPE_OPENERS for token in tokens[:at]):
+        return None
+    words = _words_until_operator(tokens, at + 1)
+    end = at + 1 + len(words)
+    if not words or words[0].value != '--' or end >= len(tokens) or tokens[end].value != ';':
+        return None
+    values = _literal_positionals(words[1:])
+    return None if values is None else (end + 1, len(tokens), values)
+
+
+IMPLICIT_HANDLERS = frozenset(('command_not_found_handle',))
+
+
+def _definite_call(tokens, at):
+    """`name() { BODY }; name WORDS` and nothing else: the positionals hold within the body.
+
+    Any other command could reach the function again (bash itself calls `command_not_found_handle`), so the
+    text is exactly the definition and its one call, with an optional closing `;`.
+    """
+    name = tokens[at].value
+    named = [i for i, token in enumerate(tokens) if not token.operator and token.value == name]
+    if name in IMPLICIT_HANDLERS or named != [0, at] or _mentions(tokens, name) != 2:
+        return None
+    body = _function_body(tokens, 0)
+    words = _words_until_operator(tokens, at + 1)
+    values = _literal_positionals(words)
+    if body is None or values is None or at != body[1] + 2 or tokens[body[1] + 1].value != ';':
+        return None
+    end = at + 1 + len(words)
+    if end != len(tokens) and not (end == len(tokens) - 1 and tokens[end].value == ';'):
+        return None
+    return (body[0], body[1], values)
+
+
+def _mentions(tokens, name):
+    """How often `name` appears as a whole word inside any token, quoted strings included."""
+    pattern = re.compile(r'(?<!\w)' + re.escape(name) + r'(?!\w)')
+    return sum(len(pattern.findall(token.value)) for token in tokens if not token.operator)
+
+
+def _function_body(tokens, index):
+    """(first, closing) token indexes of the `{ ... }` body of `name() { ... }` at `index`, or None.
+
+    Only a `{` or `}` in command position is a reserved word; one inside a quoted word is not counted.
+    """
+    if not _is_definition_head(tokens, index) or index + 3 >= len(tokens) or tokens[index + 3].operator or tokens[index + 3].value != '{':
+        return None
+    depth = 0
+    for end in _command_words(tokens, index + 3):
+        depth += {'{': 1, '}': -1}.get(tokens[end].value, 0)
+        if not depth:
+            return (index + 4, end)
+    return None
 
 
 def _words_until_operator(tokens, index):
@@ -555,12 +749,26 @@ def _values(expansion, variables, depth, literal=False):
         return _KEEP if known is None else known
     if op in (':?', '?'):
         return _KEEP if known is None else known
+    proven = _proven_value(expansion, variables)
+    if proven is not None:
+        return [proven]
     given = _argument(expansion.arg, variables, depth + 1)
     if given is _UNRESOLVED:
         return _UNRESOLVED
     if op in (':+', '+'):
         return given + [''] if '' not in given else given
     return list(known or []) + [value for value in given if value not in (known or [])]
+
+
+def _proven_value(expansion, variables):
+    """(#1462) The value a default is not used for: the name is proven set (to a non-empty word for `:-`)."""
+    proven = variables.get(_DEFINITE)
+    if not proven or expansion.name not in proven:
+        return None
+    value = proven[expansion.name]
+    if expansion.op in (':-', ':=') and value or expansion.op in ('-', '='):
+        return value
+    return None
 
 
 def _argument(arg, variables, depth):

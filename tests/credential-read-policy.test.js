@@ -911,4 +911,92 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
+// (#1462) A positional parameter that is visibly set to a non-empty literal never uses its protected fallback.
+// The text proves it only when nothing in it can rebind the positionals: any eval, source, trap, alias, builtin,
+// command, shell code string, here-doc or dynamic command word keeps the fallback. One test per row and hook.
+const D = '"${1:-.env}"';
+const D2 = '"${2:-.env}"';
+const positionalProofRows = [
+  { id: 'F1', command: `set -- ordinary; cat ${D}`, status: 0 },
+  { id: 'F2', command: `f() { cat ${D}; }; f ordinary`, status: 0 },
+  { id: 'F3', command: "set -- ''; cat \"${1-.env}\"", status: 0 },
+  { id: 'B1', command: `set -- ''; cat ${D}`, status: 2, reason: /protected path/ },
+  { id: 'B2', command: `f(){ cat ${D}; }; f ordinary; f`, status: 2 },
+  { id: 'B3', command: `set -- a; shift; cat ${D}`, status: 2 },
+  { id: 'B4', command: `cat ${D}; set -- a`, status: 2 },
+  { id: 'B5', command: `true && set -- a; cat ${D}`, status: 2 },
+  { id: 'B6', command: `set -- $x; cat ${D}`, status: 2 },
+  { id: 'B7', command: `set -- a; f(){ cat ${D}; }; f`, status: 2 },
+  { id: 'B8', command: `cat ${D}`, status: 2 },
+  { id: 'B9', command: 'cat .env', status: 2 },
+  { id: 'P-01', command: `set -- ordinary; builtin set --; cat ${D}`, status: 2, reason: /protected path/ },
+  { id: 'P-02', command: `set -- ordinary; command set --; cat ${D}`, status: 2 },
+  { id: 'P-03', command: `set -- ordinary; eval 'set --'; cat ${D}`, status: 2 },
+  { id: 'P-04', command: `set -- a; eval "set -- ''"; cat ${D}`, status: 2 },
+  { id: 'P-05', command: `set -- ordinary; s=shift; $s; cat ${D}`, status: 2 },
+  { id: 'P-06', command: `set -- ordinary; t=set; $t --; cat ${D}`, status: 2 },
+  { id: 'P-07', command: `set -- ordinary; . ./x.sh; cat ${D}`, status: 2 },
+  { id: 'P-08', command: `set -- ordinary; source ./x.sh; cat ${D}`, status: 2 },
+  { id: 'P-09', command: `set -- ordinary; trap 'set --' DEBUG; cat ${D}`, status: 2 },
+  { id: 'P-10', command: `shopt -s expand_aliases\nalias s=shift\nset -- ordinary\ns\ncat ${D}`, status: 2 },
+  { id: 'P-11', command: `set -- ordinary; bash <<'EOF'\ncat ${D}\nEOF`, status: 2 },
+  { id: 'P-12', command: `f() { builtin set --; cat ${D}; }; f ordinary`, status: 2 },
+  { id: 'P-13', command: `g=f; f() { cat ${D}; }; f ordinary; $g`, status: 2 },
+  { id: 'P-14', command: `f() { cat ${D}; }; f ordinary; eval ' f'`, status: 2 },
+  { id: 'P-15', command: `f() { cat ${D}; }; trap 'f;' EXIT; f ordinary`, status: 2 },
+  { id: 'P-16', command: `f() { echo '{'; }; cat ${D}; echo '}'; f ordinary`, status: 2 },
+  // A redirection hides a `set --` from command-position scanning, or sits at the call site as an IO number.
+  { id: 'P-17', command: `set -- ordinary; >/dev/null set --; cat ${D}`, status: 2 },
+  { id: 'P-18', command: `set -- ordinary; 2>/dev/null set --; cat ${D}`, status: 2 },
+  { id: 'P-19', command: `set -- ordinary; &>/dev/null set --; cat ${D}`, status: 2 },
+  { id: 'P-20', command: `set -- ordinary; >'x' set --; cat ${D}`, status: 2 },
+  { id: 'P-21', command: `set -- ordinary; 3>&- set --; cat ${D}`, status: 2 },
+  { id: 'P-22', command: `f() { >/dev/null set --; cat ${D}; }; f ordinary`, status: 2 },
+  { id: 'P-23', command: `set -- ordinary; case x in x) >/dev/null set --;; esac; cat ${D}`, status: 2 },
+  { id: 'P-24', command: `f() { cat ${D2}; }; f ordinary 2>/dev/null`, status: 2 },
+  { id: 'P-25', command: `f() { cat ${D2}; }; f ordinary 2>&1`, status: 2 },
+  { id: 'P-26', command: `f() { cat ${D2}; }; f ordinary 0</dev/null`, status: 2 },
+  // The proven range must not cover a nested function that is called with no arguments.
+  { id: 'P-27', command: `f() { g() { cat ${D}; }; echo "$(g)"; }; f ordinary`, status: 2 },
+  { id: 'P-28', command: `f() { g() { cat ${D}; }; >/dev/null g; }; f ordinary`, status: 2 },
+  { id: 'P-29', command: `f() { g() { cat ${D}; }; echo \`g\`; }; f ordinary`, status: 2 },
+  // bash calls command_not_found_handle itself for an unknown command, so the name appearing twice proves nothing.
+  { id: 'P-30', command: `command_not_found_handle() { cat ${D2}; }; command_not_found_handle a b; zzzq`, status: 2 },
+  { id: 'P-31', command: `command_not_found_handle() { cat "\${3:-.env}"; }; command_not_found_handle a b c; zzzq`, status: 2 },
+  { id: 'P-32', command: `command_not_found_handle() { cat ${D}; }; command_not_found_handle a; zzzq`, status: 2 },
+  // The function form is proven only for `DEF; CALL`: other commands before or after may re-enter the function.
+  { id: 'P-33', command: `f() { cat ${D}; }; f ordinary; echo done`, status: 2 },
+  { id: 'P-34', command: `echo start; f() { cat ${D}; }; f ordinary`, status: 2 },
+  // A glob in command position can name `set` or `shift` once a file of that name exists.
+  { id: 'P-35', command: `set -- ordinary ordinary; printf se%s t | xargs touch; se[t] ordinary; cat ${D2}`, status: 2 },
+  { id: 'P-36', command: `set -- ordinary; printf shif%s t | xargs touch; shif[t]; cat ${D}`, status: 2 },
+  { id: 'P-37', command: `set -- ordinary ordinary; printf se%s t | xargs touch; se? ordinary; cat ${D2}`, status: 2 },
+  { id: 'P-38', command: `set -- ordinary ordinary; printf se%s t | xargs touch; s*t ordinary; cat ${D2}`, status: 2 },
+  { id: 'P-39', command: `set -- ordinary; printf shif%s t | xargs touch; shif? ; cat ${D}`, status: 2 },
+  { id: 'P-40', command: `set -- ordinary; printf shif%s t | xargs touch; s*ft; cat ${D}`, status: 2 },
+  { id: 'P-41', command: `set -- ordinary; printf se%s t | xargs touch; se[t] -- ''; cat ${D}`, status: 2 },
+  { id: 'P-42', command: `f() { shif[t]; cat ${D}; }; f ordinary`, status: 2 },
+  // An unquoted use of a proven value is split by IFS.
+  { id: 'P-43', command: 'set -- ordinaryZ.env; IFS=Z; cat ${1:-.env}', status: 2 },
+  { id: 'P-44', command: 'IFS=Z; set -- ordinaryZ.env; cat ${1:-.env}', status: 2 },
+  { id: 'P-45', command: 'f() { IFS=Z; cat ${1:-.env}; }; f ordinaryZ.env', status: 2 },
+  // A tilde in a positional argument expands at runtime from HOME, PWD or OLDPWD.
+  { id: 'P-46', command: `HOME=.env; set -- ~; cat ${D}`, status: 2 },
+  { id: 'P-47', command: 'HOME=.env; set -- ~; cat ${1:-.env}', status: 2 },
+  { id: 'P-48', command: `export HOME=.env; set -- ~; cat ${D}`, status: 2 },
+  { id: 'P-49', command: `HOME=.env\nset -- ~\ncat ${D}`, status: 2 },
+  { id: 'P-50', command: `PWD=.env; set -- ~+; cat ${D}`, status: 2 },
+  { id: 'P-51', command: `OLDPWD=.env; set -- ~-; cat ${D}`, status: 2 },
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  for (const row of positionalProofRows) {
+    test(`${hook} ${row.id} ${row.status === 0 ? 'allows' : 'blocks'} ${JSON.stringify(row.command)} (#1462)`, () => {
+      const result = runHook(hook, { payload: { tool_input: { command: row.command } } });
+      assert.strictEqual(result.status, row.status, `${row.id} ${JSON.stringify(row.command)}: ${result.stderr}`);
+      if (row.status === 2) assert.match(result.stderr, /\[bash-guard\] blocked:/, `${row.id} ${JSON.stringify(row.command)}`);
+      if (row.reason) assert.match(result.stderr, row.reason, `${row.id} reason`);
+    });
+  }
+}
+
 run('credential-read-policy');

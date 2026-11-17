@@ -3293,4 +3293,181 @@ for (const [label, command] of GIT_GATE_ALLOWED_1460) {
   });
 }
 
+// #1462: flag sources beyond NAME=value, and harmless default operators.
+const GIT_GATE_FLAG_1462 = [
+  ['G1', 'read -r o <<< --no-verify; git commit $o -m x'],
+  ['G2', 'printf -v o %s --no-verify; git commit $o -m x'],
+  ['G3', 'set -- --no-verify; git commit "$@" -m x'],
+  ['G4', 'f() { git commit "$@"; }; f --no-verify -m x'],
+  ['G5', 'o=p; p=--no-verify; git commit ${!o} -m x'],
+  ['B1', 'git commit --no-verify -m x'],
+  ['default-short', 'git commit ${x:--n} -m x'],
+  ['opaque-read', 'o=--no-verify; read o; git commit $o -m x'],
+  ['read-overrides-benign', 'o=--amend; read o <<< --no-verify; git commit $o -m x'],
+  ["G1a", "read -pt o <<< --no-verify; git commit $o -m x"],
+  ["G1b", "read <<< --no-verify o; git commit $o -m x"],
+  ["G1c", "IFS= read -r o <<< --no-verify; git commit $o -m x"],
+  ["G4a", "f() { git commit \"$@\"; }; x=1 f --no-verify -m x"],
+  ["G4b", "f() { git commit \"$@\"; }; \"f\" --no-verify -m x"],
+  ["G4c", "f() { git commit \"$@\"; }; \\f --no-verify -m x"],
+  ["G4d", "f() { git commit \"$@\"; }; 2>/dev/null f --no-verify -m x"],
+  ["G4e", "f() { git commit \"$@\"; }; case a in a) f --no-verify -m x;; esac"],
+  ["G4f", "f() { git commit \"$@\"; }; x=$(f --no-verify -m x)"],
+  ["G3a", "\"set\" -- --no-verify; git commit \"$@\" -m x"],
+  ["G3b", "set -- -m --no-verify; git commit -m x $2"],
+  ["G4g", "f() { git commit -m x \"$2\"; }; f -m --no-verify"],
+  ["G6a", "git commit ${1:--n} -m x"],
+  ["G6b", "git commit ${@:--n} -m x"],
+  ["G6c", "set -- a; git commit ${1:+-n} -m x"],
+  ["G7a", "read -r o <<< -\\-no-verify; git commit $o -m x"],
+  ["G7b", "printf -v o %s -\\-no-verify; git commit $o -m x"],
+  ["G7c", "git commit ${x:-'--no-'verify} -m x"],
+  ["G7d", "read -r o <<< $'--no-verify'; git commit $o -m x"],
+  ["G7e", "git commit ${x:--\\n} -m x"],
+  ['G8a', `set -- ${Array.from({ length: 300 }, (_, k) => 'w' + k).join(' ')}; git commit "$@" -m x`],
+  ["G9a", "o=-q; for o in --no-verify; do git push ${o:-} origin x; done"],
+  ["G9b", "o=-q; for o in --no-veri\\fy; do git push ${o:-} origin x; done"],
+  ["G9c", "o=-q; select o in --no-verify; do git push ${o:-} origin x; done"],
+  ["G9d", "o=-q; o=${o/q/-no-veri}fy; git push ${o:-} origin x"],
+  ["G9e", "o=-q; mapfile -t o <<< --no-verify; git push ${o:-} origin x"],
+  ["G9f", "o=-q; declare -n o=p; p=--no-verify; git push ${o:-} origin x"],
+  ["G10a", "o=--no-veri; git commit ${o:-x} -m x"],
+  ["G10b", "o=--no-veri; git commit ${o:=x} -m x"],
+  ["G10c", "o=--no-veri; git commit ${o-x} -m x"],
+  ["G10d", "o=--no-veri; git commit ${o:?x} -m x"],
+  ["G10e", "o=--no-veri; git push ${o:-x} origin x"],
+  ["G11a", "nv=-q; declare n''v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11b", "nv=-q; export n\"\"v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11c", "nv=-q; readonly n\\v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11d", "nv=-q; typeset n''v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11e", "nv=-q; f() { local n''v=--no-verify; git commit ${nv:-x} -m x; }; f"],
+  ["G11f", "nv=-q; declare n''v=--no-veri; git commit ${nv:-x} -m x"],
+  ["G11g", "nv=-q; declare n''v=--no-verify; git push ${nv:-x} origin x"],
+  ["G11h", "nv=-q; declare n''v=--no-verify; git commit ${nv-x} -m x"],
+  ["G11i", "nv=-q; declare n''v=--no-verify; git commit ${nv:=x} -m x"],
+  ["G11j", "nv=-q; declare n''v=--no-verify; git commit ${nv:?x} -m x"],
+  ["G11k", "nv=-q; a=n; b=v; printf -v \"$a$b\" %s --no-verify; git commit ${nv:-x} -m x"],
+  ["G11l", "nv=-q; a=n; b=v; read -r \"$a$b\" <<< --no-verify; git commit ${nv:-x} -m x"],
+  ["G11m", "nv=-q; a=n; b=v; declare \"$a$b=--no-verify\"; git commit ${nv:-x} -m x"],
+  ["G11n", "nv=-q; a=n; b=v; export \"$a$b\"=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11o", "nv=-q; a=n; b=v; readarray -t \"$a$b\" <<< --no-verify; git commit ${nv:-x} -m x"],
+  ["G11p", "nv=-q; declare -n p=\"n\"\"v\"; p=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11q", "nv=-q; a=n; b=v; unset \"$a$b\"; : ${nv:=--no-verify}; git commit ${nv:-x} -m x"],
+  ["G12a", "nv=-q; git commit ${nv:+$'\\x2d-no-verify'} -m x"],
+  ["G12b", "nv=-q; git commit \"${nv:+$'\\x2d-no-verify'}\" -m x"],
+  ["G12c", "nv=-q; git commit ${nv:-$'\\x2d-no-verify'} -m x"],
+  ["G13a", "touch ./-n; nv='-?'; git commit ${nv:-x} -m x"],
+  ["G13b", "nv='--no-v*'; git commit ${nv:-x} -m x"],
+  ["G13c", "nv='--no-verif?'; git commit ${nv:-x} -m x"],
+  ["G13d", "nv='--no-verif[y]'; git commit ${nv:-x} -m x"],
+  ["G13e", "nv='--no-v*'; git push ${nv:-x} origin x"],
+  ["G13f", "nv=--no-v*; git commit ${nv:-x} -m x"],
+  ["G14a", "_=-q; echo --no-verif; git commit ${_:-x} -m y"],
+  ["G14b", "_=-q; echo --no-verify; git commit ${_:-x} -m y"],
+  ["G14c", "_=-q; echo -n; git commit ${_:-x} -m y"],
+  ["G14d", "_=-q; echo --no-verify; git push ${_:-x} origin y"],
+  ["G14e", "_=-q; touch --no-verify; git commit ${_:-x} -m y"],
+  ["G14f", "_=-q; : --no-verify; git commit ${_:-x} -m y"],
+  ["G14g", "_=-q; true --no-verify; git commit ${_:-x} -m y"],
+  ["G14h", "BASH_REMATCH=-q; [[ --no-verif =~ .* ]]; git commit ${BASH_REMATCH:-x} -m y"],
+  ["G15a", "IFS=Z; o=--no-verifyZ; git commit ${o:-} -m y"],
+  ["G15b", "IFS=Z; o=--no-verifZ; git commit ${o:-} -m y"],
+  ["G15c", "IFS=Z; o=-qZ-n; git commit ${o:-} -m y"],
+  ["G15d", "IFS=Z; o=--no-verifyZ; git push ${o:-} origin y"],
+  ["G15e", "o=-qZ-n; IFS=Z; git commit ${o:-} -m y"],
+  ["G16a", "false && o=-q; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16b", "false && o=-q; : ${o:=--no-verify}; git push ${o:-} origin x"],
+  ["G16c", "false && o=-q; : ${o:=--no-verify}; git commit ${o:-} -m y"],
+  ["G16d", "o=-q true; : ${o:=--no-verify}; git push ${o:-} origin x"],
+  ["G16e", "false && o=-q; git commit -m ${o:=-n} ${o:-}"],
+  ["G16f", "false && o=-q; : ${o:=--no-veri}; git commit ${o:-} -m y"],
+  ["G16g", "o=-q | :; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16h", "o=-q & : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16i", "true || o=-q; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16j", "(o=-q); : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16k", "false &&\no=-q; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16l", "f() { o=-q; }; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16m", "false && o=-q; echo ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16n", "false && o=-q; p=${o:=-n}; git commit ${o:-} -m y"],
+  ["G16o", "if false; then\no=-q\nfi; : ${o:=-n}; git commit ${o:-} -m y"],
+];
+
+for (const [id, command] of GIT_GATE_FLAG_1462) {
+  test(`#1462 ${id} blocks on feature (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const GIT_GATE_ALLOWED_1462 = [
+  ['F3', 'o=-q; git push ${o:-} origin main'],
+  ['C1', 'git commit "$@"'],
+  ['C2', 'b=main; git push origin $b'],
+  ['C3', 'git push origin "$branch"'],
+  ['C5', 'read -r o <<< --amend; git commit $o -m x'],
+  ['C6', 'printf -v o %s --amend; git commit $o -m x'],
+  ['C7', 'set -- --amend; git commit "$@" -m x'],
+  ['C8', 'f() { git commit "$@"; }; f --amend -m x'],
+  ['C9', 'o=p; p=--amend; git commit ${!o} -m x'],
+  ['msg-arg', 'f(){ git commit "$@"; }; f -m "$msg"'],
+  ['unknown-read', 'read b; git push origin $b'],
+  ['unknown-read-file', 'read o < f; git commit $o -m x'],
+  ["C10", "b=${1:-main}; git push origin $b"],
+  ["C11", "git push origin ${b:-main}"],
+  ["C12", "git commit -m \"${msg:-wip}\""],
+];
+
+for (const [id, command] of GIT_GATE_ALLOWED_1462) {
+  test(`#1462 ${id} allows on feature`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// Pinned reasons: a flag from a visible source names --no-verify; an unreadable one reports the
+// transformed flag with its rewrite hint.
+const REASON_NO_VERIFY_1462 = /'--no-verify' bypasses the pre-commit\/pre-push gates/;
+const REASON_TRANSFORMED_1462 = /unsupported shell syntax \(transformed git flag\); rewrite the command without it/;
+const GIT_GATE_REASON_1462 = [
+  ['G1', 'read -r o <<< --no-verify; git commit $o -m x', REASON_NO_VERIFY_1462],
+  ['G3', 'set -- --no-verify; git commit "$@" -m x', REASON_NO_VERIFY_1462],
+  ['opaque-read', 'o=--no-verify; read o; git commit $o -m x', REASON_TRANSFORMED_1462],
+  ['G7c', "git commit ${x:-'--no-'verify} -m x", REASON_NO_VERIFY_1462],
+  ['G9a', 'o=-q; for o in --no-verify; do git push ${o:-} origin x; done', REASON_TRANSFORMED_1462],
+  ["G16a", "false && o=-q; : ${o:=-n}; git commit ${o:-} -m y", REASON_TRANSFORMED_1462],
+  ["G14a", "_=-q; echo --no-verif; git commit ${_:-x} -m y", REASON_TRANSFORMED_1462],
+  ["G15a", "IFS=Z; o=--no-verifyZ; git commit ${o:-} -m y", REASON_TRANSFORMED_1462],
+  ["G11a", "nv=-q; declare n''v=--no-verify; git commit ${nv:-x} -m x", REASON_TRANSFORMED_1462],
+  ["G12a", "nv=-q; git commit ${nv:+$'\\x2d-no-verify'} -m x", REASON_TRANSFORMED_1462],
+  ["G13a", "touch ./-n; nv='-?'; git commit ${nv:-x} -m x", REASON_TRANSFORMED_1462],
+];
+
+for (const [id, command, reason] of GIT_GATE_REASON_1462) {
+  test(`#1462 ${id} blocks with a stable reason (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        const res = bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(String(res.stderr), /\[bash-guard\] blocked:/, `${hook}: ${command}`);
+        assert.match(String(res.stderr), reason, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// On a protected branch commit and push stay blocked by branch safety (existing behavior).
+for (const command of ['git commit "$@"', 'b=main; git push origin $b']) {
+  test(`#1462 branch safety still blocks on main (dispatcher): ${command}`, () => {
+    withRepos(({ protectedRepo }) => {
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
 run('hook-bypass');
