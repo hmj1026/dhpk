@@ -12,7 +12,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     outputs:
       release_pr_head_sha: ${{ steps.resolve-release-pr.outputs.head_sha }}
       release_target_commit: ${{ steps.release-verify.outputs.target_commit }}
