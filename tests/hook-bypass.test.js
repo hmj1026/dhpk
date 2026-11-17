@@ -3362,6 +3362,19 @@ const GIT_GATE_FLAG_1462 = [
   ["G13d", "nv='--no-verif[y]'; git commit ${nv:-x} -m x"],
   ["G13e", "nv='--no-v*'; git push ${nv:-x} origin x"],
   ["G13f", "nv=--no-v*; git commit ${nv:-x} -m x"],
+  ["G14a", "_=-q; echo --no-verif; git commit ${_:-x} -m y"],
+  ["G14b", "_=-q; echo --no-verify; git commit ${_:-x} -m y"],
+  ["G14c", "_=-q; echo -n; git commit ${_:-x} -m y"],
+  ["G14d", "_=-q; echo --no-verify; git push ${_:-x} origin y"],
+  ["G14e", "_=-q; touch --no-verify; git commit ${_:-x} -m y"],
+  ["G14f", "_=-q; : --no-verify; git commit ${_:-x} -m y"],
+  ["G14g", "_=-q; true --no-verify; git commit ${_:-x} -m y"],
+  ["G14h", "BASH_REMATCH=-q; [[ --no-verif =~ .* ]]; git commit ${BASH_REMATCH:-x} -m y"],
+  ["G15a", "IFS=Z; o=--no-verifyZ; git commit ${o:-} -m y"],
+  ["G15b", "IFS=Z; o=--no-verifZ; git commit ${o:-} -m y"],
+  ["G15c", "IFS=Z; o=-qZ-n; git commit ${o:-} -m y"],
+  ["G15d", "IFS=Z; o=--no-verifyZ; git push ${o:-} origin y"],
+  ["G15e", "o=-qZ-n; IFS=Z; git commit ${o:-} -m y"],
 ];
 
 for (const [id, command] of GIT_GATE_FLAG_1462) {
@@ -3412,6 +3425,8 @@ const GIT_GATE_REASON_1462 = [
   ['opaque-read', 'o=--no-verify; read o; git commit $o -m x', REASON_TRANSFORMED_1462],
   ['G7c', "git commit ${x:-'--no-'verify} -m x", REASON_NO_VERIFY_1462],
   ['G9a', 'o=-q; for o in --no-verify; do git push ${o:-} origin x; done', REASON_TRANSFORMED_1462],
+  ["G14a", "_=-q; echo --no-verif; git commit ${_:-x} -m y", REASON_TRANSFORMED_1462],
+  ["G15a", "IFS=Z; o=--no-verifyZ; git commit ${o:-} -m y", REASON_TRANSFORMED_1462],
   ["G11a", "nv=-q; declare n''v=--no-verify; git commit ${nv:-x} -m x", REASON_TRANSFORMED_1462],
   ["G12a", "nv=-q; git commit ${nv:+$'\\x2d-no-verify'} -m x", REASON_TRANSFORMED_1462],
   ["G13a", "touch ./-n; nv='-?'; git commit ${nv:-x} -m x", REASON_TRANSFORMED_1462],

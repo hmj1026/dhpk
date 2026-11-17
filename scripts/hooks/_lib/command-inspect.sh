@@ -610,6 +610,14 @@ _dhpk_ci_flag_trust_recorded() {
     local text="${_dhpk_ci_cmd_text:-}" name
     local re_kw='(^|[^A-Za-z0-9_])(declare|typeset|local|export|readonly|printf|read|readarray|mapfile|unset|eval|source|for|select|getopts|let|alias|trap|enable|builtin|command|exec|coproc|wait|ulimit|sh|bash|zsh|dash|ksh)([^A-Za-z0-9_]|$)'
     local re_dot=$'(^|[;&|({]|\n)[[:space:]]*\\.([[:space:]]|$)'
+    local re_ifs='(^|[^A-Za-z0-9_])IFS([^A-Za-z0-9_]|$)'
+    local re_word='^[[:space:]]*[A-Za-z0-9=_.,:/+-]+[[:space:]]*$'
+    # A lowercase name is never assigned by the shell itself (_, BASH_*, REPLY, OPTARG, ...).
+    [[ "$1" =~ ^[a-z][a-z0-9_]*$ ]] || return 1
+    # One plain word, so no IFS can split it; and the text must not touch IFS at all.
+    [[ "$2" =~ $re_word ]] || return 1
+    [ "${_dhpk_ci_taint_ifs:-0}" = "1" ] && return 1
+    [[ "$text" =~ $re_ifs ]] && return 1
     case "$text" in
         *[\'\"\\\`]*|*'$('*|*"\$'"*|*'$"'*) return 1 ;;
     esac
