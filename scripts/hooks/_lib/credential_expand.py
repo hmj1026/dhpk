@@ -303,26 +303,28 @@ def _definite_set(tokens, at):
     return None if values is None else (end + 1, len(tokens), values)
 
 
+IMPLICIT_HANDLERS = frozenset(('command_not_found_handle',))
+
+
 def _definite_call(tokens, at):
-    """The one call of the one function, defined before it: the positionals hold within the function body."""
+    """`name() { BODY }; name WORDS` and nothing else: the positionals hold within the body.
+
+    Any other command could reach the function again (bash itself calls `command_not_found_handle`), so the
+    text is exactly the definition and its one call, with an optional closing `;`.
+    """
     name = tokens[at].value
     named = [i for i, token in enumerate(tokens) if not token.operator and token.value == name]
-    if len(named) != 2 or _mentions(tokens, name) != 2 or named[1] != at:
+    if name in IMPLICIT_HANDLERS or named != [0, at] or _mentions(tokens, name) != 2:
         return None
-    body = _function_body(tokens, named[0])
+    body = _function_body(tokens, 0)
     words = _words_until_operator(tokens, at + 1)
     values = _literal_positionals(words)
-    if body is None or values is None or at < body[1] or not _is_top_level_statement(tokens, at, at + 1 + len(words)):
+    if body is None or values is None or at != body[1] + 2 or tokens[body[1] + 1].value != ';':
         return None
-    if any(token.value in SCOPE_OPENERS for token in tokens[:named[0]] + tokens[body[1] + 1:at]):
+    end = at + 1 + len(words)
+    if end != len(tokens) and not (end == len(tokens) - 1 and tokens[end].value == ';'):
         return None
     return (body[0], body[1], values)
-
-
-def _is_top_level_statement(tokens, at, end):
-    """The command at `at` follows a `;` (or starts the text) and a `;` (or the end) follows its words."""
-    starts = at == 0 or (tokens[at - 1].operator and tokens[at - 1].value == ';')
-    return starts and (end >= len(tokens) or (tokens[end].operator and tokens[end].value == ';'))
 
 
 def _mentions(tokens, name):
