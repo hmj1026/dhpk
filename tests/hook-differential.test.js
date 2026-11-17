@@ -9,7 +9,8 @@
 //     hook has to see it too.
 //   - ALLOW rows must exit 0: benign look-alikes that a too-eager decoder
 //     would block.
-// Rows already pinned by tests/hook-bypass.test.js are not repeated here.
+// Rows already pinned by tests/hook-bypass.test.js or
+// tests/hook-bypass-git-gate.test.js are not repeated here.
 //
 // A second section asks a real bash what a desync row does (GIT swapped for
 // `echo RAN-GIT`, `.env` for a temp marker file) so the table is anchored to
