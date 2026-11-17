@@ -22,10 +22,13 @@ SHELLS = frozenset(('sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'mksh', 'rbash', 
 SPLIT = frozenset((';', '&&', '||', '|', '|&', '(', ')', ';;', '&', '&!'))
 # Wrapper heads and the short options of each that take a value.
 WRAPPERS = {
-    'command': '', 'builtin': '', 'exec': '', 'nohup': '', 'time': '', 'setsid': '',
-    'env': 'uC', 'sudo': 'ugpChDRTrtU', 'doas': 'uC', 'nice': 'n', 'timeout': 'sk',
+    'command': '', 'builtin': '', 'exec': 'a', 'nohup': '', 'time': '', 'setsid': '',
+    'env': 'uC', 'sudo': 'ugpChDRTrtU', 'doas': 'uCa', 'nice': 'n', 'timeout': 'sk',
     'stdbuf': 'ioe', 'ionice': 'cnp', 'busybox': '', 'chroot': '',
+    'nsenter': 'tNWSG', 'unshare': 'lRwSG',
 }
+# (#1468) Wrappers that move the root or the working directory; every option of theirs counts as relocating.
+RELOCATING_WRAPPERS = frozenset(('chroot', 'nsenter', 'unshare'))
 SCRIPT_RUNNERS = SHELLS | {'source', '.'}
 SHELL_VALUE_OPTIONS = frozenset(('--rcfile', '--init-file'))
 STARTUP_WORDS = frozenset(('BASH_ENV=', 'ENV=', '--rcfile', '--init-file'))
@@ -66,6 +69,11 @@ LONG_VALUE_OPTIONS = {
     'timeout': frozenset(('--signal', '--kill-after')),
     'nice': frozenset(('--adjustment',)),
     'env': frozenset(('--unset', '--chdir')),
+    'stdbuf': frozenset(('--input', '--output', '--error')),
+    'ionice': frozenset(('--class', '--classdata', '--pid')),
+    'nsenter': frozenset(('--target', '--net-socket', '--wdns', '--setuid', '--setgid')),
+    'unshare': frozenset(('--load-interp', '--propagation', '--root', '--wd', '--setuid', '--setgid', '--map-user',
+                          '--map-group', '--map-users', '--map-groups', '--owner', '--setgroups')),
 }
 # (#1462) Options known NOT to change the working directory or root, per wrapper: (short letters, long names).
 # Every other option word before a command, and every `chroot`, counts as moving the directory (fail closed).
@@ -96,6 +104,14 @@ def option_keeps_directory(wrapper, option):
         if letter in WRAPPERS[wrapper]:
             return True  # the rest of the word is the option's value
     return True
+
+
+def cluster_takes_next(option, letters):
+    """(#1468) True when a short-option cluster ends in a value letter, so its value is the next word (`-nu root`)."""
+    for position, letter in enumerate(option[1:], 1):
+        if letter in letters:
+            return position == len(option) - 1
+    return False
 
 
 def _is_option(word):
@@ -133,7 +149,7 @@ def command_head(words):
                 i += 1
             if name == 'chroot' and option in CHROOT_VALUE_OPTIONS:
                 i += 1
-            if len(option) == 2 and option[1] in WRAPPERS[name]:
+            if not option.startswith('--') and cluster_takes_next(option, WRAPPERS[name]):
                 i += 1
         if name in ('timeout', 'chroot'):
             i += 1

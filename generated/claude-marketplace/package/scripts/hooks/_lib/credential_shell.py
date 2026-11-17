@@ -773,6 +773,8 @@ XARGS_INTERACTIVE = frozenset(('-o', '--open-tty', '-p', '--interactive'))
 XARGS_VALUE_OPTIONS = frozenset(('-n', '-L', '-P', '-s', '-d', '-E'))
 XARGS_FLAG_CLUSTER = re.compile(r'^-[0rtxop]{2,}$')
 XARGS_INTERACTIVE_CLUSTER = re.compile(r'^-[0rtxop]*[op][0rtxop]*$')
+# (#1468) A flag cluster ending in a value option: `-rn1` (value attached) or `-rn 1` (value is the next word).
+XARGS_VALUE_CLUSTER = re.compile(r'^-[0rtx]+([nLPsdE])(.*)$', re.S)
 XARGS_ATTACHED_VALUE = re.compile(r'^-[nLPsdEe].+$')
 XARGS_LONG_VALUE = re.compile(r'^--(max-args|max-lines|max-procs|max-chars|delimiter|eof)=.+$')
 # 只印出參數、不會把參數當檔名或指令的 xargs 命令。
@@ -812,6 +814,11 @@ def xargs_command(words, head):
             return words[index:], replace
         if value in XARGS_FLAGS or XARGS_FLAG_CLUSTER.match(value) or XARGS_LONG_VALUE.match(value) or XARGS_ATTACHED_VALUE.match(value):
             index += 1
+        elif XARGS_VALUE_CLUSTER.match(value):
+            attached = XARGS_VALUE_CLUSTER.match(value).group(2)
+            if not attached and index + 1 >= len(words):
+                return None
+            index += 1 if attached else 2
         elif value in XARGS_VALUE_OPTIONS:
             if index + 1 >= len(words):
                 return None

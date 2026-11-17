@@ -86,6 +86,10 @@ const TIMEOUT_HINTS = Object.freeze({
   // 818 cases that each spawn the real Bash hooks after #1422; 180s overran in
   // CI shard 1 for #1426, and 300s overran there after #1457.
   'hook-bypass.test.js': 480000,
+  // Split from hook-bypass.test.js for #1468: about 500 Git Gate cases that each spawn the real
+  // Bash hooks. The single file hit 480s (ETIMEDOUT) in CI against the 10-minute job limit, so the
+  // hint cannot grow; each half now needs about half of the former runtime.
+  'hook-bypass-git-gate.test.js': 480000,
   // Crash and failure sweeps re-run the installer once per step: 130-155s
   // alone; 180s overran under the four-way local publish gate for 0.73.0.
   'install-codex-adapter-journal.test.js': 300000,
