@@ -2628,6 +2628,36 @@ const { test, run, assert } = require('./_lib/tinytest');
     } finally { dispose(context); }
   });
 
+
+  // The moved backup is swapped right after the rename; the run must notice and
+  // put the entry back instead of publishing a state built on a replaced link.
+  test('testPublish_withdrawnBackupReplacedAfterRename_blocksAndLeavesEntryInPlace', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const agents = path.join(context.projectRoot, '.agents');
+      let swapped = false;
+      const afterStep = () => {
+        if (swapped) return;
+        for (const name of fs.readdirSync(agents)) {
+          if (!name.startsWith('.dhpk-projection-backup-')) continue;
+          const moved = path.join(agents, name, 'bindings', CLAUDE_SAMPLE);
+          let stat = null;
+          try { stat = fs.lstatSync(moved); } catch (_) { stat = null; }
+          if (!stat || !stat.isSymbolicLink()) continue;
+          fs.rmSync(moved);
+          fs.mkdirSync(moved);
+          fs.writeFileSync(path.join(moved, 'SKILL.md'), 'replaced after rename\n');
+          swapped = true;
+        }
+      };
+      assert.strictEqual(codeOf(() => run1(context, enabledProvision(), { afterStep: { after: afterStep } })), 'MANAGED_CONTENT_CHANGED');
+      assert.ok(swapped, 'the backup was replaced after the rename');
+      assert.ok(lstat(context, CLAUDE_SAMPLE), 'the entry is back in place');
+      assert.deepStrictEqual(fs.readdirSync(agents).filter((name) => name.startsWith('.dhpk-projection-backup-')), []);
+    } finally { dispose(context); }
+  });
+
   function resealReceipt(context, mutate) {
     const receiptPath = path.join(context.projectRoot, '.agents/.dhpk-installed.json');
     const receipt = receiptOf(context);

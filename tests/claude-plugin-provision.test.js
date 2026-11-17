@@ -14,8 +14,17 @@ function sha(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 
+const createdTempDirs = [];
+// Every temp directory this file creates is removed when the process exits, so
+// the runner's TMPDIR leak check sees nothing left behind.
+process.on('exit', () => {
+  for (const dir of createdTempDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 function tempDir(label) {
-  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-claude-provision-${label}-`)));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-claude-provision-${label}-`)));
+  createdTempDirs.push(dir);
+  return dir;
 }
 
 function write(filePath, content) {
@@ -447,7 +456,8 @@ test('testProbe_plantedClaudeInProjectRootWithTrailingColonPath_notExecuted', ()
       env: { PATH: `${emptyBin}${path.delimiter}` },
     });
     assert.strictEqual(fs.existsSync(marker), false, 'a claude planted in the project root must never run');
-    assert.strictEqual(result.status, 'CLI_NOT_INSTALLED');
+    assert.strictEqual(result.status, 'UNKNOWN');
+    assert.strictEqual(result.reason, 'CLAUDE_CLI_INSIDE_PROJECT');
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
     fs.rmSync(emptyBin, { recursive: true, force: true });
@@ -488,7 +498,8 @@ test('testProbe_claudeResolvedInsideProjectRoot_rejected', () => {
       env: { PATH: path.join(projectRoot, 'bin') },
       spawn: fakeSpawn([], { seen }),
     });
-    assert.strictEqual(direct.status, 'CLI_NOT_INSTALLED');
+    assert.strictEqual(direct.status, 'UNKNOWN');
+    assert.strictEqual(direct.reason, 'CLAUDE_CLI_INSIDE_PROJECT');
     // A symlink in a trusted directory that resolves into the project is rejected too.
     fs.symlinkSync(path.join(projectRoot, 'bin', 'claude'), path.join(outside, 'claude'));
     const linked = provision.probeClaudePluginProvision({
@@ -496,7 +507,8 @@ test('testProbe_claudeResolvedInsideProjectRoot_rejected', () => {
       env: { PATH: outside },
       spawn: fakeSpawn([], { seen }),
     });
-    assert.strictEqual(linked.status, 'CLI_NOT_INSTALLED');
+    assert.strictEqual(linked.status, 'UNKNOWN');
+    assert.strictEqual(linked.reason, 'CLAUDE_CLI_INSIDE_PROJECT');
     assert.strictEqual(seen.length, 0);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
@@ -561,38 +573,89 @@ test('testProbe_processGroupKillEperm_returnsUnknownInsteadOfThrowing', () => {
   }
 });
 
-// ---- C2: agreement covers version and digest ----
+// ---- R2: roots agree on identities and version; the digest may differ ----
 
-test('testProbe_rootsDifferOnlyInVersionOrDigest_returnsUnknown', () => {
-  const projectRoot = tempDir('c2-project');
-  const installPath = tempDir('c2-install');
-  const folder = tempDir('c2-folder');
+function twoRootProbe({ installOptions = {}, folderOptions = {}, mutateFolderCatalog = null }) {
+  const projectRoot = tempDir('roots-project');
+  const installPath = tempDir('roots-install');
+  const folder = tempDir('roots-folder');
   const bin = claudeOnPath();
-  try {
-    buildPluginRoot(installPath, { version: '1.0.0' });
-    buildPluginRoot(folder, { version: '1.0.1' });
-    const versions = provision.probeClaudePluginProvision({
-      projectRoot,
-      env: bin.env,
-      spawn: fakeSpawn([record({ installPath, readFromFolder: folder, folderVersion: '1.0.1' })]),
-    });
-    assert.strictEqual(versions.status, 'UNKNOWN');
-    assert.strictEqual(versions.reason, 'PLUGIN_ROOTS_DISAGREE');
-    buildPluginRoot(folder, { version: '1.0.0' });
+  buildPluginRoot(installPath, installOptions);
+  buildPluginRoot(folder, folderOptions);
+  if (mutateFolderCatalog) {
     const catalog = JSON.parse(fs.readFileSync(path.join(folder, 'provenance.json'), 'utf8'));
-    catalog.selectionDigest = 'different';
+    mutateFolderCatalog(catalog);
     fs.writeFileSync(path.join(folder, 'provenance.json'), `${JSON.stringify(catalog)}\n`);
-    const digests = provision.probeClaudePluginProvision({
-      projectRoot,
-      env: bin.env,
-      spawn: fakeSpawn([record({ installPath, readFromFolder: folder, folderVersion: '1.0.0' })]),
-    });
-    assert.strictEqual(digests.status, 'UNKNOWN');
-    assert.strictEqual(digests.reason, 'PLUGIN_ROOTS_DISAGREE');
-  } finally {
-    for (const dir of [projectRoot, installPath, folder]) fs.rmSync(dir, { recursive: true, force: true });
   }
+  const folderVersion = folderOptions.version || '1.0.0';
+  const result = provision.probeClaudePluginProvision({
+    projectRoot,
+    env: bin.env,
+    spawn: fakeSpawn([record({ installPath, readFromFolder: folder, folderVersion })]),
+  });
+  return { result, folder };
+}
+
+test('testProbe_digestOnlyDifferenceBetweenRoots_returnsEnabledWithReadFromFolderDigest', () => {
+  const { result, folder } = twoRootProbe({ mutateFolderCatalog: (catalog) => { catalog.selectionDigest = 'different'; } });
+  assert.strictEqual(result.status, 'ENABLED', JSON.stringify(result));
+  assert.strictEqual(result.catalogDigest, sha(fs.readFileSync(path.join(folder, 'provenance.json'))));
+  assert.strictEqual(result.pluginVersion, '1.0.0');
 });
 
+test('testProbe_identitySetDifferenceBetweenRoots_returnsUnknown', () => {
+  const { result } = twoRootProbe({ folderOptions: { skills: [{ stableId: 'tdd', name: 'tdd-workflow' }] } });
+  assert.strictEqual(result.status, 'UNKNOWN');
+  assert.strictEqual(result.reason, 'PLUGIN_ROOTS_DISAGREE');
+});
+
+test('testProbe_versionDifferenceBetweenRoots_returnsUnknown', () => {
+  const { result } = twoRootProbe({ folderOptions: { version: '1.0.1' } });
+  assert.strictEqual(result.status, 'UNKNOWN');
+  assert.strictEqual(result.reason, 'PLUGIN_ROOTS_DISAGREE');
+});
+
+// ---- R3: a CLI found inside the project root is not "not installed" ----
+
+test('testProbe_cliInsideAncestorProjectRoot_returnsUnknown', () => {
+  const home = tempDir('ancestor-home');
+  const projectRoot = path.join(home, 'work');
+  fs.mkdirSync(projectRoot);
+  const seen = [];
+  // The project root is an ancestor of the CLI, as when the project root is $HOME.
+  const marker = path.join(home, 'ran');
+  plantClaude(path.join(home, 'bin'), marker);
+  // The project root is the directory that contains the CLI.
+  const result = provision.probeClaudePluginProvision({
+    projectRoot: home,
+    env: { PATH: path.join(home, 'bin') },
+    spawn: fakeSpawn([], { seen }),
+  });
+  assert.strictEqual(result.status, 'UNKNOWN');
+  assert.strictEqual(result.reason, 'CLAUDE_CLI_INSIDE_PROJECT');
+  assert.strictEqual(seen.length, 0);
+});
+
+test('testProbe_cliInsideProjectButLaterPathEntryOutside_usesOutside', () => {
+  const projectRoot = tempDir('later-project');
+  const bin = claudeOnPath();
+  const seen = [];
+  plantClaude(path.join(projectRoot, 'bin'), path.join(projectRoot, 'ran'));
+  const result = provision.probeClaudePluginProvision({
+    projectRoot,
+    env: { PATH: `${path.join(projectRoot, 'bin')}${path.delimiter}${bin.dir}` },
+    spawn: fakeSpawn([], { seen }),
+  });
+  assert.strictEqual(result.status, 'ABSENT');
+  assert.strictEqual(seen.length, 1);
+  assert.strictEqual(seen[0].command, bin.file);
+});
+
+test('testProbe_noClaudeAnywhere_stillReturnsCliNotInstalled', () => {
+  const projectRoot = tempDir('nowhere-project');
+  const empty = tempDir('nowhere-empty');
+  const result = provision.probeClaudePluginProvision({ projectRoot, env: { PATH: empty }, spawn: fakeSpawn([]) });
+  assert.strictEqual(result.status, 'CLI_NOT_INSTALLED');
+});
 
 run('claude-plugin-provision');
