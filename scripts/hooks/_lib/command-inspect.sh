@@ -574,9 +574,11 @@ _dhpk_ci_flag_default_hit() {
         return 0
     fi
     [ "$recorded" = "1" ] || return 0
-    if [[ ! "$name" =~ ^[0-9@*] ]] && { ! _dhpk_ci_flag_bound_once "$name" || _dhpk_ci_flag_abbrev "$stored"; }; then
-        _dhpk_ci_flag_hit="transformed"
-        return 0
+    if [[ ! "$name" =~ ^[0-9@*] ]]; then
+        if [ "$_dhpk_ci_fs_uncertain" = "1" ] || [[ "$word" == *[\*\?\[]* ]] || ! _dhpk_ci_flag_trust_recorded "$name" "$stored"; then
+            _dhpk_ci_flag_hit="transformed"
+            return 0
+        fi
     fi
     case "$op" in *+) return 0 ;; esac
     if [ "$stored" = "@opaque" ]; then
@@ -597,6 +599,30 @@ _dhpk_ci_flag_abbrev() {
         [ "${#fw}" -ge 3 ] && [ "$fw" != "--no-verify" ] && [[ "--no-verify" == "$fw"* ]] && return 0
     done
     return 1
+}
+
+# (#1462) True when the recorded value $2 of flag variable $1 can be trusted in a default expansion.
+# The proof is structural, so no rebinding form has to be listed: the command text has no quote,
+# backslash, backtick, $( , $' or $", none of the binding or evaluating builtins and no dot command,
+# every dollar reference is to a recorded flag variable, the name is bound once (see
+# _dhpk_ci_flag_bound_once), and the value holds no glob character or --no-verify abbreviation.
+_dhpk_ci_flag_trust_recorded() {
+    local text="${_dhpk_ci_cmd_text:-}" name
+    local re_kw='(^|[^A-Za-z0-9_])(declare|typeset|local|export|readonly|printf|read|readarray|mapfile|unset|eval|source|for|select|getopts|let|alias|trap|enable|builtin|command|exec|coproc|wait|ulimit|sh|bash|zsh|dash|ksh)([^A-Za-z0-9_]|$)'
+    local re_dot=$'(^|[;&|({]|\n)[[:space:]]*\\.([[:space:]]|$)'
+    case "$text" in
+        *[\'\"\\\`]*|*'$('*|*"\$'"*|*'$"'*) return 1 ;;
+    esac
+    case "$2" in *[\*\?\[]*) return 1 ;; esac
+    _dhpk_ci_flag_abbrev "$2" && return 1
+    [[ "$text" =~ $re_kw ]] && return 1
+    [[ "$text" =~ $re_dot ]] && return 1
+    for name in ${_dhpk_ci_flag_names:-}; do
+        text="${text//\$\{$name/}"
+        text="${text//\$$name/}"
+    done
+    case "$text" in *'$'*) return 1 ;; esac
+    _dhpk_ci_flag_bound_once "$1"
 }
 
 # (#1462) True when flag variable $1 is provably bound once: after the $NAME and ${NAME references are
