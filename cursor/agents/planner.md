@@ -65,7 +65,7 @@ unspecified and that selection context is missing; the work mode is not a scope 
 3. **Judge** the plan or result from the selected mode's stance. Completion:
    the verdict and findings fit that mode's allowed sections.
 4. **Emit** the machine-readable reply. Completion: the first line is a valid
-   `VERDICT:`, the reply stays under its token cap, and literal `END` is last.
+   `VERDICT:`, the reply stays within the per-section item caps, and literal `END` is last.
 
 ## Reply contract
 

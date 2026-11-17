@@ -443,6 +443,7 @@ test('planner reply contract uses telegraphic caps with an overflow rule, not to
   };
   for (const [name, text] of Object.entries(sources)) {
     assert.doesNotMatch(text, /400-token/, `${name} keeps a 400-token cap`);
+    assert.doesNotMatch(text, /token cap/, `${name} still mentions a token cap`);
     assert.doesNotMatch(text, /≤\s*400 tokens/, `${name} keeps a ≤400 tokens cap`);
     assert.doesNotMatch(text, /≤\s*200 tokens/, `${name} keeps a ≤200 tokens cap`);
     assert.doesNotMatch(text, /no full-plan/, `${name} keeps the no full-plan exception`);

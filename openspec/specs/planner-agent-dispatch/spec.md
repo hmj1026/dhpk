@@ -123,7 +123,7 @@ from static guidance or fixture checks.
 - **THEN** actual use stays null with `NOT_RUN` or `UNAVAILABLE` and the report
   does not claim native quality, token savings, or billing proof
 
-### Requirement: Planner reply contract — verdict-first-line, coded findings, token cap, END sentinel
+### Requirement: Planner reply contract — verdict-first-line, coded findings, per-section item caps, END sentinel
 
 Every reply from `dhpk:planner` SHALL begin with a `VERDICT:` line as the first line of the reply: for a pre-implementation plan consult the verdict SHALL be one of `ENDORSE`, `AMEND`, `REPLACE`; for a post-implementation warm review the verdict SHALL be one of `SHIP`, `FIX-THEN-SHIP`, `RECONSULT`. Findings SHALL use the coded vocabulary (NIL/BOUND/RACE/AUTHZ/VALID/ERRPATH/INVARIANT/LEAK/TYPE/DEADCODE/REGRESS/PERF for code-level findings; SEQ/SCOPE/SIMPLER for plan-level findings; `FREE:` as a catch-all for findings outside the coded vocabulary), reported by exception. The reply SHALL be structured, one-line telegraphic, and bounded by the per-section item caps rather than a token count; when a capped section has more candidates than its cap, the reply SHALL output only the most critical items ranked by blocking impact and severity, SHALL NOT invent an overflow section, and SHALL NOT omit the first-line `VERDICT:`, the `CONSULT USE:` line, or the final `END`. The literal string `END` SHALL be the last line of every reply. A reply missing the trailing `END` line SHALL be treated by the dispatching orchestrator as truncation: the orchestrator SHALL re-consult `dhpk:planner` exactly once, and if the re-consult also lacks `END`, SHALL proceed with a disclosed degradation notice (stating the reply could not be confirmed complete) rather than silently trusting a possibly-truncated verdict.
 
@@ -147,7 +147,7 @@ Every reply from `dhpk:planner` SHALL begin with a `VERDICT:` line as the first 
 - **WHEN** a `dhpk:planner` reply is received without a trailing `END` line
 - **THEN** the orchestrator re-consults `dhpk:planner` exactly once; if the re-consult also lacks `END`, the orchestrator proceeds with a disclosed degradation notice instead of silently trusting the possibly-truncated verdict
 
-#### Scenario: Reply stays within the token cap
+#### Scenario: Reply stays within the per-section item caps
 
 - **WHEN** `dhpk:planner` composes a reply
 - **THEN** the reply reports findings by exception using the coded vocabulary in one-line telegraphic form within the per-section item caps
