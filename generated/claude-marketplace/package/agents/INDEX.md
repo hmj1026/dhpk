@@ -77,7 +77,7 @@ This index only lists the shipped roles above.
 | [doc-updater](doc-updater.md) | sonnet | Doc / codemap updates after a structural change makes docs stale |
 | [docs-writer](docs-writer.md) | sonnet | Write or revise assigned documentation (QA manuals, guides, docblock prose) from confirmed sources; reports sources and unresolved facts. Distinct from doc-updater (stale-doc refresh after a structural change) |
 | [docs-lookup](docs-lookup.md) | haiku | Library / framework / API doc lookup (Context7) |
-| [harness-reviser](harness-reviser.md) | sonnet | Scoped harness configuration review and fixes; retired governance scoring and scenario coverage are unavailable |
+| [harness-reviser](harness-reviser.md) | sonnet | Scoped harness configuration review and fixes |
 | [migration-reviewer](migration-reviewer.md) | sonnet | DB migration up/down symmetry, multi-tenant FK/index collision, online-DDL safety on high-volume tables |
 | [version-matrix-impact-reviewer](version-matrix-impact-reviewer.md) | sonnet | Per-change blast radius across a CI version matrix (PHP × Laravel/Symfony, Yii 1×2); recommends the minimum testsuite subset |
 | [swift-build-resolver](swift-build-resolver.md) | sonnet | Swift / Xcode / SwiftPM build-error resolution (compile, Sendable/actor isolation, Codable, package-version conflicts, signing) |
