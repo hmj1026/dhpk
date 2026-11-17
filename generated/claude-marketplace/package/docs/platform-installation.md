@@ -263,7 +263,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.2 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -695,6 +695,61 @@ project guidance). Cursor agents/rules remain `.cursor/agents/` and
 plugin package. Keep those platform-native projections generated from the
 canonical `agents/` and `rules/` trees.
 
+### Claude plugin and project bindings
+
+When the official Claude plugin `dhpk@dhpk` is enabled for the project and its
+package catalog provides a selected Skill Identity, the project must not
+publish a second `.claude/skills/<name>` binding for it
+([ADR-0039](adr/0039-claude-plugin-provision-gates-project-bindings.md)).
+`gen-agents-skills.js` runs `claude plugin list --json` in the project root,
+then compares stable IDs with the catalog (`provenance.json`, plugin 0.69.0 or
+later) in the Host-reported install root. The shared `.agents/skills` artifact,
+the Claude sibling under `.agents/claude-skills`, the receipt selection, and the
+Codex/Cursor/AGY bindings do not change; only the Claude binding is withdrawn,
+and its receipt entry is marked `claudePluginProvided`.
+
+| State | Meaning | Claude project bindings |
+| --- | --- | --- |
+| `ENABLED` | Every applicable plugin record is enabled and the catalog verifies | Withdrawn for identities the plugin provides; the rest are published |
+| `DISABLED`, `NOT_APPLICABLE`, `ABSENT`, `INACTIVE` | Plugin off, installed only for another project, not installed, or `--claude-plugin-state inactive` | All published; earlier withdrawals are restored |
+| `CLI_NOT_INSTALLED` | No `claude` command | Like `ABSENT`, unless the receipt already records a withdrawal (then like `UNKNOWN`) |
+| `UNKNOWN` | CLI failure, timeout, malformed output, conflicting records, load errors, or a missing or drifted catalog | Nothing is deleted or restored; a run that would add a new Claude binding stops with `CLAUDE_PLUGIN_STATE_UNKNOWN` |
+
+Withdrawal removes only the receipt-owned symlink, and only while it still
+points where the receipt says. A retargeted or replaced link stops the run with
+`MANAGED_CONTENT_CHANGED`; an unowned entry at that path is left in place and
+reported as `UNOWNED_ENTRY_PRESERVED`. Restoring a binding over an unowned
+entry stops with `GENERATED_PATH_COLLISION`. A plugin name that matches a
+selected skill under a different stable ID is published and reported as
+`SAME_NAME_DIFFERENT_IDENTITY`.
+
+The run prints `Claude plugin dhpk@dhpk: <state>; withdrew N, restored M
+project bindings`. Skip the check with `--claude-plugin-state inactive` (or
+`DHPK_CLAUDE_PLUGIN_STATE=inactive`; the flag wins). The default is `auto`.
+`DHPK_CLAUDE_PROBE_TIMEOUT_MS` changes the 30 second probe limit. The `claude`
+command is resolved from absolute `PATH` entries only and never from inside the
+project root; if none qualifies the state is `CLI_NOT_INSTALLED`. A `claude`
+found only inside the project root gives `UNKNOWN` with reason
+`CLAUDE_CLI_INSIDE_PROJECT` (use `--claude-plugin-state inactive` if the plugin
+is not enabled there). Plugin roots that disagree on version or identities give
+`UNKNOWN` (`PLUGIN_ROOTS_DISAGREE`); a differing catalog digest alone does not,
+and the root the Host reads (`readFromFolder`, else `installPath`) supplies the
+recorded digest. The Host's
+`enabled` value was observed (Claude Code 2.1.326) to be computed for the
+working directory; the Host does not document that. Codex and Cursor installers
+do not probe; they carry the recorded withdrawal forward.
+
+`--rollback` restores the snapshot exactly, so rolling back to a state from
+before a withdrawal rebuilds the duplicate link while the plugin stays
+enabled; the next Claude-targeted run withdraws it again.
+
+If a run stops with `CLAUDE_PLUGIN_STATE_UNKNOWN`:
+
+1. Make `claude plugin list --json` run in the project.
+2. If `dhpk@dhpk` is not enabled for the project, rerun with
+   `--claude-plugin-state inactive`.
+3. Update the plugin to 0.69.0 or later, which ships the catalog.
+
 ### Interrupted installs and explicit recovery
 
 A Codex or Cursor install, update, or uninstall is one transaction across the
@@ -745,6 +800,9 @@ interrupted transaction automatically.
   `--recover`. It exits `2` while anything remains.
 
 ### Recover receipt-owned shared skills
+
+A missing `.claude/skills/<name>` link for an identity the enabled plugin
+provides is expected; see [Claude plugin and project bindings](#claude-plugin-and-project-bindings).
 
 Use this procedure when a previously managed directory under
 `.agents/skills/` was replaced by a symlink, or its receipt-owned files are
@@ -1149,7 +1207,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.2 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

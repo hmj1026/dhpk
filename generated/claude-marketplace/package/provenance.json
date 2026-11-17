@@ -1813,7 +1813,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "db1326fd40d00afc95bcbbf38ac897cdc2a90dcac45d95a324bcacf136b80ec5"
+      "sha256": "63f9d02863251ffb4e551690572806999b8ecd5393f2c689b37d9a98203ff119"
     },
     {
       "skillId": "flow-guide",
@@ -1941,7 +1941,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "db1326fd40d00afc95bcbbf38ac897cdc2a90dcac45d95a324bcacf136b80ec5"
+      "sha256": "63f9d02863251ffb4e551690572806999b8ecd5393f2c689b37d9a98203ff119"
     },
     {
       "skillId": "flow-guide",
@@ -2533,7 +2533,7 @@
       "sourcePath": "skills/harness-setup/scripts/install-codex-project.sh",
       "destination": "skills/harness-setup/scripts/install-codex-project.sh",
       "kind": "entry",
-      "sha256": "c805265ea5ab2aff30d8d71e54786fde4ab27ce7beffff1104a509f4557fc200"
+      "sha256": "ec8238e4f699eb86190a7837ab1c8300fb1582ca1a2fb25f281ec561cda3a55e"
     },
     {
       "skillId": "harness-setup",
@@ -2541,7 +2541,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
       "destination": "skills/harness-setup/scripts/lib/dhpk-installer.cjs",
       "kind": "generated",
-      "sha256": "647d3ac874403ada0105734d4a8542e1351c01998db075fadd2529ed5e6e064d"
+      "sha256": "c031c5855fe0d0ea672f07a14205318980d6e321a99f1dd881a83d24ac9aab80"
     },
     {
       "skillId": "harness-setup",
@@ -2557,7 +2557,7 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "66248d47142e5ea376979784d23eb87dcbf313ce9cc6a46d9b92ab262cdd5056"
+      "sha256": "c11bd51c0551a0a7671cde5a1ef8468a7e4abd232194875fcf4f0e38b7194358"
     },
     {
       "skillId": "harness-setup",
@@ -3349,7 +3349,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "58db62f4f6d88dbc34f82c5d5e58b80e845d15b83cf3eadfada33d8ab9ab3a22"
+      "sha256": "5487e795252c5ddaffa11772a3c6fb657992d6c1c4a61e61b341b1e5385ea98c"
     },
     {
       "skillId": "tdd",

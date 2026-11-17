@@ -91,8 +91,36 @@ function rewriteReceipt(receiptPath, mutate) {
   write(receiptPath, `${JSON.stringify(receipt)}\n`);
 }
 
+// ADR-0039: the official Claude plugin provides the sample identity.
+const PLUGIN_ENABLED = {
+  schema: 'dhpk.claude-plugin-provision.v1',
+  status: 'ENABLED',
+  source: 'claude-plugin-list',
+  pluginId: 'dhpk@dhpk',
+  pluginVersion: '1.0.0',
+  catalogDigest: 'c'.repeat(64),
+  providedIdentities: [{ stableId: 'sample', name: 'dhpk-sample' }],
+};
+const PLUGIN_DISABLED = { schema: 'dhpk.claude-plugin-provision.v1', status: 'DISABLED', source: 'claude-plugin-list', pluginId: 'dhpk@dhpk' };
+
 // Each scenario prepares a fixture and names the operation under test.
 const SCENARIOS = {
+  withdraw: {
+    prepare: () => {
+      const context = fixture();
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...context.options, claudePluginProvision: PLUGIN_DISABLED });
+      return context;
+    },
+    operate: (options) => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, claudePluginProvision: PLUGIN_ENABLED }),
+  },
+  restore: {
+    prepare: () => {
+      const context = fixture();
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...context.options, claudePluginProvision: PLUGIN_ENABLED });
+      return context;
+    },
+    operate: (options) => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, claudePluginProvision: PLUGIN_DISABLED }),
+  },
   install: {
     prepare: () => fixture(),
     operate: (options) => publisher.materializeRelocatableAgentsSkillsProjection(options),

@@ -66,7 +66,6 @@ for (const host of ['codex', 'cursor']) {
         env: {
           ...process.env,
           PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`,
-          CLAUDE_PLUGIN_ROOT: artifact,
           DHPK_INSTALLER_ROOT: artifact,
           DHPK_CANARY_MARKER: marker,
         },

@@ -164,9 +164,9 @@ fi
 
 operation="codex-project"
 for argument in "${FORWARDED[@]}"; do operation="$operation $argument"; done
-# The artifact is data: pin both root variables to it. The installer's code is
+# The artifact is data: DHPK_INSTALLER_ROOT pins the one data source. The installer's code is
 # the approved helper's own (the bundle beside it, or the checkout's modules).
-CLAUDE_PLUGIN_ROOT="$SOURCE_ARTIFACT" DHPK_INSTALLER_ROOT="$SOURCE_ARTIFACT" \
+DHPK_INSTALLER_ROOT="$SOURCE_ARTIFACT" \
     "$INSTALLER" "${FORWARDED[@]}"
 installer_status="$?"
 

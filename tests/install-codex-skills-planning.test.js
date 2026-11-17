@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./_lib/copy-dereferenced');
 
 // Behavioral coverage for install-codex-skills.sh (install-codex-skills-planning).
 // Every installer invocation remains a real child process so exit status,
@@ -28,7 +29,7 @@ const {
 
 function agentTuningFixture() {
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-agent-tuning-plugin-')));
-  fs.cpSync(ROOT, fakePlugin, { recursive: true, dereference: true });
+  copyDereferenced(ROOT, fakePlugin);
   const agents = path.join(fakePlugin, 'codex', 'agents');
   fs.mkdirSync(agents, { recursive: true });
   fs.writeFileSync(path.join(agents, 'worker.toml'), 'name = "worker"\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "medium"\ndeveloper_instructions = "upstream worker"\n');
@@ -906,7 +907,7 @@ test('T1 golden: classifyReceipt emits multi-drift reasons in exact canonical or
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-reasons-plugin-')));
   const scratch = projectRoot();
   try {
-    fs.cpSync(ROOT, fakePlugin, { recursive: true, dereference: true });
+    copyDereferenced(ROOT, fakePlugin);
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
     const flowSkill = inventory.skills.find((entry) => entry.name === 'flow-guide');

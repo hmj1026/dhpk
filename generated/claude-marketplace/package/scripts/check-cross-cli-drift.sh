@@ -31,7 +31,8 @@ DRIFT_THRESHOLD="${DHPK_CROSS_CLI_DRIFT_THRESHOLD:-3600}"
 # Content-aware parity is the authoritative signal. Keep the mtime check below
 # as a compatibility/freshness advisory: some projects intentionally use the
 # same content but still want a reminder after a long unsynced edit window.
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+# Own package only; CLAUDE_PLUGIN_ROOT is ignored (ADR 0038).
+PLUGIN_ROOT="$(cd -P "$(dirname "$0")/.." && pwd)"
 PARITY_SCRIPT="$PLUGIN_ROOT/scripts/lib/cross-cli-parity.js"
 if command -v node >/dev/null 2>&1 && [ -f "$PARITY_SCRIPT" ]; then
     for target_name in .codex; do

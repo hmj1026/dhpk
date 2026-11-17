@@ -115,7 +115,7 @@ test('normal dispatch: counts agentType x model@effort, sums tokens, prices from
   assert.match(PRICE_TABLE.verifiedOn, /^\d{4}-\d{2}-\d{2}$/);
 });
 
-test('call-time model and effort override are counted and reported as mismatches against frontmatter', () => {
+test('call-time upgrades move to escalations while downgrades and unoverridden deviations stay in mismatches', () => {
   const root = mkdtemp();
   const agentsDir = makeAgentsDir();
   makeSession(root, {
@@ -139,19 +139,25 @@ test('call-time model and effort override are counted and reported as mismatches
   assert.strictEqual(arch.declaredEffort, 'low');
   assert.strictEqual(arch.actualModel, 'claude-opus-5-5');
   assert.strictEqual(arch.actualEffort, 'high');
-  assert.deepStrictEqual(arch.fields.sort(), ['effort', 'model']);
+  assert.deepStrictEqual(arch.fields, ['model']);
   assert.strictEqual(arch.callModel, 'opus');
   assert.strictEqual(arch.callEffort, 'high');
   const worker = report.mismatches.find((m) => m.agentType === 'dhpk:fast-worker');
   assert.deepStrictEqual(worker.fields, ['model']);
+  assert.strictEqual(report.escalations.dispatches.length, 1);
+  assert.strictEqual(report.escalations.dispatches[0].agentId, 'o1');
+  assert.deepStrictEqual(report.escalations.dispatches[0].fields, ['effort']);
+  assert.strictEqual(report.escalations.dispatches[0].declaredEffort, 'low');
+  assert.strictEqual(report.escalations.dispatches[0].actualEffort, 'high');
+  assert.strictEqual(report.escalations.dispatches[0].callEffort, 'high');
 });
 
-test('built-in agent without frontmatter is "no declared tier", never a mismatch; unpriced model is "unknown", not 0', () => {
+test('built-in agent with callModel override is "no declared tier", not a mismatch; unpriced model is "unknown", not 0', () => {
   const root = mkdtemp();
   const agentsDir = makeAgentsDir();
   makeSession(root, {
     dispatches: [
-      { id: 'e1', agentType: 'Explore', isBuiltIn: true, records: [
+      { id: 'e1', agentType: 'Explore', callModel: 'claude-unpriced-9-9', isBuiltIn: true, records: [
         assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-unpriced-9-9', effort: 'medium' }),
       ] },
     ],
@@ -325,13 +331,13 @@ test('--json output is valid JSON with the documented shape and never leaks prom
   const json = cli(['--root', root, '--agents-dir', agentsDir, '--json']);
   assert.strictEqual(json.status, 0, json.stderr);
   const report = JSON.parse(json.stdout);
-  for (const key of ['byAgent', 'callOverrides', 'mismatches', 'generalPurpose', 'skipped']) {
+  for (const key of ['byAgent', 'callOverrides', 'mismatches', 'escalations', 'generalPurpose', 'skipped']) {
     assert.ok(Object.prototype.hasOwnProperty.call(report, key), `missing ${key}`);
   }
   for (const key of ['agentType', 'model', 'effort', 'count', 'usage', 'estimatedCost']) {
     assert.ok(Object.prototype.hasOwnProperty.call(report.byAgent[0], key), `byAgent missing ${key}`);
   }
-  for (const key of ['buckets', 'byTrigger', 'haikuEdits']) {
+  for (const key of ['buckets', 'byTrigger', 'haikuEdits', 'builtinCommand', 'roleCandidates']) {
     assert.ok(Object.prototype.hasOwnProperty.call(report.generalPurpose, key), `generalPurpose missing ${key}`);
   }
   const text = cli(['--root', root, '--agents-dir', agentsDir]);
@@ -792,6 +798,18 @@ test('two-host merge sums byAgent, costTotals, callOverrides, skipped, noDeclare
   assert.deepStrictEqual(gp.byModel, { 'claude-haiku-5-5': 2, 'claude-sonnet-5-5': 2 });
   assert.deepStrictEqual(gp.byTrigger, { 'skill:fake-skill': 2, 'command:/fake-command': 2 });
   assert.strictEqual(gp.haikuEdits, 2);
+  assert.deepStrictEqual(gp.builtinCommand, {
+    total: 0,
+    buckets: { edits: 0, commandsOnly: 0, readOnly: 0 },
+    byModel: {},
+    byTrigger: {},
+  });
+  assert.deepStrictEqual(gp.roleCandidates, {
+    total: 4,
+    buckets: { edits: 2, commandsOnly: 1, readOnly: 1 },
+    byModel: { 'claude-haiku-5-5': 2, 'claude-sonnet-5-5': 2 },
+    byTrigger: { 'skill:fake-skill': 2, 'command:/fake-command': 2 },
+  });
 });
 
 test('merge never recomputes cost: the Haiku long-prompt group equals the sum of the host costs', () => {
@@ -897,20 +915,35 @@ test('--merge combined with --root, --since, --until, --project or --agents-dir 
 test('merged mismatches keep their host because agentId is only unique per host', () => {
   const [a, b] = twoHosts();
   const m = mergedJson([a, b]);
-  assert.strictEqual(m.mismatches.length, 2);
-  assert.deepStrictEqual(m.mismatches.map((x) => [x.host, x.agentId, x.agentType]), [
-    ['host-a', 'dup1', 'dhpk:architect'],
-    ['host-b', 'dup1', 'dhpk:architect'],
-  ]);
-  for (const x of m.mismatches) {
-    assert.deepStrictEqual(x.fields.slice().sort(), ['effort', 'model']);
-    assert.strictEqual(x.actualModel, 'claude-opus-5-5');
-  }
-  assert.strictEqual(m.mismatches[0].callEffort, 'high');
-  assert.strictEqual(m.mismatches[1].callEffort, null);
+  assert.strictEqual(m.mismatches.length, 7);
+  assert.deepStrictEqual(
+    m.mismatches
+      .map((x) => [x.host, x.agentId, x.agentType, x.fields])
+      .sort((x, y) => `${x[0]}:${x[1]}`.localeCompare(`${y[0]}:${y[1]}`)),
+    [
+      ['host-a', 'dup1', 'dhpk:architect', ['model']],
+      ['host-a', 'gp1', 'general-purpose', ['model']],
+      ['host-a', 'gp2', 'general-purpose', ['model']],
+      ['host-a', 'u1', 'Explore', ['model']],
+      ['host-b', 'dup1', 'dhpk:architect', ['model', 'effort']],
+      ['host-b', 'gp1', 'general-purpose', ['model']],
+      ['host-b', 'gp2', 'general-purpose', ['model']],
+    ]
+  );
+  const arch = m.mismatches.filter((x) => x.agentType === 'dhpk:architect');
+  assert.strictEqual(arch[0].actualModel, 'claude-opus-5-5');
+  assert.strictEqual(arch[0].callEffort, 'high');
+  assert.strictEqual(arch[1].actualModel, 'claude-opus-5-5');
+  assert.strictEqual(arch[1].callEffort, null);
+  assert.strictEqual(m.escalations.dispatches.length, 1);
+  assert.deepStrictEqual(
+    [m.escalations.dispatches[0].host, m.escalations.dispatches[0].agentId, m.escalations.dispatches[0].fields],
+    ['host-a', 'dup1', ['effort']]
+  );
   const text = mergeCli([a, b]);
   assert.match(text.stdout, /host-a dhpk:architect dup1: declared/);
   assert.match(text.stdout, /host-b dhpk:architect dup1: declared/);
+  assert.match(text.stdout, /escalations \(explicit call upgrades; cap 2\/session\): 1 dispatch, 1 session, 0 over cap/);
 });
 
 test('merge reports sources and marks declaredTiers consistent or mixed from the digests', () => {
@@ -1441,6 +1474,304 @@ test('oversized: merge rejects complete that contradicts usageMissingTurns, and 
     const result = mergeCli([input]);
     assert.strictEqual(result.status, 1);
     assert.match(result.stderr, /malformed oversized entry/);
+  }
+});
+
+// ---- #1412: escalations, built-in mismatch rules, and built-in command separation ----
+
+function makeRoleAgentsDir() {
+  const dir = path.join(mkdtemp(), 'agents');
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, 'architect.md'), '---\nname: architect\nmodel: fable\neffort: medium\n---\nbody\n');
+  fs.writeFileSync(path.join(dir, 'code-reviewer.md'), '---\nname: code-reviewer\nmodel: sonnet\neffort: high\n---\nbody\n');
+  fs.writeFileSync(path.join(dir, 'doc-reviewer.md'), '---\nname: doc-reviewer\nmodel: haiku\neffort: medium\n---\nbody\n');
+  fs.writeFileSync(path.join(dir, 'tdd-guide.md'), '---\nname: tdd-guide\nmodel: sonnet\neffort: medium\n---\nbody\n');
+  return dir;
+}
+
+test('declared agents: pure model/effort upgrades go to escalations only; unoverridden or unverified deviations stay in mismatches', () => {
+  const root = mkdtemp();
+  const agentsDir = makeRoleAgentsDir();
+  makeSession(root, {
+    session: 'session-esc-1',
+    dispatches: [
+      { id: 'cr1', agentType: 'dhpk:code-reviewer', callModel: 'opus', records: [
+        assistant({ ts: '2026-11-12T01:00:00Z', model: 'claude-opus-5-5', effort: 'high' }),
+      ] },
+      { id: 'dr1', agentType: 'dhpk:doc-reviewer', callModel: 'sonnet', records: [
+        assistant({ ts: '2026-11-12T01:05:00Z', model: 'claude-sonnet-5-5', effort: 'medium' }),
+      ] },
+      { id: 'tg1', agentType: 'dhpk:tdd-guide', callModel: 'opus', callEffort: 'high', records: [
+        assistant({ ts: '2026-11-12T01:10:00Z', model: 'claude-opus-5-5', effort: 'high' }),
+      ] },
+      { id: 'ar-eff', agentType: 'dhpk:architect', callEffort: 'max', records: [
+        assistant({ ts: '2026-11-12T01:15:00Z', model: 'claude-fable-5-1', effort: 'max' }),
+      ] },
+      { id: 'ar-unoverridden', agentType: 'dhpk:architect', callModel: 'fable', records: [
+        assistant({ ts: '2026-11-12T01:20:00Z', model: 'claude-fable-5-1', effort: 'low' }),
+      ] },
+      { id: 'dr-unverified', agentType: 'dhpk:doc-reviewer', callModel: 'opus', records: [
+        assistant({ ts: '2026-11-12T01:25:00Z', model: 'claude-sonnet-5-5', effort: 'medium' }),
+      ] },
+    ],
+  });
+
+  const report = buildReport({ root, agentsDir });
+  assert.deepStrictEqual(
+    report.escalations.dispatches.map((d) => [d.agentId, d.fields]).sort((a, b) => a[0].localeCompare(b[0])),
+    [
+      ['ar-eff', ['effort']],
+      ['cr1', ['model']],
+      ['dr1', ['model']],
+      ['tg1', ['model', 'effort']],
+    ]
+  );
+  assert.deepStrictEqual(
+    report.mismatches.map((m) => [m.agentId, m.fields]).sort((a, b) => a[0].localeCompare(b[0])),
+    [
+      ['ar-unoverridden', ['effort']],
+      ['dr-unverified', ['model']],
+    ]
+  );
+  assert.deepStrictEqual(report.escalations.bySession, [
+    { session: 'session-esc-1', count: 4, overCap: true },
+  ]);
+  assert.deepStrictEqual(report.escalations.overCapSessions, [
+    { session: 'session-esc-1', count: 4, overCap: true },
+  ]);
+});
+
+test('built-in agents: !callModel enforces Explore/Plan/general-purpose rules in mismatches, while explicit callModel never enters mismatches or escalations', () => {
+  const root = mkdtemp();
+  const agentsDir = makeRoleAgentsDir();
+  makeSession(root, {
+    dispatches: [
+      { id: 'ex-bad', agentType: 'Explore', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:00:00Z', model: 'claude-opus-5-5', effort: 'low' }),
+      ] },
+      { id: 'ex-ok', agentType: 'Explore', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:02:00Z', model: 'claude-haiku-5-5', effort: 'low' }),
+      ] },
+      { id: 'pl-bad', agentType: 'Plan', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:04:00Z', model: 'claude-sonnet-5-5', effort: 'high' }),
+      ] },
+      { id: 'pl-ok', agentType: 'Plan', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:06:00Z', model: 'claude-opus-5-5', effort: 'high' }),
+      ] },
+      { id: 'gp-edit-bad', agentType: 'general-purpose', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:08:00Z', model: 'claude-haiku-5-5', effort: 'medium', tools: ['Edit'] }),
+      ] },
+      { id: 'gp-cmd-bad', agentType: 'general-purpose', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:10:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Bash'] }),
+      ] },
+      { id: 'gp-ro-ok', agentType: 'general-purpose', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:12:00Z', model: 'claude-haiku-5-5', effort: 'medium', tools: ['Read'] }),
+      ] },
+      { id: 'ex-explicit', agentType: 'Explore', callModel: 'opus', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:14:00Z', model: 'claude-opus-5-5', effort: 'low' }),
+      ] },
+      { id: 'pl-explicit', agentType: 'Plan', callModel: 'fable', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:16:00Z', model: 'claude-fable-5-1', effort: 'high' }),
+      ] },
+      { id: 'gp-explicit', agentType: 'general-purpose', callModel: 'fable', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T01:18:00Z', model: 'claude-fable-5-1', effort: 'medium', tools: ['Write'] }),
+      ] },
+    ],
+  });
+
+  const report = buildReport({ root, agentsDir });
+  assert.strictEqual(report.noDeclaredTier, 10);
+  assert.deepStrictEqual(report.escalations.dispatches, []);
+  assert.deepStrictEqual(
+    report.mismatches
+      .map((m) => [m.agentId, m.agentType, m.declaredModel, m.actualModel, m.callModel])
+      .sort((a, b) => a[0].localeCompare(b[0])),
+    [
+      ['ex-bad', 'Explore', 'haiku', 'claude-opus-5-5', null],
+      ['gp-cmd-bad', 'general-purpose', 'haiku', 'claude-sonnet-5-5', null],
+      ['gp-edit-bad', 'general-purpose', 'sonnet', 'claude-haiku-5-5', null],
+      ['pl-bad', 'Plan', 'opus', 'claude-sonnet-5-5', null],
+    ]
+  );
+});
+
+test('escalations: session cap (>2) flagging, sorting, and text formatting', () => {
+  const root = mkdtemp();
+  const agentsDir = makeRoleAgentsDir();
+  const upDispatch = (id, ts) => ({
+    id,
+    agentType: 'dhpk:code-reviewer',
+    callModel: 'opus',
+    records: [assistant({ ts, model: 'claude-opus-5-5', effort: 'high' })],
+  });
+  makeSession(root, {
+    session: 'session-gamma',
+    dispatches: [
+      upDispatch('g1', '2026-11-12T01:00:00Z'),
+      upDispatch('g2', '2026-11-12T01:01:00Z'),
+      upDispatch('g3', '2026-11-12T01:02:00Z'),
+    ],
+  });
+  makeSession(root, {
+    session: 'session-beta',
+    dispatches: [
+      upDispatch('b1', '2026-11-12T02:00:00Z'),
+      upDispatch('b2', '2026-11-12T02:01:00Z'),
+    ],
+  });
+  makeSession(root, {
+    session: 'session-alpha',
+    dispatches: [
+      upDispatch('a1', '2026-11-12T03:00:00Z'),
+      upDispatch('a2', '2026-11-12T03:01:00Z'),
+      upDispatch('a3', '2026-11-12T03:02:00Z'),
+    ],
+  });
+
+  const report = buildReport({ root, agentsDir });
+  assert.strictEqual(report.escalations.capPerSession, 2);
+  assert.deepStrictEqual(report.mismatches, []);
+  assert.deepStrictEqual(report.escalations.bySession, [
+    { session: 'session-alpha', count: 3, overCap: true },
+    { session: 'session-gamma', count: 3, overCap: true },
+    { session: 'session-beta', count: 2, overCap: false },
+  ]);
+  assert.deepStrictEqual(report.escalations.overCapSessions, [
+    { session: 'session-alpha', count: 3, overCap: true },
+    { session: 'session-gamma', count: 3, overCap: true },
+  ]);
+
+  const text = cli(['--root', root, '--agents-dir', agentsDir]).stdout;
+  assert.match(text, /mismatches vs role defaults & built-in rules: 0 \(0 dispatches have no declared tier\)/);
+  assert.match(text, /escalations \(explicit call upgrades; cap 2\/session\): 8 dispatches, 3 sessions, 2 over cap \(>2\)/);
+  assert.match(text, /^  session session-alpha: 3 escalations \[OVER CAP >2\]$/m);
+  assert.match(text, /^  session session-beta: 2 escalations$/m);
+  assert.match(text, /^  session session-gamma: 3 escalations \[OVER CAP >2\]$/m);
+});
+
+test('generalPurpose separates built-in command triggers from role-candidate triggers in JSON and text', () => {
+  const root = mkdtemp();
+  const agentsDir = makeRoleAgentsDir();
+  const cmd = (ts, name) => ({
+    type: 'user',
+    timestamp: ts,
+    message: { role: 'user', content: `<command-name>${name}</command-name>` },
+  });
+  const skill = (ts, name) => ({
+    type: 'assistant',
+    timestamp: ts,
+    message: { id: `sk-${ts}`, content: [{ type: 'tool_use', id: `sk-${ts}`, name: 'Skill', input: { skill: name } }] },
+  });
+  makeSession(root, {
+    session: 'session-gp-1',
+    dispatches: [
+      { id: 'bi1', agentType: 'general-purpose', callModel: 'sonnet', isBuiltIn: true, trigger: cmd('2026-11-12T01:00:00Z', '/simplify'), records: [
+        assistant({ ts: '2026-11-12T01:01:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Edit'] }),
+      ] },
+      { id: 'bi2', agentType: 'general-purpose', callModel: 'haiku', isBuiltIn: true, trigger: cmd('2026-11-12T02:00:00Z', '/model'), records: [
+        assistant({ ts: '2026-11-12T02:01:00Z', model: 'claude-haiku-5-5', effort: 'low', tools: ['Read'] }),
+      ] },
+      { id: 'bi3', agentType: 'general-purpose', callModel: 'sonnet', isBuiltIn: true, trigger: cmd('2026-11-12T03:00:00Z', '/compact'), records: [
+        assistant({ ts: '2026-11-12T03:01:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Bash'] }),
+      ] },
+      { id: 'rc1', agentType: 'general-purpose', callModel: 'sonnet', isBuiltIn: true, trigger: cmd('2026-11-12T04:00:00Z', '/dhpk:simplify'), records: [
+        assistant({ ts: '2026-11-12T04:01:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Write'] }),
+      ] },
+      { id: 'rc2', agentType: 'general-purpose', callModel: 'sonnet', isBuiltIn: true, trigger: cmd('2026-11-12T05:00:00Z', '/flow-drive'), records: [
+        assistant({ ts: '2026-11-12T05:01:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Bash'] }),
+      ] },
+      { id: 'rc3', agentType: 'general-purpose', callModel: 'haiku', isBuiltIn: true, trigger: skill('2026-11-12T06:00:00Z', 'simplify'), records: [
+        assistant({ ts: '2026-11-12T06:01:00Z', model: 'claude-haiku-5-5', effort: 'low', tools: ['Grep'] }),
+      ] },
+    ],
+  });
+  makeSession(root, {
+    session: 'session-gp-2',
+    dispatches: [
+      { id: 'rc4', agentType: 'general-purpose', callModel: 'haiku', isBuiltIn: true, records: [
+        assistant({ ts: '2026-11-12T07:00:00Z', model: 'claude-haiku-5-5', effort: 'low', tools: ['Read'] }),
+      ] },
+    ],
+  });
+
+  const gp = buildReport({ root, agentsDir }).generalPurpose;
+  assert.strictEqual(gp.total, 7);
+  assert.deepStrictEqual(gp.builtinCommand, {
+    total: 3,
+    buckets: { edits: 1, commandsOnly: 1, readOnly: 1 },
+    byModel: { 'claude-sonnet-5-5': 2, 'claude-haiku-5-5': 1 },
+    byTrigger: { 'command:/simplify': 1, 'command:/model': 1, 'command:/compact': 1 },
+  });
+  assert.deepStrictEqual(gp.roleCandidates, {
+    total: 4,
+    buckets: { edits: 1, commandsOnly: 1, readOnly: 2 },
+    byModel: { 'claude-sonnet-5-5': 2, 'claude-haiku-5-5': 2 },
+    byTrigger: { 'command:/dhpk:simplify': 1, 'command:/flow-drive': 1, 'skill:simplify': 1, unknown: 1 },
+  });
+
+  const text = cli(['--root', root, '--agents-dir', agentsDir]).stdout;
+  assert.match(text, /  built-in command triggers: 3 dispatches; edits 1, commands-only 1, read-only 1/);
+  assert.match(text, /  role-candidate triggers: 4 dispatches; edits 1, commands-only 1, read-only 2/);
+});
+
+test('merge: escalations track host+session uniqueness, strip unknown dispatch keys, and reject malformed escalations/gp groups', () => {
+  const agentsDir = makeRoleAgentsDir();
+  const buildHost = (host, sessionSpecs) => {
+    const root = mkdtemp();
+    for (const [session, ids] of sessionSpecs) {
+      makeSession(root, {
+        session,
+        dispatches: ids.map((id, i) => ({
+          id,
+          agentType: 'dhpk:code-reviewer',
+          callModel: 'opus',
+          records: [assistant({ ts: `2026-11-12T0${i + 1}:00:00Z`, model: 'claude-opus-5-5', effort: 'high' })],
+        })),
+      });
+    }
+    const r = cli(['--root', root, '--agents-dir', agentsDir, '--host', host, '--json']);
+    assert.strictEqual(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout);
+  };
+
+  // Same session id on two hosts must NOT combine to exceed capPerSession (2 + 2 !== 4).
+  const hostA = buildHost('host-a', [['shared-session', ['a1', 'a2']], ['over-session', ['a3', 'a4', 'a5']]]);
+  const hostB = buildHost('host-b', [['shared-session', ['b1', 'b2']]]);
+  const aStrippable = clone(hostA);
+  aStrippable.escalations.dispatches[0].extraInjectedField = 'strip-me';
+  const merged = mergedJson([aStrippable, hostB]);
+  assert.strictEqual(merged.escalations.capPerSession, 2);
+  assert.strictEqual(merged.escalations.dispatches[0].extraInjectedField, undefined);
+  assert.deepStrictEqual(merged.escalations.bySession, [
+    { host: 'host-a', session: 'over-session', count: 3, overCap: true },
+    { host: 'host-a', session: 'shared-session', count: 2, overCap: false },
+    { host: 'host-b', session: 'shared-session', count: 2, overCap: false },
+  ]);
+  assert.deepStrictEqual(merged.escalations.overCapSessions, [
+    { host: 'host-a', session: 'over-session', count: 3, overCap: true },
+  ]);
+  const mergedText = mergeCli([hostA, hostB]).stdout;
+  assert.match(mergedText, /escalations \(explicit call upgrades; cap 2\/session\): 7 dispatches, 3 sessions, 1 over cap \(>2\)/);
+  assert.match(mergedText, /^  session host-a over-session: 3 escalations \[OVER CAP >2\]$/m);
+  assert.match(mergedText, /^  session host-a shared-session: 2 escalations$/m);
+  assert.match(mergedText, /^  session host-b shared-session: 2 escalations$/m);
+
+  // Structural validation rejections without leaking secret keys.
+  const secretKey = 'SECRET-ESC-GP-KEY';
+  const badVariants = [
+    () => { const c = clone(hostA); delete c.escalations; return c; },
+    () => { const c = clone(hostA); c.escalations.capPerSession = 3; return c; },
+    () => { const c = clone(hostA); c.escalations.dispatches[0].fields = ['unknown-field']; return c; },
+    () => { const c = clone(hostA); c.escalations.bySession[0].overCap = false; return c; },
+    () => { const c = clone(hostA); c.escalations.overCapSessions = []; return c; },
+    () => { const c = clone(hostA); delete c.generalPurpose.builtinCommand; return c; },
+    () => { const c = clone(hostA); delete c.generalPurpose.roleCandidates.total; return c; },
+    () => { const c = clone(hostA); c.generalPurpose.builtinCommand.byTrigger[secretKey] = 'bad-count'; return c; },
+  ];
+  for (const makeBad of badVariants) {
+    const res = mergeCli([makeBad(), hostB]);
+    assertRejected(res, 'bad escalations or gp group');
+    assert.ok(!res.stderr.includes(secretKey), 'secret key leaked in error');
   }
 });
 

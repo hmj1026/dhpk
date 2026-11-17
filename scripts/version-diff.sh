@@ -5,11 +5,11 @@
 # every pluginConfigs key by hand) into one command.
 #
 # Not wired into any hook and not a slash command — invoke directly:
-#   bash "$CLAUDE_PLUGIN_ROOT/scripts/version-diff.sh" [--project-root <path>]
+#   bash <package-root>/scripts/version-diff.sh [--project-root <path>]
 #
 # What it does (all read-only, exit code always 0):
 #   1. Resolve the running plugin version + userConfig schema keys from
-#      $CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json.
+#      <package-root>/.claude-plugin/plugin.json.
 #   2. Read <project>/.claude/dhpk-versions.json; if the running version is
 #      already covered by a verified range, print OK and stop — nothing to do.
 #   3. Otherwise:
@@ -30,7 +30,8 @@
 
 set -o pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+# Own package only; CLAUDE_PLUGIN_ROOT is ignored (ADR 0038).
+PLUGIN_ROOT="$(cd -P "$(dirname "$0")/.." && pwd)"
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
 while [ $# -gt 0 ]; do
@@ -53,7 +54,7 @@ SETTINGS_JSON="$ROOT/.claude/settings.json"
 SETTINGS_LOCAL_JSON="$ROOT/.claude/settings.local.json"
 
 command -v python3 >/dev/null 2>&1 || { echo "[version-diff] python3 not found — skipping" >&2; exit 0; }
-[ -f "$PLUGIN_JSON" ] || { echo "[version-diff] $PLUGIN_JSON not found — is CLAUDE_PLUGIN_ROOT set correctly?" >&2; exit 0; }
+[ -f "$PLUGIN_JSON" ] || { echo "[version-diff] $PLUGIN_JSON not found — this script must run from inside a dhpk package" >&2; exit 0; }
 [ -f "$PIN_JSON" ] || { echo "[version-diff] no pin file at $PIN_JSON — nothing to diff against" >&2; exit 0; }
 
 PLUGIN_JSON="$PLUGIN_JSON" CHANGELOG="$CHANGELOG" PIN_JSON="$PIN_JSON" \

@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./_lib/copy-dereferenced');
 
 // Behavioral coverage for the installer provider/bootstrap contract.
 // Every installer invocation remains a real child process so exit status,
@@ -236,7 +237,7 @@ test('enabled provider reports stale receipt and owned broken links before migra
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-provider-receipt-plugin-')));
   const unrelatedRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-provider-receipt-unrelated-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    copyDereferenced(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'));
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(
       path.join(ROOT, '.claude-plugin', 'plugin.json'),

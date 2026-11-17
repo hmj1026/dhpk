@@ -1,5 +1,5 @@
 name = "tdd-guide"
-description = "TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Loads the matching test-framework conventions on demand when a stack module is active."
+description = "TDD specialist (framework-agnostic). Use when a new feature or bug fix needs a separate test seam chosen, runtime or live-integration test setup, or independent specialist ownership of RED evidence. For direct test-first work on a settled seam, the tdd-workflow skill is the method; not for docs, format, or rename-only changes. Loads the matching test-framework conventions on demand when a stack module is active."
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
 

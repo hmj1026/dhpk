@@ -1455,4 +1455,57 @@ const crypto = require('node:crypto');
 }
 
 
+// ADR-0039: a Codex or Cursor install carries the Claude withdrawal forward; it
+// never rebuilds the project binding the enabled official plugin already provides.
+test('testCodexInstallAfterWithdraw_doesNotRebuildClaudeBinding', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-withdraw-');
+  try {
+    const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    inventory.skills[0].surfaces.push('claude-core');
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+    materializeRelocatableAgentsSkillsProjection({
+      sourceRoot,
+      projectRoot,
+      inventory,
+      profileId: 'portable-core',
+      requestedHosts: ['claude', 'codex'],
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      hostSelections: { claude: ['sample'], codex: ['sample'] },
+      claudePluginProvision: {
+        schema: 'dhpk.claude-plugin-provision.v1',
+        status: 'ENABLED',
+        source: 'claude-plugin-list',
+        pluginId: 'dhpk@dhpk',
+        pluginVersion: '1.0.0',
+        catalogDigest: 'c'.repeat(64),
+        providedIdentities: [{ stableId: 'sample', name: 'dhpk-sample' }],
+      },
+    });
+    const claudeLink = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    assert.strictEqual(fs.existsSync(claudeLink), false, 'precondition: Claude binding is withdrawn');
+    const result = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      update: true,
+    });
+    assert.ok(result.receipt, 'install returns a receipt');
+    assert.strictEqual(fs.existsSync(claudeLink), false, 'Codex install must not rebuild the withdrawn Claude binding');
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')).isSymbolicLink());
+    const receipt = JSON.parse(fs.readFileSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(receipt.entries.find((entry) => entry.stableId === 'sample').claudePluginProvided, true);
+    assert.deepStrictEqual(receipt.bindingPaths.claude || [], []);
+    assert.strictEqual(validateRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }).ok, true);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+
 run('native-shared-skill-install');

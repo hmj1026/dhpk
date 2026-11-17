@@ -10,8 +10,8 @@
 # Range matching is prefix-based: "0.10" / "0.10.x" match 0.10.0, 0.10.1, ...
 # Major bumps therefore require a deliberate pin-file update.
 #
-# Version source: $CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json (the running
-# install — exact regardless of install layout). Fallback: scan the marketplace
+# Version source: <owning package>/.claude-plugin/plugin.json (the package that
+# contains this script; CLAUDE_PLUGIN_ROOT is ignored, ADR 0038). Fallback: scan the marketplace
 # cache directory names (covers mid-upgrade states where multiple versions are
 # present; all detected versions are validated).
 #
@@ -24,9 +24,19 @@
 
 set -o pipefail
 
-. "$(dirname "$0")/_lib/session-env.sh"
+# Physical script dir; see _lib/plugin-root.sh (ADR 0038).
+_dhpk_self="$0"
+while [ -L "$_dhpk_self" ]; do
+    _dhpk_link="$(readlink "$_dhpk_self")"
+    case "$_dhpk_link" in /*) _dhpk_self="$_dhpk_link" ;; *) _dhpk_self="$(dirname "$_dhpk_self")/$_dhpk_link" ;; esac
+done
+_dhpk_hooks_dir="$(cd -P "$(dirname "$_dhpk_self")" 2>/dev/null && pwd)" || exit 0
+. "$_dhpk_hooks_dir/_lib/session-env.sh"
+. "$_dhpk_hooks_dir/_lib/plugin-root.sh"
 ROOT="$(dhpk_root)"
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+# Advisory: an unresolved root leaves the version source empty (cache scan).
+dhpk_plugin_root "$_dhpk_hooks_dir" || PLUGIN_ROOT=""
+[ -f "$PLUGIN_ROOT/.claude-plugin/plugin.json" ] || PLUGIN_ROOT=""
 PIN_JSON="$ROOT/.claude/dhpk-versions.json"
 DHPK_CACHE="$HOME/.claude/plugins/cache/dhpk/dhpk"
 
@@ -42,7 +52,7 @@ try:
         print(json.load(f).get("version", ""))
 except Exception:
     pass
-' "$PLUGIN_ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
+' "${PLUGIN_ROOT:+$PLUGIN_ROOT/.claude-plugin/plugin.json}" 2>/dev/null)"
 if [ -n "$_running" ]; then
     VERSIONS="$_running"
 elif [ -d "$DHPK_CACHE" ]; then

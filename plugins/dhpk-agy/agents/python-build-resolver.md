@@ -1,6 +1,6 @@
 ---
 name: python-build-resolver
-description: 'Use PROACTIVELY when a Python toolchain command fails (ruff, mypy or pyright, pytest, uv, pip, or poetry install). Applies the smallest intent-preserving fix and re-runs the command. Stops after 3 failed attempts or when a redesign is needed; hands a green run to `code-reviewer`.'
+description: 'Use when a Python toolchain command fails (ruff, mypy or pyright, pytest, uv, pip, or poetry install). Applies the smallest intent-preserving fix and re-runs the command. Stops after 3 failed attempts or when a redesign is needed; hands a green run to `code-reviewer`.'
 tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir"]
 model: pro
 ---

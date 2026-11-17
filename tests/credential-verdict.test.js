@@ -61,10 +61,10 @@ for reader, args, option in [
     assert option in result.detail, (args, result.detail)
     assert '.env' not in result.detail, result.detail
 
-assert set(ADAPTERS) == set(READERS) == {'cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg'}
+assert set(ADAPTERS) == set(READERS) == {'cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg', 'base64', 'dd', 'tar', 'cp'}
 assert ADAPTERS['rg'].exclusion_syntax == '--glob "!pattern"'
 assert ADAPTERS['grep'].exclusion_syntax == '--exclude="pattern"'
-assert all(ADAPTERS[r].exclusion_syntax is None for r in READERS if r not in ('rg', 'grep'))
+assert all(ADAPTERS[r].exclusion_syntax is None for r in READERS if r not in ('rg', 'grep', 'tar'))
 `);
 });
 

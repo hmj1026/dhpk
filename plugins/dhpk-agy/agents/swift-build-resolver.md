@@ -1,6 +1,6 @@
 ---
 name: swift-build-resolver
-description: 'Use PROACTIVELY when `swift build`, `xcodebuild`, or SwiftPM resolution fails. Applies the smallest intent-preserving fix and re-runs the build. Stops after 3 failed attempts or when a redesign is needed; hands a green build to `code-reviewer`.'
+description: 'Use when `swift build`, `xcodebuild`, or SwiftPM resolution fails. Applies the smallest intent-preserving fix and re-runs the build. Stops after 3 failed attempts or when a redesign is needed; hands a green build to `code-reviewer`.'
 tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir"]
 model: pro
 ---

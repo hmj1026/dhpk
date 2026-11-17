@@ -10,7 +10,15 @@
 
 set -o pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+# Physical script dir; see _lib/plugin-root.sh (ADR 0038).
+_dhpk_self="$0"
+while [ -L "$_dhpk_self" ]; do
+    _dhpk_link="$(readlink "$_dhpk_self")"
+    case "$_dhpk_link" in /*) _dhpk_self="$_dhpk_link" ;; *) _dhpk_self="$(dirname "$_dhpk_self")/$_dhpk_link" ;; esac
+done
+_dhpk_hooks_dir="$(cd -P "$(dirname "$_dhpk_self")" 2>/dev/null && pwd)" || exit 1
+. "$_dhpk_hooks_dir/_lib/plugin-root.sh"
+dhpk_plugin_root "$_dhpk_hooks_dir" || exit 1
 . "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
 

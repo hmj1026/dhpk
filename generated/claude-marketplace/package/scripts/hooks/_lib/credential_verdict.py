@@ -22,6 +22,10 @@ DEFAULT_HINT = 'use controlled extraction or provide non-secret information.'
 # Hints name only shell forms; an agent tool such as Grep or Read may not exist in the session (#1260).
 LITERAL_TARGETS = 'name each target as an explicit literal path without wildcards or shell expansions'
 DIRECTORY_SEARCH = 'to search a directory in a git repository, use git grep -n PATTERN -- <directory>'
+# (#1456) A command word the guard cannot resolve after a case, prompt, pattern or substring operator.
+TRANSFORMED_COMMAND = 'command word %s built from a visible value the guard cannot resolve'
+TRANSFORMED_COMMAND_RECOVERY = 'write the command name literally, or assign the whole command line to a variable without transforming it.'
+OPAQUE_EXPANSION = 'write the file name as one literal word, or assign the variable earlier in the same command so its value is visible.'
 # For a Reader's read targets, where a search can replace the wildcard; input files keep LITERAL_TARGETS.
 TARGET_SEARCH = '%s; %s.' % (LITERAL_TARGETS, DIRECTORY_SEARCH)
 

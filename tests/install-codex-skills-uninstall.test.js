@@ -1,4 +1,5 @@
 'use strict';
+const { copyDereferenced } = require('./_lib/copy-dereferenced');
 
 // Behavioral coverage for install-codex-skills.sh (install-codex-skills-uninstall).
 // Every installer invocation remains a real child process so exit status,
@@ -202,7 +203,7 @@ test('uninstall preserves a retargeted symlink even when the replacement has ide
     const source = path.join(ROOT, 'codex', 'skills', skillName);
     const target = path.join(scratch, '.codex', 'skills', skillName);
     const replacement = path.join(userOwned, skillName);
-    fs.cpSync(source, replacement, { recursive: true, dereference: true });
+    copyDereferenced(source, replacement);
     fs.rmSync(target, { recursive: true, force: true });
     fs.symlinkSync(replacement, target, 'dir');
 

@@ -1,6 +1,6 @@
 ---
 name: tdd-workflow
-description: "Use for test-first feature or bug implementation, regression tests, and choosing public test seams or boundary mocks (RED-GREEN-REFACTOR). Not for Playwright journeys, coverage audits, or docs/format/rename-only work. Output: scoped tests or code with RED/GREEN evidence."
+description: "Use for test-first feature or bug implementation, regression tests, and choosing public test seams or boundary mocks (RED-GREEN-REFACTOR). This is the directly runnable method; dispatch the tdd-guide agent when a separate specialist should own the seam or runtime setup, and reuse an already confirmed seam and valid RED/GREEN evidence. Not for Playwright journeys, coverage audits, or docs/format/rename-only work. Output: scoped tests or code with RED/GREEN evidence."
 metadata:
   dhpk-capability-id: "dhpk.skill.tdd"
   dhpk-invocation-class: "implicit-eligible"

@@ -155,7 +155,7 @@ maximum of four new direct reads, with the selected scope's child limit; this
 scope policy does not restore automatic review continuation. Planner evidence reports requested and
 selected scope, selection source, reason, any overridden signals, budgets,
 observed reads/children, and blockers. The planner supplies actual use and
-blockers within the existing verdict-first, 400-token, `END`-terminated reply;
+blockers within the existing verdict-first, telegraphic, `END`-terminated reply;
 it does not add a `VERDICT: BLOCKED` value. Unobserved actual counts are `null`
 with `NOT_RUN` or `UNAVAILABLE`, never the budget. Static guidance and package
 checks do not establish native quality, cache-token totals, billing, or savings.

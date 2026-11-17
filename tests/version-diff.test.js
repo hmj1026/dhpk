@@ -14,9 +14,12 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'version-diff.sh');
 
 function mkFixture() {
-  const pluginRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'version-diff-plugin-'));
+  const pluginRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'version-diff plugin '));
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'version-diff-project-'));
   fs.mkdirSync(path.join(pluginRoot, '.claude-plugin'), { recursive: true });
+  // The script owns its package (ADR 0038): run a copy placed inside the fixture.
+  fs.mkdirSync(path.join(pluginRoot, 'scripts'), { recursive: true });
+  fs.copyFileSync(SCRIPT, path.join(pluginRoot, 'scripts', 'version-diff.sh'));
   fs.mkdirSync(path.join(projectRoot, '.claude'), { recursive: true });
   return { pluginRoot, projectRoot };
 }
@@ -32,9 +35,11 @@ function writePins(projectRoot, pins) {
   fs.writeFileSync(path.join(projectRoot, '.claude', 'dhpk-versions.json'), JSON.stringify(pins, null, 2));
 }
 
-function runScript(pluginRoot, projectRoot, args) {
-  const env = { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, CLAUDE_PROJECT_DIR: projectRoot };
-  return spawnSync('bash', [SCRIPT, ...(args || [])], {
+function runScript(pluginRoot, projectRoot, args, envRoot) {
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: projectRoot };
+  if (envRoot !== undefined) env.CLAUDE_PLUGIN_ROOT = envRoot;
+  else delete env.CLAUDE_PLUGIN_ROOT;
+  return spawnSync('bash', [path.join(pluginRoot, 'scripts', 'version-diff.sh'), ...(args || [])], {
     cwd: projectRoot,
     env,
     encoding: 'utf8',
@@ -141,6 +146,33 @@ test('unknown flag prints usage to stderr and exits 0 (advisory-only design)', (
     const res = runScript(pluginRoot, projectRoot, ['--bogus']);
     assert.strictEqual(res.status, 0, res.stderr);
     assert.ok(res.stderr.includes('usage:'), res.stderr);
+  } finally {
+    cleanup(pluginRoot, projectRoot);
+  }
+});
+
+test('foreign CLAUDE_PLUGIN_ROOT does not select the package', () => {
+  const { pluginRoot, projectRoot } = mkFixture();
+  const { pluginRoot: foreign, projectRoot: foreignProject } = mkFixture();
+  try {
+    writePins(projectRoot, { verified: [{ range: '0.1.x' }] });
+    writePluginJson(pluginRoot, '0.5.0');
+    writePluginJson(foreign, '999.0.0');
+    const res = runScript(pluginRoot, projectRoot, [], foreign);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(!res.stdout.includes('999.0.0'), res.stdout);
+    assert.ok(res.stdout.includes('0.5.0'), res.stdout);
+  } finally {
+    cleanup(pluginRoot, projectRoot, foreign, foreignProject);
+  }
+});
+
+test('missing plugin.json message no longer names CLAUDE_PLUGIN_ROOT', () => {
+  const { pluginRoot, projectRoot } = mkFixture();
+  try {
+    writePins(projectRoot, { verified: [] });
+    const res = runScript(pluginRoot, projectRoot);
+    assert.ok(!res.stderr.includes('CLAUDE_PLUGIN_ROOT'), res.stderr);
   } finally {
     cleanup(pluginRoot, projectRoot);
   }

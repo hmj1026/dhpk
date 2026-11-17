@@ -6,6 +6,7 @@ a bounded, read-only git listing that the policy judges as an Absence Proof.
 Unknown syntax is UnsupportedSyntax, so the policy fails closed.
 """
 
+import fnmatch
 import os
 import posixpath
 import re
@@ -527,6 +528,10 @@ class GitAdapter:
         while i < len(args) and args[i].value.startswith('-'):
             arg = args[i].value
             key = arg.split('=', 1)[0]
+            if arg == '--':
+                # 全域選項到此結束，下一個字是子指令。
+                i += 1
+                break
             if arg == '-C':
                 i += 1
                 if i >= len(args):
@@ -770,3 +775,236 @@ class GitAdapter:
 
 
 GIT_ADAPTER = GitAdapter()
+
+
+# (#1431) Git 會把字串交給 shell 執行的入口。字串裡可見的讀取以同一套政策判定，不模擬 git 本身。
+GLOBAL_VALUES = ('-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--exec-path',
+                 '--super-prefix', '--attr-source', '--list-cmds')
+# 各子指令中帶值的短選項；叢集裡遇到它就停止，後面的字元是它的值。
+SHORT_VALUES = {'rebase': 'sXCSm', 'difftool': 't', 'clone': 'obcjl'}
+
+
+# (#1454) 不會啟動 pager 的子指令；其餘（含解析不出的別名）一律當成會分頁，因為判定字串只有在含可見的
+# 受保護讀取時才會擋下，多判不會誤傷合法用法。
+NON_PAGING_SUBCOMMANDS = (
+    'add', 'am', 'apply', 'archive', 'bisect', 'checkout', 'switch', 'restore', 'clean', 'clone', 'commit',
+    'fetch', 'init', 'merge', 'mv', 'pull', 'push', 'rebase', 'remote', 'reset', 'revert', 'rm', 'status',
+    'submodule', 'worktree', 'gc', 'cherry-pick', 'mergetool', 'difftool', 'rev-parse', 'ls-remote',
+    'ls-files', 'ls-tree', 'format-patch', 'describe', 'fsck', 'prune', 'repack', 'maintenance', 'sparse-checkout',
+)
+
+
+def pages(subcommand):
+    return bool(subcommand) and subcommand not in NON_PAGING_SUBCOMMANDS
+
+
+# (#1455) 值是命令的設定鍵：git 會把值交給 shell 或當成程式執行。一張表、同一條遞迴判定；
+# 鍵比對為小寫的 fnmatch 樣式，`*` 可跨過子區段裡的點。
+COMMAND_KEYS = (
+    'core.sshcommand', 'core.editor', 'sequence.editor', 'core.fsmonitor', 'core.askpass', 'core.gitproxy',
+    'core.hookspath', 'gpg.program', 'gpg.*.program', 'diff.external', 'diff.*.textconv',
+    'filter.*.clean', 'filter.*.smudge', 'filter.*.process', 'difftool.*.cmd', 'mergetool.*.cmd',
+)
+HELPER_KEYS = ('credential.helper', 'credential.*.helper')
+MAX_ALIAS_DEPTH = 8
+
+
+def _config_kind(key):
+    """'always', 'pager', 'pager:<subcommand>', 'alias:<name>' or None for a lower-cased config key."""
+    if key == 'core.pager':
+        return 'pager'
+    if key.startswith('pager.') and len(key) > 6:
+        return 'pager:' + key[6:]
+    if key.startswith('alias.') and len(key) > 6:
+        return 'alias:' + key[6:]
+    if any(fnmatch.fnmatchcase(key, pattern) for pattern in COMMAND_KEYS + HELPER_KEYS):
+        return 'always'
+    return None
+
+
+def is_command_key(key):
+    return _config_kind(key.lower()) is not None
+
+
+def _command_text(key, value):
+    """The command string a command-valued setting runs: a `!` prefix marks a shell command."""
+    if value.startswith('!') and (key.startswith(('credential.', 'alias.'))):
+        return value[1:]
+    return value
+
+
+def _option_value(args, i, long_name, short_letter, subcommand):
+    """Return (value, next_index) when args[i] is the exec option, else None."""
+    arg = args[i].value
+    if arg.startswith('--%s=' % long_name):
+        return arg.split('=', 1)[1], i + 1
+    if arg == '--' + long_name:
+        return (args[i + 1].value, i + 2) if i + 1 < len(args) else None
+    if arg.startswith('-') and not arg.startswith('--') and len(arg) > 1:
+        for position, letter in enumerate(arg[1:], 1):
+            if letter == short_letter:
+                if position + 1 < len(arg):
+                    return arg[position + 1:], i + 1
+                return (args[i + 1].value, i + 2) if i + 1 < len(args) else None
+            if letter in SHORT_VALUES.get(subcommand, ''):
+                return None
+    return None
+
+
+def _joined(args, start, skip_options=()):
+    """Words git runs through a shell (`submodule foreach`, `bisect run`) are joined by spaces."""
+    i = start
+    while i < len(args) and args[i].value in skip_options:
+        i += 1
+    if i < len(args) and args[i].value == '--' and skip_options:
+        i += 1
+    return ' '.join(a.value for a in args[i:]) if i < len(args) else ''
+
+
+def _split_globals(args):
+    """(index of the subcommand word, [(key, value)] for each `-c`, paging flag, [(key, ENV)] for --config-env)."""
+    settings, config_env = [], []
+    i = 0
+    paging = None
+    while i < len(args) and args[i].value.startswith('-'):
+        arg = args[i].value
+        if arg == '--':
+            i += 1
+            break
+        if arg in ('-p', '--paginate'):
+            paging = True
+        elif arg in ('-P', '--no-pager'):
+            paging = False
+        setting = None
+        if arg == '-c' and i + 1 < len(args):
+            setting = args[i + 1].value
+            i += 1
+        elif arg.startswith('-c') and len(arg) > 2:
+            setting = arg[2:]
+        pair = None
+        if arg == '--config-env' and i + 1 < len(args):
+            pair = args[i + 1].value
+            i += 1
+        elif arg.startswith('--config-env='):
+            pair = arg.split('=', 1)[1]
+        if setting is not None:
+            key, _, value = setting.partition('=')
+            settings.append((key.lower(), value))
+        elif pair is not None:
+            key, _, name = pair.partition('=')
+            config_env.append((key.lower(), name))
+        elif arg in GLOBAL_VALUES and arg != '--config-env':
+            i += 1
+        i += 1
+    return i, settings, paging, config_env
+
+
+def _aliases(settings):
+    return {key[6:]: value for key, value in settings if key.startswith('alias.')}
+
+
+def _resolved_subcommand(subcommand, aliases):
+    """Follow visible `-c alias.x=target` definitions; shell aliases and unknown names stay as they are."""
+    for _ in range(MAX_ALIAS_DEPTH):
+        target = aliases.get(subcommand)
+        if target is None or target.startswith('!'):
+            return subcommand
+        words = [w for w in target.split() if not w.startswith('-')]
+        if not words:
+            return subcommand
+        subcommand = words[0]
+    return subcommand
+
+
+def git_pages(args, injected=()):
+    """True when git may start a pager for this invocation (`args` follow the `git` word)."""
+    i, settings, paging, _ = _split_globals(args)
+    subcommand = args[i].value if i < len(args) else ''
+    aliases = _aliases(list(settings) + list(injected))
+    return paging is not False and (paging is True or pages(_resolved_subcommand(subcommand, aliases)))
+
+
+UNRESOLVED_CONFIG = 'config value that cannot be paired with its key'
+
+
+def _remote_command(text):
+    """(#1455 r3) The command part of an `ext::` remote URL (`% ` is a space, `%%` a percent); other text as is."""
+    if not text.startswith('ext::'):
+        return text
+    return text[5:].replace('% ', ' ').replace('%%', '%')
+
+
+# (#1455 r3) 子指令帶的「遠端程式」選項：(長選項, 短選項)。值是 git 會執行的命令。
+REMOTE_PROGRAM_OPTIONS = {
+    'fetch': (('upload-pack', ''),), 'pull': (('upload-pack', ''),),
+    'ls-remote': (('upload-pack', ''), ('exec', '')), 'clone': (('upload-pack', 'u'),),
+    'push': (('receive-pack', ''), ('exec', '')), 'archive': (('exec', ''),),
+}
+
+
+def _remote_program_strings(subcommand, rest):
+    found = []
+    for long_name, short_letter in REMOTE_PROGRAM_OPTIONS.get(subcommand, ()):
+        j = 0
+        while j < len(rest) and rest[j].value != '--':
+            hit = _option_value(rest, j, long_name, short_letter, subcommand)
+            if hit:
+                found.append(hit[0])
+            j = hit[1] if hit else j + 1
+    return found
+
+
+def exec_strings(args, env=None, injected=()):
+    """(command strings, unresolved keys) of a git invocation: command-valued `-c`/injected settings,
+    `rebase --exec`, `submodule foreach`, `difftool --extcmd` and `bisect run`. `args` follow the `git` word.
+
+    `injected` holds (key, value) pairs from GIT_CONFIG_*; `env` maps visible NAME=value assignments for
+    `--config-env`. A command-valued key whose value is not visible is returned as unresolved."""
+    i, settings, paging, config_env = _split_globals(args)
+    subcommand = args[i].value if i < len(args) else ''
+    unresolved = []
+    for key, name in config_env:
+        if env is not None and name in env:
+            settings.append((key, env[name]))
+        elif _config_kind(key) is not None:
+            unresolved.append(key)
+    settings = list(settings) + list(injected)
+    resolved = _resolved_subcommand(subcommand, _aliases(settings))
+    # 沒有 git 參數（只是匯出設定）時不知道之後跑什麼，pager 設定照樣判定。
+    page = not args or (paging is not False and (paging is True or pages(resolved)))
+    found = []
+    for key, value in settings:
+        kind = _config_kind(key)
+        if kind == 'pager' and not page:
+            continue
+        if kind is not None and kind.startswith('pager:') and (
+                paging is False or kind[6:] not in (subcommand.lower(), resolved.lower())):
+            continue
+        # (#1455 r3) 其餘的值也可能是命令；只有字串帶可見的受保護讀取才會擋下，`-c user.name=x` 不受影響。
+        found.append(_remote_command(_command_text(key, value)))
+    if i >= len(args):
+        return [text for text in found if text.strip()], unresolved
+    rest = args[i + 1:]
+    found += _remote_program_strings(subcommand, rest)
+    found += [_remote_command(a.value) for a in rest if a.value.startswith('ext::')]
+    if subcommand == 'rebase':
+        j = 0
+        while j < len(rest) and rest[j].value != '--':
+            hit = _option_value(rest, j, 'exec', 'x', 'rebase')
+            if hit:
+                found.append(hit[0])
+            j = hit[1] if hit else j + 1
+    elif subcommand == 'difftool':
+        j = 0
+        while j < len(rest) and rest[j].value != '--':
+            hit = _option_value(rest, j, 'extcmd', 'x', 'difftool')
+            if hit:
+                found.append(hit[0])
+            j = hit[1] if hit else j + 1
+    elif subcommand == 'submodule':
+        k = next((n for n, a in enumerate(rest) if a.value == 'foreach'), None)
+        if k is not None and all(a.value.startswith('-') for a in rest[:k]):
+            found.append(_joined(rest, k + 1, ('--recursive', '-q', '--quiet')))
+    elif subcommand == 'bisect' and rest and rest[0].value == 'run':
+        found.append(_joined(rest, 1))
+    return [text for text in found if text.strip()], unresolved
