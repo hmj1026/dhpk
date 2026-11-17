@@ -967,6 +967,19 @@ const positionalProofRows = [
   // The function form is proven only for `DEF; CALL`: other commands before or after may re-enter the function.
   { id: 'P-33', command: `f() { cat ${D}; }; f ordinary; echo done`, status: 2 },
   { id: 'P-34', command: `echo start; f() { cat ${D}; }; f ordinary`, status: 2 },
+  // A glob in command position can name `set` or `shift` once a file of that name exists.
+  { id: 'P-35', command: `set -- ordinary ordinary; printf se%s t | xargs touch; se[t] ordinary; cat ${D2}`, status: 2 },
+  { id: 'P-36', command: `set -- ordinary; printf shif%s t | xargs touch; shif[t]; cat ${D}`, status: 2 },
+  { id: 'P-37', command: `set -- ordinary ordinary; printf se%s t | xargs touch; se? ordinary; cat ${D2}`, status: 2 },
+  { id: 'P-38', command: `set -- ordinary ordinary; printf se%s t | xargs touch; s*t ordinary; cat ${D2}`, status: 2 },
+  { id: 'P-39', command: `set -- ordinary; printf shif%s t | xargs touch; shif? ; cat ${D}`, status: 2 },
+  { id: 'P-40', command: `set -- ordinary; printf shif%s t | xargs touch; s*ft; cat ${D}`, status: 2 },
+  { id: 'P-41', command: `set -- ordinary; printf se%s t | xargs touch; se[t] -- ''; cat ${D}`, status: 2 },
+  { id: 'P-42', command: `f() { shif[t]; cat ${D}; }; f ordinary`, status: 2 },
+  // An unquoted use of a proven value is split by IFS.
+  { id: 'P-43', command: 'set -- ordinaryZ.env; IFS=Z; cat ${1:-.env}', status: 2 },
+  { id: 'P-44', command: 'IFS=Z; set -- ordinaryZ.env; cat ${1:-.env}', status: 2 },
+  { id: 'P-45', command: 'f() { IFS=Z; cat ${1:-.env}; }; f ordinaryZ.env', status: 2 },
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   for (const row of positionalProofRows) {
