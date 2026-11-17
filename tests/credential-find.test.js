@@ -24,6 +24,10 @@ const CLEAN_CWD = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cr
 fs.writeFileSync(path.join(CLEAN_CWD, 'app.js'), 'synthetic');
 fs.writeFileSync(path.join(CLEAN_CWD, 'notes.md'), 'synthetic');
 process.on('exit', () => fs.rmSync(CLEAN_CWD, { recursive: true, force: true }));
+// (#1462) A subdirectory without a protected file whose parent holds one: a wrapper that moves the directory up reaches it.
+const SUB_CWD = path.join(FIXTURE_CWD, 'clean');
+fs.mkdirSync(SUB_CWD);
+fs.writeFileSync(path.join(SUB_CWD, 'sample.js'), 'synthetic');
 const HOOKS = ['pre-bash-guard.sh', 'pre-bash-dispatch.sh'];
 const decide = (hook, command, cwd = FIXTURE_CWD) => runHookAt(hook, { cwd, payload: { tool_input: { command } } });
 
@@ -153,6 +157,78 @@ for (const hook of HOOKS) {
   test(`${hook} allows W1 in a tree without a protected file (#1462)`, () => {
     const result = decide(hook, 'busybox find . -exec cat {} +', CLEAN_CWD);
     assert.strictEqual(result.status, 0, result.stderr);
+  });
+}
+
+// (#1462 review) env -S runs its string as the command; options that move the directory or root stay blocked.
+const envSplitBlocked = [
+  ['R-env-S-1', 'env -S find . -name .env -exec cat {} +'],
+  ['R-env-S-2', 'env -S find . -exec cat {} +'],
+  ['R-env-S-3', 'env --split-string find . -name .env -exec cat {} +'],
+  ['R-env-S-4', 'echo .env | env -S xargs cat'],
+  ['R-env-S-5', 'env -S find . -name .env | xargs cat'],
+  ['R-env-S-6', "env -S 'find . -name .env -exec cat {} +'"],
+  ['R-env-S-7', "echo .env | env --split-string 'xargs cat'"],
+];
+const relocBlocked = [
+  ['R-reloc-1', 'env --c=.. find . -exec cat {} +'],
+  ['R-reloc-2', 'env --chd=.. find . -exec cat {} +'],
+  ['R-reloc-3', 'env --c=.. find . | xargs cat'],
+  ['R-reloc-4', 'sudo --chroot=.. find . -exec cat {} +'],
+  ['R-reloc-5', 'sudo -R.. find . -exec cat {} +'],
+  ['R-reloc-6', 'sudo --chd=.. find . -exec cat {} +'],
+  ['R-reloc-7', 'sudo --lo find . -exec cat {} +'],
+  ['R-reloc-8', 'doas sudo --chroot=.. find . -exec cat {} +'],
+  ['R-reloc-9', 'sudo -i find . -exec cat {} +'],
+  ['R-reloc-10', 'env -C .. find . -exec cat {} +'],
+];
+const relocAllowed = [
+  ['A-reloc-1', 'nice --adjustment 5 find . -exec cat {} +'],
+  ['A-reloc-2', 'timeout -s KILL 5 find . -exec cat {} +'],
+  ['A-reloc-3', 'timeout --signal KILL 5 find . -exec cat {} +'],
+  ['A-reloc-4', 'timeout --foreground 5 find . -exec cat {} +'],
+  ['A-reloc-5', 'sudo --user root find . -exec cat {} +'],
+  ['A-reloc-6', 'sudo -n -E find . -exec cat {} +'],
+  ['A-reloc-7', 'env -i find . -exec cat {} +'],
+  ['A-reloc-8', 'env -u NAME FOO=1 find . -exec cat {} +'],
+  ['A-reloc-9', 'stdbuf -oL find . -exec cat {} +'],
+  ['A-reloc-10', 'ionice -c 3 find . -exec cat {} +'],
+  ['A-reloc-11', 'time -p find . -exec cat {} +'],
+  ['A-reloc-12', 'nohup find . -exec cat {} +'],
+  ['A-reloc-13', 'doas -u root find . -exec cat {} +'],
+];
+for (const hook of HOOKS) {
+  for (const [id, command] of envSplitBlocked) {
+    test(`${hook} blocks ${id} (#1462): ${command}`, () => {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/);
+    });
+  }
+  for (const [id, command] of relocBlocked) {
+    test(`${hook} blocks ${id} from a clean subdirectory (#1462): ${command}`, () => {
+      const result = decide(hook, command, SUB_CWD);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/);
+    });
+  }
+  for (const [id, command] of relocAllowed) {
+    test(`${hook} allows ${id} from a clean subdirectory (#1462): ${command}`, () => {
+      const result = decide(hook, command, SUB_CWD);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    });
+  }
+}
+
+for (const hook of HOOKS) {
+  test(`${hook} names the recursive scan in the W1 reason and the protected path in the X1 reason (#1462)`, () => {
+    const w1 = decide(hook, 'busybox find . -exec cat {} +');
+    assert.strictEqual(w1.status, 2, w1.stderr);
+    assert.match(w1.stderr, /blocked: recursive read without credential exclusions: patterns '\.env'; paths /);
+    assert.ok(!w1.stderr.includes('synthetic'), 'no file content in the reason');
+    const x1 = decide(hook, 'echo .env | nice -n 5 xargs cat');
+    assert.strictEqual(x1.status, 2, x1.stderr);
+    assert.match(x1.stderr, /blocked: protected path; use controlled extraction/);
   });
 }
 
