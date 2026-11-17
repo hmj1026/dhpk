@@ -1,0 +1,2 @@
+scope: hooks
+note: Credential Guard 補上 `env -S` 分割字串、wrapper 選項叢集、tilde、`$_`、`IFS` 與 brace 展開帶入的受保護讀取，並放寬四項保守判定造成的誤擋。Git Gate 納入旗標縮寫、跳脫值、`${o:=…}` 預設指派、`for`／`read`／here-string 來源、動態指令字重綁，以及 `-m`、`-F`、`--author` 等選項值在雙引號外展開時帶入的 `--no-verify`（請直接寫出旗標，或移除它）；`-c core.hooksPath=…` 的覆寫與跳過 hook 的旗標分開記錄。整個字是單一雙引號區段且開頭不是 `-` 時（`git push origin "HEAD:${1}"`）不再被判為 transformed git flag；未加引號的 `HEAD:$1` 仍會。來源數量超過掃描上限時一律擋下 (#1468)。

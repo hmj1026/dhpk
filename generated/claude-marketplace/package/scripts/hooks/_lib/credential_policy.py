@@ -14,7 +14,7 @@ import sys
 
 from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex, xargs_command
 from credential_expand import expand_variants, function_names
-from credential_code import WRAPPERS, code_strings, command_head, expand_aliases, option_keeps_directory
+from credential_code import RELOCATING_WRAPPERS, WRAPPERS, cluster_takes_next, code_strings, command_head, expand_aliases, option_keeps_directory
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages, is_command_key
 from credential_scan import MAX_SECONDS, budget_seconds
@@ -27,6 +27,8 @@ TEMPLATES = {'.env.example', '.env.sample', '.env.dist', '.env.template'}
 DEFAULTS = ['.env', '.env.*', 'my.cnf', 'debian.cnf', '*.pem', 'id_rsa*', 'credentials*']
 # Pin the dedicated extractor; a matching filename alone cannot grant access.
 EXTRACTOR_SHA256 = 'd716d7ef383ee3c28e0680b077e3c203c213be026498045136a235be927339aa'
+ENV_SPLIT_FLAGS = 'i0v'
+ENV_LONG_VALUE_NAMES = ('unset', 'chdir', 'argv0')
 
 
 def validate_patterns(value):
@@ -442,6 +444,10 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     found = exec_entrance_verdict(words, names, patterns, cwd)
     if found is not None:
         return found
+    words, dynamic = _env_split(words)
+    if dynamic is not None:
+        return verdict.ambiguous('env split string %s' % ascii(dynamic.value), verdict.TRANSFORMED_COMMAND_RECOVERY)
+    names = [posixpath.basename(t.value) for t in words]
     head = next((i for i, t in enumerate(words) if t.value not in RESERVED_WORDS and not ASSIGNMENT.match(t.value)), None)
     if head is not None and words[head].unresolved and _transformed(words[head]):
         return verdict.ambiguous(verdict.TRANSFORMED_COMMAND % ascii(words[head].value), verdict.TRANSFORMED_COMMAND_RECOVERY)
@@ -491,7 +497,7 @@ def _relocated(words, index):
     wrapper = None
     for word in words[:index]:
         name = posixpath.basename(word.value)
-        if word.dynamic or name == 'chroot':
+        if word.dynamic or name in RELOCATING_WRAPPERS:
             return True
         if name in WRAPPERS:
             wrapper = name
@@ -500,28 +506,70 @@ def _relocated(words, index):
     return False
 
 
+def _split_string_option(value):
+    """(#1468) `(text, takes_next)` when the option word is an `env` split-string option, else None.
+
+    `text` is the string attached to the word; `takes_next` is True when the string is the next word."""
+    if value.startswith('--'):
+        name, equals, text = value[2:].partition('=')
+        if not name or not 'split-string'.startswith(name):
+            return None
+        return (text, False) if equals else (None, True)
+    for position, letter in enumerate(value[1:], 1):
+        if letter == 'S':
+            rest = value[position + 1:]
+            return (rest, False) if rest else (None, True)
+        if letter not in ENV_SPLIT_FLAGS:
+            return None
+    return None
+
+
+def _env_takes_value(option):
+    """(#1468) True when an `env` option that is not a split string takes the next word as its value."""
+    if option.startswith('--'):
+        name, equals, _ = option[2:].partition('=')
+        return not equals and bool(name) and any(known.startswith(name) for known in ENV_LONG_VALUE_NAMES)
+    return cluster_takes_next(option, 'uCa')
+
+
+def _env_split(words):
+    """(#1468) `(expanded, dynamic)`: words with the first `env` split string (`-S`, `-iS`, `-Scat`,
+    `--split-string[=]` and its unique prefixes) replaced by the words it holds, and the word that
+    supplies the string when it cannot be read (else None). At most one split per `env`."""
+    head = next((i for i, word in enumerate(words) if posixpath.basename(word.value) == 'env'), None)
+    if head is None:
+        return list(words), None
+    i = head + 1
+    while i < len(words):
+        value = words[i].value
+        is_option = value.startswith('-') and len(value) > 1 and value != '--'
+        if not is_option and not ASSIGNMENT.match(value):
+            break
+        split = _split_string_option(value) if is_option else None
+        if split is not None:
+            return _apply_split(words, i, *split)
+        i += 2 if is_option and _env_takes_value(value) else 1
+    return list(words), None
+
+
+def _apply_split(words, index, text, takes_next):
+    """(#1468) Replace the split-string option at `index` (and its value word) by the words of its string."""
+    if takes_next and index + 1 >= len(words):
+        return list(words), None
+    source = words[index + 1] if takes_next else words[index]
+    if source.dynamic or source.unresolved or source.substitution:
+        return list(words), source
+    text = source.value if takes_next else text
+    tokens = [t for t in lex(text.replace('\\_', ' ')).tokens if not t.operator]
+    return list(words[:index]) + tokens + list(words[index + (2 if takes_next else 1):]), None
+
+
 def _split_string_words(words):
     """(#1462) Words with `env -S STRING` / `--split-string[=STRING]` replaced by the words STRING holds.
 
     GNU env runs the string as the command, so find and xargs inside it must stay visible.
     """
-    expanded, env_seen, pending = [], False, False
-    for word in words:
-        value = word.value
-        if not env_seen:
-            env_seen = posixpath.basename(value) == 'env'
-            expanded.append(word)
-        elif value in ('-S', '--split-string'):
-            pending = True
-        else:
-            text = (value.split('=', 1)[1] if value.startswith('--split-string=')
-                    else value if pending else value[2:] if value.startswith('-S') and len(value) > 2 else None)
-            pending = False
-            if text is None or word.dynamic:
-                expanded.append(word)
-            else:
-                expanded.extend(t for t in lex(text).tokens if not t.operator)
-    return expanded
+    return _env_split(words)[0]
 
 
 def _find_selection(words):
@@ -644,9 +692,6 @@ def _injected_settings(words):
     return pairs, problems
 
 
-ENV_VALUE_OPTIONS = ('-u', '--unset', '-C', '--chdir', '-a', '--argv0')
-
-
 def _env_split_strings(words, names):
     """(#1455 r3) Strings `env -S` / `--split-string` re-parses into a command line."""
     found = []
@@ -656,14 +701,13 @@ def _env_split_strings(words, names):
         i = index + 1
         while i < len(words) and (words[i].value.startswith('-') or ASSIGNMENT.match(words[i].value)):
             arg = words[i].value
-            if arg in ('-S', '--split-string') and i + 1 < len(words):
+            option = _split_string_option(arg) if arg.startswith('-') else None
+            if option is not None and option[1] and i + 1 < len(words):
                 found.append(words[i + 1].value)
                 i += 1
-            elif arg.startswith('--split-string='):
-                found.append(arg.split('=', 1)[1])
-            elif arg.startswith('-S') and not arg.startswith('--'):
-                found.append(arg[2:])
-            elif arg in ENV_VALUE_OPTIONS:
+            elif option is not None and option[0] is not None:
+                found.append(option[0])
+            elif arg.startswith('-') and arg != '--' and _env_takes_value(arg):
                 i += 1
             i += 1
     return found
@@ -922,12 +966,15 @@ def _text_words(token):
 
 
 def _produced_words(segment):
-    """Words a text producer (echo, printf) prints, or [] when the segment prints none visibly."""
-    words = [t for t in segment if not t.operator]
-    head = next((i for i, t in enumerate(words) if t.value not in RESERVED_WORDS and not ASSIGNMENT.match(t.value)), None)
-    if head is None or posixpath.basename(words[head].value) not in TEXT_PRODUCERS or words[head].dynamic:
+    """Words a text producer (echo, printf) prints, or [] when the segment prints none visibly.
+
+    (#1468) The producer may sit behind wrappers (`nice echo`, `env echo`, `sudo -u root printf`)."""
+    words = _split_string_words([t for t in segment if not t.operator])
+    head = command_head(words)
+    if head is None or words[head].dynamic or posixpath.basename(words[head].value) not in TEXT_PRODUCERS:
         return []
-    arguments = [t for t in words[head + 1:] if not (words[head].value == 'echo' and t.value in ('-n', '-e', '-E'))]
+    echo = posixpath.basename(words[head].value) == 'echo'
+    arguments = [t for t in words[head + 1:] if not (echo and t.value in ('-n', '-e', '-E'))]
     return [piece for token in arguments for piece in _text_words(token)]
 
 
@@ -969,14 +1016,15 @@ def xargs_stdin_verdict(segment, producers, patterns, cwd, git_relocated):
     found = _xargs_consumer(segment)
     if found is not None:
         parsed = xargs_command(*found)
-        if parsed is not None and parsed[0] and _consumes_selection(parsed[0]):
+        if parsed is None or (parsed[0] and _consumes_selection(parsed[0])):
             for producer in producers:
                 words = [t for t in producer if not t.operator]
                 spec, index, words = _find_selection(words)
                 if spec is not None:
                     result = selection_verdict(spec, patterns, cwd, _relocated(words, index), matching_patterns, protected, DEFAULTS + patterns)
                     if not result.allowed:
-                        return result
+                        # (#1468) An xargs option the guard cannot parse hides what the command consumes.
+                        return result if parsed is not None else _stdin_ambiguous('option is not understood')
     stdin = [piece for producer in producers for piece in _produced_words(producer)]
     if found is None or not stdin:
         return verdict.allow()
