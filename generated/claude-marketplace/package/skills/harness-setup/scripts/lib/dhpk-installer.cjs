@@ -7864,6 +7864,10 @@ module.exports = {
 
 const DIRECT_SHAPE = 'direct';
 const NATIVE_LINK_SHAPE = 'native-link';
+const PROJECT_RECEIPT_V3 = 'dhpk.project-agent-projection-receipt.v3';
+const CLAUDE_PLUGIN_ID = 'dhpk@dhpk';
+const CLAUDE_PLUGIN_PROVISION_SCHEMA = 'dhpk.claude-plugin-provision.v1';
+const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -7901,6 +7905,15 @@ function discoveryVisibleEntries(entries, sourceEntries = entries) {
     .filter((entry) => entry.discoveryVisible === false)
     .map((entry) => entry.stableId));
   return entries.filter((entry) => !hiddenIds.has(entry.stableId));
+}
+
+// Claude binding set after ADR-0039: identities the enabled official plugin
+// already provides are not published a second time as project bindings.
+function claudeProjectBindingEntries(entries, sourceEntries = entries) {
+  const providedIds = new Set(sourceEntries
+    .filter((entry) => entry.claudePluginProvided === true)
+    .map((entry) => entry.stableId));
+  return entries.filter((entry) => !providedIds.has(entry.stableId));
 }
 
 function applyHostSelections(hostBindings, hostSelections) {
@@ -8083,6 +8096,140 @@ function validateReceiptBindings(receipt, providers, bindingPaths) {
   return bindingPaths;
 }
 
+function previousProvidedIds(previousReceipt) {
+  if (!previousReceipt || !Array.isArray(previousReceipt.entries)) return [];
+  return uniqueSorted(previousReceipt.entries
+    .filter((entry) => entry && entry.claudePluginProvided === true)
+    .map((entry) => entry.stableId));
+}
+
+function previousDescriptor(previousReceipt) {
+  const claude = previousReceipt && previousReceipt.hostBindings && previousReceipt.hostBindings.claude;
+  return claude && claude.pluginProvision ? claude.pluginProvision : null;
+}
+
+function skillSelection(claudeSelectedEntries) {
+  return (Array.isArray(claudeSelectedEntries) ? claudeSelectedEntries : [])
+    .filter((entry) => entry && entry.entityKind !== 'module');
+}
+
+function descriptorFor(provision, ids) {
+  if (ids.length === 0) return null;
+  return {
+    schema: provision.schema || CLAUDE_PLUGIN_PROVISION_SCHEMA,
+    status: 'ENABLED',
+    pluginId: provision.pluginId || CLAUDE_PLUGIN_ID,
+    pluginVersion: provision.pluginVersion,
+    catalogDigest: provision.catalogDigest,
+    pluginProvidedStableIds: ids,
+  };
+}
+
+function carryForwardPlan(previousReceipt, selection, { guardNewActivation, reason = null }) {
+  const selectedIds = new Set(selection.map((entry) => entry.stableId));
+  const withdrawnStableIds = previousProvidedIds(previousReceipt).filter((id) => selectedIds.has(id));
+  const prior = previousDescriptor(previousReceipt);
+  const descriptor = withdrawnStableIds.length > 0 && prior
+    ? { ...clone(prior), pluginProvidedStableIds: withdrawnStableIds }
+    : null;
+  return {
+    mode: 'carry-forward',
+    withdrawnStableIds,
+    descriptor,
+    guardNewActivation,
+    conflicts: [],
+    ...(reason ? { reason } : {}),
+  };
+}
+
+function observedPlan(withdrawnStableIds, descriptor, conflicts = []) {
+  return { mode: 'observed', withdrawnStableIds, descriptor, guardNewActivation: false, conflicts };
+}
+
+function pluginConflicts(selection, provided) {
+  const conflicts = [];
+  for (const entry of selection) {
+    const sameId = provided.find((identity) => identity.stableId === entry.stableId);
+    const sameName = provided.find((identity) => identity.name === entry.name);
+    if (sameId && sameId.name !== entry.name) {
+      conflicts.push({ reason: 'PLUGIN_NAME_DIFFERS', stableId: entry.stableId, name: entry.name, pluginName: sameId.name });
+    } else if (!sameId && sameName) {
+      conflicts.push({
+        reason: 'SAME_NAME_DIFFERENT_IDENTITY',
+        stableId: entry.stableId,
+        name: entry.name,
+        pluginStableId: sameName.stableId,
+      });
+    }
+  }
+  return conflicts;
+}
+
+// Pure decision table of ADR-0039. `provision` is the probe result (undefined
+// when the caller did not probe); the result says which selected Skill
+// Identities the official plugin provides so the project must not bind them.
+function planClaudePluginWithdrawals({ provision, previousReceipt = null, claudeSelectedEntries = [] } = {}) {
+  const selection = skillSelection(claudeSelectedEntries);
+  if (!provision) return carryForwardPlan(previousReceipt, selection, { guardNewActivation: false });
+  if (provision.status === 'ENABLED') {
+    const provided = Array.isArray(provision.providedIdentities) ? provision.providedIdentities : [];
+    const providedIds = new Set(provided.map((identity) => identity.stableId));
+    const withdrawn = uniqueSorted(selection.filter((entry) => providedIds.has(entry.stableId)).map((entry) => entry.stableId));
+    return observedPlan(withdrawn, descriptorFor(provision, withdrawn), pluginConflicts(selection, provided));
+  }
+  if (['DISABLED', 'NOT_APPLICABLE', 'ABSENT', 'INACTIVE'].includes(provision.status)) return observedPlan([], null);
+  if (provision.status === 'CLI_NOT_INSTALLED' && previousProvidedIds(previousReceipt).length === 0) {
+    return observedPlan([], null);
+  }
+  return carryForwardPlan(previousReceipt, selection, {
+    guardNewActivation: true,
+    reason: provision.reason || provision.status,
+  });
+}
+
+function provisionError(message) {
+  return policyError(`project projection receipt Claude plugin provision ${message}`);
+}
+
+function validateProvisionDescriptor(descriptor, flaggedIds, receipt) {
+  if (!descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)
+    || descriptor.schema !== CLAUDE_PLUGIN_PROVISION_SCHEMA
+    || descriptor.status !== 'ENABLED'
+    || descriptor.pluginId !== CLAUDE_PLUGIN_ID
+    || typeof descriptor.pluginVersion !== 'string' || descriptor.pluginVersion.trim() === ''
+    || !DIGEST_PATTERN.test(descriptor.catalogDigest || '')
+    || !Array.isArray(descriptor.pluginProvidedStableIds)) {
+    throw provisionError('descriptor is invalid');
+  }
+  const recorded = uniqueSorted(descriptor.pluginProvidedStableIds);
+  if (recorded.length !== descriptor.pluginProvidedStableIds.length
+    || recorded.join('\0') !== flaggedIds.join('\0')) {
+    throw provisionError('descriptor does not match the flagged entries');
+  }
+  const bound = new Set(boundStableIds(receipt.hostBindings && receipt.hostBindings.claude));
+  if (flaggedIds.some((id) => !bound.has(id))) {
+    throw provisionError('flags entries outside the Claude binding selection');
+  }
+}
+
+function validateClaudePluginProvision(receipt) {
+  const entries = Array.isArray(receipt.entries) ? receipt.entries : [];
+  for (const entry of entries) {
+    if (entry && entry.claudePluginProvided !== undefined && entry.claudePluginProvided !== true) {
+      throw provisionError('entry flag must be absent or true');
+    }
+  }
+  const flaggedIds = uniqueSorted(entries.filter((entry) => entry && entry.claudePluginProvided === true).map((entry) => entry.stableId));
+  const claude = receipt.hostBindings && receipt.hostBindings.claude;
+  const descriptor = claude && claude.pluginProvision;
+  if (flaggedIds.length === 0) {
+    if (descriptor !== undefined) throw provisionError('descriptor requires flagged entries');
+    return;
+  }
+  if (receipt.schema !== PROJECT_RECEIPT_V3) throw provisionError('flags require a v3 receipt');
+  validateProvisionDescriptor(descriptor, flaggedIds, receipt);
+}
+
 module.exports = {
   DIRECT_SHAPE,
   NATIVE_LINK_SHAPE,
@@ -8090,6 +8237,9 @@ module.exports = {
   boundStableIds,
   selectedAdapterEntries,
   discoveryVisibleEntries,
+  claudeProjectBindingEntries,
+  planClaudePluginWithdrawals,
+  validateClaudePluginProvision,
   applyHostSelections,
   restorePreservedHostBindings,
   stampDiscoveryHost,
@@ -8869,6 +9019,9 @@ const {
   NATIVE_LINK_SHAPE,
   applyHostSelections,
   restorePreservedHostBindings,
+  selectedAdapterEntries,
+  planClaudePluginWithdrawals,
+  validateClaudePluginProvision,
   stampDiscoveryHost,
   validateLegacyUnboundFlag,
   validateReceiptBindingState,
@@ -9097,8 +9250,9 @@ function validateReceiptBindings(receipt, roots, { allowLegacyClaudeDiscovery = 
       && receipt.hostBindings.claude
       && receipt.hostBindings.claude.discovery
       && receipt.hostBindings.claude.discovery.sourceRoot === roots.config.managed_root;
+    validateClaudePluginProvision(receipt);
     const providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
-      entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
+      entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible, claudePluginProvided: entry.claudePluginProvided })),
       claudeSourceRoot: receipt.schema === PROJECT_RECEIPT_SCHEMA && !legacyClaudeDiscovery
         ? roots.claudeManagedRootRelative
         : roots.config.managed_root,
@@ -9318,6 +9472,15 @@ function sourceEntryFor(planEntry, byId) {
   return source;
 }
 
+// The descriptor is written only while an identity is withdrawn; a stale value
+// brought in by a preserved binding is dropped so the receipt never claims more
+// than the entries flag.
+function stampClaudePluginProvision(hostBindings, descriptor) {
+  if (!hostBindings.claude) return hostBindings;
+  const { pluginProvision: _stale, ...claude } = hostBindings.claude;
+  return { ...hostBindings, claude: descriptor ? { ...claude, pluginProvision: clone(descriptor) } : claude };
+}
+
 function nativeLinkShapeFrom(binding) {
   return binding && binding.bindingShape === DIRECT_SHAPE ? DIRECT_SHAPE : NATIVE_LINK_SHAPE;
 }
@@ -9332,12 +9495,20 @@ function buildArtifactInputs({
   hostSelections = null,
   preserveHostBindings = null,
   preserveBindingPaths = null,
+  claudeWithdrawal = null,
 } = {}) {
   const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.identityKey, entry]));
+  const withdrawnIds = new Set(claudeWithdrawal ? claudeWithdrawal.withdrawnStableIds : []);
+  const isWithdrawn = (planEntry) => planEntry.entityKind !== 'module' && withdrawnIds.has(planEntry.stableId);
   const adapterEntries = (plan.entries || []).map((planEntry) => {
     const sourceEntry = sourceEntryFor(planEntry, byId);
     const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
-    return { stableId: planEntry.stableId, name, discoveryVisible: sourceEntry.discoveryVisible };
+    return {
+      stableId: planEntry.stableId,
+      name,
+      discoveryVisible: sourceEntry.discoveryVisible,
+      ...(isWithdrawn(planEntry) ? { claudePluginProvided: true } : {}),
+    };
   });
   const cursorShape = nativeLinkShapeFrom(cursorBinding);
   const codexShape = nativeLinkShapeFrom(codexBinding);
@@ -9489,6 +9660,7 @@ function buildArtifactInputs({
       stableId: planEntry.stableId,
       name,
       ...(sourceEntry.discoveryVisible === false ? { discoveryVisible: false } : {}),
+      ...(isWithdrawn(planEntry) ? { claudePluginProvided: true } : {}),
       source: sourceEntry.path,
       sourceFingerprint: manifest.sourceFingerprint,
       sourceFiles: manifest.sourceFiles,
@@ -9538,7 +9710,10 @@ function buildArtifactInputs({
     inventoryRevision: plan.inventoryRevision || null,
     selectedIds: (plan.selectedStableIds || []).slice().sort(),
     emittedIds: (plan.entries || []).map((entry) => entry.stableId).sort(),
-    entries: receiptEntries.slice().sort((left, right) => left.name.localeCompare(right.name)),
+    // The Claude plugin withdrawal is receipt state; the portable manifest and
+    // therefore the whole portable tree stay identical across plugin states.
+    entries: receiptEntries.map(({ claudePluginProvided: _withdrawn, ...entry }) => entry)
+      .sort((left, right) => left.name.localeCompare(right.name)),
     managedPaths: Object.keys(generatedFingerprints).sort(),
     generatedFingerprints,
     claudeManagedRoot: roots.claudeManagedRootRelative,
@@ -9598,6 +9773,7 @@ function buildArtifactInputs({
   ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
     hostId: 'claude',
   }));
+  hostBindings = stampClaudePluginProvision(hostBindings, claudeWithdrawal && claudeWithdrawal.descriptor);
   if (!preservedHosts.has('cursor')) {
     ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
       hostId: 'cursor',
@@ -10836,6 +11012,7 @@ function stageArtifact({
   hostSelections = null,
   preserveHostBindings = null,
   preserveBindingPaths = null,
+  claudeWithdrawal = null,
   afterStep = null,
   journal = null,
 }) {
@@ -10853,6 +11030,7 @@ function stageArtifact({
       hostSelections,
       preserveHostBindings,
       preserveBindingPaths,
+      claudeWithdrawal,
     });
     const store = new ProjectionArtifactStore({ root: artifactRoot, sourceRoot, publishRoot: publishedRoot });
     const contentByPath = new Map(inputs.records.map((record) => [record.value.destination, record.content]));
@@ -10925,6 +11103,55 @@ function receiptForArtifact({ roots, plan, staged, declaredSelection = false }) 
   });
 }
 
+// The Claude selection the next receipt will bind, as named skill entities.
+function claudeSelectionEntries({ inventory, plan, hostSelections, preserveHostBindings }) {
+  let hostBindings = applyHostSelections(clone(plan.hostBindings || {}), hostSelections);
+  hostBindings = restorePreservedHostBindings(hostBindings, preserveHostBindings);
+  if (!hostBindings.claude) return [];
+  const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.identityKey, entry]));
+  const named = (plan.entries || []).map((planEntry) => {
+    const sourceEntry = sourceEntryFor(planEntry, byId);
+    const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
+    return { entityKind: planEntry.entityKind || 'skill', stableId: planEntry.stableId, name };
+  });
+  return selectedAdapterEntries(named, hostBindings.claude);
+}
+
+function claudeBindingPathSet(bindingPaths) {
+  return new Set(((bindingPaths && bindingPaths.claude) || []).map((entry) => entry.path));
+}
+
+function assertClaudePluginStateKnown({ roots, claudePlan, previous, receipt }) {
+  if (!claudePlan.guardNewActivation) return;
+  const previousPaths = claudeBindingPathSet(previous && previous.bindingPaths);
+  const added = [...claudeBindingPathSet(receipt.bindingPaths)].filter((bindingPath) => !previousPaths.has(bindingPath)).sort();
+  if (added.length === 0) return;
+  const reason = claudePlan.reason || 'UNKNOWN';
+  throw fail('CLAUDE_PLUGIN_STATE_UNKNOWN', `Claude plugin state for ${roots.projectRoot} could not be determined (${reason}); no Claude project binding was changed. Fix one of: (1) make \`claude plugin list --json\` run in this project; (2) if dhpk@dhpk is not enabled here, rerun with --claude-plugin-state inactive; (3) update the dhpk plugin to 0.69.0 or later, which ships the package catalog. See docs/platform-installation.md#claude-plugin-and-project-bindings`, { paths: added, reason });
+}
+
+function claudeDiscoveryReport({ roots, provision, claudePlan, previous, receipt }) {
+  const previousPaths = claudeBindingPathSet(previous && previous.bindingPaths);
+  const candidatePaths = claudeBindingPathSet(receipt.bindingPaths);
+  const names = new Map(receipt.entries.map((entry) => [entry.stableId, entry.name]));
+  // A restore re-binds an identity the previous receipt had withdrawn; a first
+  // install binds new paths but restores nothing.
+  const previousWithdrawnPaths = new Set(((previous && previous.schema === PROJECT_RECEIPT_SCHEMA && previous.entries) || [])
+    .filter((entry) => entry.claudePluginProvided === true)
+    .map((entry) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${entry.name}`));
+  const unowned = claudePlan.withdrawnStableIds
+    .map((stableId) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${names.get(stableId)}`)
+    .filter((bindingPath) => !previousPaths.has(bindingPath) && lstatOrNull(path.join(roots.projectRoot, bindingPath)))
+    .map((bindingPath) => ({ path: bindingPath, reason: 'UNOWNED_ENTRY_PRESERVED' }));
+  return {
+    status: provision ? provision.status : 'NOT_PROBED',
+    mode: claudePlan.mode,
+    withdrawnPaths: [...previousPaths].filter((bindingPath) => !candidatePaths.has(bindingPath)).sort(),
+    restoredPaths: [...previousWithdrawnPaths].filter((bindingPath) => candidatePaths.has(bindingPath)).sort(),
+    conflicts: [...claudePlan.conflicts, ...unowned],
+  };
+}
+
 function materializeRelocatableAgentsSkillsProjection(options = {}) {
   refuseHold(options);
   const sourceRoot = options.sourceRoot || options.root;
@@ -10963,6 +11190,16 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     selectedStableIds: options.selectedStableIds,
     declaredSelection: options.declaredSelection,
   });
+  const claudePlan = planClaudePluginWithdrawals({
+    provision: options.claudePluginProvision,
+    previousReceipt: previous && !legacyAdoption && previous.schema === PROJECT_RECEIPT_SCHEMA ? previous : null,
+    claudeSelectedEntries: claudeSelectionEntries({
+      inventory: options.inventory,
+      plan,
+      hostSelections: options.hostSelections || null,
+      preserveHostBindings: options.preserveHostBindings || null,
+    }),
+  });
   const staged = stageArtifact({
     roots,
     sourceRoot: roots.sourceRoot,
@@ -10973,6 +11210,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     hostSelections: options.hostSelections || null,
     preserveHostBindings: options.preserveHostBindings || null,
     preserveBindingPaths: options.preserveBindingPaths || null,
+    claudeWithdrawal: claudePlan,
     afterStep: options.afterStep || null,
     journal: options.journal || null,
   });
@@ -10988,6 +11226,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       staged,
       declaredSelection: options.declaredSelection === true,
     });
+    assertClaudePluginStateKnown({ roots, claudePlan, previous, receipt });
     // 舊收據僅供身分驗證；實際可替換項目以本次候選交集重新觀察。
     const adoptedBindingPaths = (options.adopt || options.repair) && previous && !legacyAdoption
       ? observeUnmanagedBindings(roots, previous.bindingPaths || {}, receipt.bindingPaths || {})
@@ -11025,6 +11264,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       receipt: published.receipt,
       plan,
       artifact: staged.artifact,
+      claudeDiscovery: claudeDiscoveryReport({ roots, provision: options.claudePluginProvision, claudePlan, previous, receipt }),
       ...(legacyAdoption ? { released } : {}),
       ...(legacyAdoption ? { backupPath: published.backupPath } : {}),
       state: previous ? 'UPDATED' : 'INSTALLED',
@@ -11096,7 +11336,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
     let providers = null;
     try {
       providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
-        entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
+        entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible, claudePluginProvided: entry.claudePluginProvided })),
         claudeSourceRoot: receipt.schema === PROJECT_RECEIPT_SCHEMA
           ? roots.claudeManagedRootRelative
           : roots.config.managed_root,
@@ -11405,6 +11645,7 @@ const {
   DIRECT_SHAPE,
   NATIVE_LINK_SHAPE,
   discoveryVisibleEntries,
+  claudeProjectBindingEntries,
   selectedAdapterEntries,
 } = require('./project-agent-host-binding-policy');
 
@@ -11581,7 +11822,7 @@ function createClaudeProjectDiscoveryAdapter({
   sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
   destinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
 } = {}) {
-  return createProjectDiscoveryAdapter({
+  const adapter = createProjectDiscoveryAdapter({
     id: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
     version: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
     entries,
@@ -11589,6 +11830,8 @@ function createClaudeProjectDiscoveryAdapter({
     destinationRoot,
     hostLabel: 'Claude',
   });
+  adapter.entries = claudeProjectBindingEntries(adapter.entries, entries);
+  return adapter;
 }
 
 function nativeLinkBindingShape(requested, recorded) {

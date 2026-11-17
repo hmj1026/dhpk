@@ -207,7 +207,10 @@ Cursor/Codex directory-shaped `<name>/SKILL.md` packages and Antigravity direct
 `<name>.md` adapters under one receipt-owned root. Its sole lifecycle receipt is
 `.agents/.dhpk-installed.json`; Claude, when selected, receives a symlink
 discovery adapter at `.claude/skills/<name>` that points to the generated
-artifact. Claude-bound skills use the structured sibling tree under
+artifact, except for a Skill Identity that the enabled official `dhpk@dhpk`
+plugin already provides, which keeps its selection but publishes no project
+binding ([ADR-0039](adr/0039-claude-plugin-provision-gates-project-bindings.md)).
+Claude-bound skills use the structured sibling tree under
 `.agents/claude-skills`; the portable tree at `.agents/skills` keeps metadata
 values as strings. Codex and Cursor project-local installers also write
 receipt-owned physical skill trees and serialize non-string `metadata` values
