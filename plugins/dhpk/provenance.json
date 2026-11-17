@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.77.1",
-  "sourceCommit": "09040c1b14e7a548d268424efcade9c4c6e4f2de",
-  "generatedFromCommit": "09040c1b14e7a548d268424efcade9c4c6e4f2de",
-  "generatedFromTree": "841c5f2334a9f5d0e5b604a089c469e0b49f3686",
-  "inventoryDigest": "a1b3044fe89bcbd81ed7a5ad04c8cf52e71d3b3310639fac23fec780ee90d879",
-  "inventoryRevision": "sha256:f73bfda3b167048cce7257dae03d804d25b56363d5e65650c1798387f245a3ca",
+  "sourceCommit": "66840e0ef41438574a83ae8939a92909e7c8fa3f",
+  "generatedFromCommit": "66840e0ef41438574a83ae8939a92909e7c8fa3f",
+  "generatedFromTree": "e6efa413750675e1da83bccc024c145999721264",
+  "inventoryDigest": "f0f04fa19d058f97d17d90168757602ed67a53f6740582385a228ac154e791ff",
+  "inventoryRevision": "sha256:ef2f61c598b6c7f53144521e6794adbb4f829f4896a1f601eb7f238f2ba4180e",
   "generatorVersion": "2.4.0",
   "fingerprintAlgorithm": "tree-merkle-v1",
   "selectedSkillIds": [
@@ -1494,7 +1494,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "0cf243be64288efb565307a992c82d07706f790b"
+        "originalGitBlobDigest": "c07fd0b5dde5bd9b28f7f564e003d922b4d63a97"
       },
       {
         "ownerId": "flow-guide",
@@ -1590,7 +1590,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "0cf243be64288efb565307a992c82d07706f790b"
+        "originalGitBlobDigest": "c07fd0b5dde5bd9b28f7f564e003d922b4d63a97"
       },
       {
         "ownerId": "flow-guide",
@@ -5674,7 +5674,7 @@
     "create-pr": "e8d155d01c115e97ed80051dee8be1b9eadb47c863ca1183e792884693c0aee7",
     "doc-maintain": "9bc045d9d8b3089a032495598db1788a1ac88869b7a28faf3b2d6ed6bac611f5",
     "flow-drive": "ce6d792b676419e20bb1bf827fc94eda502969468c53f57be0cef067193423d0",
-    "flow-guide": "baebfcc133ead0c5e1e8a1ab7dd7805a0cd2497ff6434949bdfdfe61772928e8",
+    "flow-guide": "f8d824fd3dc93d34dc277e6619f5918204ccf6b63f0635f42e49249e47579391",
     "git-smart-commit": "9279cd262a75639559d49229592ce7f13492d3a4c187b9f31522ba5f96e7dc76",
     "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
     "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",
@@ -5688,7 +5688,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "3139fc1aee16ae8ec5f913f0f0d2c7d8444cfdd0bf211d19848382f322b77f42",
+    "planId": "82417906109aafdaa35ba60a7f98c5bd3aaa22bab6b45924ab3e072d9caef753",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -5736,10 +5736,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "3139fc1aee16ae8ec5f913f0f0d2c7d8444cfdd0bf211d19848382f322b77f42",
-      "inventory": "a1b3044fe89bcbd81ed7a5ad04c8cf52e71d3b3310639fac23fec780ee90d879"
+      "plan": "82417906109aafdaa35ba60a7f98c5bd3aaa22bab6b45924ab3e072d9caef753",
+      "inventory": "f0f04fa19d058f97d17d90168757602ed67a53f6740582385a228ac154e791ff"
     },
-    "rollbackIdentity": "6a040a519f5b907465b421dfc606c60f2de7551ebecf63fd43ff7f960a134129"
+    "rollbackIdentity": "38defb4b8fd40b9632f405c3f6c5855e3e1241e87e5c762687ab9fdb43acb3b7"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
