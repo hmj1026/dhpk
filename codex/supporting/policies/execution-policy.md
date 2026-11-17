@@ -105,7 +105,7 @@ reads and two read-only children; manual warm review retains four new reads
 and the selected child limit, without automatic continuation. Report requested
 and selected scope, selection source, reason, overrides, budgets, actual use,
 and blockers. Actual use remains null with `NOT_RUN` or `UNAVAILABLE` when
-unobserved; preserve the existing 400-token verdict-first, `END` protocol.
+unobserved; preserve the existing verdict-first, telegraphic, `END` protocol.
 A legacy direct planner brief without a selected scope may use the existing
 discovery allowance when needed, disclosing unspecified scope and missing
 selection context without deriving scope from its work mode.
