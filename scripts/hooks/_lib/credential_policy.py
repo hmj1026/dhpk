@@ -14,7 +14,7 @@ import sys
 
 from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex, xargs_command
 from credential_expand import expand_variants, function_names
-from credential_code import WRAPPERS, code_strings, command_head, expand_aliases
+from credential_code import WRAPPERS, code_strings, command_head, expand_aliases, option_keeps_directory
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages, is_command_key
 from credential_scan import MAX_SECONDS, budget_seconds
@@ -486,19 +486,8 @@ def _consumes_selection(command):
     return name in READERS or name in EXEC_SHELLS
 
 
-def _moves_directory(wrapper, word):
-    """(#1462) True when an option word of `wrapper` changes the working directory the wrapped command runs in."""
-    value = word.value
-    cluster = value[1:] if value.startswith('-') and not value.startswith('--') else ''
-    if wrapper == 'env':
-        return value == '--chdir' or value.startswith('--chdir=') or 'C' in cluster
-    if wrapper == 'sudo':
-        return value in ('--login',) or value.startswith('--chdir') or 'i' in cluster or 'D' in cluster
-    return False
-
-
 def _relocated(words, index):
-    """True when a word before the command at `index` changes the working directory or is unknowable."""
+    """True when a word before the command at `index` may change the working directory or root, or is unknowable."""
     wrapper = None
     for word in words[:index]:
         name = posixpath.basename(word.value)
@@ -506,20 +495,47 @@ def _relocated(words, index):
             return True
         if name in WRAPPERS:
             wrapper = name
-        elif _moves_directory(wrapper, word):
+        elif word.value.startswith('-') and len(word.value) > 1 and not option_keeps_directory(wrapper, word.value):
             return True
     return False
 
 
+def _split_string_words(words):
+    """(#1462) Words with `env -S STRING` / `--split-string[=STRING]` replaced by the words STRING holds.
+
+    GNU env runs the string as the command, so find and xargs inside it must stay visible.
+    """
+    expanded, env_seen, pending = [], False, False
+    for word in words:
+        value = word.value
+        if not env_seen:
+            env_seen = posixpath.basename(value) == 'env'
+            expanded.append(word)
+        elif value in ('-S', '--split-string'):
+            pending = True
+        else:
+            text = (value.split('=', 1)[1] if value.startswith('--split-string=')
+                    else value if pending else value[2:] if value.startswith('-S') and len(value) > 2 else None)
+            pending = False
+            if text is None or word.dynamic:
+                expanded.append(word)
+            else:
+                expanded.extend(t for t in lex(text).tokens if not t.operator)
+    return expanded
+
+
 def _find_selection(words):
-    """`(spec, index)` of a find in the words, or (None, None); only wrappers may precede it."""
+    """`(spec, index, words)` of a find, or (None, None, words); only wrappers may precede it.
+
+    `index` points into the returned words, in which an `env -S` string is already split."""
+    words = _split_string_words(words)
     index = _wrapped_index(words, 'find')
-    return (None, None) if index is None else (find_spec(words, index), index)
+    return (None, None, words) if index is None else (find_spec(words, index), index, words)
 
 
 def _find_exec_verdict(words, patterns, cwd):
     """(#1456) find -exec READER ... {} reads every path find selects."""
-    spec, index = _find_selection(words)
+    spec, index, words = _find_selection(words)
     if spec is None:
         return None
     for clause in spec.clauses:
@@ -925,7 +941,7 @@ def _wrapped_index(words, command):
 
 def _xargs_consumer(segment):
     """`(words, index)` of an xargs invocation in the segment, or None; only wrappers may precede it."""
-    words = [t for t in segment if not t.operator]
+    words = _split_string_words([t for t in segment if not t.operator])
     index = _wrapped_index(words, 'xargs')
     return None if index is None else (words, index)
 
@@ -956,7 +972,7 @@ def xargs_stdin_verdict(segment, producers, patterns, cwd, git_relocated):
         if parsed is not None and parsed[0] and _consumes_selection(parsed[0]):
             for producer in producers:
                 words = [t for t in producer if not t.operator]
-                spec, index = _find_selection(words)
+                spec, index, words = _find_selection(words)
                 if spec is not None:
                     result = selection_verdict(spec, patterns, cwd, _relocated(words, index), matching_patterns, protected, DEFAULTS + patterns)
                     if not result.allowed:

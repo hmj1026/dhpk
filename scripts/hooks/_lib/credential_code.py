@@ -23,7 +23,7 @@ SPLIT = frozenset((';', '&&', '||', '|', '|&', '(', ')', ';;', '&', '&!'))
 # Wrapper heads and the short options of each that take a value.
 WRAPPERS = {
     'command': '', 'builtin': '', 'exec': '', 'nohup': '', 'time': '', 'setsid': '',
-    'env': 'uCS', 'sudo': 'ugpChDRTrtU', 'doas': 'uC', 'nice': 'n', 'timeout': 'sk',
+    'env': 'uC', 'sudo': 'ugpChDRTrtU', 'doas': 'uC', 'nice': 'n', 'timeout': 'sk',
     'stdbuf': 'ioe', 'ionice': 'cnp', 'busybox': '', 'chroot': '',
 }
 SCRIPT_RUNNERS = SHELLS | {'source', '.'}
@@ -60,12 +60,42 @@ def _operands(tokens):
 
 CHROOT_VALUE_OPTIONS = frozenset(('--userspec', '--groups'))
 # (#1462) Long options that take their value as the next word; `--user=root` is one word and needs no entry.
+# `env -S` / `--split-string` is absent on purpose: its value is the command itself, not an option value.
 LONG_VALUE_OPTIONS = {
     'sudo': frozenset(('--user', '--group', '--chdir', '--host', '--prompt')),
     'timeout': frozenset(('--signal', '--kill-after')),
     'nice': frozenset(('--adjustment',)),
-    'env': frozenset(('--unset', '--chdir', '--split-string')),
+    'env': frozenset(('--unset', '--chdir')),
 }
+# (#1462) Options known NOT to change the working directory or root, per wrapper: (short letters, long names).
+# Every other option word before a command, and every `chroot`, counts as moving the directory (fail closed).
+# A letter that takes a value must also be in WRAPPERS, and a long one in LONG_VALUE_OPTIONS, to be skipped as a value.
+DIRECTORY_SAFE_OPTIONS = {
+    'nice': ('n', frozenset(('--adjustment',))),
+    'timeout': ('skfpv', frozenset(('--signal', '--kill-after', '--foreground', '--preserve-status', '--verbose'))),
+    'sudo': ('ugpnEsbHSAP', frozenset(('--user', '--group', '--prompt', '--non-interactive', '--preserve-env', '--shell',
+                                       '--set-home', '--stdin', '--askpass', '--background'))),
+    'doas': ('uns', frozenset()),
+    'env': ('iu0v', frozenset(('--unset', '--ignore-environment', '--null', '--debug'))),
+    'stdbuf': ('ioe', frozenset(('--input', '--output', '--error'))),
+    'ionice': ('cnpt', frozenset(('--class', '--classdata', '--pid', '--ignore'))),
+    'time': ('p', frozenset()),
+}
+
+
+def option_keeps_directory(wrapper, option):
+    """(#1462) True when `option` of `wrapper` is known not to change the working directory or root."""
+    if option == '--' or wrapper not in DIRECTORY_SAFE_OPTIONS:
+        return option == '--'
+    letters, names = DIRECTORY_SAFE_OPTIONS[wrapper]
+    if option.startswith('--'):
+        return option.split('=', 1)[0] in names
+    for letter in option[1:]:
+        if letter not in letters:
+            return False
+        if letter in WRAPPERS[wrapper]:
+            return True  # the rest of the word is the option's value
+    return True
 
 
 def _is_option(word):
