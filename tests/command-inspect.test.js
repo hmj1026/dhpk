@@ -864,6 +864,21 @@ const FLAG_SOURCE_BLOCK_1462 = [
   ["G15c", "IFS=Z; o=-qZ-n; git commit ${o:-} -m y"],
   ["G15d", "IFS=Z; o=--no-verifyZ; git push ${o:-} origin y"],
   ["G15e", "o=-qZ-n; IFS=Z; git commit ${o:-} -m y"],
+  ["G16a", "false && o=-q; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16b", "false && o=-q; : ${o:=--no-verify}; git push ${o:-} origin x"],
+  ["G16c", "false && o=-q; : ${o:=--no-verify}; git commit ${o:-} -m y"],
+  ["G16d", "o=-q true; : ${o:=--no-verify}; git push ${o:-} origin x"],
+  ["G16e", "false && o=-q; git commit -m ${o:=-n} ${o:-}"],
+  ["G16f", "false && o=-q; : ${o:=--no-veri}; git commit ${o:-} -m y"],
+  ["G16g", "o=-q | :; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16h", "o=-q & : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16i", "true || o=-q; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16j", "(o=-q); : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16k", "false &&\no=-q; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16l", "f() { o=-q; }; : ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16m", "false && o=-q; echo ${o:=-n}; git commit ${o:-} -m y"],
+  ["G16n", "false && o=-q; p=${o:=-n}; git commit ${o:-} -m y"],
+  ["G16o", "if false; then\no=-q\nfi; : ${o:=-n}; git commit ${o:-} -m y"],
 ];
 
 for (const [id, command] of FLAG_SOURCE_BLOCK_1462) {

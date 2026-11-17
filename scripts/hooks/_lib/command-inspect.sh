@@ -625,6 +625,8 @@ _dhpk_ci_flag_trust_recorded() {
     _dhpk_ci_flag_abbrev "$2" && return 1
     [[ "$text" =~ $re_kw ]] && return 1
     [[ "$text" =~ $re_dot ]] && return 1
+    # An assign-default (${NAME:= or ${NAME=) can bind the name at runtime; look before references are stripped.
+    case "$text" in *'${'"$1"':='*|*'${'"$1"'='*) return 1 ;; esac
     for name in ${_dhpk_ci_flag_names:-}; do
         text="${text//\$\{$name/}"
         text="${text//\$$name/}"
@@ -641,18 +643,28 @@ _dhpk_ci_flag_bound_once() {
     local name="$1" text="${_dhpk_ci_cmd_text:-}" before after
     local re='(^|[^A-Za-z0-9_-])'"$name"'([^A-Za-z0-9_].*|)$'
     local re_again='(^|[^A-Za-z0-9_-])'"$name"'([^A-Za-z0-9_]|$)'
+    local re_ctl='(^|[^A-Za-z0-9_])(if|then|else|elif|fi|while|until|do|done|case|esac|in|function)([^A-Za-z0-9_]|$)'
+    local re_stmt=$'^[^[:space:];&|()<>]*(;|\n)'
     text="${text//\$\{$name/}"
     text="${text//\$$name/}"
     [[ "$text" =~ $re ]] || return 1
     before="${text:0:$((${#text} - ${#BASH_REMATCH[0]}))}${BASH_REMATCH[1]}"
     after="${BASH_REMATCH[2]}"
     before="${before%"${before##*[![:space:]]}"}"
+    # The assignment must be an unconditional top-level statement: it starts the text or follows ; or a
+    # newline, nothing before it can skip it (no operator, group, brace or compound keyword), and it
+    # ends with ; or a newline right after one word (so it is not a prefix assignment to a command).
     case "$before" in
-        ''|*[\;\&\|\(\)\{]|*$'\n') ;;
+        ''|*\;|*$'\n') ;;
         *) return 1 ;;
     esac
+    case "$before" in
+        *[\&\|\(\)\{\}]*) return 1 ;;
+    esac
+    [[ "$before" =~ $re_ctl ]] && return 1
     [[ "$after" == =* && "$after" != ==* ]] || return 1
     after="${after#=}"
+    [[ "$after" =~ $re_stmt ]] || return 1
     [[ "$after" =~ $re_again ]] && return 1
     return 0
 }
