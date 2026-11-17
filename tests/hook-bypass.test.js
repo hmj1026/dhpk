@@ -3470,4 +3470,186 @@ for (const command of ['git commit "$@"', 'b=main; git push origin $b']) {
   });
 }
 
+// #1468 Package B (git gate): the flag judgment fails closed for abbreviations, escapes, globs,
+// default assignments, quoted or dynamic names, slicing and other sources, indirect calls and
+// core.hooksPath. Each row must block on a feature branch through the guard and the dispatcher.
+const GIT_GATE_BLOCK_1468 = [
+  ['abbrev-veri', 'git commit --no-veri -m x'],
+  ['abbrev-verif', 'git push --no-verif origin x'],
+  ['abbrev-positional', 'set -- --no-veri; git push ${1:-x} origin x'],
+  ['escape-read-ansi', "read -r o <<< $'\\x2d-no-verify'; git commit $o -m x"],
+  ['escape-printf-v', "printf -v o '\\x2d-no-verify'; git commit $o -m x"],
+  ['escape-printf-b', "printf -v o %b '\\x2d-no-verify'; git commit $o -m x"],
+  ['escape-octal-assign', "nv=$'\\055-no-verify'; git commit $nv -m x"],
+  ['escape-default-ansi', "git commit ${zz:-$'\\x2d-no-verify'} -m x"],
+  ['glob-literal', 'git commit --no-v* -m x'],
+  ['glob-default-word', "git commit ${zz:-'--no-v'*} -m x"],
+  ['glob-variable', "nv='--no-v*'; git commit $nv -m x"],
+  ['default-escape-newline', 'git commit ${x:--\\n} -m x'],
+  ['default-quoted-flag', "git commit ${x:-'--no-verify'} -m x"],
+  ['default-backslash-short', 'git commit ${x:-\\-n} -m x'],
+  ['default-abbrev-escape', 'git commit ${x:---no-verif\\y} -m x'],
+  ['assign-default-colon', ': ${o:=--no-verify}; git commit $o -m x'],
+  ['assign-default-argument', 'git commit -m ${o:=-n} ${o:-}'],
+  ['assign-default-after-empty', 'o=; : ${o:=--no-verify}; git commit ${o:-x} -m x'],
+  ['name-quoted-declare', "declare n''v=--no-verify; git commit $nv -m x"],
+  ['name-dynamic-read', 'a=o; read -r "$a" <<< --no-verify; git commit $o -m x'],
+  ['source-mapfile', 'mapfile -t o <<< --no-verify; git commit $o -m x'],
+  ['source-readarray', 'readarray -t o <<< --no-verify; git commit $o -m x'],
+  ['source-nameref', 'declare -n r=p; p=--no-verify; git commit $r -m x'],
+  ['source-for-positional', 'set -- --no-verify; for a; do git commit $a -m x; done'],
+  ['source-for-list', 'for o in --no-verify; do git push $o origin x; done'],
+  ['source-read-substitution', 'read o <<< "$(echo --no-verify)"; git commit $o -m x'],
+  ['source-read-process-substitution', 'read o < <(echo --no-verify); git commit $o -m x'],
+  ['source-read-pipeline', 'echo --no-verify | { read o; git commit $o -m x; }'],
+  ['indirect-trap-function', "f() { git commit \"$@\" -m x; }; trap 'f --no-verify' EXIT"],
+  ['indirect-xargs-function', "f() { git commit \"$@\" -m x; }; export -f f; echo --no-verify | xargs bash -c 'f \"$@\"' _"],
+  ['indirect-command-not-found', 'command_not_found_handle() { git commit "$@" -m x; }; --no-verify'],
+  ['slice-offset', 'set -- ab--no-verify; git commit ${1:2} -m x'],
+  ['slice-substitute', 'set -- X-no-verify; git commit ${1/X/-} -m x'],
+  ['slice-suffix', 'set -- --no-verifyX; git commit ${1%X} -m x'],
+  ['slice-at-offset', 'set -- a --no-verify; git commit ${@:2} -m x'],
+  ['slice-star-offset', 'set -- a --no-verify; git commit ${*:2} -m x'],
+  ['slice-lowercase', 'set -- --NO-VERIFY; git commit ${1,,} -m x'],
+  ['slice-two-digit', 'set -- 1 2 3 4 5 6 7 8 9 --no-verify; git commit ${10} -m x'],
+  ['slice-variable-offset', 'o=x--no-verify; git commit ${o:1} -m x'],
+  ['slice-indirect-default', 'o=p; p=--no-verify; git commit ${!o:-x} -m x'],
+  ['last-argument', 'echo --no-verify; git commit $_ -m x'],
+  ['tilde-home', 'HOME=--no-verify; git commit ~ -m y'],
+  ['dynamic-head-declare-commit', 'opt=-q; a=decl; b=are; p=op; q=t; $a$b x $p$q=--no-verify; git commit ${opt:-} -m x'],
+  ['dynamic-head-declare-push', 'opt=-q; a=decl; b=are; p=op; q=t; $a$b x $p$q=--no-verify; git push ${opt:-} origin "$br"'],
+  ['dynamic-head-eval', 'opt=-q; a=ev; b=al; p=op; q=t; $a$b : "&&" $p$q=--no-verify; git commit ${opt:-} -m x'],
+  ['dynamic-head-read', 'c=read; $c -r o <<< --no-verify; git commit $o -m x'],
+  ['source-compgen', 'compgen -V o -W "--no-verify" -- ""; git commit $o -m x'],
+  ['source-compgen-default', 'o=-q; compgen -V o -W "--no-verify" -- ""; git push ${o:-} origin "$b"'],
+  ['source-for-backtick', 'for o in `echo --no-verify`; do git push $o origin x; done'],
+  ['source-for-substitution', 'for o in $(echo --no-verify); do git push $o origin x; done'],
+  ['source-read-backtick', 'read o <<< "`echo --no-verify`"; git commit $o -m x'],
+  ['positional-unquoted-suffix', 'set -- "x --no-verify"; git push origin HEAD:$1'],
+  ['positional-quoted-dash', 'git commit "-${1}" -m x'],
+  ['positional-quoted-eval', 'set -- "x --no-verify"; eval git push origin "HEAD:${1}"'],
+  ['positional-quoted-heredoc', 'set -- \'x" --no-verify "\'; bash <<EOF\ngit push origin "HEAD:${1}"\nEOF'],
+  ['positional-quoted-at', 'set -- x --no-verify; git push origin "HEAD:$@"'],
+  ['positional-quoted-and-bare', 'set -- "x --no-verify"; git push origin "HEAD:${1}" HEAD:${1}'],
+  ['dq-concat-unquoted-between', "set -- 'y --no-verify z'; git commit -m \"a \"x$1\" b\""],
+  ['dq-concat-no-blank', "set -- 'y --no-verify z'; git commit -m \"a\"x$1\"b\""],
+  ['dq-concat-blank-dollar', "set -- 'y --no-verify z'; git commit -m \"a \"$1\" b\""],
+  ['dq-concat-single-quoted', "set -- 'y --no-verify z'; git commit -m 'a 'x$1' b'"],
+  ['dq-array-keys', 'declare -A a=([--no-verify]=1 [b]=2); git commit -m m "x${!a[@]}"'],
+  ['array-keys-star-unquoted', 'declare -A a=([--no-verify]=1 [b]=2); git commit -m m ${!a[*]}'],
+  ['dq-array-unbound-at', 'git commit -m m "x${a[@]}"'],
+  ['dq-array-unbound-keys', 'git push origin "x${!a[@]}"'],
+  ['source-here-string-backtick', 'read o <<< `echo --no-verify`; git commit -m m $o'],
+  ['source-here-string-substitution', 'read o <<< $(echo --no-verify); git commit -m m $o'],
+];
+
+for (const [id, command] of GIT_GATE_BLOCK_1468) {
+  test(`#1468 ${id} blocks on feature (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// git -c core.hooksPath=... disables the repository hooks for one invocation, so commit and push with it
+// are blocked like --no-verify. Without branch safety in block mode only the guard itself can block.
+const REASON_HOOKSPATH_1468 = /core\.hooksPath' bypasses/;
+const GIT_GATE_HOOKSPATH_1468 = [
+  ['hookspath-commit', 'git -c core.hooksPath=/dev/null commit -m x'],
+  ['hookspath-push-upper', 'git -c CORE.HOOKSPATH=x push origin x'],
+];
+
+for (const [id, command] of GIT_GATE_HOOKSPATH_1468) {
+  test(`#1468 ${id} blocks on feature (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+  test(`#1468 ${id} is blocked by the guard itself without branch safety, with a stable reason`, () => {
+    withRepos(({ featureRepo }) => {
+      const res = bashHook('pre-bash-guard.sh', command, { cwd: featureRepo });
+      expectStatus(res, BLOCK, command);
+      assert.match(String(res.stderr), /\[bash-guard\] blocked:/, command);
+      assert.match(String(res.stderr), REASON_HOOKSPATH_1468, command);
+    });
+  });
+}
+
+const GIT_GATE_REASON_1468 = [
+  ['abbrev-veri', 'git commit --no-veri -m x', REASON_NO_VERIFY_1462],
+  ['default-escape-newline', 'git commit ${x:--\\n} -m x', REASON_TRANSFORMED_1462],
+  ['default-quoted-flag', "git commit ${x:-'--no-verify'} -m x", REASON_NO_VERIFY_1462],
+  ['default-backslash-short', 'git commit ${x:-\\-n} -m x', REASON_NO_VERIFY_1462],
+  ['default-abbrev-escape', 'git commit ${x:---no-verif\\y} -m x', REASON_TRANSFORMED_1462],
+  ['source-for-list', 'for o in --no-verify; do git push $o origin x; done', REASON_NO_VERIFY_1462],
+  ['assign-default-colon', ': ${o:=--no-verify}; git commit $o -m x', REASON_NO_VERIFY_1462],
+  ['slice-offset', 'set -- ab--no-verify; git commit ${1:2} -m x', REASON_TRANSFORMED_1462],
+  ['last-argument', 'echo --no-verify; git commit $_ -m x', REASON_TRANSFORMED_1462],
+  ['tilde-home', 'HOME=--no-verify; git commit ~ -m y', REASON_TRANSFORMED_1462],
+];
+
+// A quoted argument must not fail the default-expansion trust proof on its own (the allow rows), yet
+// every way to rebind the flag variable behind it must stay blocked (the adversarial rows).
+const GIT_GATE_ADV_1468 = [
+  ['adv-split-declare', 'o=-q; de""clare o=--no-verify; git push ${o:-} origin "$b"'],
+  ['adv-quoted-read', 'o=-q; "read" o <<< --no-verify; git push ${o:-} origin "$b"'],
+  ['adv-assign-in-string', 'o=-q; git push ${o:-} origin "a; o=--no-verify"'],
+  ['adv-quoted-default-assign', 'o=-q; : "${o:=--no-verify}"; git push ${o:-} origin "$b"'],
+  ['adv-ifs', 'o=-q; IFS=x; git push ${o:-} origin "$b"'],
+  ['adv-ansi-quote', "o=-q; git push ${o:-} origin \"$b\" $'\\x2d'"],
+  ['adv-function-rebind', 'o=-q; f(){ o=--no-verify; }; f; git push ${o:-} origin "$b"'],
+  ['adv-other-variable', 'o=-q; b=--no-verify; git push ${o:-} origin "$b"'],
+  ['adv-quoted-default-other', 'o=-q; git push ${o:-} origin "${b:=--no-verify}"'],
+  ['adv-assign-after', 'o=-q; git push ${o:-} origin "$b"; o=--no-verify'],
+];
+
+for (const [id, command] of GIT_GATE_ADV_1468) {
+  test(`#1468 ${id} stays blocked on feature (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const GIT_GATE_ALLOW_1468 = [
+  ['allow-empty-default', 'o=-q; git push ${o:-} origin "$b"'],
+  ['allow-branch-default', 'b=main; git push origin HEAD:${b:-main}'],
+  ['allow-hookspath-status', 'git -c core.hooksPath=/dev/null status'],
+  ['allow-quoted-positional-refspec', 'git push origin "HEAD:${1}"'],
+  ['allow-quoted-transform-refspec', 'b=x; git push origin "HEAD:${b#refs/}"'],
+  ['allow-dq-array-keys-star', 'declare -A a=([--no-verify]=1 [b]=2); git commit -m m "x${!a[*]}"'],
+  ['allow-for-literal-list', 'for o in a b; do git push origin "$o"; done'],
+  ['allow-read-unused-variable', 'read o <<< x; echo "$o"; git commit -m done'],
+  ['allow-mapfile-unused-variable', 'mapfile -t l < notes.txt; git push origin main'],
+];
+
+for (const [id, command] of GIT_GATE_ALLOW_1468) {
+  test(`#1468 ${id} allows on feature`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+for (const [id, command, reason] of GIT_GATE_REASON_1468) {
+  test(`#1468 ${id} blocks with a stable reason (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        const res = bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(String(res.stderr), /\[bash-guard\] blocked:/, `${hook}: ${command}`);
+        assert.match(String(res.stderr), reason, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
 run('hook-bypass');

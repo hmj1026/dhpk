@@ -119,9 +119,11 @@ _dhpk_ci_reset_words() {
     _dhpk_ci_dyn=()
     _dhpk_ci_quoted=()
     _dhpk_ci_words_flat=()
+    _dhpk_ci_split=()
     _dhpk_ci_word=""
     _dhpk_ci_word_flat=""
     _dhpk_ci_word_dyn=0
+    _dhpk_ci_word_split=0
     _dhpk_ci_word_q=0
     _dhpk_ci_hs_words=()
     _dhpk_ci_hs_dyn=()
@@ -161,13 +163,24 @@ _dhpk_ci_flush_word() {
             _dhpk_ci_dyn+=("$_dhpk_ci_word_dyn")
             _dhpk_ci_quoted+=("$_dhpk_ci_word_q")
             _dhpk_ci_words_flat+=("$_dhpk_ci_word_flat")
+            _dhpk_ci_split+=("$_dhpk_ci_word_split")
         fi
     fi
     _dhpk_ci_word=""
     _dhpk_ci_word_flat=""
     _dhpk_ci_word_dyn=0
+    _dhpk_ci_word_split=0
     _dhpk_ci_word_open=0
     _dhpk_ci_word_q=0
+}
+
+# (#1468) The value word of an option that takes one (word index $1, subcommand $2) is no flag, unless its
+# expansion can split into several words: then the rest of the words are arguments. Such a word is judged
+# like any other dynamic word. Sets _dhpk_ci_flag_hit.
+_dhpk_ci_option_value_hit() {
+    _dhpk_ci_flag_hit=""
+    [ "${_dhpk_ci_u_dyn[$1]:-0}" = "1" ] && [ "${_dhpk_ci_u_split[$1]:-0}" = "1" ] || return 0
+    _dhpk_ci_dyn_git_flag "${_dhpk_ci_u_words[$1]}" "$2" 1
 }
 
 # True when $1 is an option whose next argv is its value, not a new flag.
@@ -421,6 +434,11 @@ _dhpk_ci_flag_clear() {
     _dhpk_ci_pos_segs=0
     _dhpk_ci_pos_words=0
     _dhpk_ci_cmd_text=""
+    _dhpk_ci_bound_names=" "
+    _dhpk_ci_fs_anyname=0
+    _dhpk_ci_fs_overflow=0
+    _dhpk_ci_taint_overflow=0
+    _dhpk_ci_fn_overflow=0
 }
 
 # True when a value text mentions an already recorded flag variable name.
@@ -438,6 +456,7 @@ _dhpk_ci_note_flag_var() {
     local opaque=0 val="$2"
     case "$val" in
         *' -'*) ;;
+        *\\[0-9A-Za-z]*) ;;
         *'$'*) _dhpk_ci_flag_refs_known "$val" || return 0 ;;
         *) return 0 ;;
     esac
@@ -461,7 +480,7 @@ _dhpk_ci_flag_value_no_verify() {
     read -r -a fv_a <<<"$1"
     for fw in "${fv_a[@]}"; do
         case "$fw" in
-            --no-verify|--no-verify=*) return 0 ;;
+            --no-verify|--no-verify=*|--no-veri|--no-verif|--no-veri=*|--no-verif=*) return 0 ;;
         esac
         [ "$2" = "commit" ] && _dhpk_ci_commit_short_no_verify "$fw" && return 0
     done
@@ -470,7 +489,7 @@ _dhpk_ci_flag_value_no_verify() {
 
 # Judges a dynamic word in git commit or push argument position. Sets _dhpk_ci_flag_hit to
 # no-verify (the expansion yields --no-verify), transformed (a transform of a flag variable
-# can rebuild any flag), or empty.
+# can rebuild any flag), or empty. Arg 3 is 1 when the word has an expansion that can split into words.
 _dhpk_ci_dyn_git_flag() {
     local name re var
     _dhpk_ci_flag_hit=""
@@ -482,9 +501,23 @@ _dhpk_ci_dyn_git_flag() {
         *--no-verify*) _dhpk_ci_flag_hit="no-verify"; return 0 ;;
         *'$'*) _dhpk_ci_flag_prefix_hit "$1" && return 0 ;;
     esac
+    _dhpk_ci_flag_word_dq_literal "$1" "${3:-0}" && return 0
+    # (#1468) A text with too many sources to scan, the last argument ($_), a tilde that can name a
+    # flag through HOME, PWD or OLDPWD, and a variable bound under a name this scan could not read
+    # (a built name) cannot be judged.
+    if [ "${_dhpk_ci_fs_overflow:-0}" = "1" ] || _dhpk_ci_flag_word_unjudged "$1"; then
+        _dhpk_ci_flag_hit="transformed"
+        return 0
+    fi
     # (#1462) Default operators, positional parameters and indirect expansion are judged first.
     _dhpk_ci_flag_default_hit "$1" "$2" && return 0
     _dhpk_ci_flag_positional_hit "$1" "$2" && return 0
+    # (#1468) Any other use of a positional parameter (a slice, a transform, $10) can rebuild a flag.
+    re='\$(\{[#!]?)?[0-9@*]'
+    if [[ "$1" =~ $re ]]; then
+        _dhpk_ci_flag_hit="transformed"
+        return 0
+    fi
     _dhpk_ci_flag_indirect_hit "$1" "$2" && return 0
     for name in ${_dhpk_ci_flag_names:-}; do
         case "$1" in
@@ -503,12 +536,90 @@ _dhpk_ci_dyn_git_flag() {
             _dhpk_ci_flag_hit="transformed"
             return 0
         fi
+        if _dhpk_ci_flag_words_glob "${!var}" "$2"; then
+            _dhpk_ci_flag_hit="transformed"
+            return 0
+        fi
         if _dhpk_ci_flag_value_no_verify "${!var}" "$2"; then
             _dhpk_ci_flag_hit="no-verify"
             return 0
         fi
     done
+    _dhpk_ci_flag_bound_transform "$1" && _dhpk_ci_flag_hit="transformed"
+    if [ -z "$_dhpk_ci_flag_hit" ] && _dhpk_ci_flag_word_list "$1" "${3:-0}"; then
+        _dhpk_ci_flag_hit="transformed"
+    fi
     return 0
+}
+
+# (#1468) True when word $1 expands to several words that no recorded variable explains: a word list
+# ("$@" is judged earlier, "${a[@]}", "${!a[@]}", "${!p@}"), or key names of an array that can split
+# (arg 2 is 1). The text that binds such an array is not read, so any of its words can be a flag.
+_dhpk_ci_flag_word_list() {
+    local re_list='\[@\]|@\}' re_keys='\$\{![A-Za-z_][A-Za-z0-9_]*\[\*\]'
+    [[ "$1" =~ $re_list ]] && return 0
+    [ "$2" = "1" ] && [[ "$1" =~ $re_keys ]]
+}
+
+# (#1468) True when dequoted word $1 is one argument git never reads as a flag: it starts with a literal
+# non-dash, holds no quote, backslash, "$@", "${a[@]}" or "${!p@}" (those expand to several words), has
+# no expansion outside double quotes (arg 2 is the word's split mark: "a "x$1" b" is not one quoted
+# span), and every occurrence in the top-level text is written as one whole "WORD" with a blank before
+# the opening quote and a blank or separator (; & | )) after the closing one.
+# Words of a nested list (eval, bash -c, a heredoc or substitution body) re-read their quotes later.
+_dhpk_ci_flag_word_dq_literal() {
+    local w="$1" rest before k=0 re_lit='^[A-Za-z0-9_./:@+]' re_multi='\$\{?@|\[@\]|@\}'
+    [ "${_dhpk_ci_depth:-0}" -le 1 ] || return 1
+    [ "${2:-0}" = "1" ] && return 1
+    [[ "$w" =~ $re_lit ]] || return 1
+    case "$w" in *[\"\'\\]*) return 1 ;; esac
+    [[ "$w" =~ $re_multi ]] && return 1
+    rest=" ${_dhpk_ci_cmd_text:-} "
+    [[ "$rest" == *"$w"* ]] || return 1
+    while [[ "$rest" == *"$w"* ]]; do
+        k=$((k + 1))
+        [ "$k" -gt 64 ] && return 1
+        before="${rest%%"$w"*}"
+        rest="${rest#*"$w"}"
+        [[ "$before" == *[[:space:]]\" ]] || return 1
+        [[ "$rest" == \"[[:space:]\;\&\|\)]* ]] || return 1
+    done
+    return 0
+}
+
+# (#1468) True when word $1 is $_ , a leading tilde with HOME, PWD or OLDPWD in the text, or (after a
+# variable bound under a built name) any variable reference.
+_dhpk_ci_flag_word_unjudged() {
+    local re_last='\$\{?_([^A-Za-z0-9_]|$)' re_home='(^|[^A-Za-z0-9_])(HOME|PWD|OLDPWD)([^A-Za-z0-9_]|$)'
+    local re_any='\$\{?[!#]?[A-Za-z_]'
+    [[ "$1" =~ $re_last ]] && return 0
+    if [[ "$1" == '~'* ]] && [[ "${_dhpk_ci_cmd_text:-}" =~ $re_home ]]; then
+        return 0
+    fi
+    [ "${_dhpk_ci_fs_anyname:-0}" = "1" ] && [[ "$1" =~ $re_any ]]
+}
+
+# (#1468) True when word $1 slices or transforms (${NAME:1}, ${NAME/a/b}, ${NAME%x}, ${NAME,,}) a
+# variable that the text binds.
+_dhpk_ci_flag_bound_transform() {
+    local name re
+    for name in ${_dhpk_ci_bound_names:-}; do
+        case "$1" in *"$name"*) ;; *) continue ;; esac
+        re='\$\{'$name'(\[[^]]*\])?([/#%^,~@]|:[^-=+?])'
+        [[ "$1" =~ $re ]] && return 0
+    done
+    return 1
+}
+
+# (#1468) True when a word of the stored flag value $1 is a glob that can expand to a flag.
+_dhpk_ci_flag_words_glob() {
+    local gw
+    local -a gw_a
+    read -r -a gw_a <<<"$1"
+    for gw in "${gw_a[@]}"; do
+        _dhpk_ci_glob_may_flag "$gw" "$2" && return 0
+    done
+    return 1
 }
 
 # True (and sets transformed) when the literal text before the first dollar is a non-empty prefix of
@@ -561,12 +672,13 @@ _dhpk_ci_flag_default_hit() {
         return 0
     fi
     word="$_dhpk_ci_fs_uq"
-    if _dhpk_ci_flag_value_no_verify " $word" "$2"; then
-        _dhpk_ci_flag_hit="no-verify"
+    # (#1468) An escape whose result is not computed, or a glob that can expand to a flag, is judged first.
+    if [ "$_dhpk_ci_fs_uncertain" = "1" ] || _dhpk_ci_glob_may_flag "$word" "$2"; then
+        _dhpk_ci_flag_hit="transformed"
         return 0
     fi
-    if [ "$_dhpk_ci_fs_uncertain" = "1" ] && [[ "$word" == -* ]]; then
-        _dhpk_ci_flag_hit="transformed"
+    if _dhpk_ci_flag_value_no_verify " $word" "$2"; then
+        _dhpk_ci_flag_hit="no-verify"
         return 0
     fi
     if _dhpk_ci_flag_abbrev " $word"; then
@@ -575,7 +687,7 @@ _dhpk_ci_flag_default_hit() {
     fi
     [ "$recorded" = "1" ] || return 0
     if [[ ! "$name" =~ ^[0-9@*] ]]; then
-        if [ "$_dhpk_ci_fs_uncertain" = "1" ] || [[ "$word" == *[\*\?\[]* ]] || ! _dhpk_ci_flag_trust_recorded "$name" "$stored"; then
+        if [[ "$word" == *[\*\?\[]* ]] || ! _dhpk_ci_flag_trust_recorded "$name" "$stored"; then
             _dhpk_ci_flag_hit="transformed"
             return 0
         fi
@@ -587,6 +699,26 @@ _dhpk_ci_flag_default_hit() {
         _dhpk_ci_flag_hit="no-verify"
     fi
     return 0
+}
+
+# (#1468) True when pattern $1 holds a glob character and can expand to --no-verify (or its accepted
+# abbreviations), or, for commit ($2), to a short flag cluster (a pattern that starts with one dash).
+_dhpk_ci_glob_may_flag() {
+    local pat="$1"
+    case "$pat" in
+        *[\*\?\[]*) ;;
+        *) return 1 ;;
+    esac
+    # shellcheck disable=SC2053
+    if [[ --no-verify == $pat || --no-verif == $pat || --no-veri == $pat ]]; then
+        return 0
+    fi
+    [ "$2" = "commit" ] || return 1
+    case "$pat" in
+        --*) return 1 ;;
+        -*) return 0 ;;
+    esac
+    return 1
 }
 
 # (#1462) True when a word of $1 is a proper prefix of --no-verify at least 3 characters long, which
@@ -607,9 +739,10 @@ _dhpk_ci_flag_abbrev() {
 # every dollar reference is to a recorded flag variable, the name is bound once (see
 # _dhpk_ci_flag_bound_once), and the value holds no glob character or --no-verify abbreviation.
 _dhpk_ci_flag_trust_recorded() {
-    local text="${_dhpk_ci_cmd_text:-}" name
-    local re_kw='(^|[^A-Za-z0-9_])(declare|typeset|local|export|readonly|printf|read|readarray|mapfile|unset|eval|source|for|select|getopts|let|alias|trap|enable|builtin|command|exec|coproc|wait|ulimit|sh|bash|zsh|dash|ksh)([^A-Za-z0-9_]|$)'
+    local text="${_dhpk_ci_cmd_text:-}" name text_nq re_ref k=0
+    local re_kw='(^|[^A-Za-z0-9_])(declare|typeset|local|export|readonly|printf|read|readarray|mapfile|compgen|unset|eval|source|for|select|getopts|let|alias|trap|enable|builtin|command|exec|coproc|wait|ulimit|sh|bash|zsh|dash|ksh)([^A-Za-z0-9_]|$)'
     local re_dot=$'(^|[;&|({]|\n)[[:space:]]*\\.([[:space:]]|$)'
+    local re_head=$'(^|[;&|({]|\n)[[:space:]]*(([A-Za-z_][A-Za-z0-9_]*(\\[[^]]*\\])?\\+?=[^[:space:];&|]*|!|\\{|then|do|else|if|elif|while|until|time)[[:space:]]+)*\\$'
     local re_ifs='(^|[^A-Za-z0-9_])IFS([^A-Za-z0-9_]|$)'
     local re_word='^[[:space:]]*[A-Za-z0-9=_.,:/+-]+[[:space:]]*$'
     # A lowercase name is never assigned by the shell itself (_, BASH_*, REPLY, OPTARG, ...).
@@ -618,21 +751,35 @@ _dhpk_ci_flag_trust_recorded() {
     [[ "$2" =~ $re_word ]] || return 1
     [ "${_dhpk_ci_taint_ifs:-0}" = "1" ] && return 1
     [[ "$text" =~ $re_ifs ]] && return 1
+    # (#1468) A double quote alone proves nothing against the rebinding (it only groups a word), so the
+    # proof reads the text without double quotes; a single quote, backslash, backtick, $( , $' , $" and $[
+    # still fail it.
     case "$text" in
-        *[\'\"\\\`]*|*'$('*|*"\$'"*|*'$"'*) return 1 ;;
+        *[\'\\\`]*|*'$('*|*"\$'"*|*'$"'*|*'$['*) return 1 ;;
     esac
+    text_nq="${text//\"/}"
     case "$2" in *[\*\?\[]*) return 1 ;; esac
     _dhpk_ci_flag_abbrev "$2" && return 1
-    [[ "$text" =~ $re_kw ]] && return 1
-    [[ "$text" =~ $re_dot ]] && return 1
+    [[ "$text_nq" =~ $re_kw ]] && return 1
+    [[ "$text_nq" =~ $re_dot ]] && return 1
+    # (#1468) A command word built by an expansion can be a binding builtin; look before names are stripped.
+    [[ "$text_nq" =~ $re_head ]] && return 1
     # An assign-default (${NAME:= or ${NAME=) can bind the name at runtime; look before references are stripped.
-    case "$text" in *'${'"$1"':='*|*'${'"$1"'='*) return 1 ;; esac
+    case "$text_nq" in *'${'"$1"':='*|*'${'"$1"'='*) return 1 ;; esac
+    text="$text_nq"
     for name in ${_dhpk_ci_flag_names:-}; do
         text="${text//\$\{$name/}"
         text="${text//\$$name/}"
     done
+    # (#1468) A plain reference to any other variable ($b, ${b}) cannot rebind this name; the loop is bounded.
+    re_ref='\$(\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)'
+    while [[ "$text" =~ $re_ref ]]; do
+        k=$((k + 1))
+        [ "$k" -gt 64 ] && return 1
+        text="${text//"${BASH_REMATCH[0]}"/}"
+    done
     case "$text" in *'$'*) return 1 ;; esac
-    _dhpk_ci_flag_bound_once "$1"
+    _dhpk_ci_flag_bound_once "$1" "$text_nq"
 }
 
 # (#1462) True when flag variable $1 is provably bound once: after the $NAME and ${NAME references are
@@ -640,7 +787,7 @@ _dhpk_ci_flag_trust_recorded() {
 # a simple command, and no other whole-word occurrence follows (for, select, mapfile, declare, read,
 # printf -v, a second assignment and so on). One match over the text per judged word.
 _dhpk_ci_flag_bound_once() {
-    local name="$1" text="${_dhpk_ci_cmd_text:-}" before after
+    local name="$1" text="${2:-${_dhpk_ci_cmd_text:-}}" before after
     local re='(^|[^A-Za-z0-9_-])'"$name"'([^A-Za-z0-9_].*|)$'
     local re_again='(^|[^A-Za-z0-9_-])'"$name"'([^A-Za-z0-9_]|$)'
     local re_ctl='(^|[^A-Za-z0-9_])(if|then|else|elif|fi|while|until|do|done|case|esac|in|function)([^A-Za-z0-9_]|$)'
@@ -672,12 +819,9 @@ _dhpk_ci_flag_bound_once() {
 # (#1462) A whole-word $@, $*, $1 to $9 (or braced) reads the pool of words given to set -- or to a
 # function defined in the text. Returns 0 when the word is such a reference.
 _dhpk_ci_flag_positional_hit() {
-    local w="${1//\"/}"
+    local w="${1//\"/}" re='^\$(\{([0-9]+|[@*])\}|[0-9@*])$'
     w="${w//\'/}"
-    case "$w" in
-        '$@'|'$*'|'${@}'|'${*}'|'$'[1-9]|'${'[1-9]'}') ;;
-        *) return 1 ;;
-    esac
+    [[ "$w" =~ $re ]] || return 1
     if _dhpk_ci_flag_value_no_verify "${_dhpk_ci_pos_pool:-}" "$2"; then
         _dhpk_ci_flag_hit="no-verify"
     elif [ "${_dhpk_ci_pos_opaque:-0}" = "1" ]; then
@@ -686,12 +830,36 @@ _dhpk_ci_flag_positional_hit() {
     return 0
 }
 
+# (#1468) Judges a readable word $1 as a flag value: an escape not computed here or a glob that can
+# expand to a flag is transformed, --no-verify is no-verify. True when _dhpk_ci_flag_hit was set.
+_dhpk_ci_flag_word_decide() {
+    _dhpk_ci_fs_value "$1" || return 1
+    if [ "$_dhpk_ci_fs_uncertain" = "1" ] || _dhpk_ci_glob_may_flag "$_dhpk_ci_fs_uq" "$2"; then
+        _dhpk_ci_flag_hit="transformed"
+        return 0
+    fi
+    if _dhpk_ci_flag_value_no_verify " $_dhpk_ci_fs_uq" "$2"; then
+        _dhpk_ci_flag_hit="no-verify"
+        return 0
+    fi
+    return 1
+}
+
 # (#1462) ${!NAME} reads a variable named by NAME's value, which this scan cannot resolve: any
 # recorded flag variable holding --no-verify (or an unreadable value) may be the target.
 _dhpk_ci_flag_indirect_hit() {
-    local re='^\$\{!([A-Za-z_][A-Za-z0-9_]*)\}$'
-    local w="${1//\"/}" name var opaque=0
+    local re='^\$\{!([A-Za-z_][A-Za-z0-9_]*)(.*)\}$' re_op='^:?[-=+?](.*)$'
+    local w="${1//\"/}" name var opaque=0 rest
     [[ "$w" =~ $re ]] || return 1
+    rest="${BASH_REMATCH[2]}"
+    if [ -n "$rest" ]; then
+        # (#1468) A default operator keeps its word in play; any other operator rebuilds the value.
+        if [[ ! "$rest" =~ $re_op ]]; then
+            _dhpk_ci_flag_hit="transformed"
+            return 0
+        fi
+        _dhpk_ci_flag_word_decide "${BASH_REMATCH[1]}" "$2" && return 0
+    fi
     for name in ${_dhpk_ci_flag_names:-}; do
         var="_dhpk_ci_fv_$name"
         if [ "${!var}" = "@opaque" ]; then
@@ -710,6 +878,7 @@ _dhpk_ci_flag_indirect_hit() {
 _dhpk_ci_flag_force() {
     local re_id='^[A-Za-z_][A-Za-z0-9_]*$' val="$2"
     [[ "$1" =~ $re_id ]] || return 0
+    case "$_dhpk_ci_bound_names" in *" $1 "*) ;; *) _dhpk_ci_bound_names="${_dhpk_ci_bound_names}$1 " ;; esac
     case "$_dhpk_ci_flag_names" in
         *" $1 "*) val="@opaque" ;;
         *)
@@ -768,10 +937,10 @@ _dhpk_ci_fs_value() {
 }
 
 # Sets _dhpk_ci_fs_sv to the flag value stored for the value read by _dhpk_ci_fs_value: opaque when
-# an escape could hide a flag (readable part starts with a dash), else the words.
+# it holds an escape whose result is not computed (_dhpk_ci_fs_uncertain), else the words.
 _dhpk_ci_fs_stored() {
     _dhpk_ci_fs_sv=" $1"
-    [ "$_dhpk_ci_fs_uncertain" = "1" ] && [[ "$1" == -* ]] && _dhpk_ci_fs_sv="@opaque"
+    [ "$_dhpk_ci_fs_uncertain" = "1" ] && _dhpk_ci_fs_sv="@opaque"
     return 0
 }
 
@@ -862,29 +1031,71 @@ _dhpk_ci_fs_read() {
         i=$((i + 1))
     done
     [ "${#rnames[@]}" -gt 0 ] || rnames=(REPLY)
-    if [ "$here" = "1" ] && _dhpk_ci_fs_value "$rawv"; then
+    local cut=0 dq="${rawv//[^\"]/}"
+    if [ "$here" = "1" ] && [ $((${#dq} % 2)) -eq 1 ]; then
+        # An unbalanced double quote is a here-string cut at a substitution inside the quotes.
+        cut=1
+    elif [ "$here" = "1" ] && [ -z "$rawv" ]; then
+        # A here-string with no word left is cut at an unquoted backtick or substitution.
+        cut=1
+    elif [ "$here" = "1" ] && _dhpk_ci_fs_value "$rawv"; then
         readable=1
         _dhpk_ci_fs_stored "$_dhpk_ci_fs_uq"
         value="$_dhpk_ci_fs_sv"
     fi
+    if [ "$readable" != "1" ] && _dhpk_ci_fs_read_cut "$1"; then
+        cut=1
+    fi
     for name in "${rnames[@]}"; do
-        if [ "$readable" = "1" ]; then
+        if [[ "$name" == *[\$\`]* ]]; then
+            _dhpk_ci_fs_anyname=1
+        elif [ "$readable" = "1" ]; then
             _dhpk_ci_flag_force "$name" "$value"
+        elif [ "$cut" = "1" ]; then
+            _dhpk_ci_flag_force "$name" "@opaque"
         else
             _dhpk_ci_fs_unreadable "$name" "$rawv"
         fi
     done
 }
 
+# (#1468) True when the unreadable read segment $1 was cut by a substitution (it ends with <, $, "$ or
+# <<<) or the command text is a pipeline, so the value comes from a command and not from the text.
+_dhpk_ci_fs_read_cut() {
+    local seg="${1%"${1##*[![:space:]]}"}" text="${_dhpk_ci_cmd_text:-}"
+    local re_pipe='(^|[^|])\|([^|]|$)'
+    case "$seg" in
+        *'<'|*'$') return 0 ;; # also covers <<< and "$
+    esac
+    [[ "$text" =~ $re_pipe ]]
+}
+
+# (#1468) True when an unreadable printf -v source can rebuild a flag: the raw format $1 holds a
+# backslash or a conversion other than %s and %%, or a raw argument (the rest) holds a backslash.
+_dhpk_ci_printf_unreadable_force() {
+    local re_conv='%[^s%]' a
+    case "$1" in *\\*) return 0 ;; esac
+    [[ "$1" =~ $re_conv ]] && return 0
+    shift
+    for a in "$@"; do
+        case "$a" in *\\*) return 0 ;; esac
+    done
+    return 1
+}
+
 # printf -v NAME FORMAT ARGS: the format %s stores the arguments, a format without % or backslash
 # stores itself, anything else is unreadable.
 _dhpk_ci_fs_printf() {
     _dhpk_ci_fs_split "$1"
-    local n="${#_dhpk_ci_fs_words[@]}" i=3 val="" opaque=0 fmt args="" name
+    local n="${#_dhpk_ci_fs_words[@]}" i=3 val="" opaque=0 fmt args="" name force=0
     [ "$n" -ge 3 ] && [ "${_dhpk_ci_fs_words[1]}" = "-v" ] || return 0
     [ "${_dhpk_ci_fs_words[3]-}" = "--" ] && i=4
     fmt="${_dhpk_ci_fs_words[$i]-}"
     name="${_dhpk_ci_fs_words[2]%%\[*}"
+    if [[ "$name" == *[\$\`]* ]]; then
+        _dhpk_ci_fs_anyname=1
+        return 0
+    fi
     if [ "$fmt" = "%s" ]; then
         for ((i = i + 1; i < n; i++)); do
             args="$args ${_dhpk_ci_fs_raw[$i]}"
@@ -900,7 +1111,12 @@ _dhpk_ci_fs_printf() {
         val=" $_dhpk_ci_fs_uq"
     else
         opaque=1
+        _dhpk_ci_printf_unreadable_force "${_dhpk_ci_fs_raw[$i]-}" "${_dhpk_ci_fs_raw[@]:$((i + 1))}" && force=1
         for ((i = i + 1; i < n; i++)); do args="$args ${_dhpk_ci_fs_raw[$i]}"; done
+    fi
+    if [ "$force" = "1" ]; then
+        _dhpk_ci_flag_force "$name" "@opaque"
+        return 0
     fi
     if [ "$opaque" = "1" ]; then
         _dhpk_ci_fs_unreadable "$name" "$args"
@@ -1004,16 +1220,159 @@ _dhpk_ci_fs_apply() {
         set)
             [ "${_dhpk_ci_pos_opaque:-0}" = "1" ] || _dhpk_ci_fs_set "$1"
             ;;
+        for|select) _dhpk_ci_fs_for "$1" ;;
+        mapfile|readarray) _dhpk_ci_fs_mapfile "$1" ;;
+        compgen) _dhpk_ci_fs_compgen "$1" ;;
+        declare|typeset|local|export|readonly) _dhpk_ci_fs_declare "$1" ;;
         *)
+            # (#1468) A command word built by an expansion can be any builtin (declare, eval, read) and
+            # bind any name with any value: every reference and positional parameter becomes unjudged.
+            if _dhpk_ci_fs_dynamic_head "$1"; then
+                _dhpk_ci_fs_anyname=1
+                _dhpk_ci_pos_opaque=1
+                return 0
+            fi
             case "$_dhpk_ci_fs_funcs" in
                 *" $head "*)
                     [ "${_dhpk_ci_pos_opaque:-0}" = "1" ] && return 0
                     _dhpk_ci_fs_split "$1"
                     _dhpk_ci_fs_pool_add 1
+                    return 0
                     ;;
             esac
+            _dhpk_ci_fs_indirect_call "$head" "$1"
             ;;
     esac
+}
+
+# (#1468) True when the command word of segment $1, after prefix assignments and the words !, {, then,
+# do and time, holds an expansion or a backtick.
+_dhpk_ci_fs_dynamic_head() {
+    local s="$1" w k=0 re_asg='^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?='
+    while [ "$k" -lt 64 ] && _dhpk_ci_fs_peel "$s"; do
+        k=$((k + 1))
+        w="$_dhpk_ci_fs_pw"
+        case "$w" in
+            '!'|'{'|then|do|time) s="$_dhpk_ci_fs_pr"; continue ;;
+        esac
+        if [[ "$w" =~ $re_asg ]]; then
+            s="$_dhpk_ci_fs_pr"
+            continue
+        fi
+        [[ "$w" == *[\$\`]* ]]
+        return
+    done
+    return 1
+}
+
+# (#1468) compgen -V NAME stores the completions in array NAME: a target built by an expansion can be
+# any name; a plain target gets an opaque value.
+_dhpk_ci_fs_compgen() {
+    _dhpk_ci_fs_split "$1"
+    local i=1 n="${#_dhpk_ci_fs_raw[@]}" raw target=""
+    while [ "$i" -lt "$n" ]; do
+        raw="${_dhpk_ci_fs_raw[$i]}"
+        i=$((i + 1))
+        case "$raw" in
+            -*V) target="${_dhpk_ci_fs_raw[$i]-}" ;;
+            -*V*) target="${raw#*V}" ;;
+            *) continue ;;
+        esac
+        if [[ "$target" == *[\$\`]* ]]; then
+            _dhpk_ci_fs_anyname=1
+        elif [ -n "$target" ]; then
+            target="${target//[\"\'\\]/}"
+            _dhpk_ci_flag_force "${target%%\[*}" "@opaque"
+        fi
+    done
+}
+
+# (#1468) for|select NAME [in WORDS]: a loop without a list reads the positional parameters (opaque); a
+# list of readable words, none of which is a glob that can expand to a flag, is NAME's value.
+_dhpk_ci_fs_for() {
+    _dhpk_ci_fs_split "$1"
+    local n="${#_dhpk_ci_fs_words[@]}" name="${_dhpk_ci_fs_words[1]-}" i=3 list=""
+    [ "${_dhpk_ci_fs_words[2]-}" = "in" ] || { _dhpk_ci_flag_force "$name" "@opaque"; return 0; }
+    # An empty list is a segment cut at a substitution (`...` or $(...)): its words come from a command.
+    [ "$n" -gt 3 ] || { _dhpk_ci_flag_force "$name" "@opaque"; return 0; }
+    for ((; i < n; i++)); do
+        if ! _dhpk_ci_fs_value "${_dhpk_ci_fs_raw[$i]}" || [ "$_dhpk_ci_fs_uncertain" = "1" ] \
+            || _dhpk_ci_glob_may_flag "$_dhpk_ci_fs_uq" commit; then
+            _dhpk_ci_flag_force "$name" "@opaque"
+            return 0
+        fi
+        list="$list $_dhpk_ci_fs_uq"
+    done
+    _dhpk_ci_flag_force "$name" "$list"
+}
+
+# (#1468) mapfile|readarray [OPTIONS] [NAME]: the last non-option word is the array (default MAPFILE).
+# A target built by an expansion can be any name; a plain target gets an opaque value.
+_dhpk_ci_fs_mapfile() {
+    _dhpk_ci_fs_split "$1"
+    local i=1 n="${#_dhpk_ci_fs_words[@]}" w target="MAPFILE"
+    local re_op='^[0-9]*[<>]+$' re_redir='^[0-9]*[<>]'
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_fs_words[$i]}"
+        case "${_dhpk_ci_fs_raw[$i]}" in
+            -*) case "${w: -1}" in [unOsdCc]) i=$((i + 1)) ;; esac ;;
+            *)
+                if [[ "$w" =~ $re_op ]]; then
+                    i=$((i + 1))
+                elif ! [[ "$w" =~ $re_redir ]]; then
+                    target="${_dhpk_ci_fs_raw[$i]}"
+                fi
+                ;;
+        esac
+        i=$((i + 1))
+    done
+    if [[ "$target" == *[\$\`]* ]]; then
+        _dhpk_ci_fs_anyname=1
+        return 0
+    fi
+    target="${target//[\"\'\\]/}"
+    _dhpk_ci_flag_force "${target%%\[*}" "@opaque"
+}
+
+# (#1468) declare|typeset|local|export|readonly: a name written with quotes or a backslash, or a nameref
+# (-n), is bound under a name the plain text scan does not see; a name built by an expansion can be any name.
+_dhpk_ci_fs_declare() {
+    _dhpk_ci_fs_split "$1"
+    local i=1 n="${#_dhpk_ci_fs_words[@]}" raw nameref=0 name
+    while [ "$i" -lt "$n" ]; do
+        raw="${_dhpk_ci_fs_raw[$i]}"
+        i=$((i + 1))
+        case "$raw" in
+            -*) [[ "$raw" == -*n* ]] && nameref=1; continue ;;
+        esac
+        name="${raw%%=*}"
+        if [[ "$name" == *[\$\`]* ]]; then
+            _dhpk_ci_fs_anyname=1
+        elif [ "$nameref" = "1" ] || [[ "$name" == *[\"\'\\]* ]]; then
+            name="${name//[\"\'\\]/}"
+            _dhpk_ci_flag_force "${name%%\[*}" "@opaque"
+        fi
+    done
+}
+
+# (#1468) A command that runs its words as a command (trap, eval, xargs, a shell or wrapper) can call a
+# function defined in the text with arguments this scan cannot read: the positional pool becomes opaque.
+_dhpk_ci_fs_indirect_call() {
+    [ "${_dhpk_ci_fs_nfn:-0}" -gt 0 ] || return 0
+    case "$1" in
+        trap|eval|xargs) ;;
+        *)
+            _dhpk_ci_is_shell_word "$1" || _dhpk_ci_is_wrapper_word "$1" || return 0
+            ;;
+    esac
+    local seg="${2//[\"\'\\]/}" w
+    local -a ic_a
+    read -r -a ic_a <<<"$seg"
+    for w in "${ic_a[@]}"; do
+        case "$_dhpk_ci_fs_funcs" in
+            *" $w "*) _dhpk_ci_pos_opaque=1; return 0 ;;
+        esac
+    done
 }
 
 # (#1462) Flag sources other than NAME=value, bounded and read from the text only: read here-strings,
@@ -1032,6 +1391,13 @@ _dhpk_ci_scan_flag_sources() {
     _dhpk_ci_fs_nfn=0
     text="${text//\(\)/$'\001'}"
     text="${text//[;&|()\`]/$'\n'}"
+    # (#1468) More than 1024 segments are not scanned: the pool and the default expansions fail closed.
+    local nl="${text//[^$'\n']/}"
+    if [ "${#nl}" -gt 1024 ]; then
+        _dhpk_ci_pos_opaque=1
+        _dhpk_ci_fs_overflow=1
+        return 0
+    fi
     while IFS= read -r seg; do
         segs+=("$seg")
     done <<<"$text"
@@ -1039,8 +1405,35 @@ _dhpk_ci_scan_flag_sources() {
         _dhpk_ci_fs_strip "$seg" 1
         stripped+=("$_dhpk_ci_fs_seg")
     done
+    # (#1468) The handler of an unknown command word runs with that command's words as arguments.
+    case "$_dhpk_ci_fs_funcs" in
+        *" command_not_found_handle "*) _dhpk_ci_pos_opaque=1 ;;
+    esac
     for seg in "${stripped[@]}"; do
         _dhpk_ci_fs_apply "$seg"
+    done
+    _dhpk_ci_fs_default_assigns
+}
+
+# (#1468) ${NAME:=WORD} and ${NAME=WORD} bind NAME when it is unset: a readable WORD is NAME's value,
+# any other WORD makes it opaque. Read from the whole text, so a quoted or nested form is seen too.
+_dhpk_ci_fs_default_assigns() {
+    local rest="${_dhpk_ci_cmd_text:-}" name k=0
+    local re='\$\{([A-Za-z_][A-Za-z0-9_]*):?=([^}]*)\}'
+    while [[ "$rest" =~ $re ]]; do
+        # Past 256 forms the loop (a regex over the rest of the text each round) is cut and fails closed.
+        k=$((k + 1))
+        if [ "$k" -gt 256 ]; then
+            _dhpk_ci_fs_overflow=1
+            break
+        fi
+        name="${BASH_REMATCH[1]}"
+        rest="${rest#*"${BASH_REMATCH[0]}"}"
+        if _dhpk_ci_fs_value "${BASH_REMATCH[2]}" && [ "$_dhpk_ci_fs_uncertain" != "1" ]; then
+            _dhpk_ci_flag_force "$name" " $_dhpk_ci_fs_uq"
+        else
+            _dhpk_ci_flag_force "$name" "@opaque"
+        fi
     done
 }
 
@@ -1068,7 +1461,17 @@ _dhpk_ci_scan_git_taint() {
         *) return 0 ;;
     esac
     _dhpk_ci_taint_gitassign=0
+    local n_asg=0
     while [[ "$rest" =~ $re_assign ]]; do
+        # (#1468) Past 256 assignments the loop (a regex over the rest of the text each round) is cut and
+        # every default expansion is judged as transformed.
+        n_asg=$((n_asg + 1))
+        if [ "$n_asg" -gt 256 ]; then
+            _dhpk_ci_fs_overflow=1
+            _dhpk_ci_taint_overflow=1
+            _dhpk_ci_taint_gitassign=1
+            break
+        fi
         name="${BASH_REMATCH[2]}"
         t="${BASH_REMATCH[5]}"
         [ -n "${BASH_REMATCH[4]}" ] && appended="$appended$name "
@@ -1107,6 +1510,7 @@ _dhpk_ci_scan_git_taint() {
         fi
         unset "$var"
     done
+    _dhpk_ci_bound_names="${_dhpk_ci_bound_names}${names# } "
     _dhpk_ci_scan_namerefs "$1"
     _dhpk_ci_scan_flag_sources "$1"
     rest="$1"
@@ -1154,6 +1558,7 @@ _dhpk_ci_scan_namerefs() {
 # True when the word expands a variable that holds risky git text.
 _dhpk_ci_word_uses_taint() {
     local w="$1" name re
+    [ "${_dhpk_ci_taint_overflow:-0}" = "1" ] && [[ "$w" == *'$'* ]] && return 0
     if [ "${_dhpk_ci_taint_gitassign:-0}" = "1" ]; then
         case "$w" in
             *'${!'[A-Za-z_]*) return 0 ;;
@@ -1336,6 +1741,15 @@ _dhpk_ci_fn_name_from_last() {
     _dhpk_ci_fn_pending_name="$w"
 }
 
+# (#1468) True (and the text is refused) when the function table already holds 64 entries: a text with
+# more definitions cannot be walked at a bounded cost, so it fails closed.
+_dhpk_ci_fn_table_full() {
+    [ "${#_dhpk_ci_shfn_name[@]}" -ge 64 ] || return 1
+    _dhpk_ci_fn_overflow=1
+    _dhpk_ci_unsupported "too many function definitions"
+    return 0
+}
+
 # A later definition replaces the body. The call is judged from this text.
 # fn_keep: a definition that may not run must not erase a body that is still live.
 # frozen is cleared here. A definition that cannot run seals it again.
@@ -1352,6 +1766,7 @@ _dhpk_ci_fn_reset() {
         fi
         i=$((i + 1))
     done
+    _dhpk_ci_fn_table_full && return 0
     _dhpk_ci_shfn_name+=("$name")
     _dhpk_ci_shfn_body+=("")
     _dhpk_ci_shfn_frozen+=("0")
@@ -1471,6 +1886,7 @@ _dhpk_ci_fn_compound_close() {
 # The live function table, so a subshell can redefine names and then give
 # them back. Length prefixes keep names and bodies that contain the separator.
 _dhpk_ci_fn_save_live() {
+    [ "${_dhpk_ci_fn_overflow:-0}" = 1 ] && return 0
     local i=0 n=0 out="" name body fr sep=$'\x1f'
     n="${#_dhpk_ci_shfn_name[@]}"
     out="$n"
@@ -1506,10 +1922,12 @@ _dhpk_ci_fn_set_body() {
         fi
         i=$((i + 1))
     done
+    _dhpk_ci_fn_table_full && return 0
     _dhpk_ci_shfn_name+=("$name")
     _dhpk_ci_shfn_body+=("$body")
 }
 _dhpk_ci_fn_restore_live() {
+    [ "${_dhpk_ci_fn_overflow:-0}" = 1 ] && return 0
     local raw="${_dhpk_ci_shfn_snap[$1]-}" sep=$'\x1f' n=0 i=0 len=0 name="" body="" fr=0
     _dhpk_ci_shfn_name=()
     _dhpk_ci_shfn_body=()
@@ -1657,6 +2075,7 @@ _dhpk_ci_fn_add_token() {
         fi
         return 0
     fi
+    _dhpk_ci_fn_table_full && return 0
     _dhpk_ci_shfn_name+=("$name")
     _dhpk_ci_shfn_body+=("$token")
     _dhpk_ci_shfn_frozen+=("0")
@@ -4002,12 +4421,13 @@ _dhpk_ci_unwrap_head() {
     local assign_re='^[A-Za-z_][A-Za-z0-9_]*='
     local w base tok opt oi olen och consumed allow_assign=0
     local si sn split_arg split_dyn split_tail
-    local -a _dhpk_ci_es_words _dhpk_ci_es_quoted _tail_w _tail_d _tail_q _tail_f
+    local -a _dhpk_ci_es_words _dhpk_ci_es_quoted _tail_w _tail_d _tail_q _tail_f _tail_s
     local _dhpk_ci_es_dyn=0
     _dhpk_ci_u_words=()
     _dhpk_ci_u_dyn=()
     _dhpk_ci_u_quoted=()
     _dhpk_ci_u_flat=()
+    _dhpk_ci_u_split=()
     _dhpk_ci_u_idx=0
     _dhpk_ci_u_head=""
     _dhpk_ci_u_cwd="$_dhpk_ci_cwd"
@@ -4043,6 +4463,7 @@ _dhpk_ci_unwrap_head() {
         _dhpk_ci_u_dyn+=("${_dhpk_ci_dyn[$k]}")
         _dhpk_ci_u_quoted+=("${_dhpk_ci_quoted[$k]}")
         _dhpk_ci_u_flat+=("${_dhpk_ci_words_flat[$k]}")
+        _dhpk_ci_u_split+=("${_dhpk_ci_split[$k]:-0}")
         k=$((k + 1))
     done
 
@@ -4627,11 +5048,13 @@ _dhpk_ci_unwrap_head() {
                             _tail_d=()
                             _tail_q=()
                             _tail_f=()
+                            _tail_s=()
                             while [ "$si" -lt "$sn" ]; do
                                 _tail_w+=("${_dhpk_ci_es_words[$si]}")
                                 _tail_d+=("$_dhpk_ci_es_dyn")
                                 _tail_q+=(0)
                                 _tail_f+=("${_dhpk_ci_es_words[$si]}")
+                                _tail_s+=(1)
                                 si=$((si + 1))
                             done
                             while [ "$k" -lt "$n" ]; do
@@ -4639,12 +5062,14 @@ _dhpk_ci_unwrap_head() {
                                 _tail_d+=("${_dhpk_ci_u_dyn[$k]}")
                                 _tail_q+=("${_dhpk_ci_u_quoted[$k]}")
                                 _tail_f+=("${_dhpk_ci_u_flat[$k]}")
+                                _tail_s+=("${_dhpk_ci_u_split[$k]:-0}")
                                 k=$((k + 1))
                             done
                             _dhpk_ci_u_words=(${_tail_w[@]+"${_tail_w[@]}"})
                             _dhpk_ci_u_dyn=(${_tail_d[@]+"${_tail_d[@]}"})
                             _dhpk_ci_u_quoted=(${_tail_q[@]+"${_tail_q[@]}"})
                             _dhpk_ci_u_flat=(${_tail_f[@]+"${_tail_f[@]}"})
+                            _dhpk_ci_u_split=(${_tail_s[@]+"${_tail_s[@]}"})
                             k=0
                             n="${#_dhpk_ci_u_words[@]}"
                             split_tail=1
@@ -4915,10 +5340,18 @@ _dhpk_ci_unwrap_head() {
     fi
 }
 
+# (#1468) True when the git -c / --config-env value $1 (KEY=VALUE) names core.hooksPath, or a key built by
+# an expansion (which can name it). The key is compared without case, as git does.
+_dhpk_ci_git_cfg_hooks() {
+    local key="${1%%=*}"
+    case "$key" in *[\$\`]*) return 0 ;; esac
+    [ "${key,,}" = "core.hookspath" ]
+}
+
 _dhpk_ci_record_git() {
     [ "$_dhpk_ci_u_query_only" -eq 0 ] || return 0
     local i="$_dhpk_ci_u_idx" n="${#_dhpk_ci_u_words[@]}" sub="" state="cwd"
-    local repo="$_dhpk_ci_u_cwd" c_path="" c_base="" no_verify=0 exempt=0
+    local repo="$_dhpk_ci_u_cwd" c_path="" c_base="" no_verify=0 exempt=0 hooks=0
     local word dyn
     [ "$i" -lt "$n" ] || return 0
     word="${_dhpk_ci_u_words[$i]}"
@@ -4960,12 +5393,30 @@ _dhpk_ci_record_git() {
                 fi
                 i=$((i + 1))
                 ;;
-            --git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--config-env|--list-cmds|--attr-source|--shallow-file|-c)
+            -c|--config-env)
+                state="unresolved"
+                i=$((i + 1))
+                if [ "$i" -lt "$n" ]; then
+                    _dhpk_ci_git_cfg_hooks "${_dhpk_ci_u_words[$i]}" && hooks=1
+                    i=$((i + 1))
+                fi
+                ;;
+            --git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--list-cmds|--attr-source|--shallow-file)
                 state="unresolved"
                 i=$((i + 1))
                 [ "$i" -lt "$n" ] && i=$((i + 1))
                 ;;
-            --git-dir=*|--work-tree=*|--exec-path=*|--namespace=*|--super-prefix=*|--config-env=*|--list-cmds=*|--attr-source=*|--shallow-file=*|-c*)
+            --config-env=*)
+                state="unresolved"
+                _dhpk_ci_git_cfg_hooks "${word#--config-env=}" && hooks=1
+                i=$((i + 1))
+                ;;
+            -c*)
+                state="unresolved"
+                _dhpk_ci_git_cfg_hooks "${word#-c}" && hooks=1
+                i=$((i + 1))
+                ;;
+            --git-dir=*|--work-tree=*|--exec-path=*|--namespace=*|--super-prefix=*|--list-cmds=*|--attr-source=*|--shallow-file=*)
                 state="unresolved"
                 i=$((i + 1))
                 ;;
@@ -5006,20 +5457,28 @@ _dhpk_ci_record_git() {
     while [ "$j" -lt "$n" ]; do
         word="${_dhpk_ci_u_words[$j]}"
         case "$word" in
-            --no-verify|--no-verify=*) no_verify=1 ;;
+            --no-verify|--no-verify=*|--no-veri|--no-verif|--no-veri=*|--no-verif=*) no_verify=1 ;;
             --help|-h|--dry-run|--abort|--continue|--skip|--quit) exempt=1 ;;
         esac
         if [ "$sub" = "commit" ] && _dhpk_ci_commit_short_no_verify "$word"; then
             no_verify=1
         fi
+        if [ "${_dhpk_ci_u_dyn[$j]}" != "1" ] && _dhpk_ci_glob_may_flag "$word" "$sub"; then
+            case "$sub" in commit|push) _dhpk_ci_unsupported "transformed git flag" ;; esac
+        fi
         if [ "${_dhpk_ci_u_dyn[$j]}" = "1" ]; then
-            _dhpk_ci_dyn_git_flag "$word" "$sub"
+            _dhpk_ci_dyn_git_flag "$word" "$sub" "${_dhpk_ci_u_split[$j]:-0}"
             case "$_dhpk_ci_flag_hit" in
                 no-verify) no_verify=1 ;;
                 transformed) _dhpk_ci_unsupported "transformed git flag" ;;
             esac
         fi
         if _dhpk_ci_option_consumes_next "$word"; then
+            _dhpk_ci_option_value_hit "$((j + 1))" "$sub"
+            case "$_dhpk_ci_flag_hit" in
+                no-verify) no_verify=1 ;;
+                transformed) _dhpk_ci_unsupported "transformed git flag" ;;
+            esac
             j=$((j + 2))
         else
             j=$((j + 1))
@@ -5028,6 +5487,8 @@ _dhpk_ci_record_git() {
     if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
         case "$sub" in commit|push|merge|rebase|cherry-pick|am) no_verify=2; state="unresolved" ;; esac
     fi
+    # (#1468) core.hooksPath set for this invocation skips the repository hooks like --no-verify.
+    [ "$hooks" = 1 ] && [ "$no_verify" = 0 ] && no_verify=3
     # A separate export/declare/typeset earlier in this inspection still
     # relocates git. Keep the same unresolved target as a prefix assignment.
     [ "${_dhpk_ci_git_env_sticky:-0}" -eq 1 ] && _dhpk_ci_u_git_env_unresolved=1
@@ -5296,7 +5757,7 @@ _dhpk_ci_extract_shell_c() {
 
 _dhpk_ci_flush_command() {
     local sep="$1" n h head k cond kwhead="" git_has_c forge_text cmd_idx="${#DHPK_CMD_START[@]}"
-    local -a _dhpk_ci_u_words _dhpk_ci_u_dyn _dhpk_ci_u_quoted _dhpk_ci_u_flat
+    local -a _dhpk_ci_u_words _dhpk_ci_u_dyn _dhpk_ci_u_quoted _dhpk_ci_u_flat _dhpk_ci_u_split
     local _dhpk_ci_u_idx=0 _dhpk_ci_u_head="" _dhpk_ci_u_cwd="$_dhpk_ci_cwd" _dhpk_ci_u_cwd_state="$_dhpk_ci_cwd_state"
     local _dhpk_ci_u_chdir_set=0 _dhpk_ci_u_query_only=0 _dhpk_ci_u_quoted_wrapper=0
     local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_via_xargs=0 _dhpk_ci_u_xrep="" _dhpk_ci_u_watch_opaque=0 _dhpk_ci_u_su_c_payload="" _dhpk_ci_u_su_login=0 _dhpk_ci_u_dyn_shell_c=0 _dhpk_ci_u_unsupported=""
@@ -6100,7 +6561,7 @@ _dhpk_ci_esc_byte() {
 _dhpk_ci_start_redirect() {
     case "$_dhpk_ci_word" in
         ""|*[!0-9]*) _dhpk_ci_flush_word ;;
-        *) _dhpk_ci_word=""; _dhpk_ci_word_flat=""; _dhpk_ci_word_dyn=0; _dhpk_ci_word_open=0; _dhpk_ci_word_q=0 ;;
+        *) _dhpk_ci_word=""; _dhpk_ci_word_flat=""; _dhpk_ci_word_dyn=0; _dhpk_ci_word_split=0; _dhpk_ci_word_open=0; _dhpk_ci_word_q=0 ;;
     esac
     _dhpk_ci_redir=1
 }
@@ -6663,6 +7124,15 @@ _dhpk_ci_exec_context() {
 #   at <end> to the current word and segment, and <stripped> (defaulting to
 #   raw) to DHPK_STRIPPED. A substitution that spans a newline while a heredoc
 #   is pending cannot be placed and is reported.
+# (#1468) Marks the pending word when expansion text $1 can yield several words: any expansion outside
+# double quotes, or inside them one that expands to a word list ("$@", "${a[@]}", "${!a[@]}", "${!p@}").
+_dhpk_ci_note_word_split() {
+    local re_list='\$@|\$\{@|\[@\]|@\}'
+    if [ "$_dhpk_ci_mode" != "double" ] || [[ "$1" =~ $re_list ]]; then
+        _dhpk_ci_word_split=1
+    fi
+}
+
 _dhpk_ci_sub_word() {
     local _s="$1" _e="$2" _l raw stripped
     _l=$((_e - _s))
@@ -6675,6 +7145,7 @@ _dhpk_ci_sub_word() {
     _dhpk_ci_word+="$raw"
     _dhpk_ci_word_open=1
     _dhpk_ci_word_dyn=1
+    _dhpk_ci_note_word_split "$raw"
     _dhpk_ci_seg+="$raw"
     DHPK_STRIPPED+="$stripped"
     if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
@@ -6728,8 +7199,8 @@ _dhpk_ci_list_run() {
         _dhpk_ci_make_pages
     fi
     local ch next matched _pi=-1 _p="" _o
-    local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_flat="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
-    local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted _dhpk_ci_words_flat
+    local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_flat="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_split=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
+    local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted _dhpk_ci_words_flat _dhpk_ci_split
     local -a _dhpk_ci_hs_words _dhpk_ci_hs_dyn _dhpk_ci_hs_flat _dhpk_ci_pipe_hs_flat
     local _dhpk_ci_word_q=0 _dhpk_ci_pipe_has_shell=0
     local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_any_cd=0 _dhpk_ci_case=0
@@ -6912,7 +7383,11 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_word_flat+="$ch"
                 _dhpk_ci_word_open=1
                 case "$ch" in
-                    '$'|'`') _dhpk_ci_word_dyn=1 ;;
+                    '$')
+                        _dhpk_ci_word_dyn=1
+                        if [ "$next" = "@" ]; then _dhpk_ci_word_split=1; fi
+                        ;;
+                    '`') _dhpk_ci_word_dyn=1 ;;
                 esac
             fi
             i=$((i + 1))
@@ -7271,6 +7746,7 @@ _dhpk_ci_list_run() {
                     i=$((i + 2))
                     continue
                 fi
+                _dhpk_ci_word_split=1
                 ;;
             '`')
                 _dhpk_ci_expand "$i" 0
@@ -7684,7 +8160,7 @@ dhpk_inspect_command() {
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
     _dhpk_ci_flag_clear
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_flag_names _dhpk_ci_flag_hit _dhpk_ci_cmd_text _dhpk_ci_pos_pool _dhpk_ci_pos_opaque _dhpk_ci_pos_segs _dhpk_ci_pos_words _dhpk_ci_fs_rest_len _dhpk_ci_fs_uq _dhpk_ci_fs_uncertain _dhpk_ci_fs_sv _dhpk_ci_fs_pw _dhpk_ci_fs_pr _dhpk_ci_fs_funcs _dhpk_ci_fs_nfn _dhpk_ci_fs_raw _dhpk_ci_fs_words _dhpk_ci_fs_seg _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_flag_names _dhpk_ci_flag_hit _dhpk_ci_cmd_text _dhpk_ci_pos_pool _dhpk_ci_pos_opaque _dhpk_ci_pos_segs _dhpk_ci_pos_words _dhpk_ci_bound_names _dhpk_ci_fs_anyname _dhpk_ci_fs_overflow _dhpk_ci_taint_overflow _dhpk_ci_fn_overflow _dhpk_ci_fs_rest_len _dhpk_ci_fs_uq _dhpk_ci_fs_uncertain _dhpk_ci_fs_sv _dhpk_ci_fs_pw _dhpk_ci_fs_pr _dhpk_ci_fs_funcs _dhpk_ci_fs_nfn _dhpk_ci_fs_raw _dhpk_ci_fs_words _dhpk_ci_fs_seg _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 
