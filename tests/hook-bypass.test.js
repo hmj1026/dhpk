@@ -3336,6 +3336,32 @@ const GIT_GATE_FLAG_1462 = [
   ["G10c", "o=--no-veri; git commit ${o-x} -m x"],
   ["G10d", "o=--no-veri; git commit ${o:?x} -m x"],
   ["G10e", "o=--no-veri; git push ${o:-x} origin x"],
+  ["G11a", "nv=-q; declare n''v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11b", "nv=-q; export n\"\"v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11c", "nv=-q; readonly n\\v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11d", "nv=-q; typeset n''v=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11e", "nv=-q; f() { local n''v=--no-verify; git commit ${nv:-x} -m x; }; f"],
+  ["G11f", "nv=-q; declare n''v=--no-veri; git commit ${nv:-x} -m x"],
+  ["G11g", "nv=-q; declare n''v=--no-verify; git push ${nv:-x} origin x"],
+  ["G11h", "nv=-q; declare n''v=--no-verify; git commit ${nv-x} -m x"],
+  ["G11i", "nv=-q; declare n''v=--no-verify; git commit ${nv:=x} -m x"],
+  ["G11j", "nv=-q; declare n''v=--no-verify; git commit ${nv:?x} -m x"],
+  ["G11k", "nv=-q; a=n; b=v; printf -v \"$a$b\" %s --no-verify; git commit ${nv:-x} -m x"],
+  ["G11l", "nv=-q; a=n; b=v; read -r \"$a$b\" <<< --no-verify; git commit ${nv:-x} -m x"],
+  ["G11m", "nv=-q; a=n; b=v; declare \"$a$b=--no-verify\"; git commit ${nv:-x} -m x"],
+  ["G11n", "nv=-q; a=n; b=v; export \"$a$b\"=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11o", "nv=-q; a=n; b=v; readarray -t \"$a$b\" <<< --no-verify; git commit ${nv:-x} -m x"],
+  ["G11p", "nv=-q; declare -n p=\"n\"\"v\"; p=--no-verify; git commit ${nv:-x} -m x"],
+  ["G11q", "nv=-q; a=n; b=v; unset \"$a$b\"; : ${nv:=--no-verify}; git commit ${nv:-x} -m x"],
+  ["G12a", "nv=-q; git commit ${nv:+$'\\x2d-no-verify'} -m x"],
+  ["G12b", "nv=-q; git commit \"${nv:+$'\\x2d-no-verify'}\" -m x"],
+  ["G12c", "nv=-q; git commit ${nv:-$'\\x2d-no-verify'} -m x"],
+  ["G13a", "touch ./-n; nv='-?'; git commit ${nv:-x} -m x"],
+  ["G13b", "nv='--no-v*'; git commit ${nv:-x} -m x"],
+  ["G13c", "nv='--no-verif?'; git commit ${nv:-x} -m x"],
+  ["G13d", "nv='--no-verif[y]'; git commit ${nv:-x} -m x"],
+  ["G13e", "nv='--no-v*'; git push ${nv:-x} origin x"],
+  ["G13f", "nv=--no-v*; git commit ${nv:-x} -m x"],
 ];
 
 for (const [id, command] of GIT_GATE_FLAG_1462) {
@@ -3386,6 +3412,9 @@ const GIT_GATE_REASON_1462 = [
   ['opaque-read', 'o=--no-verify; read o; git commit $o -m x', REASON_TRANSFORMED_1462],
   ['G7c', "git commit ${x:-'--no-'verify} -m x", REASON_NO_VERIFY_1462],
   ['G9a', 'o=-q; for o in --no-verify; do git push ${o:-} origin x; done', REASON_TRANSFORMED_1462],
+  ["G11a", "nv=-q; declare n''v=--no-verify; git commit ${nv:-x} -m x", REASON_TRANSFORMED_1462],
+  ["G12a", "nv=-q; git commit ${nv:+$'\\x2d-no-verify'} -m x", REASON_TRANSFORMED_1462],
+  ["G13a", "touch ./-n; nv='-?'; git commit ${nv:-x} -m x", REASON_TRANSFORMED_1462],
 ];
 
 for (const [id, command, reason] of GIT_GATE_REASON_1462) {
