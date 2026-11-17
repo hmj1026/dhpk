@@ -960,6 +960,13 @@ const positionalProofRows = [
   { id: 'P-27', command: `f() { g() { cat ${D}; }; echo "$(g)"; }; f ordinary`, status: 2 },
   { id: 'P-28', command: `f() { g() { cat ${D}; }; >/dev/null g; }; f ordinary`, status: 2 },
   { id: 'P-29', command: `f() { g() { cat ${D}; }; echo \`g\`; }; f ordinary`, status: 2 },
+  // bash calls command_not_found_handle itself for an unknown command, so the name appearing twice proves nothing.
+  { id: 'P-30', command: `command_not_found_handle() { cat ${D2}; }; command_not_found_handle a b; zzzq`, status: 2 },
+  { id: 'P-31', command: `command_not_found_handle() { cat "\${3:-.env}"; }; command_not_found_handle a b c; zzzq`, status: 2 },
+  { id: 'P-32', command: `command_not_found_handle() { cat ${D}; }; command_not_found_handle a; zzzq`, status: 2 },
+  // The function form is proven only for `DEF; CALL`: other commands before or after may re-enter the function.
+  { id: 'P-33', command: `f() { cat ${D}; }; f ordinary; echo done`, status: 2 },
+  { id: 'P-34', command: `echo start; f() { cat ${D}; }; f ordinary`, status: 2 },
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   for (const row of positionalProofRows) {
