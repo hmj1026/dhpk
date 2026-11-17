@@ -180,6 +180,9 @@ def function_names(tokens):
 
 
 LITERAL_FREE = ('{', '$', BT)
+# Words whose mention in the text keeps the fallback: `shift` rebinds, IFS splits, and these names feed tilde expansion.
+UNPROVABLE_WORDS = ('shift', 'IFS', 'HOME', 'PWD', 'OLDPWD')
+TILDE_SITES = ('=~', ':~')
 # An unquoted use of a value with white space or glob characters could split or expand into other words.
 UNSAFE_VALUE = re.compile(r'[\s*?\[]')
 SCOPE_OPENERS = frozenset(('{', '(', 'if', 'while', 'until', 'for', 'case', 'select', 'then', 'do', 'elif', 'else'))
@@ -195,7 +198,7 @@ def _definite_positionals(tokens, functions):
     definitions = _definition_count(tokens)
     if definitions > 1 or not _is_plain(tokens) or _rebinds_positionals(tokens) or _may_rebind(tokens):
         return None
-    if _mentions(tokens, 'shift') or _mentions(tokens, 'IFS') or len(functions) != definitions:
+    if any(_mentions(tokens, word) for word in UNPROVABLE_WORDS) or len(functions) != definitions:
         return None
     sources = [i for i in _head_indexes(tokens) if _is_source(tokens, i, functions)]
     if len(sources) != 1:
@@ -289,9 +292,14 @@ def _literal_positionals(words):
     if len(words) > POSITIONAL_LIMIT:
         return None
     for word in words:
-        if word.parts or word.glob or word.dynamic or word.substitution or any(mark in word.value for mark in LITERAL_FREE):
+        if word.parts or word.glob or word.dynamic or word.substitution or _expands_tilde(word.value) or any(mark in word.value for mark in LITERAL_FREE):
             return None
     return {str(position): word.value for position, word in enumerate(words, 1) if not UNSAFE_VALUE.search(word.value)}
+
+
+def _expands_tilde(value):
+    """A word that starts with `~`, or has one after `=` or `:`, is tilde-expanded at runtime."""
+    return value.startswith('~') or any(site in value for site in TILDE_SITES)
 
 
 def _definite_set(tokens, at):
