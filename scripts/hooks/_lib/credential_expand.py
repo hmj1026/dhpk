@@ -50,15 +50,49 @@ class _TooMany(Exception):
 
 def expand_variants(tokens):
     """Return alternative token lists for `tokens`, or None when no word needs resolving."""
-    if not any(token.parts for token in tokens if not token.operator):
-        return None
+    original = tokens
+    tokens = _spread_head_braces(tokens)
+    if not any(token.parts for token in tokens if not token.operator) and not _tilde_applies(tokens):
+        return None if tokens is original else [tokens]
     variables = _variables(tokens)
-    definite = _definite_positionals(tokens, function_names(tokens))
+    definite = None if tokens is not original else _definite_positionals(tokens, function_names(tokens))
     proven = None if definite is None else {**variables, _DEFINITE: definite[2]}
     alternatives = [[[token]] if token.operator else _alternatives(token, _view(variables, proven, definite, index), False, 0)
                     for index, token in enumerate(tokens)]
     _limit(alternatives, tokens)
     return [[word for part in combination for word in part] for combination in itertools.product(*alternatives)]
+
+
+def _spread_head_braces(tokens):
+    """(#1468) A brace list in command position is several words of one command (`{cat,.env}` runs `cat .env`).
+
+    Returns `tokens` itself when no command word holds a list of its own; a head word that mixes braces with
+    expansions keeps the per-alternative reading."""
+    spread = {index: words for index in _command_words(tokens) if (words := _spread_word(tokens[index]))}
+    if not spread:
+        return tokens
+    return [word for index, token in enumerate(tokens) for word in spread.get(index, [token])]
+
+
+def _spread_word(token):
+    """The words a brace-only command word stands for, or None when it is not one."""
+    if token.operator or not token.parts or any(not isinstance(part, tuple) for part in token.parts):
+        return None
+    try:
+        items = _brace_expand(_template(token.parts, []))
+    except _TooMany:
+        return [_unresolved(token)]
+    if len(items) < 2:
+        return None
+    return [replace(token, value=item.translate(RESTORE), parts=None) for item in items]
+
+
+def _tilde_applies(tokens):
+    """(#1468) A word starts a tilde (`~`, `x=~`) and the text mentions a name the tilde reads (HOME, PWD, OLDPWD)."""
+    words = [token for token in tokens if not token.operator]
+    if not any(word.value.startswith('~') or '=~' in word.value for word in words):
+        return False
+    return any(_mentions(tokens, name) for name in TILDE_NAMES.values())
 
 
 def visible_values(tokens):
@@ -143,6 +177,9 @@ def _variables(tokens):
         if nameref or found.group(1) in refs:
             refs.setdefault(found.group(1), []).extend(v[found.end():] for v in _joined(token, variables))
             continue
+        if _dynamic_sensitive(token, found.group(1)):
+            variables[found.group(1)] = _UNKNOWN  # its value feeds tilde expansion or word splitting
+            continue
         if token.substitution:
             if _substitution_is_split(tokens, index, token, found.end()):
                 variables[found.group(1)] = _UNKNOWN  # text follows the substitution in the same word
@@ -151,14 +188,30 @@ def _variables(tokens):
             if value is not None:
                 _remember(variables, found.group(1), bool(found.group(2)), value)
             continue
-        for combined in _joined(token, variables):
-            _remember(variables, found.group(1), bool(found.group(2)), combined[found.end():])
+        alternatives = _alternatives(token, variables, True, 0)
+        if any(word.unresolved for words in alternatives for word in words):
+            variables[found.group(1)] = _UNKNOWN  # (#1468) an unresolved source leaves the value unknown
+            continue
+        for words in alternatives:
+            _remember(variables, found.group(1), bool(found.group(2)), ''.join(word.value for word in words)[found.end():])
     if shifted:
         _shift_positional(variables)
     if lost:
         _forget_positional(variables, POSITIONAL_LIMIT)
     _resolve_namerefs(variables, refs)
     return variables
+
+
+TILDE = re.compile(r'~([+-]?)(?=/|$)')
+TILDE_NAMES = {'': 'HOME', '+': 'PWD', '-': 'OLDPWD'}
+SENSITIVE_NAMES = frozenset(('IFS', 'HOME', 'PWD', 'OLDPWD'))
+
+
+def _dynamic_sensitive(token, name):
+    """(#1468) True when the assignment word sets IFS, HOME, PWD or OLDPWD from an expansion or substitution."""
+    if name not in SENSITIVE_NAMES:
+        return False
+    return bool(token.substitution) or any(not isinstance(part, tuple) for part in token.parts or ())
 
 
 HEAD_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
@@ -252,12 +305,25 @@ PLAIN_OPERATORS = frozenset((';', '&&', '||', '|', '(', ')'))
 
 def _is_plain(tokens):
     """No redirection, here-doc, process or command substitution anywhere: only list operators and `()` of a definition."""
-    for token in tokens:
-        if token.operator and token.value not in PLAIN_OPERATORS:
+    for index, token in enumerate(tokens):
+        if token.operator and token.value not in PLAIN_OPERATORS and not _is_null_redirect(tokens, index):
             return False
         if not token.operator and (token.substitution or '$(' in token.value or BT in token.value):
             return False
     return True
+
+
+def _is_null_redirect(tokens, index):
+    """(#1468) A trailing `2>/dev/null` after a word: it opens no file the text can read back or write."""
+    if tokens[index].value != '>' or index < 2 or index + 1 >= len(tokens):
+        return False
+    before, previous, target = tokens[index - 1], tokens[index - 2], tokens[index + 1]
+    if before.operator or before.parts or before.value != '2' or previous.operator:
+        return False
+    if target.operator or target.parts or target.value != '/dev/null':
+        return False
+    following = tokens[index + 2] if index + 2 < len(tokens) else None
+    return following is None or (following.operator and following.value in (';', '&&', '||', '|'))
 
 
 def _definition_count(tokens):
@@ -310,10 +376,20 @@ def _definite_set(tokens, at):
         return None
     words = _words_until_operator(tokens, at + 1)
     end = at + 1 + len(words)
-    if not words or words[0].value != '--' or end >= len(tokens) or tokens[end].value != ';':
+    if not words or end >= len(tokens) or tokens[end].value != ';':
         return None
-    values = _literal_positionals(words[1:])
+    arguments = _set_operands(words)
+    if arguments is None:
+        return None
+    values = _literal_positionals(arguments)
     return None if values is None else (end + 1, len(tokens), values)
+
+
+def _set_operands(words):
+    """(#1468) The positional words of `set -- WORDS` or `set WORDS`; None when a leading option may change shell options."""
+    if words[0].value == '--':
+        return words[1:]
+    return None if words[0].value.startswith(('-', '+')) else words
 
 
 IMPLICIT_HANDLERS = frozenset(('command_not_found_handle',))
@@ -327,9 +403,11 @@ def _definite_call(tokens, at):
     """
     name = tokens[at].value
     named = [i for i, token in enumerate(tokens) if not token.operator and token.value == name]
-    if name in IMPLICIT_HANDLERS or named != [0, at] or _mentions(tokens, name) != 2:
+    if name in IMPLICIT_HANDLERS or len(named) != 2 or named[1] != at or _mentions(tokens, name) != 2:
         return None
-    body = _function_body(tokens, 0)
+    if not _output_prefix(tokens, named[0]):
+        return None
+    body = _function_body(tokens, named[0])
     words = _words_until_operator(tokens, at + 1)
     values = _literal_positionals(words)
     if body is None or values is None or at != body[1] + 2 or tokens[body[1] + 1].value != ';':
@@ -338,6 +416,35 @@ def _definite_call(tokens, at):
     if end != len(tokens) and not (end == len(tokens) - 1 and tokens[end].value == ';'):
         return None
     return (body[0], body[1], values)
+
+
+OUTPUT_HEADS = frozenset(('echo', 'printf'))
+
+
+def _output_prefix(tokens, end):
+    """(#1468) True when nothing precedes `end`, or only `;`-separated echo/printf commands of plain literal words.
+
+    Those cannot call the function, define one, or change the shell, so the definition still sits first in effect."""
+    if end == 0:
+        return True
+    if not (tokens[end - 1].operator and tokens[end - 1].value == ';'):
+        return False
+    command = []
+    for token in tokens[:end]:
+        if token.operator and token.value != ';':
+            return False
+        if token.operator:
+            if not _is_output_command(command):
+                return False
+            command = []
+        else:
+            command.append(token)
+    return True
+
+
+def _is_output_command(words):
+    return bool(words) and words[0].value in OUTPUT_HEADS and all(
+        _is_plain_word(word) and not word.value.startswith('-') for word in words)
 
 
 def _mentions(tokens, name):
@@ -433,7 +540,12 @@ def _remember_positional(variables, words):
         _forget_positional(variables, len(words))
         return
     for position, word in enumerate(words[:POSITIONAL_LIMIT], 1):
-        for value in _words(word, variables):
+        alternatives = _alternatives(word, variables, False, 0)
+        if any(w.unresolved for alternative in alternatives for w in alternative):
+            for name in (str(position), '@', '*'):
+                variables[name] = _UNKNOWN  # (#1468) the word cannot be resolved, so neither can the position
+            continue
+        for value in [w.value for alternative in alternatives for w in alternative]:
             _remember(variables, str(position), False, value)
             _remember(variables, '@', False, value)
             _remember(variables, '*', False, value)
@@ -633,12 +745,15 @@ def _remember(variables, name, append, value):
 def _alternatives(token, variables, assignment, depth):
     """Alternative word lists the shell could build from `token`."""
     if not token.parts:
-        return [[token]]
+        return _tilde_alternatives(token, variables, assignment) or [[token]]
     expansions = [part for part in token.parts if not isinstance(part, tuple)]
     literal = any(isinstance(part, tuple) for part in token.parts)
     values = [_values(part, variables, depth, literal) for part in expansions]
     if any(value is _UNRESOLVED for value in values):
         return [[_unresolved(token)]]
+    if not assignment and variables.get('IFS') in (_UNKNOWN, _OPAQUE) and any(
+            not part.quoted and value is not _KEEP for part, value in zip(expansions, values)):
+        return [[_unresolved(token)]]  # (#1468) an unseen IFS splits the value anywhere
     template = _template(token.parts, expansions)
     try:
         templates = [template] if assignment else _brace_expand(template)
@@ -648,14 +763,35 @@ def _alternatives(token, variables, assignment, depth):
     if all(value is _KEEP for value in values) and templates == [template]:
         return [[replace(token, residue=_residue(template, len(expansions)))]]
     seen, out = set(), []
+    separators = _separators(variables)
     for text in templates:
         for combination in combos:
-            words = _build(token, text, expansions, combination, assignment)
+            words = _build(token, text, expansions, combination, assignment, separators)
             key = tuple((word.value, word.glob, word.dynamic) for word in words)
             if key not in seen:
                 seen.add(key)
                 out.append(words)
     return out
+
+
+def _tilde_alternatives(token, variables, assignment):
+    """(#1468) The words a leading tilde (`~`, `~+`, `~-`) stands for when HOME, PWD or OLDPWD is visible; else None."""
+    prefix = token.value[:token.value.index('=') + 1] if assignment and '=' in token.value else ''
+    text = token.value[len(prefix):]
+    found = TILDE.match(text)
+    known = variables.get(TILDE_NAMES[found.group(1)]) if found else None
+    if known is None:
+        return None
+    if not isinstance(known, list):
+        return [[_unresolved(token)]]
+    return [[replace(token, value=prefix + value + text[found.end():])] for value in known]
+
+
+def _separators(variables):
+    """(#1468) Pattern that splits an unquoted value: white space plus every visible IFS character."""
+    ifs = variables.get('IFS')
+    chars = ' \t\n' + (''.join(ifs) if isinstance(ifs, list) else '')
+    return re.compile('[%s]+' % re.escape(chars))
 
 
 def _residue(template, count):
@@ -686,7 +822,7 @@ def _template(parts, expansions):
     return ''.join(out)
 
 
-def _build(token, template, expansions, combination, assignment):
+def _build(token, template, expansions, combination, assignment, separators):
     """Turn one filled-in template into words, splitting unquoted expansion values."""
     words, current, started, glob, dynamic = [], [], False, token.glob, False
     literal, opaque = [], False
@@ -715,7 +851,7 @@ def _build(token, template, expansions, combination, assignment):
             started = True
         else:
             glob = glob or bool(GLOB_CHARS.search(value))
-            pieces = re.split(r'[ \t\n]+', value)
+            pieces = separators.split(value)
             for position, piece in enumerate(pieces):
                 if position:
                     close()
@@ -729,6 +865,8 @@ def _build(token, template, expansions, combination, assignment):
 
 def _values(expansion, variables, depth, literal=False):
     """Candidate strings for one expansion, _KEEP when its source is not visible, or _UNRESOLVED."""
+    if expansion.name == '_':
+        return _UNRESOLVED  # (#1468) the last argument of the previous command has no visible source
     known = variables.get(expansion.name)
     op = expansion.op
     if expansion.name.startswith('!') and not op:

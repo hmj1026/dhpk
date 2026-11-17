@@ -964,9 +964,10 @@ const positionalProofRows = [
   { id: 'P-30', command: `command_not_found_handle() { cat ${D2}; }; command_not_found_handle a b; zzzq`, status: 2 },
   { id: 'P-31', command: `command_not_found_handle() { cat "\${3:-.env}"; }; command_not_found_handle a b c; zzzq`, status: 2 },
   { id: 'P-32', command: `command_not_found_handle() { cat ${D}; }; command_not_found_handle a; zzzq`, status: 2 },
-  // The function form is proven only for `DEF; CALL`: other commands before or after may re-enter the function.
+  // The function form is proven only for `DEF; CALL`, optionally after plain `;`-separated echo/printf commands
+  // (#1468: they cannot re-enter the function); other commands before or after may re-enter it.
   { id: 'P-33', command: `f() { cat ${D}; }; f ordinary; echo done`, status: 2 },
-  { id: 'P-34', command: `echo start; f() { cat ${D}; }; f ordinary`, status: 2 },
+  { id: 'P-34', command: `echo start; f() { cat ${D}; }; f ordinary`, status: 0 },
   // A glob in command position can name `set` or `shift` once a file of that name exists.
   { id: 'P-35', command: `set -- ordinary ordinary; printf se%s t | xargs touch; se[t] ordinary; cat ${D2}`, status: 2 },
   { id: 'P-36', command: `set -- ordinary; printf shif%s t | xargs touch; shif[t]; cat ${D}`, status: 2 },
@@ -988,9 +989,41 @@ const positionalProofRows = [
   { id: 'P-50', command: `PWD=.env; set -- ~+; cat ${D}`, status: 2 },
   { id: 'P-51', command: `OLDPWD=.env; set -- ~-; cat ${D}`, status: 2 },
 ];
+
+// (#1468) Tilde with a protected HOME/PWD/OLDPWD, `$_`, IFS splitting, brace lists in command position, and
+// the relaxed positional proofs. A row id is `<group>-<n>`; every row runs on both hooks.
+const rows1468 = (group, status, commands) => commands.map((command, i) => ({ id: `${group}-${i + 1}`, command, status }));
+const positionalRows1468 = [
+  ...rows1468('T4-blocked', 2, [
+    'HOME=.env; cat ~', 'HOME=.env cat ~', 'export HOME=.env; cat ~', 'PWD=.env; cat ~+', 'OLDPWD=.env; cat ~-',
+    'HOME=.env; set -- ~; cat "$1"', 'HOME=.env; x=~; cat $x', 'HOME=$X; cat ~', 'HOME=$X; set -- ~; cat "$1"', 'read HOME; cat ~',
+  ]),
+  ...rows1468('T4-allowed', 0, ['cat ~', 'HOME=/tmp; cat ~/ordinary']),
+  ...rows1468('T5-blocked', 2, [
+    'echo .env; cat $_', 'echo .env; cat ${_}', 'echo .env; cat "$_"', 'x=$_; cat $x', 'set -- $_; cat "$1"',
+    'IFS=,; x=a,.env; cat $x', 'IFS=$X; x=\'a b\'; cat $x',
+  ]),
+  ...rows1468('T5-allowed', 0, ['IFS=,; x=a,b; cat $x', 'mkdir -p d && cd "$_"']),
+  ...rows1468('T6-blocked', 2, ['{se,.en}{t,v}; cat "$3"', '{ca,.en}{t,v}', '{cat,.env}', 'f(){ cat "$1"; }; {f,.env}']),
+  ...rows1468('T6-allowed', 0, ['{cat,ordinary}']),
+  ...rows1468('FP1-relaxed', 0, [
+    `set ordinary b; cat ${D}`, `set -- ordinary; cat ${D} 2>/dev/null`,
+  ]),
+  ...rows1468('FP1-kept', 2, [
+    `set -e ordinary; cat ${D}`, `set +x ordinary; cat ${D}`, `set -o posix; cat ${D}`, `set '' b; cat ${D}`,
+    `set a; set; cat ${D}`, `set ordinary 2>/dev/null; cat ${D2}`, `set -- ordinary; 2>/dev/null . ./x.sh; cat ${D}`,
+    `set -- ordinary; t=set; 2>/dev/null $t --; cat ${D}`, `set -- ordinary; cat ${D} 2>&1`, `set -- ordinary; cat ${D} 2>/tmp/x`,
+    `printf -v x y; f() { cat ${D}; }; f ordinary`, `echo f; f() { cat ${D}; }; f ordinary`, `echo sh; f() { cat ${D}; }; f ordinary`,
+    `echo $(true); f() { cat ${D}; }; f ordinary`, `echo start && f() { cat ${D}; }; f ordinary`,
+    `echo start; f() { cat ${D2}; }; f ordinary`, `echo start; f() { cat ${D}; }; f ordinary; f`,
+    `alias echo=f; echo start; f() { cat ${D}; }; f ordinary`,
+    `set -- ordinary 2>/dev/null; cat ${D}`, `true; f() { cat ${D}; }; f ordinary`,
+  ]),
+];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
-  for (const row of positionalProofRows) {
-    test(`${hook} ${row.id} ${row.status === 0 ? 'allows' : 'blocks'} ${JSON.stringify(row.command)} (#1462)`, () => {
+  for (const row of [...positionalProofRows, ...positionalRows1468]) {
+    const issue = positionalRows1468.includes(row) ? '#1468' : '#1462';
+    test(`${hook} ${row.id} ${row.status === 0 ? 'allows' : 'blocks'} ${JSON.stringify(row.command)} (${issue})`, () => {
       const result = runHook(hook, { payload: { tool_input: { command: row.command } } });
       assert.strictEqual(result.status, row.status, `${row.id} ${JSON.stringify(row.command)}: ${result.stderr}`);
       if (row.status === 2) assert.match(result.stderr, /\[bash-guard\] blocked:/, `${row.id} ${JSON.stringify(row.command)}`);

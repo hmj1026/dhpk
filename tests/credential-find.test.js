@@ -220,6 +220,67 @@ for (const hook of HOOKS) {
   }
 }
 
+// (#1468) env split-string clusters, wrapper value clusters, text producers behind wrappers and xargs option clusters.
+// Each block lists commands judged from one cwd; blocked rows exit 2 with a blocked reason, allowed rows exit 0.
+const envSplit1468Blocked = [
+  'env --split-string=cat .env', 'env --split-str=cat .env', "env --split-str='cat .env'", "env --s='cat .env'",
+  'env -Scat .env', "env -iS 'cat .env'", "env -vS 'cat .env'", 'env -iScat .env', "env -iS 'cat\\_.env'",
+  "echo .env | env -iS 'xargs cat'", 'env -S "$X"', 'env -iS "cat $X"',
+  "find . -name .env | env -uFOOa -S 'xargs cat'", "find . -name .env | env -iuFOO -S 'xargs cat'", "env -uFOOa -S 'cat .env'",
+];
+const envSplit1468Allowed = ["env -S 'cat ordinary'", "env -iS 'cat ordinary'", 'env --split-string=cat ordinary', 'env ls -S', `X='cat ordinary'; env -S "$X"`, "env -uFOOa -S 'cat ordinary'"];
+const wrapperValue1468Blocked = [
+  'sudo -nu root find . -name .env -exec cat {} \\;', 'sudo -Eu root find . -name .env -exec cat {} \\;', "sudo -nu root bash -c 'cat .env'",
+  'stdbuf --output L find . -name .env -exec cat {} \\;', "stdbuf --output L bash -c 'cat .env'",
+  'ionice --class 3 find . -name .env -exec cat {} \\;', 'exec -a x find . -name .env -exec cat {} \\;',
+  'doas -a x find . -name .env -exec cat {} \\;', 'nsenter -t 1 find . -name .env -exec cat {} \\;',
+  'unshare -r find . -name .env -exec cat {} \\;', 'find . -name .env | sudo -nu root xargs cat',
+  'find . -name .env | stdbuf --output L xargs cat', 'find . -name .env | ionice --class 3 xargs cat',
+];
+const wrapperValue1468SubBlocked = ['sudo -nu root -D .. find . -exec cat {} +', 'nsenter -t 1 find . -exec cat {} +', 'unshare -w .. find . -exec cat {} +'];
+const wrapperValue1468SubAllowed = [
+  'sudo -nu root find . -exec cat {} +', 'sudo -Eu root find . -exec cat {} +', 'stdbuf --output L find . -exec cat {} +', 'ionice --class 3 find . -exec cat {} +',
+];
+const producer1468Blocked = [
+  'nice echo .env | xargs cat', 'env echo .env | xargs cat', 'command echo .env | xargs cat',
+  "sudo -u root printf '%s\\n' .env | xargs cat", 'env -C .. echo .env | xargs cat',
+];
+const producer1468Allowed = ['nice echo ordinary | xargs cat', 'env -C .. echo ordinary | xargs cat'];
+const xargsCluster1468Blocked = [
+  'find . -name .env | xargs -rn1 cat', 'find . -name .env -print0 | xargs -0n1 cat', 'find . -name .env | xargs --max-args 1 cat',
+  'echo .env | xargs -rn1 cat', 'echo .env | xargs -rn 1 cat', "xargs -rn1 cat <<'EOF'\n.env\nEOF",
+  "xargs -on1 echo <<'EOF'\nordinary\nEOF", "xargs -pn1 echo <<'EOF'\nordinary\nEOF",
+  'echo .env | xargs -rI{} cat {}', "printf '%s\\n' * | xargs -rn1 cat", "xargs -rn1 sh -c 'cat .env'",
+];
+const xargsCluster1468Allowed = [
+  "xargs -rn1 echo <<'EOF'\nordinary\nEOF", "xargs -0n1 echo <<'EOF'\nordinary\nEOF",
+  'echo ordinary | xargs -rn1 cat', "find . -name '*.js' | xargs -rn1 cat", "find . -name '*.js' | xargs --max-args 1 cat",
+];
+const rows1468 = [
+  ['blocked', 'env split', FIXTURE_CWD, envSplit1468Blocked], ['allowed', 'env split', FIXTURE_CWD, envSplit1468Allowed],
+  ['blocked', 'wrapper value cluster', FIXTURE_CWD, wrapperValue1468Blocked],
+  ['blocked', 'wrapper value cluster from a subdirectory', SUB_CWD, wrapperValue1468SubBlocked],
+  ['allowed', 'wrapper value cluster from a subdirectory', SUB_CWD, wrapperValue1468SubAllowed],
+  ['blocked', 'wrapped text producer', FIXTURE_CWD, producer1468Blocked], ['allowed', 'wrapped text producer', FIXTURE_CWD, producer1468Allowed],
+  ['blocked', 'xargs option cluster', FIXTURE_CWD, xargsCluster1468Blocked], ['allowed', 'xargs option cluster', FIXTURE_CWD, xargsCluster1468Allowed],
+];
+for (const hook of HOOKS) {
+  for (const [kind, label, cwd, commands] of rows1468) {
+    test(`${hook} ${kind === 'blocked' ? 'blocks' : 'allows'} ${label} (#1468)`, () => {
+      for (const command of commands) {
+        const result = decide(hook, command, cwd);
+        assert.strictEqual(result.status, kind === 'blocked' ? 2 : 0, `${JSON.stringify(command)}: ${result.stderr}`);
+        if (kind === 'blocked') assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
+      }
+    });
+  }
+  test(`${hook} reports an ambiguous env split string for a dynamic source (#1468)`, () => {
+    const result = decide(hook, 'env -S "$X"');
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /ambiguous read target: env split string/);
+  });
+}
+
 for (const hook of HOOKS) {
   test(`${hook} names the recursive scan in the W1 reason and the protected path in the X1 reason (#1462)`, () => {
     const w1 = decide(hook, 'busybox find . -exec cat {} +');

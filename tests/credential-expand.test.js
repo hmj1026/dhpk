@@ -75,6 +75,12 @@ const rows = [
   ['f=.env; cat ${f#x}', ['<f=.env> <cat> <${f#x}>?']],
   ['cat ${f#x}', ['<cat> <${f#x}>']],
   ['f=.env; cat ${f:0:2}', ['<f=.env> <cat> <${f:0:2}>?']],
+  // (#1468) a tilde follows a visible HOME, PWD or OLDPWD; `$_` has no visible source; IFS splits; brace words at the head stay one command
+  ['HOME=.env; cat ~', ['<HOME=.env> <cat> <.env>']],
+  ['cat ~', null],
+  ['echo .env; cat $_', ['<echo> <.env> <cat> <$_>?']],
+  ['IFS=,; x=a,.env; cat $x', ['<IFS=,> <x=a,.env> <cat> <a> <.env>']],
+  ['{cat,.env}', ['<cat> <.env>']],
 ];
 
 test('expand_variants resolves visible brace lists, assignments and parameter defaults (#1427)', () => {
