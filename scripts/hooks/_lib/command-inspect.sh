@@ -174,6 +174,17 @@ _dhpk_ci_flush_word() {
     _dhpk_ci_word_q=0
 }
 
+# (#1468) True when word $1 is a long option with its value attached (--message=VALUE) and the word has no
+# expansion that can split (arg 2 is its split mark): the whole word is that option's one argument, never
+# a separate flag. A split-capable word (--message="a "$1) is judged like any other dynamic word.
+_dhpk_ci_attached_value_word() {
+    [ "$2" = "1" ] && return 1
+    case "$1" in
+        --*=*) _dhpk_ci_option_consumes_next "${1%%=*}" ;;
+        *) return 1 ;;
+    esac
+}
+
 # (#1468) The value word of an option that takes one (word index $1, subcommand $2) is no flag, unless its
 # expansion can split into several words: then the rest of the words are arguments. Such a word is judged
 # like any other dynamic word. Sets _dhpk_ci_flag_hit.
@@ -5466,7 +5477,7 @@ _dhpk_ci_record_git() {
         if [ "${_dhpk_ci_u_dyn[$j]}" != "1" ] && _dhpk_ci_glob_may_flag "$word" "$sub"; then
             case "$sub" in commit|push) _dhpk_ci_unsupported "transformed git flag" ;; esac
         fi
-        if [ "${_dhpk_ci_u_dyn[$j]}" = "1" ]; then
+        if [ "${_dhpk_ci_u_dyn[$j]}" = "1" ] && ! _dhpk_ci_attached_value_word "$word" "${_dhpk_ci_u_split[$j]:-0}"; then
             _dhpk_ci_dyn_git_flag "$word" "$sub" "${_dhpk_ci_u_split[$j]:-0}"
             case "$_dhpk_ci_flag_hit" in
                 no-verify) no_verify=1 ;;
