@@ -39,6 +39,8 @@ _KEEP = object()
 _UNRESOLVED = object()
 # A name set by `read` or `printf -v`: its value is unseen, so a word that mixes it with literal text is blocked.
 _OPAQUE = object()
+# (#1462) Key in a copy of the variables: the positionals the text proves set, as {position: literal}.
+_DEFINITE = object()
 BT = chr(96)
 
 
@@ -51,7 +53,9 @@ def expand_variants(tokens):
     if not any(token.parts for token in tokens if not token.operator):
         return None
     variables = _variables(tokens)
-    alternatives = [[[token]] if token.operator else _alternatives(token, variables, False, 0) for token in tokens]
+    definite = _definite_positionals(tokens, function_names(tokens))
+    alternatives = [[[token]] if token.operator else _alternatives(token, _scoped(variables, definite, index), False, 0)
+                    for index, token in enumerate(tokens)]
     _limit(alternatives, tokens)
     return [[word for part in combination for word in part] for combination in itertools.product(*alternatives)]
 
@@ -59,6 +63,13 @@ def expand_variants(tokens):
 def visible_values(tokens):
     """(#1450) Values each name may hold as plain strings; a name with too many values is left out."""
     return {name: list(values) for name, values in _variables(tokens).items() if values not in (_UNKNOWN, _OPAQUE)}
+
+
+def _scoped(variables, definite, index):
+    """The variables a token at `index` sees: a copy that also carries the proven positionals inside their range."""
+    if definite is None or not definite[0] <= index < definite[1]:
+        return variables
+    return {**variables, _DEFINITE: definite[2]}
 
 
 def _limit(alternatives, tokens):
@@ -165,6 +176,112 @@ def function_names(tokens):
         elif len(following) == 2 and [(t.operator, t.value) for t in following] == [(True, '('), (True, ')')]:
             defined.add(token.value)
     return defined
+
+
+LITERAL_FREE = ('{', '$', BT)
+SCOPE_OPENERS = frozenset(('{', '(', 'if', 'while', 'until', 'for', 'case', 'select', 'then', 'do', 'elif', 'else'))
+
+
+def _definite_positionals(tokens, functions):
+    """(#1462) (start, end, {position: literal}) when the text proves what the positionals hold, else None.
+
+    Applies only with one positional source in the whole text (one `set --` or one call of a function defined
+    once), no `shift` or `for name;` loop, and plain literal words. The range is where those values hold.
+    """
+    if _rebinds_positionals(tokens):
+        return None
+    sources = [i for i in _head_indexes(tokens) if _is_source(tokens, i, functions)]
+    if len(sources) != 1:
+        return None
+    at = sources[0]
+    if tokens[at].value == 'set':
+        return None if functions else _definite_set(tokens, at)
+    return _definite_call(tokens, at)
+
+
+def _head_indexes(tokens):
+    head = True
+    for index, token in enumerate(tokens):
+        if token.operator:
+            head = head or token.value in HEAD_OPERATORS
+        elif head and token.value not in HEAD_KEEPERS and not ASSIGNMENT.match(token.value):
+            head = False
+            yield index
+
+
+def _is_source(tokens, index, functions):
+    word = tokens[index].value
+    if word == 'set':
+        return True
+    return word in functions and not _is_definition_head(tokens, index)
+
+
+def _is_definition_head(tokens, index):
+    following = tokens[index + 1:index + 3]
+    return [(t.operator, t.value) for t in following] == [(True, '('), (True, ')')]
+
+
+def _rebinds_positionals(tokens):
+    """A `shift` or a `for name;` loop changes which value `$1` holds, so no position is proven."""
+    for index, token in enumerate(tokens):
+        if token.operator:
+            continue
+        if token.value == 'shift':
+            return True
+        if token.value == 'for' and index + 2 < len(tokens) and not tokens[index + 1].operator and tokens[index + 2].value == ';' and tokens[index + 2].operator:
+            return True
+    return False
+
+
+def _literal_positionals(words):
+    """{position: value} when every word is a plain literal that fits the tracked positions, else None."""
+    if len(words) > POSITIONAL_LIMIT:
+        return None
+    for word in words:
+        if word.parts or word.glob or word.dynamic or word.substitution or any(mark in word.value for mark in LITERAL_FREE):
+            return None
+    return {str(position): word.value for position, word in enumerate(words, 1)}
+
+
+def _definite_set(tokens, at):
+    """A top-level `set -- WORDS;` followed by the rest of the text."""
+    if at and not (tokens[at - 1].operator and tokens[at - 1].value == ';'):
+        return None
+    if any(token.value in SCOPE_OPENERS for token in tokens[:at]):
+        return None
+    words = _words_until_operator(tokens, at + 1)
+    end = at + 1 + len(words)
+    if not words or words[0].value != '--' or end >= len(tokens) or tokens[end].value != ';':
+        return None
+    values = _literal_positionals(words[1:])
+    return None if values is None else (end + 1, len(tokens), values)
+
+
+def _definite_call(tokens, at):
+    """The one call of a function defined once before it: the positionals hold within the function body."""
+    name = tokens[at].value
+    named = [i for i, token in enumerate(tokens) if not token.operator and token.value == name]
+    if len(named) != 2 or any(name in re.findall(r'\w+', token.substitution) for token in tokens):
+        return None
+    body = _function_body(tokens, named[0])
+    values = _literal_positionals(_words_until_operator(tokens, at + 1))
+    if body is None or values is None or named[1] != at or at < body[1]:
+        return None
+    return (body[0], body[1], values)
+
+
+def _function_body(tokens, index):
+    """(first, closing) token indexes of the `{ ... }` body of `name() { ... }` at `index`, or None."""
+    if not _is_definition_head(tokens, index) or index + 3 >= len(tokens) or tokens[index + 3].operator or tokens[index + 3].value != '{':
+        return None
+    depth = 0
+    for end in range(index + 3, len(tokens)):
+        if tokens[end].operator:
+            continue
+        depth += {'{': 1, '}': -1}.get(tokens[end].value, 0)
+        if not depth:
+            return (index + 4, end)
+    return None
 
 
 def _words_until_operator(tokens, index):
@@ -555,12 +672,26 @@ def _values(expansion, variables, depth, literal=False):
         return _KEEP if known is None else known
     if op in (':?', '?'):
         return _KEEP if known is None else known
+    proven = _proven_value(expansion, variables)
+    if proven is not None:
+        return [proven]
     given = _argument(expansion.arg, variables, depth + 1)
     if given is _UNRESOLVED:
         return _UNRESOLVED
     if op in (':+', '+'):
         return given + [''] if '' not in given else given
     return list(known or []) + [value for value in given if value not in (known or [])]
+
+
+def _proven_value(expansion, variables):
+    """(#1462) The value a default is not used for: the name is proven set (to a non-empty word for `:-`)."""
+    proven = variables.get(_DEFINITE)
+    if not proven or expansion.name not in proven:
+        return None
+    value = proven[expansion.name]
+    if expansion.op in (':-', ':=') and value or expansion.op in ('-', '='):
+        return value
+    return None
 
 
 def _argument(arg, variables, depth):

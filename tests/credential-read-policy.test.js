@@ -911,4 +911,31 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
+// (#1462) A positional parameter that is visibly set to a non-empty literal never uses its protected fallback.
+// Each row is judged on its own: the Protected Path comes from the fallback only when the text cannot prove the value.
+const positionalSetAllowed = [
+  'set -- ordinary; cat "${1:-.env}"', 'f() { cat "${1:-.env}"; }; f ordinary', "set -- ''; cat \"${1-.env}\"",
+];
+const positionalSetBlocked = [
+  "set -- ''; cat \"${1:-.env}\"", 'f(){ cat "${1:-.env}"; }; f ordinary; f', 'set -- a; shift; cat "${1:-.env}"',
+  'cat "${1:-.env}"; set -- a', 'true && set -- a; cat "${1:-.env}"', 'set -- $x; cat "${1:-.env}"',
+  'set -- a; f(){ cat "${1:-.env}"; }; f', 'cat "${1:-.env}"', 'cat .env',
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
+  test(`${hook} allows a positional default when the parameter is visibly set (#1462)`, () => {
+    for (const command of positionalSetAllowed) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+  test(`${hook} keeps blocking a positional default the text cannot prove set (#1462)`, () => {
+    for (const command of positionalSetBlocked) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
+    }
+  });
+}
+
 run('credential-read-policy');
