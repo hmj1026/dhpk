@@ -180,6 +180,8 @@ def function_names(tokens):
 
 
 LITERAL_FREE = ('{', '$', BT)
+# An unquoted use of a value with white space or glob characters could split or expand into other words.
+UNSAFE_VALUE = re.compile(r'[\s*?\[]')
 SCOPE_OPENERS = frozenset(('{', '(', 'if', 'while', 'until', 'for', 'case', 'select', 'then', 'do', 'elif', 'else'))
 
 
@@ -193,7 +195,7 @@ def _definite_positionals(tokens, functions):
     definitions = _definition_count(tokens)
     if definitions > 1 or not _is_plain(tokens) or _rebinds_positionals(tokens) or _may_rebind(tokens):
         return None
-    if _mentions(tokens, 'shift') or len(functions) != definitions:
+    if _mentions(tokens, 'shift') or _mentions(tokens, 'IFS') or len(functions) != definitions:
         return None
     sources = [i for i in _head_indexes(tokens) if _is_source(tokens, i, functions)]
     if len(sources) != 1:
@@ -272,11 +274,14 @@ def _may_rebind(tokens):
     words = [token for token in tokens if not token.operator]
     if any(word.value in REBINDERS or INTERPRETER.fullmatch(word.value.rsplit('/', 1)[-1]) for word in words):
         return True
-    return any(_is_dynamic_head(tokens[i]) or tokens[i].value == '.' for i in _head_indexes(tokens))
+    return any(not _is_plain_word(tokens[i]) or tokens[i].value == '.' for i in _head_indexes(tokens))
 
 
-def _is_dynamic_head(token):
-    return bool(token.parts or token.dynamic or '$' in token.value or BT in token.value)
+def _is_plain_word(token):
+    """An unquoted literal with no glob, brace, tilde, quote, escape or expansion: it cannot name a hidden command."""
+    if token.parts or token.glob or token.dynamic or token.substitution or token.value.startswith('~'):
+        return False
+    return not any(mark in token.value for mark in '*?[{\\\'"$' + BT)
 
 
 def _literal_positionals(words):
@@ -286,7 +291,7 @@ def _literal_positionals(words):
     for word in words:
         if word.parts or word.glob or word.dynamic or word.substitution or any(mark in word.value for mark in LITERAL_FREE):
             return None
-    return {str(position): word.value for position, word in enumerate(words, 1)}
+    return {str(position): word.value for position, word in enumerate(words, 1) if not UNSAFE_VALUE.search(word.value)}
 
 
 def _definite_set(tokens, at):
