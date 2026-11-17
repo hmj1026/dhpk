@@ -35,3 +35,15 @@ sensitive token (a Protected Path, or the word `git` in command position) appear
   accepted, with a pointer to this ADR.
 - When guards disagree about one command, the result follows how bash parses
   that command. The guard layers share one parser so they cannot disagree.
+- A bypass report inside the scope is accepted only with the command an agent
+  produced in a real session. A shape that a review constructed to defeat the
+  guard is closed as accepted (#1473): write-then-execute, an interpreter code
+  string, and removing `.git/hooks/pre-commit` stay open by this decision, so
+  closing one more shell or git-config variant does not make a deliberate
+  bypass harder. From #1380 to #1468 such reports grew the shared parser from
+  about 500 to 8,251 lines and added false blocks.
+- A false block of a legitimate command is always accepted as a bug.
+- Reviews of guard changes check for regressions and false blocks. They are
+  not asked to search for new bypass shapes.
+- Verification that must hold against a deliberate bypass belongs on the
+  server: a required status check on the protected branch.
