@@ -537,10 +537,9 @@ switched.
 
 ### Flow Drive legacy invocation migration
 
-Current Flow Drive has no runtime option parser or runner compatibility layer.
-Its migration reference lists each retired invocation form and points to the
-pinned release for users who need those interfaces. This new entry does not
-change behavior or resolve defects in earlier releases.
+Flow Drive has no runtime option parser or runner compatibility layer. When a
+user passes an older invocation form, point them to the Flow Drive migration
+reference, which names the pinned release that still accepts it.
 
 ### High-stakes second opinion after flag retirement
 
