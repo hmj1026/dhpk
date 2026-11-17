@@ -1988,7 +1988,11 @@ function publishManagedCandidate({
       }
       const target = path.join(backup, 'bindings', binding.path);
       backUp(source, target, 'transaction binding backup target');
-      if (adoption && (!lstatOrNull(target).isSymbolicLink() || fs.readlinkSync(target) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding backup changed: ${binding.path}`);
+      if ((adoption || !candidateBindingSet.has(binding.path))
+        && (!lstatOrNull(target) || !lstatOrNull(target).isSymbolicLink() || fs.readlinkSync(target) !== binding.target)) {
+        // Rolling back below puts the moved entry back where it was.
+        throw fail('MANAGED_CONTENT_CHANGED', `${adoption ? 'adoption' : 'receipt-owned'} binding backup changed: ${binding.path}`, { paths: [binding.path] });
+      }
     }
     if (oldRollback) recordRename(tx, rollbackRoot, path.join(backup, 'rollback'));
     recordRemoveEmptyDirectories(tx, roots.managedRoot);
