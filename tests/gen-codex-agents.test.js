@@ -436,6 +436,25 @@ test('generated planner keeps its inline verdict protocol without a review artif
   }
 });
 
+test('planner reply contract uses telegraphic caps with an overflow rule, not token caps', () => {
+  const sources = {
+    'agents/planner.md': fs.readFileSync(path.join(ROOT, 'agents', 'planner.md'), 'utf8'),
+    'codex/agents/planner.toml': fs.readFileSync(path.join(ROOT, 'codex', 'agents', 'planner.toml'), 'utf8'),
+  };
+  for (const [name, text] of Object.entries(sources)) {
+    assert.doesNotMatch(text, /400-token/, `${name} keeps a 400-token cap`);
+    assert.doesNotMatch(text, /≤\s*400 tokens/, `${name} keeps a ≤400 tokens cap`);
+    assert.doesNotMatch(text, /≤\s*200 tokens/, `${name} keeps a ≤200 tokens cap`);
+    assert.doesNotMatch(text, /no full-plan/, `${name} keeps the no full-plan exception`);
+    for (const kept of [/VERDICT:/, /CONSULT USE:/, /\bEND\b/, /RISKS: ≤2/, /CHECKPOINTS: ≤2/,
+      /MUST-FIX: ≤5/, /SHOULD-FIX: ≤3/, /PLAN AUDIT:/]) {
+      assert.match(text, kept, `${name} lost ${kept}`);
+    }
+    assert.match(text, /most critical/, `${name} lacks the overflow rule`);
+    assert.match(text, /never omit/i, `${name} lacks the never-omit protocol guard`);
+  }
+});
+
 test('generated deep reasoner keeps its inline conclusion contract without a review artifact requirement', () => {
   const root = cloneGeneratorFixture('gen-codex-reasoner-inline');
   try {
