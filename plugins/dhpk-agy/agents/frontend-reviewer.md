@@ -1,7 +1,7 @@
 ---
 name: frontend-reviewer
 description: >-
-  Frontend reviewer for legacy or progressive JS/TS bundles. Use PROACTIVELY
+  Frontend reviewer for legacy or progressive JS/TS bundles. Use
   after editing any frontend-tier `*.{js,ts,jsx,tsx,vue,svelte}` file, or after
   touching `<script>` blocks inside server-side template files (PHP / ERB /
   Twig / Razor — path matching can't detect view-embedded script edits, so AI
