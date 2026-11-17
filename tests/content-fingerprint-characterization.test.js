@@ -249,6 +249,7 @@ test('row 10: publisher receipt is tree-merkle-v1 over real skills and an unsupp
     const result = spawnSync(process.execPath, [
       path.join(ROOT, 'scripts', 'ci', 'gen-agents-skills.js'),
       '--source-root', ROOT, '--project-root', project, '--profile', 'portable-core',
+      '--claude-plugin-state', 'inactive',
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
     const receiptPath = path.join(project, '.agents', '.dhpk-installed.json');

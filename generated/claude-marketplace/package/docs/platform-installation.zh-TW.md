@@ -635,6 +635,50 @@ project probe。Codex 的官方位置仍是
 plugin package 內。這些 platform-native projection 仍由 canonical `agents/` 與
 `rules/` 產生。
 
+### Claude plugin 與 project binding
+
+官方 Claude plugin `dhpk@dhpk` 對該專案已啟用、且它的 package catalog 提供某個已選取的
+Skill Identity 時，專案不得再發佈重複的 `.claude/skills/<name>` binding
+（[ADR-0039](adr/0039-claude-plugin-provision-gates-project-bindings.md)）。
+`gen-agents-skills.js` 會在專案根目錄執行 `claude plugin list --json`，再用 Host 回報的
+安裝根目錄中的 catalog（`provenance.json`，plugin 0.69.0 以上）比對 stable ID。共用的
+`.agents/skills`、`.agents/claude-skills` sibling、receipt 的選取集合，以及 Codex／
+Cursor／AGY 的 binding 都不變；只撤回 Claude binding，並在對應的 receipt entry 標記
+`claudePluginProvided`。
+
+| 狀態 | 意義 | Claude project binding |
+| --- | --- | --- |
+| `ENABLED` | 所有適用的 plugin record 皆已啟用且 catalog 驗證通過 | plugin 提供的 identity 撤回，其餘照常發佈 |
+| `DISABLED`、`NOT_APPLICABLE`、`ABSENT`、`INACTIVE` | plugin 已停用、只裝在別的專案、未安裝，或使用 `--claude-plugin-state inactive` | 全部發佈，先前撤回的會還原 |
+| `CLI_NOT_INSTALLED` | 沒有 `claude` 指令 | 視同 `ABSENT`；若 receipt 已有撤回紀錄則視同 `UNKNOWN` |
+| `UNKNOWN` | CLI 失敗、逾時、輸出格式不良、record 互相矛盾、有載入錯誤，或 catalog 缺少／漂移 | 不刪除也不還原；若本次會新增 Claude binding，以 `CLAUDE_PLUGIN_STATE_UNKNOWN` 停止 |
+
+撤回只移除 receipt 擁有、且仍指向 receipt 記錄位置的 symlink。連結被改指向或被換掉會以
+`MANAGED_CONTENT_CHANGED` 停止；該路徑上不屬於 receipt 的項目原樣保留並回報
+`UNOWNED_ENTRY_PRESERVED`。還原時若路徑上有外來項目，以 `GENERATED_PATH_COLLISION` 停止。
+plugin 的名稱與某個已選取 skill 相同、stable ID 卻不同時，照常發佈並回報
+`SAME_NAME_DIFFERENT_IDENTITY`。
+
+執行結果會印出 `Claude plugin dhpk@dhpk: <狀態>; withdrew N, restored M project bindings`。
+可用 `--claude-plugin-state inactive`（或 `DHPK_CLAUDE_PLUGIN_STATE=inactive`，旗標優先）
+略過檢查，預設為 `auto`；`DHPK_CLAUDE_PROBE_TIMEOUT_MS` 可調整 30 秒的探測上限。`claude` 指令只從 `PATH` 中的絕對路徑
+項目解析，且絕不使用專案根目錄內的檔案；找不到合格者時狀態為 `CLI_NOT_INSTALLED`。若 `claude` 只存在於專案根目錄內，狀態為
+`UNKNOWN`（原因 `CLAUDE_CLI_INSIDE_PROJECT`；plugin 在該專案確定未啟用時改用
+`--claude-plugin-state inactive`）。plugin 各根目錄的版本或 identity 不一致時為
+`UNKNOWN`（`PLUGIN_ROOTS_DISAGREE`）；只有 catalog 雜湊不同不算不一致，記錄的雜湊取自
+Host 實際讀取的根目錄（`readFromFolder`，否則 `installPath`）。Host
+回報的 `enabled` 已實測（Claude Code 2.1.326）是以工作目錄計算的有效值，但 Host 並未
+文件化這點。Codex 與 Cursor 安裝程式不做探測，只沿用 receipt 中記錄的撤回。
+
+`--rollback` 會精確還原 snapshot；退回到撤回之前的狀態會在 plugin 仍啟用時重建重複連結，
+下一次以 Claude 為目標的執行會再撤回一次。
+
+若以 `CLAUDE_PLUGIN_STATE_UNKNOWN` 停止：
+
+1. 讓 `claude plugin list --json` 能在該專案內正常執行。
+2. 若該專案確定沒有啟用 `dhpk@dhpk`，改用 `--claude-plugin-state inactive` 重跑。
+3. 把 plugin 更新到 0.69.0 以上，catalog 從該版本開始提供。
+
 ### 中斷的安裝與明確復原
 
 Codex 或 Cursor 的 install、update、uninstall 是跨 native installer 與 shared
@@ -679,6 +723,9 @@ installer 把 native 與 shared projection 的步驟記錄在同一個 Projectio
   項目就以 `2` 結束。
 
 ### 復原 receipt-owned shared skills
+
+已啟用的 plugin 提供的 identity 缺少 `.claude/skills/<name>` 連結是預期行為，見
+[Claude plugin 與 project binding](#claude-plugin-與-project-binding)。
 
 當 `.agents/skills/` 下原本受管理的 skill 目錄被換成 symlink，或 receipt-owned
 檔案遺失時，依此程序處理。更新會拒絕這兩種狀態；只移除 symlink 不會恢復

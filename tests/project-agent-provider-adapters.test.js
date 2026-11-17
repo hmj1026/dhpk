@@ -245,6 +245,28 @@ const { test, run, assert } = require('./_lib/tinytest');
     assert.strictEqual(adapter.kind, 'direct');
     assert.deepStrictEqual(adapter.entries, [{ stableId: 'sample', name: 'dhpk-sample' }]);
   });
+
+  test('testClaudeAdapter_filtersPluginProvided', () => {
+    const entries = [
+      { stableId: 'provided', name: 'dhpk-provided', claudePluginProvided: true },
+      { stableId: 'local', name: 'dhpk-local' },
+    ];
+    const adapter = createClaudeProjectDiscoveryAdapter({ entries });
+    assert.deepStrictEqual(adapter.entries.map((entry) => entry.stableId), ['local']);
+    const adapters = createProjectAgentProviderAdapters(bindings(), { entries });
+    assert.deepStrictEqual(adapters.forHost.claude.discovery.entries.map((entry) => entry.stableId), ['local']);
+  });
+
+  test('testCodexCursorAdapters_ignorePluginProvidedFlag', () => {
+    const entries = [
+      { stableId: 'provided', name: 'dhpk-provided', claudePluginProvided: true },
+      { stableId: 'local', name: 'dhpk-local' },
+    ];
+    const adapters = createProjectAgentProviderAdapters(bindings(), { entries });
+    const expected = ['local', 'provided'];
+    assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), expected);
+    assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), expected);
+  });
 }
 
 {

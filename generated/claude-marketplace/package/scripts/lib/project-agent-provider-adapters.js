@@ -10,6 +10,7 @@ const {
   DIRECT_SHAPE,
   NATIVE_LINK_SHAPE,
   discoveryVisibleEntries,
+  claudeProjectBindingEntries,
   selectedAdapterEntries,
 } = require('./project-agent-host-binding-policy');
 
@@ -186,7 +187,7 @@ function createClaudeProjectDiscoveryAdapter({
   sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
   destinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
 } = {}) {
-  return createProjectDiscoveryAdapter({
+  const adapter = createProjectDiscoveryAdapter({
     id: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
     version: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
     entries,
@@ -194,6 +195,8 @@ function createClaudeProjectDiscoveryAdapter({
     destinationRoot,
     hostLabel: 'Claude',
   });
+  adapter.entries = claudeProjectBindingEntries(adapter.entries, entries);
+  return adapter;
 }
 
 function nativeLinkBindingShape(requested, recorded) {

@@ -169,7 +169,9 @@ adapter。不帶參數的 wrapper 保留 checkout 內的 compatibility tree；ex
 路徑則在同一個 receipt-owned root 產生 Codex/Cursor directory-shaped
 `<name>/SKILL.md` 與 Antigravity direct `<name>.md` adapter。唯一 lifecycle receipt
 是 `.agents/.dhpk-installed.json`；選取 Claude 時，會在
-`.claude/skills/<name>` 建立指向 generated artifact 的 symlink discovery adapter。
+`.claude/skills/<name>` 建立指向 generated artifact 的 symlink discovery adapter；
+但已啟用的官方 `dhpk@dhpk` plugin 已提供的 Skill Identity 仍保留選取，不再發佈
+project binding（[ADR-0039](adr/0039-claude-plugin-provision-gates-project-bindings.md)）。
 AGY adapter 預設是 self-contained；只有通過 consumer probe 才能使用 sibling package
 reference。它不會把 canonical skill 改成新 owner，也不會把 `.agents/agents` 或
 `.agents/rules` 宣稱為官方路徑；Codex、Cursor、AGY 的 agent/rule projection 仍保留
