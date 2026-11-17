@@ -3302,7 +3302,8 @@ const GIT_GATE_FLAG_1462 = [
   ['G5', 'o=p; p=--no-verify; git commit ${!o} -m x'],
   ['B1', 'git commit --no-verify -m x'],
   ['default-short', 'git commit ${x:--n} -m x'],
-  ['opaque-read', 'read o < f; git commit $o -m x'],
+  ['opaque-read', 'o=--no-verify; read o; git commit $o -m x'],
+  ['read-overrides-benign', 'o=--amend; read o <<< --no-verify; git commit $o -m x'],
 ];
 
 for (const [id, command] of GIT_GATE_FLAG_1462) {
@@ -3326,6 +3327,8 @@ const GIT_GATE_ALLOWED_1462 = [
   ['C8', 'f() { git commit "$@"; }; f --amend -m x'],
   ['C9', 'o=p; p=--amend; git commit ${!o} -m x'],
   ['msg-arg', 'f(){ git commit "$@"; }; f -m "$msg"'],
+  ['unknown-read', 'read b; git push origin $b'],
+  ['unknown-read-file', 'read o < f; git commit $o -m x'],
 ];
 
 for (const [id, command] of GIT_GATE_ALLOWED_1462) {

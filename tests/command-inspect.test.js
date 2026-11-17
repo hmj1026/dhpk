@@ -788,7 +788,10 @@ const FLAG_SOURCE_BLOCK_1462 = [
   ['B1', 'git commit --no-verify -m x'],
   ['default-short', 'git commit ${x:--n} -m x'],
   ['default-long', 'git commit ${x:---no-verify} -m x'],
-  ['opaque-read', 'read o < f; git commit $o -m x'],
+  ['opaque-read', 'o=--no-verify; read o; git commit $o -m x'],
+  ['opaque-here-string', 'x=--no-verify; read o <<< "$x"; git commit $o -m x'],
+  ['opaque-printf', 'o=--no-verify; printf -v o %s "$y"; git commit $o -m x'],
+  ['printf-flagged-literal', 'printf -v o "%s%s" --no-verify; git commit $o -m x'],
   ['read-overrides-benign', 'o=--amend; read o <<< --no-verify; git commit $o -m x'],
 ];
 
@@ -811,6 +814,10 @@ const FLAG_SOURCE_ALLOW_1462 = [
   ['C8', 'f() { git commit "$@"; }; f --amend -m x'],
   ['C9', 'o=p; p=--amend; git commit ${!o} -m x'],
   ['msg-arg', 'f(){ git commit "$@"; }; f -m "$msg"'],
+  ['unknown-read', 'read b; git push origin $b'],
+  ['unknown-read-file', 'read o < f; git commit $o -m x'],
+  ['unknown-here-string', 'read o <<< "$x"; git commit $o -m x'],
+  ['unknown-printf', 'printf -v o "%s%s" "$y"; git commit $o -m x'],
   ['default-benign', 'git commit ${x:---amend} -m x'],
 ];
 
@@ -822,8 +829,8 @@ for (const [id, command] of FLAG_SOURCE_ALLOW_1462) {
   });
 }
 
-test('#1462 opaque read source reports a transformed git flag', () => {
-  assert.strictEqual(gitRecords('read o < f; git commit $o -m x').unsupported, 'transformed git flag');
+test('#1462 opaque read of a recorded flag variable reports a transformed git flag', () => {
+  assert.strictEqual(gitRecords('o=--no-verify; read o; git commit $o -m x').unsupported, 'transformed git flag');
 });
 
 run('command-inspect');

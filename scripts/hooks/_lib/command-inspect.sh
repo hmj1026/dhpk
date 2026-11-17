@@ -663,10 +663,21 @@ _dhpk_ci_fs_pool_add() {
     done
 }
 
-# read [opts] NAME... <<< WORD: a literal WORD is each name's value; anything else is opaque.
+# Marks flag variable $1 opaque when it is already recorded or when the unreadable source text $2
+# mentions a recorded flag variable or holds a flagged literal. Otherwise the name stays unrecorded,
+# like any variable with no visible source.
+_dhpk_ci_fs_unreadable() {
+    local recorded=0
+    case "$_dhpk_ci_flag_names" in *" $1 "*) recorded=1 ;; esac
+    if [ "$recorded" = "1" ] || _dhpk_ci_flag_refs_known "$2" || _dhpk_ci_flag_value_no_verify " $2" commit; then
+        _dhpk_ci_flag_force "$1" "@opaque"
+    fi
+}
+
+# read [opts] NAME... <<< WORD: a literal WORD is each name's value; any other source is unreadable.
 _dhpk_ci_fs_read() {
     _dhpk_ci_fs_split "$1"
-    local i=1 n="${#_dhpk_ci_fs_words[@]}" w name val="" literal=0 here=0
+    local i=1 n="${#_dhpk_ci_fs_words[@]}" w name val="" raw="" literal=0 here=0
     local re_redir='^[0-9]*[<>]'
     local -a rnames=()
     while [ "$i" -lt "$n" ]; do
@@ -684,9 +695,9 @@ _dhpk_ci_fs_read() {
         if [[ "$w" == "<<<"* ]]; then
             here=1
             val="${w#<<<}"
-            [ -n "$val" ] && w="${_dhpk_ci_fs_raw[$i]#<<<}"
-            [ -n "$val" ] || { val="${_dhpk_ci_fs_words[$((i + 1))]-}"; w="${_dhpk_ci_fs_raw[$((i + 1))]-}"; }
-            _dhpk_ci_fs_literal "$w" && literal=1
+            raw="${_dhpk_ci_fs_raw[$i]#<<<}"
+            [ -n "$val" ] || { val="${_dhpk_ci_fs_words[$((i + 1))]-}"; raw="${_dhpk_ci_fs_raw[$((i + 1))]-}"; }
+            _dhpk_ci_fs_literal "$raw" && literal=1
             break
         fi
         i=$((i + 1))
@@ -695,31 +706,37 @@ _dhpk_ci_fs_read() {
         if [ "$here" = "1" ] && [ "$literal" = "1" ]; then
             _dhpk_ci_flag_force "$name" " $val"
         else
-            _dhpk_ci_flag_force "$name" "@opaque"
+            _dhpk_ci_fs_unreadable "$name" "$raw"
         fi
     done
 }
 
 # printf -v NAME FORMAT ARGS: the format %s stores the arguments, a format without % or backslash
-# stores itself, anything else is opaque.
+# stores itself, anything else is unreadable.
 _dhpk_ci_fs_printf() {
     _dhpk_ci_fs_split "$1"
-    local n="${#_dhpk_ci_fs_words[@]}" i=3 val="" opaque=0 fmt
+    local n="${#_dhpk_ci_fs_words[@]}" i=3 val="" opaque=0 fmt args="" name
     [ "$n" -ge 3 ] && [ "${_dhpk_ci_fs_words[1]}" = "-v" ] || return 0
     [ "${_dhpk_ci_fs_words[3]-}" = "--" ] && i=4
     fmt="${_dhpk_ci_fs_words[$i]-}"
+    name="${_dhpk_ci_fs_words[2]%%\[*}"
     if [ "$fmt" = "%s" ]; then
         for ((i = i + 1; i < n; i++)); do
             _dhpk_ci_fs_literal "${_dhpk_ci_fs_raw[$i]}" || opaque=1
             val="$val ${_dhpk_ci_fs_words[$i]}"
         done
+        args="$val"
     elif _dhpk_ci_fs_literal "${_dhpk_ci_fs_raw[$i]-}" && [[ "$fmt" != *[%\\]* ]]; then
         val=" $fmt"
     else
         opaque=1
+        for ((i = i + 1; i < n; i++)); do args="$args ${_dhpk_ci_fs_words[$i]}"; done
     fi
-    [ "$opaque" = "1" ] && val="@opaque"
-    _dhpk_ci_flag_force "${_dhpk_ci_fs_words[2]%%\[*}" "$val"
+    if [ "$opaque" = "1" ]; then
+        _dhpk_ci_fs_unreadable "$name" "$args"
+        return 0
+    fi
+    _dhpk_ci_flag_force "$name" "$val"
 }
 
 # set [options] [--] ARGS: the words become positional parameters.
