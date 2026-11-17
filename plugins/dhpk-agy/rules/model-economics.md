@@ -138,4 +138,4 @@ Routing (which role for which work shape) is the `execution-policy` §Implementa
 7. **Escalation order.** When a worker's output fails: (1) first confirm the worker can verify its own output (a runnable check, test, or diff); without that, escalation only buys a more confident wrong answer; (2) raise `effort` one level on the same model; (3) only then move to the next model tier, starting at a lower effort than the smaller model used. Rule 6 is the worker-churn case of this order.
 8. **Low-first.** For work with an automatic pass/fail check, run the first pass at `low` effort and re-run only the failures at a higher effort, following rule 7. Do not default to high effort for the whole batch.
 
-Compare configured role models and effort against this map when reviewing cost posture. The dedicated governance budget audit and prompt-optimization skill are retired; this guidance remains the economics owner.
+Compare configured role models and effort against this map when reviewing cost posture. This guidance is the economics owner.
