@@ -980,6 +980,13 @@ const positionalProofRows = [
   { id: 'P-43', command: 'set -- ordinaryZ.env; IFS=Z; cat ${1:-.env}', status: 2 },
   { id: 'P-44', command: 'IFS=Z; set -- ordinaryZ.env; cat ${1:-.env}', status: 2 },
   { id: 'P-45', command: 'f() { IFS=Z; cat ${1:-.env}; }; f ordinaryZ.env', status: 2 },
+  // A tilde in a positional argument expands at runtime from HOME, PWD or OLDPWD.
+  { id: 'P-46', command: `HOME=.env; set -- ~; cat ${D}`, status: 2 },
+  { id: 'P-47', command: 'HOME=.env; set -- ~; cat ${1:-.env}', status: 2 },
+  { id: 'P-48', command: `export HOME=.env; set -- ~; cat ${D}`, status: 2 },
+  { id: 'P-49', command: `HOME=.env\nset -- ~\ncat ${D}`, status: 2 },
+  { id: 'P-50', command: `PWD=.env; set -- ~+; cat ${D}`, status: 2 },
+  { id: 'P-51', command: `OLDPWD=.env; set -- ~-; cat ${D}`, status: 2 },
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   for (const row of positionalProofRows) {
