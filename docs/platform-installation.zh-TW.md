@@ -661,7 +661,9 @@ plugin 的名稱與某個已選取 skill 相同、stable ID 卻不同時，照�
 
 執行結果會印出 `Claude plugin dhpk@dhpk: <狀態>; withdrew N, restored M project bindings`。
 可用 `--claude-plugin-state inactive`（或 `DHPK_CLAUDE_PLUGIN_STATE=inactive`，旗標優先）
-略過檢查，預設為 `auto`；`DHPK_CLAUDE_PROBE_TIMEOUT_MS` 可調整 30 秒的探測上限。Host
+略過檢查，預設為 `auto`；`DHPK_CLAUDE_PROBE_TIMEOUT_MS` 可調整 30 秒的探測上限。`claude` 指令只從 `PATH` 中的絕對路徑
+項目解析，且絕不使用專案根目錄內的檔案；找不到合格者時狀態為 `CLI_NOT_INSTALLED`。plugin 各根目錄的
+版本、catalog 雜湊或 identity 不一致時為 `UNKNOWN`。Host
 回報的 `enabled` 已實測（Claude Code 2.1.326）是以工作目錄計算的有效值，但 Host 並未
 文件化這點。Codex 與 Cursor 安裝程式不做探測，只沿用 receipt 中記錄的撤回。
 

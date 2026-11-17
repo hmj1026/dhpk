@@ -8,7 +8,7 @@ Status: accepted
 one discovery path per Skill Identity. A consumer project that has the official
 Claude plugin `dhpk@dhpk` enabled and also receives the project-local
 projection sees the same skill twice: once from the plugin and once from the
-receipt-owned `.claude/skills/<name>` binding. Issue
+`.claude/skills/<name>` binding owned by the Projection Receipt. Issue
 [#1464](https://github.com/hmj1026/dhpk/issues/1464) asks the project route to
 stop publishing the duplicate binding when the plugin provides it, and to
 restore the binding when the plugin is disabled or absent.
@@ -24,6 +24,13 @@ are not guaranteed by Host documentation.
 - The Host offers no structured list of the skills a plugin contains.
   `claude plugin details` prints text only, offers no `--json`, and lists
   commands among skills.
+
+This decision refines [ADR-0019](0019-shared-project-projection-with-host-adapters.md)
+and [ADR-0023](0023-native-installers-delegate-skills-to-the-shared-projection.md):
+the Claude Host binding stays receipt-owned and generated, but it is withdrawn
+per Skill Identity while the enabled official plugin provides that identity.
+It implements the unique-discovery requirement of ADR-0024 for the project
+route and changes none of its ownership, coexistence or support-tier decisions.
 
 ## Decision
 
@@ -59,7 +66,8 @@ an injected `claudePluginProvision` option and spawns nothing.
 - `ENABLED`: a selected skill whose stable ID the plugin provides keeps its
   selection, its portable artifact and its Claude sibling, loses only its
   `.claude/skills/<name>` binding, and its receipt entry is marked
-  `claudePluginProvided: true`. `hostBindings.claude.pluginProvision` records
+  `claudePluginProvided: true` in the Projection Receipt.
+  `hostBindings.claude.pluginProvision` records
   the plugin version and catalog digest while a withdrawal exists, with no
   timestamp. Module entities are never matched.
 - `DISABLED`, `NOT_APPLICABLE`, `ABSENT`, `INACTIVE` (override only): publish
@@ -77,7 +85,7 @@ A same name under a different stable ID (`SAME_NAME_DIFFERENT_IDENTITY`) is
 published and reported, not blocked. The reasons: the plugin and the project
 then expose different identities, and blocking would stop unrelated work.
 
-The receipt stays schema v3 and `GENERATOR_VERSION` stays 2.1.0; the two new
+The Projection Receipt stays schema v3 and `GENERATOR_VERSION` stays 2.1.0; the two new
 fields are optional. Receipts without them read as "no withdrawals". An older
 dhpk reading a receipt with a withdrawal fails closed with `INVALID_RECEIPT`
 because its Claude binding set no longer matches, and deletes nothing. The
@@ -86,6 +94,15 @@ state. Withdrawal reuses the existing ownership checks: a retargeted or replaced
 link blocks the run, a missing link is accepted, and an unowned entry at the
 path is preserved and reported. `--rollback` restores the snapshot exactly, so
 it may rebuild a link the plugin duplicates until the next Claude-targeted run.
+
+The CLI is resolved to an absolute path before it runs. Only absolute `PATH`
+entries count (empty and relative entries are skipped, so a `claude` planted in
+the project root is never picked up, including through a trailing `:`), the
+target must be an executable regular file after `realpath`, and a target inside
+the project root is rejected. The process keeps the project root as its working
+directory, which the CLI needs, and its process group is reaped on every path.
+Not found means `CLI_NOT_INSTALLED`. On Windows only `PATHEXT` names that spawn
+without a shell (`.exe`, `.com`) qualify.
 
 `--claude-plugin-state auto|inactive` (environment
 `DHPK_CLAUDE_PLUGIN_STATE`, flag first) controls the CLI; `inactive` skips the
@@ -101,6 +118,9 @@ and runs only when the install targets Claude.
   change what is withdrawn.
 - Rejected: deleting project bindings on `UNKNOWN`. A transient CLI failure must
   not remove a working discovery path.
+- Rejected: an override that forces `enabled`. An operator claim cannot stand
+  in for verified Host state and a verified catalog, so the only override is
+  `inactive`, which can only publish more bindings.
 - Rejected: a new receipt schema version. The fields are optional and old
   readers already fail closed.
 

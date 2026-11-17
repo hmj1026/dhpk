@@ -2567,6 +2567,67 @@ const { test, run, assert } = require('./_lib/tinytest');
     } finally { dispose(context); }
   });
 
+
+  test('testReport_deselectedWithPluginDisabled_withdrawnPathsCountsOnlyPluginWithdrawals', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const result = run1(context, statusProvision('DISABLED'), { hostSelections: { claude: ['sample'] } });
+      assert.strictEqual(lstat(context, CLAUDE_OTHER), null, 'the deselected binding is removed');
+      assert.deepStrictEqual(result.claudeDiscovery.withdrawnPaths, []);
+    } finally { dispose(context); }
+  });
+
+  test('testReport_deselectedWithPluginEnabled_withdrawnPathsListsOnlyThePluginIdentity', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const result = run1(context, enabledProvision(), { hostSelections: { claude: ['other', 'sample'] } });
+      assert.deepStrictEqual(result.claudeDiscovery.withdrawnPaths, [CLAUDE_SAMPLE]);
+      const narrowed = run1(context, enabledProvision(), { hostSelections: { claude: ['sample'] } });
+      assert.deepStrictEqual(narrowed.claudeDiscovery.withdrawnPaths, [], 'a deselected identity is not a plugin withdrawal');
+      assert.strictEqual(lstat(context, CLAUDE_OTHER), null);
+    } finally { dispose(context); }
+  });
+
+  // The link is replaced after validation but before the publish step renames it.
+  test('testPublish_withdrawnLinkReplacedAfterValidation_blocksAndPreservesDirectory', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const link = path.join(context.projectRoot, CLAUDE_SAMPLE);
+      let swapped = false;
+      const afterStep = () => {
+        if (swapped) return;
+        swapped = true;
+        fs.rmSync(link);
+        fs.mkdirSync(link);
+        fs.writeFileSync(path.join(link, 'SKILL.md'), 'user content\n');
+      };
+      assert.strictEqual(codeOf(() => run1(context, enabledProvision(), { afterStep: { after: afterStep } })), 'MANAGED_CONTENT_CHANGED');
+      assert.ok(swapped, 'the replacement ran');
+      assert.strictEqual(fs.readFileSync(path.join(link, 'SKILL.md'), 'utf8'), 'user content\n');
+      assert.ok(lstat(context, CLAUDE_OTHER).isSymbolicLink());
+    } finally { dispose(context); }
+  });
+
+  test('testPublish_deselectedLinkRetargetedAfterValidation_blocksAndKeepsEntry', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const link = path.join(context.projectRoot, CLAUDE_OTHER);
+      let swapped = false;
+      const afterStep = () => {
+        if (swapped) return;
+        swapped = true;
+        fs.rmSync(link);
+        fs.symlinkSync('../../elsewhere', link, 'dir');
+      };
+      assert.strictEqual(codeOf(() => run1(context, statusProvision('ABSENT'), { hostSelections: { claude: ['sample'] }, afterStep: { after: afterStep } })), 'MANAGED_CONTENT_CHANGED');
+      assert.strictEqual(fs.readlinkSync(link), '../../elsewhere');
+    } finally { dispose(context); }
+  });
+
   function resealReceipt(context, mutate) {
     const receiptPath = path.join(context.projectRoot, '.agents/.dhpk-installed.json');
     const receipt = receiptOf(context);

@@ -221,10 +221,67 @@ function unknownProvision(reason) {
   return provisionOf('UNKNOWN', { reason });
 }
 
-function runPluginList({ cwd, env, spawn, timeoutMs }) {
+function windowsExecutableNames(env) {
+  const extensions = String(env.PATHEXT || '.COM;.EXE').split(';')
+    .map((extension) => extension.trim().toLowerCase())
+    .filter((extension) => extension === '.exe' || extension === '.com');
+  return extensions.map((extension) => `claude${extension}`);
+}
+
+function isExecutableFile(candidate) {
+  try {
+    if (!fs.statSync(candidate).isFile()) return false;
+    if (process.platform !== 'win32') fs.accessSync(candidate, fs.constants.X_OK);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Resolves `claude` from PATH alone: empty and relative entries are skipped, the
+// result is a physical executable file, and nothing inside the project root
+// qualifies, so a planted binary there can never run with the project as cwd.
+// On Windows only PATHEXT names that spawn without a shell (.exe, .com) count.
+function resolveClaudeExecutable({ env = process.env, projectRoot } = {}) {
+  let physicalProject;
+  try {
+    physicalProject = fs.realpathSync(projectRoot);
+  } catch (_) {
+    return null;
+  }
+  const names = process.platform === 'win32' ? windowsExecutableNames(env) : ['claude'];
+  for (const directory of String(env.PATH || '').split(path.delimiter)) {
+    if (!directory || !path.isAbsolute(directory)) continue;
+    for (const name of names) {
+      let physical;
+      try {
+        physical = fs.realpathSync(path.join(directory, name));
+      } catch (_) {
+        continue;
+      }
+      if (isInside(physicalProject, physical) || !isExecutableFile(physical)) continue;
+      return physical;
+    }
+  }
+  return null;
+}
+
+function reapProcessGroup(result, terminate) {
+  if (!result || !Number.isInteger(result.pid)) return true;
+  try {
+    terminate(result.pid, 'SIGKILL');
+    return true;
+  } catch (error) {
+    return Boolean(error && error.code === 'ESRCH');
+  }
+}
+
+function runPluginList({ cwd, env, spawn, timeoutMs, terminate }) {
+  const executable = resolveClaudeExecutable({ env, projectRoot: cwd });
+  if (!executable) return { notInstalled: true };
   let result;
   try {
-    result = spawn('claude', ['plugin', 'list', '--json'], {
+    result = spawn(executable, ['plugin', 'list', '--json'], {
       cwd,
       encoding: 'utf8',
       timeout: timeoutMs,
@@ -237,12 +294,10 @@ function runPluginList({ cwd, env, spawn, timeoutMs }) {
     if (error && error.code === 'ENOENT') return { notInstalled: true };
     return { failed: true };
   }
+  // The child runs detached; reap its whole group on every path, not only on error.
+  if (!reapProcessGroup(result, terminate)) return { failed: true };
   if (result && result.error) {
     if (result.error.code === 'ENOENT') return { notInstalled: true };
-    if (Number.isInteger(result.pid)) {
-      terminateProcessGroup(result.pid, 'SIGTERM');
-      terminateProcessGroup(result.pid, 'SIGKILL');
-    }
     return { failed: true };
   }
   if (!result || result.status !== 0) return { failed: true };
@@ -276,7 +331,7 @@ function readEnabledCatalogs(records) {
     }
   }
   const first = catalogs[0];
-  const signature = (catalog) => JSON.stringify(catalog.providedIdentities);
+  const signature = (catalog) => JSON.stringify([catalog.pluginVersion, catalog.catalogDigest, catalog.providedIdentities]);
   if (catalogs.some((catalog) => signature(catalog) !== signature(first))) return failure('PLUGIN_ROOTS_DISAGREE');
   return first;
 }
@@ -295,6 +350,7 @@ function probeClaudePluginProvision({
   projectRoot,
   env = process.env,
   spawn = spawnSync,
+  terminate = terminateProcessGroup,
   timeoutMs = resolveProbeTimeoutMs(env),
 } = {}) {
   let cwd;
@@ -304,7 +360,7 @@ function probeClaudePluginProvision({
   } catch (_) {
     return unknownProvision('PROJECT_ROOT_MISSING');
   }
-  const listed = runPluginList({ cwd, env, spawn, timeoutMs });
+  const listed = runPluginList({ cwd, env, spawn, timeoutMs, terminate });
   if (listed.notInstalled) return provisionOf('CLI_NOT_INSTALLED');
   if (listed.failed) return unknownProvision('CLAUDE_CLI_FAILED');
   const classified = classifyClaudePluginRecords(listed.payload, { projectRoot: cwd });
@@ -332,6 +388,7 @@ module.exports = {
   CLAUDE_PLUGIN_CATALOG_SCHEMA,
   CLAUDE_PLUGIN_STATUSES,
   classifyClaudePluginRecords,
+  resolveClaudeExecutable,
   readClaudePluginCatalog,
   probeClaudePluginProvision,
   normalizeClaudePluginStateOverride,
