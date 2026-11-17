@@ -54,7 +54,8 @@ def expand_variants(tokens):
         return None
     variables = _variables(tokens)
     definite = _definite_positionals(tokens, function_names(tokens))
-    alternatives = [[[token]] if token.operator else _alternatives(token, _scoped(variables, definite, index), False, 0)
+    proven = None if definite is None else {**variables, _DEFINITE: definite[2]}
+    alternatives = [[[token]] if token.operator else _alternatives(token, _view(variables, proven, definite, index), False, 0)
                     for index, token in enumerate(tokens)]
     _limit(alternatives, tokens)
     return [[word for part in combination for word in part] for combination in itertools.product(*alternatives)]
@@ -65,11 +66,11 @@ def visible_values(tokens):
     return {name: list(values) for name, values in _variables(tokens).items() if values not in (_UNKNOWN, _OPAQUE)}
 
 
-def _scoped(variables, definite, index):
-    """The variables a token at `index` sees: a copy that also carries the proven positionals inside their range."""
+def _view(variables, proven, definite, index):
+    """The variables a token at `index` sees: the copy that also carries the proven positionals inside their range."""
     if definite is None or not definite[0] <= index < definite[1]:
         return variables
-    return {**variables, _DEFINITE: definite[2]}
+    return proven
 
 
 def _limit(alternatives, tokens):
@@ -188,7 +189,7 @@ def _definite_positionals(tokens, functions):
     Applies only with one positional source in the whole text (one `set --` or one call of a function defined
     once), no `shift` or `for name;` loop, and plain literal words. The range is where those values hold.
     """
-    if _rebinds_positionals(tokens):
+    if _rebinds_positionals(tokens) or _may_rebind(tokens):
         return None
     sources = [i for i in _head_indexes(tokens) if _is_source(tokens, i, functions)]
     if len(sources) != 1:
@@ -199,14 +200,20 @@ def _definite_positionals(tokens, functions):
     return _definite_call(tokens, at)
 
 
-def _head_indexes(tokens):
+def _command_words(tokens, start=0):
+    """Indexes of the words in command position, reserved words such as `{` and `}` included."""
     head = True
-    for index, token in enumerate(tokens):
+    for index in range(start, len(tokens)):
+        token = tokens[index]
         if token.operator:
             head = head or token.value in HEAD_OPERATORS
-        elif head and token.value not in HEAD_KEEPERS and not ASSIGNMENT.match(token.value):
-            head = False
+        elif head:
             yield index
+            head = token.value in HEAD_KEEPERS or bool(ASSIGNMENT.match(token.value))
+
+
+def _head_indexes(tokens):
+    return [i for i in _command_words(tokens) if tokens[i].value not in HEAD_KEEPERS and not ASSIGNMENT.match(tokens[i].value)]
 
 
 def _is_source(tokens, index, functions):
@@ -231,6 +238,27 @@ def _rebinds_positionals(tokens):
         if token.value == 'for' and index + 2 < len(tokens) and not tokens[index + 1].operator and tokens[index + 2].value == ';' and tokens[index + 2].operator:
             return True
     return False
+
+
+REBINDERS = frozenset(('eval', 'source', 'trap', 'alias', 'builtin', 'command', 'getopts', 'shopt', 'exec', 'enable'))
+INTERPRETER = re.compile(r'(?:ba|da|z|k|a|c|tc)?sh|fish|python[0-9.]*|perl|ruby|node|php|lua|g?awk')
+REBINDING_WORDS = frozenset(('set', 'shift'))
+
+
+def _may_rebind(tokens):
+    """True when the text has a way to rebind the positionals that this module does not model (#1462)."""
+    words = [token for token in tokens if not token.operator]
+    if any(token.operator and token.value.startswith('<<') for token in tokens):
+        return True  # a here-doc body runs in another shell
+    if any(word.value in REBINDERS or INTERPRETER.fullmatch(word.value.rsplit('/', 1)[-1]) for word in words):
+        return True
+    if any(set(re.findall(r'\w+', word.substitution)) & REBINDING_WORDS for word in words):
+        return True
+    return any(_is_dynamic_head(tokens[i]) or tokens[i].value == '.' for i in _head_indexes(tokens))
+
+
+def _is_dynamic_head(token):
+    return bool(token.parts or token.dynamic or token.substitution or '$' in token.value or BT in token.value)
 
 
 def _literal_positionals(words):
@@ -261,7 +289,7 @@ def _definite_call(tokens, at):
     """The one call of a function defined once before it: the positionals hold within the function body."""
     name = tokens[at].value
     named = [i for i, token in enumerate(tokens) if not token.operator and token.value == name]
-    if len(named) != 2 or any(name in re.findall(r'\w+', token.substitution) for token in tokens):
+    if len(named) != 2 or _mentions(tokens, name) != 2:
         return None
     body = _function_body(tokens, named[0])
     values = _literal_positionals(_words_until_operator(tokens, at + 1))
@@ -270,14 +298,21 @@ def _definite_call(tokens, at):
     return (body[0], body[1], values)
 
 
+def _mentions(tokens, name):
+    """How often `name` appears as a word inside any token, quoted strings and substitutions included."""
+    pattern = re.compile(r'(?<!\w)' + re.escape(name) + r'(?!\w)')
+    return sum(len(pattern.findall(token.value + ' ' + token.substitution)) for token in tokens if not token.operator)
+
+
 def _function_body(tokens, index):
-    """(first, closing) token indexes of the `{ ... }` body of `name() { ... }` at `index`, or None."""
+    """(first, closing) token indexes of the `{ ... }` body of `name() { ... }` at `index`, or None.
+
+    Only a `{` or `}` in command position is a reserved word; one inside a quoted word is not counted.
+    """
     if not _is_definition_head(tokens, index) or index + 3 >= len(tokens) or tokens[index + 3].operator or tokens[index + 3].value != '{':
         return None
     depth = 0
-    for end in range(index + 3, len(tokens)):
-        if tokens[end].operator:
-            continue
+    for end in _command_words(tokens, index + 3):
         depth += {'{': 1, '}': -1}.get(tokens[end].value, 0)
         if not depth:
             return (index + 4, end)

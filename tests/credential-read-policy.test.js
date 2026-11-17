@@ -912,30 +912,48 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
 }
 
 // (#1462) A positional parameter that is visibly set to a non-empty literal never uses its protected fallback.
-// Each row is judged on its own: the Protected Path comes from the fallback only when the text cannot prove the value.
-const positionalSetAllowed = [
-  'set -- ordinary; cat "${1:-.env}"', 'f() { cat "${1:-.env}"; }; f ordinary', "set -- ''; cat \"${1-.env}\"",
-];
-const positionalSetBlocked = [
-  "set -- ''; cat \"${1:-.env}\"", 'f(){ cat "${1:-.env}"; }; f ordinary; f', 'set -- a; shift; cat "${1:-.env}"',
-  'cat "${1:-.env}"; set -- a', 'true && set -- a; cat "${1:-.env}"', 'set -- $x; cat "${1:-.env}"',
-  'set -- a; f(){ cat "${1:-.env}"; }; f', 'cat "${1:-.env}"', 'cat .env',
+// The text proves it only when nothing in it can rebind the positionals: any eval, source, trap, alias, builtin,
+// command, shell code string, here-doc or dynamic command word keeps the fallback. One test per row and hook.
+const D = '"${1:-.env}"';
+const positionalProofRows = [
+  { id: 'F1', command: `set -- ordinary; cat ${D}`, status: 0 },
+  { id: 'F2', command: `f() { cat ${D}; }; f ordinary`, status: 0 },
+  { id: 'F3', command: "set -- ''; cat \"${1-.env}\"", status: 0 },
+  { id: 'B1', command: `set -- ''; cat ${D}`, status: 2, reason: /protected path/ },
+  { id: 'B2', command: `f(){ cat ${D}; }; f ordinary; f`, status: 2 },
+  { id: 'B3', command: `set -- a; shift; cat ${D}`, status: 2 },
+  { id: 'B4', command: `cat ${D}; set -- a`, status: 2 },
+  { id: 'B5', command: `true && set -- a; cat ${D}`, status: 2 },
+  { id: 'B6', command: `set -- $x; cat ${D}`, status: 2 },
+  { id: 'B7', command: `set -- a; f(){ cat ${D}; }; f`, status: 2 },
+  { id: 'B8', command: `cat ${D}`, status: 2 },
+  { id: 'B9', command: 'cat .env', status: 2 },
+  { id: 'P-01', command: `set -- ordinary; builtin set --; cat ${D}`, status: 2, reason: /protected path/ },
+  { id: 'P-02', command: `set -- ordinary; command set --; cat ${D}`, status: 2 },
+  { id: 'P-03', command: `set -- ordinary; eval 'set --'; cat ${D}`, status: 2 },
+  { id: 'P-04', command: `set -- a; eval "set -- ''"; cat ${D}`, status: 2 },
+  { id: 'P-05', command: `set -- ordinary; s=shift; $s; cat ${D}`, status: 2 },
+  { id: 'P-06', command: `set -- ordinary; t=set; $t --; cat ${D}`, status: 2 },
+  { id: 'P-07', command: `set -- ordinary; . ./x.sh; cat ${D}`, status: 2 },
+  { id: 'P-08', command: `set -- ordinary; source ./x.sh; cat ${D}`, status: 2 },
+  { id: 'P-09', command: `set -- ordinary; trap 'set --' DEBUG; cat ${D}`, status: 2 },
+  { id: 'P-10', command: `shopt -s expand_aliases\nalias s=shift\nset -- ordinary\ns\ncat ${D}`, status: 2 },
+  { id: 'P-11', command: `set -- ordinary; bash <<'EOF'\ncat ${D}\nEOF`, status: 2 },
+  { id: 'P-12', command: `f() { builtin set --; cat ${D}; }; f ordinary`, status: 2 },
+  { id: 'P-13', command: `g=f; f() { cat ${D}; }; f ordinary; $g`, status: 2 },
+  { id: 'P-14', command: `f() { cat ${D}; }; f ordinary; eval ' f'`, status: 2 },
+  { id: 'P-15', command: `f() { cat ${D}; }; trap 'f;' EXIT; f ordinary`, status: 2 },
+  { id: 'P-16', command: `f() { echo '{'; }; cat ${D}; echo '}'; f ordinary`, status: 2 },
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
-  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
-  test(`${hook} allows a positional default when the parameter is visibly set (#1462)`, () => {
-    for (const command of positionalSetAllowed) {
-      const result = decide(command);
-      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
-    }
-  });
-  test(`${hook} keeps blocking a positional default the text cannot prove set (#1462)`, () => {
-    for (const command of positionalSetBlocked) {
-      const result = decide(command);
-      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
-      assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
-    }
-  });
+  for (const row of positionalProofRows) {
+    test(`${hook} ${row.id} ${row.status === 0 ? 'allows' : 'blocks'} ${JSON.stringify(row.command)} (#1462)`, () => {
+      const result = runHook(hook, { payload: { tool_input: { command: row.command } } });
+      assert.strictEqual(result.status, row.status, `${row.id} ${JSON.stringify(row.command)}: ${result.stderr}`);
+      if (row.status === 2) assert.match(result.stderr, /\[bash-guard\] blocked:/, `${row.id} ${JSON.stringify(row.command)}`);
+      if (row.reason) assert.match(result.stderr, row.reason, `${row.id} reason`);
+    });
+  }
 }
 
 run('credential-read-policy');
