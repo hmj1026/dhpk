@@ -450,7 +450,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
       write(path.join(sourceRoot, 'manifests/distribution-inventory.json'), JSON.stringify(projectInventory()));
       write(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'original local content\n');
-      const result = childProcess.spawnSync(process.execPath, [path.join(__dirname, '../scripts/ci/gen-agents-skills.js'), '--source-root', sourceRoot, '--project-root', projectRoot, '--adopt'], { encoding: 'utf8' });
+      const result = childProcess.spawnSync(process.execPath, [path.join(__dirname, '../scripts/ci/gen-agents-skills.js'), '--source-root', sourceRoot, '--project-root', projectRoot, '--claude-plugin-state', 'inactive', '--adopt'], { encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stderr);
       const match = result.stdout.match(/^gen-agents-skills: adoption backup (.+)$/m);
       assert.ok(match, result.stdout);
@@ -1277,7 +1277,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       fs.symlinkSync(legacyTarget, claudeLink, 'dir');
 
       const result = childProcess.spawnSync(process.execPath, [
-        cli, '--source-root', sourceRoot, '--project-root', projectRoot, '--host', 'claude', '--update',
+        cli, '--source-root', sourceRoot, '--project-root', projectRoot, '--claude-plugin-state', 'inactive', '--host', 'claude', '--update',
       ], { encoding: 'utf8', timeout: 20000 });
       assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
       const repaired = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
@@ -1807,7 +1807,7 @@ const { test, run, assert } = require('./_lib/tinytest');
     try {
       write(path.join(sourceRoot, 'manifests/distribution-inventory.json'), JSON.stringify(projectInventory()));
       const hostArgs = ALL_HOSTS.flatMap((host) => ['--host', host]);
-      const result = childProcess.spawnSync(process.execPath, [path.join(__dirname, '../scripts/ci/gen-agents-skills.js'), '--source-root', sourceRoot, '--project-root', projectRoot, '--profile', 'portable-core', ...hostArgs, '--adopt', '--update'], { encoding: 'utf8' });
+      const result = childProcess.spawnSync(process.execPath, [path.join(__dirname, '../scripts/ci/gen-agents-skills.js'), '--source-root', sourceRoot, '--project-root', projectRoot, '--profile', 'portable-core', '--claude-plugin-state', 'inactive', ...hostArgs, '--adopt', '--update'], { encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stderr);
       const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
       const binding = (receipt.bindingPaths.claude || []).find((entry) => entry.path === '.claude/skills/dhpk-sample');

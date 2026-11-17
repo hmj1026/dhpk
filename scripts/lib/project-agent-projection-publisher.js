@@ -2174,6 +2174,11 @@ function claudeDiscoveryReport({ roots, provision, claudePlan, previous, receipt
   const previousPaths = claudeBindingPathSet(previous && previous.bindingPaths);
   const candidatePaths = claudeBindingPathSet(receipt.bindingPaths);
   const names = new Map(receipt.entries.map((entry) => [entry.stableId, entry.name]));
+  // A restore re-binds an identity the previous receipt had withdrawn; a first
+  // install binds new paths but restores nothing.
+  const previousWithdrawnPaths = new Set(((previous && previous.schema === PROJECT_RECEIPT_SCHEMA && previous.entries) || [])
+    .filter((entry) => entry.claudePluginProvided === true)
+    .map((entry) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${entry.name}`));
   const unowned = claudePlan.withdrawnStableIds
     .map((stableId) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${names.get(stableId)}`)
     .filter((bindingPath) => !previousPaths.has(bindingPath) && lstatOrNull(path.join(roots.projectRoot, bindingPath)))
@@ -2182,7 +2187,7 @@ function claudeDiscoveryReport({ roots, provision, claudePlan, previous, receipt
     status: provision ? provision.status : 'NOT_PROBED',
     mode: claudePlan.mode,
     withdrawnPaths: [...previousPaths].filter((bindingPath) => !candidatePaths.has(bindingPath)).sort(),
-    restoredPaths: [...candidatePaths].filter((bindingPath) => !previousPaths.has(bindingPath)).sort(),
+    restoredPaths: [...previousWithdrawnPaths].filter((bindingPath) => candidatePaths.has(bindingPath)).sort(),
     conflicts: [...claudePlan.conflicts, ...unowned],
   };
 }

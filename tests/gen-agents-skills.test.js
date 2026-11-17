@@ -129,6 +129,7 @@ test('gen-agents-skills CLI can materialize outside the canonical source checkou
       '--source-root', ROOT,
       '--project-root', projectRoot,
       '--profile', 'portable-core',
+      '--claude-plugin-state', 'inactive',
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
     const agentRoot = path.join(projectRoot, '.agents');
@@ -154,7 +155,7 @@ test('gen-agents-skills CLI can materialize outside the canonical source checkou
 
 test('gen-agents-skills CLI updates a v1 receipt with a retired selected-only identity', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-skills-retired-v1-'));
-  const args = ['--source-root', ROOT, '--project-root', projectRoot, '--profile', 'portable-core', '--host', 'codex'];
+  const args = ['--source-root', ROOT, '--project-root', projectRoot, '--profile', 'portable-core', '--claude-plugin-state', 'inactive', '--host', 'codex'];
   try {
     const seeded = spawnSync(process.execPath, [GENERATOR, ...args], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(seeded.status, 0, seeded.stderr);
@@ -190,6 +191,7 @@ test('gen-agents-skills CLI updates a v2 receipt with preserved legacy Claude bi
     '--source-root', ROOT,
     '--project-root', projectRoot,
     '--profile', 'portable-core',
+    '--claude-plugin-state', 'inactive',
     '--host', 'claude',
     '--host', 'codex',
   ];
@@ -245,6 +247,7 @@ function projectProjection(projectRoot, hosts) {
     '--source-root', ROOT,
     '--project-root', projectRoot,
     '--profile', 'portable-core',
+    '--claude-plugin-state', 'inactive',
     ...hosts.flatMap((host) => ['--host', host]),
     '--update',
   ], { cwd: ROOT, encoding: 'utf8' });
@@ -346,6 +349,7 @@ test('gen-agents-skills CLI help aliases succeed without inventory or lifecycle 
     assertCliHelpListsOptions(results, [
       '-h', '--help', '--repo-root', '--source-root', '--project-root', '--out-dir', '--profile', '--host',
       '--update', '--preserve-unmanaged', '--adopt', '--repair', '--uninstall', '--rollback',
+      '--claude-plugin-state',
     ]);
     assert.ok(!/adopt[^\n]*unmanaged|ownership/i.test(results[0].result.stdout.split('\n').find((line) => line.includes('--preserve-unmanaged')) || ''),
       'help must not imply the option acquires ownership');
@@ -1052,5 +1056,173 @@ test('gen-agents-skills CLI rejects --preserve-unmanaged for a consumer projecti
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
 });
+
+// ADR-0039: the CLI resolves the official Claude plugin state once and hands the
+// result to the publisher. A fake `claude` first on PATH keeps these tests
+// independent of the machine that runs them.
+const crypto = require('node:crypto');
+
+function sha256Of(bytes) {
+  return crypto.createHash('sha256').update(bytes).digest('hex');
+}
+
+function pluginStateFixture(prefix, { payloadFor } = {}) {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+  const projectRoot = path.join(root, 'project');
+  const pluginRoot = path.join(root, 'plugin');
+  const binDir = path.join(root, 'bin');
+  fs.mkdirSync(projectRoot);
+  fs.mkdirSync(binDir);
+  const skillBody = Buffer.from('---\nname: flow-guide\ndescription: fixture\n---\n');
+  fs.mkdirSync(path.join(pluginRoot, '.claude-plugin'), { recursive: true });
+  fs.mkdirSync(path.join(pluginRoot, 'skills', 'flow-guide'), { recursive: true });
+  fs.writeFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
+  fs.writeFileSync(path.join(pluginRoot, 'skills', 'flow-guide', 'SKILL.md'), skillBody);
+  fs.writeFileSync(path.join(pluginRoot, 'provenance.json'), JSON.stringify({
+    schema: 'dhpk.claude-marketplace-catalog.v1',
+    selectionDigest: 'fixture',
+    publicEntryIds: ['flow-guide'],
+    hostOnlyIds: [],
+    files: [{
+      skillId: 'flow-guide', ownerId: 'flow-guide', sourcePath: 'skills/flow-guide/SKILL.md',
+      destination: 'skills/flow-guide/SKILL.md', kind: 'entry', sha256: sha256Of(skillBody),
+    }],
+  }));
+  const payloadPath = path.join(root, 'payload.txt');
+  const logPath = path.join(root, 'claude-calls.log');
+  const payload = payloadFor ? payloadFor({ pluginRoot, projectRoot }) : 'not json';
+  fs.writeFileSync(payloadPath, typeof payload === 'string' ? payload : JSON.stringify(payload));
+  const fake = path.join(binDir, 'claude');
+  fs.writeFileSync(fake, [
+    `#!${process.execPath}`,
+    "const fs = require('node:fs');",
+    "fs.appendFileSync(process.env.FAKE_CLAUDE_LOG, `${JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd() })}\\n`);",
+    "process.stdout.write(fs.readFileSync(process.env.FAKE_CLAUDE_PAYLOAD, 'utf8'));",
+    '',
+  ].join('\n'));
+  fs.chmodSync(fake, 0o755);
+  const env = {
+    ...process.env,
+    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    FAKE_CLAUDE_LOG: logPath,
+    FAKE_CLAUDE_PAYLOAD: payloadPath,
+  };
+  delete env.DHPK_CLAUDE_PLUGIN_STATE;
+  return { root, projectRoot, pluginRoot, logPath, env };
+}
+
+function enabledPayload({ pluginRoot }) {
+  return [{ id: 'dhpk@dhpk', version: '1.0.0', scope: 'user', enabled: true, installPath: pluginRoot }];
+}
+
+function projectCli(fixture, extra = [], envOverrides = {}) {
+  return spawnSync(process.execPath, [
+    GENERATOR,
+    '--source-root', ROOT,
+    '--project-root', fixture.projectRoot,
+    '--profile', 'portable-core',
+    ...extra,
+  ], { cwd: ROOT, encoding: 'utf8', env: { ...fixture.env, ...envOverrides } });
+}
+
+function claudeCalls(fixture) {
+  return fs.existsSync(fixture.logPath)
+    ? fs.readFileSync(fixture.logPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line))
+    : [];
+}
+
+const FLOW_GUIDE_BINDING = ['.claude', 'skills', 'flow-guide'];
+
+test('testCli_stateFlagInactive_publishesAll', () => {
+  const fixture = pluginStateFixture('dhpk-cli-plugin-inactive-', { payloadFor: enabledPayload });
+  try {
+    const result = projectCli(fixture, ['--claude-plugin-state', 'inactive']);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(fs.lstatSync(path.join(fixture.projectRoot, ...FLOW_GUIDE_BINDING)).isSymbolicLink());
+    assert.strictEqual(claudeCalls(fixture).length, 0, 'the override must skip the Host probe');
+    assert.match(result.stdout, /Claude plugin dhpk@dhpk: INACTIVE; withdrew 0, restored 0 project bindings/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('testCli_envStateInactive_honored', () => {
+  const fixture = pluginStateFixture('dhpk-cli-plugin-env-', { payloadFor: enabledPayload });
+  try {
+    const result = projectCli(fixture, [], { DHPK_CLAUDE_PLUGIN_STATE: 'inactive' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(fs.lstatSync(path.join(fixture.projectRoot, ...FLOW_GUIDE_BINDING)).isSymbolicLink());
+    assert.strictEqual(claudeCalls(fixture).length, 0);
+    const flagWins = projectCli(fixture, ['--claude-plugin-state', 'auto', '--update'], { DHPK_CLAUDE_PLUGIN_STATE: 'inactive' });
+    assert.strictEqual(flagWins.status, 0, flagWins.stderr);
+    assert.strictEqual(claudeCalls(fixture).length, 1, 'the flag takes precedence over the environment');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('testCli_fakeClaudeEnabled_withdrawsAndPrintsSummary', () => {
+  const fixture = pluginStateFixture('dhpk-cli-plugin-enabled-', { payloadFor: enabledPayload });
+  try {
+    const seeded = projectCli(fixture, ['--claude-plugin-state', 'inactive']);
+    assert.strictEqual(seeded.status, 0, seeded.stderr);
+    assert.ok(fs.lstatSync(path.join(fixture.projectRoot, ...FLOW_GUIDE_BINDING)).isSymbolicLink());
+    const result = projectCli(fixture, ['--update']);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(fs.existsSync(path.join(fixture.projectRoot, ...FLOW_GUIDE_BINDING)), false,
+      'the identity the enabled plugin provides is no longer bound by the project');
+    assert.ok(fs.existsSync(path.join(fixture.projectRoot, '.agents', 'skills', 'flow-guide', 'SKILL.md')));
+    assert.match(result.stdout, /Claude plugin dhpk@dhpk: ENABLED; withdrew 1, restored 0 project bindings/);
+    const calls = claudeCalls(fixture);
+    assert.strictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0].args, ['plugin', 'list', '--json']);
+    assert.strictEqual(calls[0].cwd, fs.realpathSync(fixture.projectRoot));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('testCli_fakeClaudeMalformed_failsWithRecoveryText', () => {
+  const fixture = pluginStateFixture('dhpk-cli-plugin-malformed-');
+  try {
+    const result = projectCli(fixture);
+    assert.strictEqual(result.status, 1, result.stdout);
+    assert.match(result.stderr, /FAIL \[gen-agents-skills\]: Claude plugin state for .* could not be determined/);
+    assert.match(result.stderr, /no Claude project binding was changed/);
+    assert.match(result.stderr, /--claude-plugin-state inactive/);
+    assert.match(result.stderr, /docs\/platform-installation\.md#claude-plugin-and-project-bindings/);
+    assert.strictEqual(fs.existsSync(path.join(fixture.projectRoot, '.claude')), false);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('testCli_hostCodexOnly_doesNotProbe', () => {
+  const fixture = pluginStateFixture('dhpk-cli-plugin-codex-');
+  try {
+    const result = projectCli(fixture, ['--host', 'codex']);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(claudeCalls(fixture).length, 0);
+    assert.doesNotMatch(result.stdout, /Claude plugin dhpk@dhpk/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('testCli_invalidStateValue_fails', () => {
+  const fixture = pluginStateFixture('dhpk-cli-plugin-invalid-');
+  try {
+    const result = projectCli(fixture, ['--claude-plugin-state', 'enabled']);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.stderr, /--claude-plugin-state/);
+    assert.strictEqual(fs.existsSync(path.join(fixture.projectRoot, '.agents')), false);
+    const envInvalid = projectCli(fixture, [], { DHPK_CLAUDE_PLUGIN_STATE: 'bogus' });
+    assert.strictEqual(envInvalid.status, 1);
+    assert.match(envInvalid.stderr, /--claude-plugin-state/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
 
 run('gen-agents-skills');

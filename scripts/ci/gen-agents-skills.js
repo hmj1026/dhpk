@@ -9,6 +9,10 @@ const {
   uninstallAgentsSkillsProjection,
   rollbackAgentsSkillsProjection,
 } = require('../lib/agents-skills-package');
+const {
+  normalizeClaudePluginStateOverride,
+  resolveClaudePluginProvision,
+} = require('../lib/claude-plugin-provision');
 
 function usage() {
   return [
@@ -19,6 +23,10 @@ function usage() {
     '  --out-dir <dir>       Projection output directory (also accepted positionally)',
     '  --profile <id>        Consumer selection profile',
     '  --host <name>         Requested Host; repeat to select multiple Hosts',
+    '  --claude-plugin-state <auto|inactive>',
+    '                        auto asks the Claude CLI whether dhpk@dhpk is enabled for the project and skips the',
+    '                        .claude/skills bindings it already provides; inactive skips the check and binds all',
+    '                        (default auto; environment DHPK_CLAUDE_PLUGIN_STATE, the flag wins)',
     '  --update              Allow canonical source updates',
     '  --preserve-unmanaged  With no receipt, create the in-checkout projection beside non-reserved third-party entries and keep them as-is (they stay unowned)',
     '  --adopt               Adopt matching unmanaged entries',
@@ -37,6 +45,7 @@ function parseArgs(argv) {
     outDir: null,
     profileId: null,
     requestedHosts: [],
+    claudePluginState: null,
     update: false,
     preserveUnmanaged: false,
     adopt: false,
@@ -52,6 +61,7 @@ function parseArgs(argv) {
     else if (arg === '--out-dir') args.outDir = argv[++index];
     else if (arg === '--profile') args.profileId = argv[++index];
     else if (arg === '--host') args.requestedHosts.push(argv[++index]);
+    else if (arg === '--claude-plugin-state') args.claudePluginState = argv[++index];
     else if (arg === '--update') args.update = true;
     else if (arg === '--preserve-unmanaged') args.preserveUnmanaged = true;
     else if (arg === '--adopt') args.adopt = true;
@@ -62,6 +72,27 @@ function parseArgs(argv) {
     else throw new Error(`unknown argument: ${arg}`);
   }
   return args;
+}
+
+// The official plugin only matters when this run publishes the Claude bindings.
+function targetsClaude(requestedHosts) {
+  return requestedHosts.length === 0 || requestedHosts.includes('claude');
+}
+
+function resolveClaudeProvision(args, projectRoot) {
+  const override = normalizeClaudePluginStateOverride(
+    args.claudePluginState !== null ? args.claudePluginState : (process.env.DHPK_CLAUDE_PLUGIN_STATE || 'auto'),
+  );
+  if (!projectRoot || !targetsClaude(args.requestedHosts)) return undefined;
+  return resolveClaudePluginProvision({ projectRoot, override });
+}
+
+function reportClaudeDiscovery(provision, discovery) {
+  if (!provision || !discovery) return;
+  console.log(`gen-agents-skills: Claude plugin dhpk@dhpk: ${provision.status}; withdrew ${discovery.withdrawnPaths.length}, restored ${discovery.restoredPaths.length} project bindings`);
+  for (const conflict of discovery.conflicts) {
+    console.log(`gen-agents-skills: Claude plugin conflict ${conflict.reason}: ${conflict.path || conflict.name}`);
+  }
 }
 
 function fail(message) {
@@ -85,6 +116,7 @@ try {
   if (fs.existsSync(inventoryPath)) inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
   if (args.action === 'install') {
     if (!inventory) fail(`distribution inventory not found: ${inventoryPath}`);
+    const claudePluginProvision = resolveClaudeProvision(args, projectRoot);
     const result = materializeAgentsSkillsProjection({
       root,
       sourceRoot: args.sourceRoot ? root : undefined,
@@ -97,8 +129,10 @@ try {
       preserveUnmanaged: args.preserveUnmanaged,
       adopt: args.adopt,
       repair: args.repair,
+      ...(claudePluginProvision ? { claudePluginProvision } : {}),
     });
     console.log(`gen-agents-skills: wrote ${result.selectedIds.length} selected skills and ${result.managedPaths.length} managed files`);
+    reportClaudeDiscovery(claudePluginProvision, result.claudeDiscovery);
     if (result.backupPath) console.log(`gen-agents-skills: adoption backup ${result.backupPath}`);
     const released = result.released || [];
     if (released.length > 0) {
