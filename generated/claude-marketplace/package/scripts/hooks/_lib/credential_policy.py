@@ -13,8 +13,8 @@ import stat
 import sys
 
 from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex, xargs_command
-from credential_expand import HEAD_KEEPERS, expand_variants, function_names
-from credential_code import code_strings, command_head, expand_aliases
+from credential_expand import expand_variants, function_names
+from credential_code import WRAPPERS, code_strings, command_head, expand_aliases, option_keeps_directory
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages, is_command_key
 from credential_scan import MAX_SECONDS, budget_seconds
@@ -487,19 +487,55 @@ def _consumes_selection(command):
 
 
 def _relocated(words, index):
-    """True when a word other than a compound keyword stands before the command, so it may change the directory."""
-    return any(t.value not in HEAD_KEEPERS for t in words[:index])
+    """True when a word before the command at `index` may change the working directory or root, or is unknowable."""
+    wrapper = None
+    for word in words[:index]:
+        name = posixpath.basename(word.value)
+        if word.dynamic or name == 'chroot':
+            return True
+        if name in WRAPPERS:
+            wrapper = name
+        elif word.value.startswith('-') and len(word.value) > 1 and not option_keeps_directory(wrapper, word.value):
+            return True
+    return False
+
+
+def _split_string_words(words):
+    """(#1462) Words with `env -S STRING` / `--split-string[=STRING]` replaced by the words STRING holds.
+
+    GNU env runs the string as the command, so find and xargs inside it must stay visible.
+    """
+    expanded, env_seen, pending = [], False, False
+    for word in words:
+        value = word.value
+        if not env_seen:
+            env_seen = posixpath.basename(value) == 'env'
+            expanded.append(word)
+        elif value in ('-S', '--split-string'):
+            pending = True
+        else:
+            text = (value.split('=', 1)[1] if value.startswith('--split-string=')
+                    else value if pending else value[2:] if value.startswith('-S') and len(value) > 2 else None)
+            pending = False
+            if text is None or word.dynamic:
+                expanded.append(word)
+            else:
+                expanded.extend(t for t in lex(text).tokens if not t.operator)
+    return expanded
 
 
 def _find_selection(words):
-    """`(spec, index)` of a find in the words, or (None, None); only wrappers may precede it."""
+    """`(spec, index, words)` of a find, or (None, None, words); only wrappers may precede it.
+
+    `index` points into the returned words, in which an `env -S` string is already split."""
+    words = _split_string_words(words)
     index = _wrapped_index(words, 'find')
-    return (None, None) if index is None else (find_spec(words, index), index)
+    return (None, None, words) if index is None else (find_spec(words, index), index, words)
 
 
 def _find_exec_verdict(words, patterns, cwd):
     """(#1456) find -exec READER ... {} reads every path find selects."""
-    spec, index = _find_selection(words)
+    spec, index, words = _find_selection(words)
     if spec is None:
         return None
     for clause in spec.clauses:
@@ -843,7 +879,6 @@ def analyze(command, patterns, cwd, remote=False, nested=False, executed=False, 
 PIPES = ('|', '|&')
 # 由指令文字直接印出檔名的指令；其輸出經管線成為 xargs 的運算元（#1433）。
 TEXT_PRODUCERS = ('echo', 'printf')
-XARGS_WRAPPERS = ('env', 'command', 'builtin', 'nice', 'nohup', 'time', 'stdbuf', 'timeout', 'sudo', 'doas', 'exec')
 STDIN_RECOVERY = 'name each file as an explicit literal operand of the Reader instead of piping paths into xargs.'
 STDIN_SHELL_RECOVERY = ('pass explicit non-protected files to a Reader command instead of piping paths into '
                         'xargs with a shell.')
@@ -897,19 +932,16 @@ def _produced_words(segment):
 
 
 def _wrapped_index(words, command):
-    """Index of `command` in words when only assignments, wrappers and their options precede it, else None."""
-    for index, token in enumerate(words):
-        name = posixpath.basename(token.value)
-        if name == command and not token.dynamic:
-            return index
-        if not (re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', token.value) or name in XARGS_WRAPPERS or token.value in HEAD_KEEPERS or token.value.startswith('-')):
-            return None
-    return None
+    """Index of `command` in words when only assignments, wrappers and their option values precede it, else None."""
+    head = command_head(words)
+    if head is None or words[head].dynamic or posixpath.basename(words[head].value) != command:
+        return None
+    return head
 
 
 def _xargs_consumer(segment):
     """`(words, index)` of an xargs invocation in the segment, or None; only wrappers may precede it."""
-    words = [t for t in segment if not t.operator]
+    words = _split_string_words([t for t in segment if not t.operator])
     index = _wrapped_index(words, 'xargs')
     return None if index is None else (words, index)
 
@@ -940,7 +972,7 @@ def xargs_stdin_verdict(segment, producers, patterns, cwd, git_relocated):
         if parsed is not None and parsed[0] and _consumes_selection(parsed[0]):
             for producer in producers:
                 words = [t for t in producer if not t.operator]
-                spec, index = _find_selection(words)
+                spec, index, words = _find_selection(words)
                 if spec is not None:
                     result = selection_verdict(spec, patterns, cwd, _relocated(words, index), matching_patterns, protected, DEFAULTS + patterns)
                     if not result.allowed:

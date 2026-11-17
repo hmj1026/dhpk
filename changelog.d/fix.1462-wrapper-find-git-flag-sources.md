@@ -1,0 +1,2 @@
+scope: hooks
+note: `busybox`／`nice -n 5`／`timeout 5`／`sudo -u root` 等 wrapper 後的 `find -exec` 與 `xargs` 改用與其他命令相同的 wrapper 走訪判定受保護讀取；wrapper 不改變工作目錄時（例如 `env find . -name '*.js' -exec cat {} \;`）不再因「工作目錄未知」被擋，`chroot`、`env -C`、`sudo -D`／`-i` 仍會。Git Gate 納入 `read <<<`、`printf -v`、`set --`／`"$@"`、函式呼叫參數與 `${!name}` 帶入的 `--no-verify`（請直接寫出旗標，或移除它）；沒有可見來源的變數維持放行。位置參數已有可見的非空值時（`set -- ordinary; cat "${1:-.env}"`）不再把未採用的預設值當成讀取目標，`o=-q; git push ${o:-} origin main` 不再被判為 transformed git flag (#1462)。
