@@ -777,4 +777,53 @@ test('ordinary dynamic git flags stay allowed (#1460 review)', () => {
   }
 });
 
+// #1462: flag sources beyond NAME=value (read here-string, printf -v, positional parameters,
+// function call arguments, indirect expansion) and harmless default operators.
+const FLAG_SOURCE_BLOCK_1462 = [
+  ['G1', 'read -r o <<< --no-verify; git commit $o -m x'],
+  ['G2', 'printf -v o %s --no-verify; git commit $o -m x'],
+  ['G3', 'set -- --no-verify; git commit "$@" -m x'],
+  ['G4', 'f() { git commit "$@"; }; f --no-verify -m x'],
+  ['G5', 'o=p; p=--no-verify; git commit ${!o} -m x'],
+  ['B1', 'git commit --no-verify -m x'],
+  ['default-short', 'git commit ${x:--n} -m x'],
+  ['default-long', 'git commit ${x:---no-verify} -m x'],
+  ['opaque-read', 'read o < f; git commit $o -m x'],
+  ['read-overrides-benign', 'o=--amend; read o <<< --no-verify; git commit $o -m x'],
+];
+
+for (const [id, command] of FLAG_SOURCE_BLOCK_1462) {
+  test(`#1462 ${id} flag source is judged: ${command}`, () => {
+    const got = gitRecords(command);
+    const blocked = got.unsupported !== '' || got.records.some((rec) => rec.noVerify === '1');
+    assert.ok(blocked, command);
+  });
+}
+
+const FLAG_SOURCE_ALLOW_1462 = [
+  ['F3', 'o=-q; git push ${o:-} origin main'],
+  ['C1', 'git commit "$@"'],
+  ['C2', 'b=main; git push origin $b'],
+  ['C3', 'git push origin "$branch"'],
+  ['C5', 'read -r o <<< --amend; git commit $o -m x'],
+  ['C6', 'printf -v o %s --amend; git commit $o -m x'],
+  ['C7', 'set -- --amend; git commit "$@" -m x'],
+  ['C8', 'f() { git commit "$@"; }; f --amend -m x'],
+  ['C9', 'o=p; p=--amend; git commit ${!o} -m x'],
+  ['msg-arg', 'f(){ git commit "$@"; }; f -m "$msg"'],
+  ['default-benign', 'git commit ${x:---amend} -m x'],
+];
+
+for (const [id, command] of FLAG_SOURCE_ALLOW_1462) {
+  test(`#1462 ${id} stays allowed: ${command}`, () => {
+    const got = gitRecords(command);
+    assert.strictEqual(got.unsupported, '', command);
+    for (const rec of got.records) assert.notStrictEqual(rec.noVerify, '1', command);
+  });
+}
+
+test('#1462 opaque read source reports a transformed git flag', () => {
+  assert.strictEqual(gitRecords('read o < f; git commit $o -m x').unsupported, 'transformed git flag');
+});
+
 run('command-inspect');

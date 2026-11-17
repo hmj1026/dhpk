@@ -3293,4 +3293,58 @@ for (const [label, command] of GIT_GATE_ALLOWED_1460) {
   });
 }
 
+// #1462: flag sources beyond NAME=value, and harmless default operators.
+const GIT_GATE_FLAG_1462 = [
+  ['G1', 'read -r o <<< --no-verify; git commit $o -m x'],
+  ['G2', 'printf -v o %s --no-verify; git commit $o -m x'],
+  ['G3', 'set -- --no-verify; git commit "$@" -m x'],
+  ['G4', 'f() { git commit "$@"; }; f --no-verify -m x'],
+  ['G5', 'o=p; p=--no-verify; git commit ${!o} -m x'],
+  ['B1', 'git commit --no-verify -m x'],
+  ['default-short', 'git commit ${x:--n} -m x'],
+  ['opaque-read', 'read o < f; git commit $o -m x'],
+];
+
+for (const [id, command] of GIT_GATE_FLAG_1462) {
+  test(`#1462 ${id} blocks on feature (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const GIT_GATE_ALLOWED_1462 = [
+  ['F3', 'o=-q; git push ${o:-} origin main'],
+  ['C1', 'git commit "$@"'],
+  ['C2', 'b=main; git push origin $b'],
+  ['C3', 'git push origin "$branch"'],
+  ['C5', 'read -r o <<< --amend; git commit $o -m x'],
+  ['C6', 'printf -v o %s --amend; git commit $o -m x'],
+  ['C7', 'set -- --amend; git commit "$@" -m x'],
+  ['C8', 'f() { git commit "$@"; }; f --amend -m x'],
+  ['C9', 'o=p; p=--amend; git commit ${!o} -m x'],
+  ['msg-arg', 'f(){ git commit "$@"; }; f -m "$msg"'],
+];
+
+for (const [id, command] of GIT_GATE_ALLOWED_1462) {
+  test(`#1462 ${id} allows on feature`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// On a protected branch commit and push stay blocked by branch safety (existing behavior).
+for (const command of ['git commit "$@"', 'b=main; git push origin $b']) {
+  test(`#1462 branch safety still blocks on main (dispatcher): ${command}`, () => {
+    withRepos(({ protectedRepo }) => {
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
 run('hook-bypass');
