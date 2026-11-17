@@ -186,18 +186,22 @@ SCOPE_OPENERS = frozenset(('{', '(', 'if', 'while', 'until', 'for', 'case', 'sel
 def _definite_positionals(tokens, functions):
     """(#1462) (start, end, {position: literal}) when the text proves what the positionals hold, else None.
 
-    Applies only with one positional source in the whole text (one `set --` or one call of a function defined
-    once), no `shift` or `for name;` loop, and plain literal words. The range is where those values hold.
+    Proves only in a structurally narrow text: no redirection, substitution or here-doc, no `shift`, at most one
+    function and no nested one, and one positional source (one `set --`, or one call of that function).
+    The range is where the proven values hold.
     """
-    if _rebinds_positionals(tokens) or _may_rebind(tokens):
+    definitions = _definition_count(tokens)
+    if definitions > 1 or not _is_plain(tokens) or _rebinds_positionals(tokens) or _may_rebind(tokens):
+        return None
+    if _mentions(tokens, 'shift') or len(functions) != definitions:
         return None
     sources = [i for i in _head_indexes(tokens) if _is_source(tokens, i, functions)]
     if len(sources) != 1:
         return None
-    at = sources[0]
+    at, sets = sources[0], _mentions(tokens, 'set')
     if tokens[at].value == 'set':
-        return None if functions else _definite_set(tokens, at)
-    return _definite_call(tokens, at)
+        return _definite_set(tokens, at) if sets == 1 and not definitions else None
+    return _definite_call(tokens, at) if not sets else None
 
 
 def _command_words(tokens, start=0):
@@ -229,36 +233,50 @@ def _is_definition_head(tokens, index):
 
 
 def _rebinds_positionals(tokens):
-    """A `shift` or a `for name;` loop changes which value `$1` holds, so no position is proven."""
+    """A `for name;` loop walks the positionals, so no position is proven."""
     for index, token in enumerate(tokens):
-        if token.operator:
+        if token.operator or token.value != 'for':
             continue
-        if token.value == 'shift':
-            return True
-        if token.value == 'for' and index + 2 < len(tokens) and not tokens[index + 1].operator and tokens[index + 2].value == ';' and tokens[index + 2].operator:
+        if index + 2 < len(tokens) and not tokens[index + 1].operator and tokens[index + 2].operator and tokens[index + 2].value == ';':
             return True
     return False
 
 
+PLAIN_OPERATORS = frozenset((';', '&&', '||', '|', '(', ')'))
+
+
+def _is_plain(tokens):
+    """No redirection, here-doc, process or command substitution anywhere: only list operators and `()` of a definition."""
+    for token in tokens:
+        if token.operator and token.value not in PLAIN_OPERATORS:
+            return False
+        if not token.operator and (token.substitution or '$(' in token.value or BT in token.value):
+            return False
+    return True
+
+
+def _definition_count(tokens):
+    """Number of `name()` definitions, or 2 (too many) when parentheses appear anywhere else."""
+    heads = sum(1 for i, token in enumerate(tokens) if not token.operator and _is_definition_head(tokens, i))
+    opens = sum(1 for token in tokens if token.operator and token.value == '(')
+    closes = sum(1 for token in tokens if token.operator and token.value == ')')
+    return heads if opens == closes == heads else 2
+
+
 REBINDERS = frozenset(('eval', 'source', 'trap', 'alias', 'builtin', 'command', 'getopts', 'shopt', 'exec', 'enable'))
 INTERPRETER = re.compile(r'(?:ba|da|z|k|a|c|tc)?sh|fish|python[0-9.]*|perl|ruby|node|php|lua|g?awk')
-REBINDING_WORDS = frozenset(('set', 'shift'))
 
 
 def _may_rebind(tokens):
     """True when the text has a way to rebind the positionals that this module does not model (#1462)."""
     words = [token for token in tokens if not token.operator]
-    if any(token.operator and token.value.startswith('<<') for token in tokens):
-        return True  # a here-doc body runs in another shell
     if any(word.value in REBINDERS or INTERPRETER.fullmatch(word.value.rsplit('/', 1)[-1]) for word in words):
-        return True
-    if any(set(re.findall(r'\w+', word.substitution)) & REBINDING_WORDS for word in words):
         return True
     return any(_is_dynamic_head(tokens[i]) or tokens[i].value == '.' for i in _head_indexes(tokens))
 
 
 def _is_dynamic_head(token):
-    return bool(token.parts or token.dynamic or token.substitution or '$' in token.value or BT in token.value)
+    return bool(token.parts or token.dynamic or '$' in token.value or BT in token.value)
 
 
 def _literal_positionals(words):
@@ -286,22 +304,31 @@ def _definite_set(tokens, at):
 
 
 def _definite_call(tokens, at):
-    """The one call of a function defined once before it: the positionals hold within the function body."""
+    """The one call of the one function, defined before it: the positionals hold within the function body."""
     name = tokens[at].value
     named = [i for i, token in enumerate(tokens) if not token.operator and token.value == name]
-    if len(named) != 2 or _mentions(tokens, name) != 2:
+    if len(named) != 2 or _mentions(tokens, name) != 2 or named[1] != at:
         return None
     body = _function_body(tokens, named[0])
-    values = _literal_positionals(_words_until_operator(tokens, at + 1))
-    if body is None or values is None or named[1] != at or at < body[1]:
+    words = _words_until_operator(tokens, at + 1)
+    values = _literal_positionals(words)
+    if body is None or values is None or at < body[1] or not _is_top_level_statement(tokens, at, at + 1 + len(words)):
+        return None
+    if any(token.value in SCOPE_OPENERS for token in tokens[:named[0]] + tokens[body[1] + 1:at]):
         return None
     return (body[0], body[1], values)
 
 
+def _is_top_level_statement(tokens, at, end):
+    """The command at `at` follows a `;` (or starts the text) and a `;` (or the end) follows its words."""
+    starts = at == 0 or (tokens[at - 1].operator and tokens[at - 1].value == ';')
+    return starts and (end >= len(tokens) or (tokens[end].operator and tokens[end].value == ';'))
+
+
 def _mentions(tokens, name):
-    """How often `name` appears as a word inside any token, quoted strings and substitutions included."""
+    """How often `name` appears as a whole word inside any token, quoted strings included."""
     pattern = re.compile(r'(?<!\w)' + re.escape(name) + r'(?!\w)')
-    return sum(len(pattern.findall(token.value + ' ' + token.substitution)) for token in tokens if not token.operator)
+    return sum(len(pattern.findall(token.value)) for token in tokens if not token.operator)
 
 
 def _function_body(tokens, index):

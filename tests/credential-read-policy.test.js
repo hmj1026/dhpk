@@ -915,6 +915,7 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
 // The text proves it only when nothing in it can rebind the positionals: any eval, source, trap, alias, builtin,
 // command, shell code string, here-doc or dynamic command word keeps the fallback. One test per row and hook.
 const D = '"${1:-.env}"';
+const D2 = '"${2:-.env}"';
 const positionalProofRows = [
   { id: 'F1', command: `set -- ordinary; cat ${D}`, status: 0 },
   { id: 'F2', command: `f() { cat ${D}; }; f ordinary`, status: 0 },
@@ -944,6 +945,21 @@ const positionalProofRows = [
   { id: 'P-14', command: `f() { cat ${D}; }; f ordinary; eval ' f'`, status: 2 },
   { id: 'P-15', command: `f() { cat ${D}; }; trap 'f;' EXIT; f ordinary`, status: 2 },
   { id: 'P-16', command: `f() { echo '{'; }; cat ${D}; echo '}'; f ordinary`, status: 2 },
+  // A redirection hides a `set --` from command-position scanning, or sits at the call site as an IO number.
+  { id: 'P-17', command: `set -- ordinary; >/dev/null set --; cat ${D}`, status: 2 },
+  { id: 'P-18', command: `set -- ordinary; 2>/dev/null set --; cat ${D}`, status: 2 },
+  { id: 'P-19', command: `set -- ordinary; &>/dev/null set --; cat ${D}`, status: 2 },
+  { id: 'P-20', command: `set -- ordinary; >'x' set --; cat ${D}`, status: 2 },
+  { id: 'P-21', command: `set -- ordinary; 3>&- set --; cat ${D}`, status: 2 },
+  { id: 'P-22', command: `f() { >/dev/null set --; cat ${D}; }; f ordinary`, status: 2 },
+  { id: 'P-23', command: `set -- ordinary; case x in x) >/dev/null set --;; esac; cat ${D}`, status: 2 },
+  { id: 'P-24', command: `f() { cat ${D2}; }; f ordinary 2>/dev/null`, status: 2 },
+  { id: 'P-25', command: `f() { cat ${D2}; }; f ordinary 2>&1`, status: 2 },
+  { id: 'P-26', command: `f() { cat ${D2}; }; f ordinary 0</dev/null`, status: 2 },
+  // The proven range must not cover a nested function that is called with no arguments.
+  { id: 'P-27', command: `f() { g() { cat ${D}; }; echo "$(g)"; }; f ordinary`, status: 2 },
+  { id: 'P-28', command: `f() { g() { cat ${D}; }; >/dev/null g; }; f ordinary`, status: 2 },
+  { id: 'P-29', command: `f() { g() { cat ${D}; }; echo \`g\`; }; f ordinary`, status: 2 },
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   for (const row of positionalProofRows) {
