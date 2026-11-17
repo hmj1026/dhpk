@@ -111,6 +111,51 @@ for (const hook of HOOKS) {
   });
 }
 
+// (#1462) A find or xargs behind wrappers (and their option values) is judged like a bare one.
+// Each row keeps its matrix ID in the test name. Controls (benign rows) pass before and after the change.
+const wrapperBlocked = [
+  ['W1', 'busybox find . -exec cat {} +'],
+  ['W2', 'busybox find . -name .env -exec cat {} \\;'],
+  ['W3', 'nice -n 5 find . -name .env -exec cat {} \\;'],
+  ['W4', 'timeout 5 find . -name .env -exec cat {} \\;'],
+  ['W5', 'sudo -u root find . -name .env -exec cat {} \\;'],
+  ['X1', 'echo .env | nice -n 5 xargs cat'],
+  ['X2', 'echo .env | busybox xargs cat'],
+  ['time-p', 'time -p find . -name .env -exec cat {} \\;'],
+  ['sudo-D', "sudo -D /tmp find . -name '*.js' -exec cat {} \\;"],
+  ['xargs-rn1', 'echo .env | xargs -rn1 cat'],
+  ['bare-find', 'find . -name .env -exec cat {} \\;'],
+];
+const wrapperAllowed = [
+  ['nice', "nice -n 5 find . -name '*.js' -exec cat {} \\;"],
+  ['busybox', "busybox find . -name '*.js' -exec cat {} \\;"],
+  ['timeout', "timeout 5 find . -name '*.js' -exec cat {} \\;"],
+  ['sudo-u', "sudo -u root find . -name '*.js' -exec cat {} \\;"],
+  ['env', "env find . -name '*.js' -exec cat {} \\;"],
+  ['xargs-nice', 'echo ordinary | nice -n 5 xargs cat'],
+  ['xargs-busybox', 'echo ordinary | busybox xargs cat'],
+  ['xargs-rn1', 'echo ordinary | xargs -rn1 cat'],
+];
+for (const hook of HOOKS) {
+  for (const [id, command] of wrapperBlocked) {
+    test(`${hook} blocks wrapped find/xargs ${id} (#1462): ${command}`, () => {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/);
+    });
+  }
+  for (const [id, command] of wrapperAllowed) {
+    test(`${hook} allows benign wrapped find/xargs ${id} (#1462): ${command}`, () => {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    });
+  }
+  test(`${hook} allows W1 in a tree without a protected file (#1462)`, () => {
+    const result = decide(hook, 'busybox find . -exec cat {} +', CLEAN_CWD);
+    assert.strictEqual(result.status, 0, result.stderr);
+  });
+}
+
 // Unit seam: the parser reports roots, name filters, exec clauses and unmodelled predicates.
 const LIB = path.join(ROOT, 'scripts/hooks/_lib');
 const PROBE = String.raw`

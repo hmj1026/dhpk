@@ -13,8 +13,8 @@ import stat
 import sys
 
 from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex, xargs_command
-from credential_expand import HEAD_KEEPERS, expand_variants, function_names
-from credential_code import code_strings, command_head, expand_aliases
+from credential_expand import expand_variants, function_names
+from credential_code import WRAPPERS, code_strings, command_head, expand_aliases
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages, is_command_key
 from credential_scan import MAX_SECONDS, budget_seconds
@@ -486,9 +486,29 @@ def _consumes_selection(command):
     return name in READERS or name in EXEC_SHELLS
 
 
+def _moves_directory(wrapper, word):
+    """(#1462) True when an option word of `wrapper` changes the working directory the wrapped command runs in."""
+    value = word.value
+    cluster = value[1:] if value.startswith('-') and not value.startswith('--') else ''
+    if wrapper == 'env':
+        return value == '--chdir' or value.startswith('--chdir=') or 'C' in cluster
+    if wrapper == 'sudo':
+        return value in ('--login',) or value.startswith('--chdir') or 'i' in cluster or 'D' in cluster
+    return False
+
+
 def _relocated(words, index):
-    """True when a word other than a compound keyword stands before the command, so it may change the directory."""
-    return any(t.value not in HEAD_KEEPERS for t in words[:index])
+    """True when a word before the command at `index` changes the working directory or is unknowable."""
+    wrapper = None
+    for word in words[:index]:
+        name = posixpath.basename(word.value)
+        if word.dynamic or name == 'chroot':
+            return True
+        if name in WRAPPERS:
+            wrapper = name
+        elif _moves_directory(wrapper, word):
+            return True
+    return False
 
 
 def _find_selection(words):
@@ -843,7 +863,6 @@ def analyze(command, patterns, cwd, remote=False, nested=False, executed=False, 
 PIPES = ('|', '|&')
 # 由指令文字直接印出檔名的指令；其輸出經管線成為 xargs 的運算元（#1433）。
 TEXT_PRODUCERS = ('echo', 'printf')
-XARGS_WRAPPERS = ('env', 'command', 'builtin', 'nice', 'nohup', 'time', 'stdbuf', 'timeout', 'sudo', 'doas', 'exec')
 STDIN_RECOVERY = 'name each file as an explicit literal operand of the Reader instead of piping paths into xargs.'
 STDIN_SHELL_RECOVERY = ('pass explicit non-protected files to a Reader command instead of piping paths into '
                         'xargs with a shell.')
@@ -897,14 +916,11 @@ def _produced_words(segment):
 
 
 def _wrapped_index(words, command):
-    """Index of `command` in words when only assignments, wrappers and their options precede it, else None."""
-    for index, token in enumerate(words):
-        name = posixpath.basename(token.value)
-        if name == command and not token.dynamic:
-            return index
-        if not (re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', token.value) or name in XARGS_WRAPPERS or token.value in HEAD_KEEPERS or token.value.startswith('-')):
-            return None
-    return None
+    """Index of `command` in words when only assignments, wrappers and their option values precede it, else None."""
+    head = command_head(words)
+    if head is None or words[head].dynamic or posixpath.basename(words[head].value) != command:
+        return None
+    return head
 
 
 def _xargs_consumer(segment):
