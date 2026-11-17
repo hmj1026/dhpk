@@ -59,25 +59,48 @@ def _operands(tokens):
 
 
 CHROOT_VALUE_OPTIONS = frozenset(('--userspec', '--groups'))
+# (#1462) Long options that take their value as the next word; `--user=root` is one word and needs no entry.
+LONG_VALUE_OPTIONS = {
+    'sudo': frozenset(('--user', '--group', '--chdir', '--host', '--prompt')),
+    'timeout': frozenset(('--signal', '--kill-after')),
+    'nice': frozenset(('--adjustment',)),
+    'env': frozenset(('--unset', '--chdir', '--split-string')),
+}
+
+
+def _is_option(word):
+    return word.startswith('-') and len(word) > 1
+
+
+def _skip_head_keepers(words, i):
+    """Index after the assignments and compound keywords at `i`; `time` also drops its options (`time -p`)."""
+    while i < len(words) and (ASSIGNMENT.match(words[i].value) or words[i].value in HEAD_KEEPERS):
+        is_time = words[i].value == 'time'
+        i += 1
+        while is_time and i < len(words) and _is_option(words[i].value):
+            is_time = words[i].value != '--'
+            i += 1
+    return i
 
 
 def command_head(words):
     """Index of the command a wrapper chain runs, or None."""
     i = 0
     while i < len(words):
-        while i < len(words) and (ASSIGNMENT.match(words[i].value) or words[i].value in HEAD_KEEPERS):
-            i += 1
+        i = _skip_head_keepers(words, i)
         if i >= len(words):
             return None
         name = posixpath.basename(words[i].value)
         if name not in WRAPPERS:
             return i
         i += 1
-        while i < len(words) and words[i].value.startswith('-') and len(words[i].value) > 1:
+        while i < len(words) and _is_option(words[i].value):
             option = words[i].value
             i += 1
             if option == '--':
                 break
+            if option in LONG_VALUE_OPTIONS.get(name, ()):
+                i += 1
             if name == 'chroot' and option in CHROOT_VALUE_OPTIONS:
                 i += 1
             if len(option) == 2 and option[1] in WRAPPERS[name]:

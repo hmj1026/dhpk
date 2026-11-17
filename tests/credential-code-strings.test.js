@@ -177,4 +177,42 @@ test('block reason names the policy and never echoes file content', () => {
   assert.doesNotMatch(result.stderr, /synthetic/);
 });
 
+// (#1462) Unit seam: command_head returns the command a wrapper chain runs.
+const HEAD_PROBE = String.raw`
+import json, sys
+from credential_shell import lex
+from credential_code import command_head
+
+out = []
+for command in json.load(sys.stdin):
+    words = [t for t in lex(command).tokens if not t.operator]
+    index = command_head(words)
+    out.append(None if index is None else words[index].value)
+json.dump(out, sys.stdout)
+`;
+function heads(commands) {
+  const result = spawnSync('python3', ['-B', '-c', HEAD_PROBE], {
+    input: JSON.stringify(commands),
+    env: { ...process.env, PYTHONPATH: path.join(__dirname, '..', 'scripts/hooks/_lib') }, encoding: 'utf8',
+  });
+  assert.strictEqual(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
+}
+
+test('command_head skips the option of time and the values of long wrapper options (#1462)', () => {
+  const rows = [
+    ['time -p find . -x', 'find'],
+    ['time find . -x', 'find'],
+    ['sudo --user root find .', 'find'],
+    ['sudo --chdir /tmp find .', 'find'],
+    ['timeout --signal KILL 5 find .', 'find'],
+    ['timeout --kill-after 3 5 find .', 'find'],
+    ['nice --adjustment 5 find .', 'find'],
+    ['env --unset FOO find .', 'find'],
+    ['nice -n 5 find .', 'find'],
+    ['busybox find .', 'find'],
+  ];
+  assert.deepStrictEqual(heads(rows.map((r) => r[0])), rows.map((r) => r[1]));
+});
+
 run('credential-code-strings');
