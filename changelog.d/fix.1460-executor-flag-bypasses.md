@@ -1,2 +1,0 @@
-scope: hooks
-note: 受保護讀取經位置參數預設值（`${1:-.env}`）、`runuser`／`sg`／`flock`／`script`／`busybox`／`chroot` 的 `-c`、`su -c'…'` 黏接、`xargs -o`／`-p`／`-e`，以及 `find -exec`／`xargs` 執行的 shell 字串進入 Reader 時改為阻擋；沒有 `-name` 篩選或使用 `-o`／`!`／括號的 find 交給 Reader 時比照 `grep -r` 掃描根目錄，樹內有受保護檔案或無法掃描才阻擋（請縮小 find 根目錄，`-maxdepth`／`-prune` 不納入判斷）；Git Gate 也擋下陣列轉換、命令字預設值（`${x:-git push}`）與旗標變數（`o=--no-verify; git commit $o`）(#1460)。

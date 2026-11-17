@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+## 0.77.2 — 2026-11-17 — Hook bypass hardening, plugin skill dedupe, owning package root resolution, and telemetry/planner updates
+
+- **feat(telemetry)** — Separate explicit call-time model/effort upgrades into an `escalations` section with per-session cap (`>2`) flagging, restrict `mismatches` to unoverridden role deviations and built-in agents called without `model`, and split `generalPurpose` into `builtinCommand` and `roleCandidates` trigger groups (#1412).
+- **fix(hooks)** — pre-bash-dispatch、pre-bash-guard 與 pretool-git-gate 共用 command-inspect 解析快取，Pattern 2/3/6 改用解碼後結構，並修正 heredoc 標頭尾端 && / || 誤判為管線 (#1409)。
+- **fix(hooks)** — Git Gate 辨識 time、env、nice、sudo、timeout、xargs、exec、command -p 等 wrapper，並對 eval、source、cd -、CDPATH 與餵給 shell 的 here-string 採 fail-closed；叢集短選項（如 bash -oc）亦視為 -c 腳本 (#1410)。
+- **fix(hooks)** — 修正 Credential Guard 的文字範圍繞過 (#1411)：`${..}`／`$[..]` 巢狀不再被內嵌 `}`、`]` 提早關閉；fish、csh、tcsh、ash、mksh、busybox、rbash、yash、posh、script、at、su 讀 heredoc 視為程式碼；含 heredoc 的替換輸出只有在 git、gh、glab、echo、printf 的雙引號引數位置才視為資料，其餘（賦值後被展開、保留字或函式內的 `$x`、`set --`、`printf -v`、清單外的包裝器、`trap`、`eval`）改以指令判讀 heredoc 文字，引號不平衡時逐行檢視；`cat $(echo .env)` 等命令替換組成的檔名一律封鎖，`$(pwd)` 與 `$(git rev-parse --show-toplevel)` 展開為同一字詞，其後綴（如 `/.env`）照常判斷；`exec` 或帶 fd 的 heredoc（`exec 3<<EOF`）、heredoc 餵給 `xargs`、`parallel`、`read`／`readarray`／`mapfile` 迴圈或動態命令字一律封鎖。可接受的過度封鎖：heredoc 所在行有未加引號的 `xargs`、`parallel`、`read`、`readarray`、`mapfile`、`exec` 字詞，或引號字串內含 `xargs`、`parallel`（含 `xargs echo`、`read -r a b <<EOF`）；引號標題中的 `read`、`exec` 不受影響。寫入暫存檔後執行與直譯器程式字串維持範圍外 (ADR 0037)。
+- **fix(hooks)** — 未知 wrapper 後可見的 git 修改或 --no-verify 改走既有 unmodelled wrapper 阻擋並提示改寫，純資料中的 git 字詞仍放行 (#1423)。
+- **fix(hooks)** — 分開 export、declare、typeset、local，或 set -a 之後的 Git 目標變數改沿用既有 unresolved 阻擋；子 shell 與 subshell 不能改寫外層，唯讀 git 與無關 export 仍放行 (#1424)。
+- **fix(hooks)** — 動態 git 指令字（含全域選項後的 commit）、read 餵入的指令，以及看不見內容的 eval，不再放行受保護的 commit；字面上的 git、資料裡的 git 字詞與安全 eval 仍放行 (#1425)。
+- **fix(hooks)** — 函式呼叫（含 function、 -s、子殼裡的呼叫與 >(f)）、管線、巢狀子殼、{ } 與 if、while、for、case、行程替換與寫入 >(shell) 餵給 shell 或 `.` 的輸入，看得見的 git 不再放行；子殼裡的內層複合命令吃自己的管線。子殼與 `&&` 裡的重定義不會改掉外面仍會執行的函式。圓括號本體用自己的 token，內層定義不會改寫它；if、while、for、case 當本體也記成 shell。函式本體裡的內層定義用 `(` 前一個字當名稱。eval 與 source 在目前這個 shell 定義的函式留在外層，餵給 shell 的理由優先於 eval。字面 `false &&` 與 `true ||` 的新本體不會蓋掉仍會執行的 body。看不見的命令字維持未解析。stdin 裝置也算腳本。同一段文字餵給 cat，含 `cat -`，仍是資料 (#1426)。
+- **fix(hooks)** — Protected Path 以 ANSI-C、`$"..."`、brace、預設值、拆字或可見變數組成時，credential guard 不再放行 (#1427)。
+- **fix(hooks)** — `base64` 與 `dd if=` 讀取 Protected Path 時依各自的選項語法判定並阻擋 (#1428)。
+- **fix(hooks)** — `tar` 與 `cp` 的來源運算元為 Protected Path 時依選項語法判定並阻擋，輸出目的地不受影響 (#1429)。
+- **fix(hooks)** — `source` 與 `.` 指向 Protected Path 時視為執行入口並阻擋，動態運算元判為 ambiguous (#1430)。
+- **fix(hooks)** — `git rebase --exec`、`submodule foreach`、`difftool -x`、`core.sshCommand` 與 `GIT_SSH_COMMAND` 內的受保護讀取會遞迴判定 (#1431)。
+- **fix(hooks)** — `$(pwd)` 等替換捷徑在同一指令可見的同名函式遮蔽時不再被信任 (#1432)。
+- **fix(hooks)** — 管線或 heredoc 餵給 `xargs` 的 Reader 時，可見的 Protected Path 依單行與跨行管線一致判定 (#1433)。
+- **fix(hooks)** — 只交給資料用途命令的 heredoc 訊息（例如 `gh issue create --body`）不再因內文出現 `source` 或 `git` 字樣而被擋 (#1434)。
+- **fix(hooks)** — `watch`、`su -c`、`unbuffer`、`flock`、`$SHELL -c`、`$EDITOR` 與 `find -exec` 依參數語意判定唯讀 Git 與資料用途，無法判斷者維持有理由的阻擋 (#1435)。
+- **fix(hooks)** — hooks、runtime 腳本與 Codex installer 一律從實體執行腳本所屬的套件解析根目錄，不再採用 CLAUDE_PLUGIN_ROOT（即使它指向另一份 dhpk）；installer 資料來源只由 DHPK_INSTALLER_ROOT 明確指定，新增 validate:plugin-root 擋下直接讀取該環境變數選根的寫法 (#1446)。
+- **fix(hooks)** — trap 動作、alias 改綁與算術 consumer 的 subscript 求值視為 eval 等價的 Git 執行入口，無可見來源的 `trap "$CMD"` 比照 eval 阻擋 (#1448)。
+- **fix(hooks)** — `BASH_ENV`、`ENV`、`--rcfile`、`--init-file` 搭配 process substitution 或 stdin 時視為 shell input，Git 檢查不再被略過 (#1449)。
+- **fix(hooks)** — eval、`shell -c`、here-string、trap、alias、算術與啟動檔 process substitution 內的受保護讀取不再放行 (#1450)。
+- **fix(hooks)** — `BASH_ENV`、`ENV`、`--rcfile` 與 `--init-file` 指向 Protected Path 時依執行入口阻擋 (#1451)。
+- **fix(hooks)** — 同一指令中可見賦值且含 git 的變數（含 `+=`、`printf -v`、陣列、nameref、`${!x}`、大小寫轉換）被當命令字或 `shell -c` 內容時改為阻擋，唯讀值維持放行 (#1452)。
+- **fix(hooks)** — 檔名中夾入沒有可見來源的 parameter expansion 或位置參數，去掉後可組成 Protected Path 時，Reader、stdin 重導與 `source` 皆以 ambiguous 阻擋 (#1453)。
+- **fix(hooks)** — `ssh -o ProxyCommand`（含短選項群組與 `GIT_SSH_COMMAND` 內）、`GIT_SSH`、pager 設定與 `mergetool`/`difftool` cmd 內的受保護讀取不再放行 (#1454)。
+- **fix(hooks)** — git 依設定或環境變數執行的命令（editor、`credential.helper`、`core.fsmonitor`、askpass、filter、`--upload-pack`、`ext::` 等）與 `GIT_CONFIG_COUNT`、`GIT_CONFIG_PARAMETERS`、`--config-env`、`env -S` 注入的值會遞迴判定受保護讀取 (#1455)。
+- **fix(hooks)** — 可見來源經位置參數、函式引數、`bash -c` 引數、命令替換、nameref／`${x@P}` 轉換、`read` here-string 欄位切分、`su -c`／`watch`／`$SHELL -c` 與帶 `-name` 篩選的 `find -exec`／`find | xargs` 進入 Reader 的受保護讀取改為阻擋；Git Gate 也擋下以替換運算子改寫的 git 命令字 (#1456)。
+- **fix(hooks)** — 受保護讀取經位置參數預設值（`${1:-.env}`）、`runuser`／`sg`／`flock`／`script`／`busybox`／`chroot` 的 `-c`、`su -c'…'` 黏接、`xargs -o`／`-p`／`-e`，以及 `find -exec`／`xargs` 執行的 shell 字串進入 Reader 時改為阻擋；沒有 `-name` 篩選或使用 `-o`／`!`／括號的 find 交給 Reader 時比照 `grep -r` 掃描根目錄，樹內有受保護檔案或無法掃描才阻擋（請縮小 find 根目錄，`-maxdepth`／`-prune` 不納入判斷）；Git Gate 也擋下陣列轉換、命令字預設值（`${x:-git push}`）與旗標變數（`o=--no-verify; git commit $o`）(#1460)。
+- **fix(hooks)** — `busybox`／`nice -n 5`／`timeout 5`／`sudo -u root` 等 wrapper 後的 `find -exec` 與 `xargs` 改用與其他命令相同的 wrapper 走訪判定受保護讀取；wrapper 不改變工作目錄時（例如 `env find . -name '*.js' -exec cat {} \;`）不再因「工作目錄未知」被擋，`chroot`、`env -C`、`sudo -D`／`-i` 仍會。Git Gate 納入 `read <<<`、`printf -v`、`set --`／`"$@"`、函式呼叫參數與 `${!name}` 帶入的 `--no-verify`（請直接寫出旗標，或移除它）；沒有可見來源的變數維持放行。位置參數已有可見的非空值時（`set -- ordinary; cat "${1:-.env}"`）不再把未採用的預設值當成讀取目標，`o=-q; git push ${o:-} origin main` 不再被判為 transformed git flag (#1462)。
+- **fix(projection)** — 官方 Claude plugin dhpk@dhpk 對專案已啟用且其 package catalog 已提供某個 skill 時，專案不再發佈重複的 `.claude/skills/<name>` binding；停用或未安裝時維持或還原 binding，狀態無法判定時不刪除並阻擋新增 binding，可用 `--claude-plugin-state inactive` 略過檢查；需要 plugin 0.69.0 以上提供的 catalog，否則 plugin 已啟用時新增 Claude binding 會被阻擋 (#1464)。
+- **fix(hooks)** — Credential Guard 補上 `env -S` 分割字串、wrapper 選項叢集、tilde、`$_`、`IFS` 與 brace 展開帶入的受保護讀取，並放寬四項保守判定造成的誤擋。Git Gate 納入旗標縮寫、跳脫值、`${o:=…}` 預設指派、`for`／`read`／here-string 來源、動態指令字重綁，以及 `-m`、`-F`、`--author` 等選項值在雙引號外展開時帶入的 `--no-verify`（請直接寫出旗標，或移除它）；`-c core.hooksPath=…` 的覆寫與跳過 hook 的旗標分開記錄。整個字是單一雙引號區段且開頭不是 `-` 時（`git push origin "HEAD:${1}"`）不再被判為 transformed git flag；未加引號的 `HEAD:$1` 仍會。來源數量超過掃描上限時一律擋下 (#1468)。
+- **fix(hooks)** — 修正 pre-bash-guard 對非遞迴深層系統路徑（如 `rm -f /usr/local/proj/x.log`）、`git commit` heredoc 訊息提及 `rm -rf /etc`，以及 `credential_shell` 對未加引號賦值命令替換 `x=$(cat <<'EOF'...)` 的誤判（#1407）。
+- **fix(hooks)** — CLAUDE_PLUGIN_ROOT 指向別的 plugin 時，session-start、session-end、pre-bash-dispatch、stop 與 UserPromptSubmit 等 hook 改用腳本自己的根目錄，不再因找不到 `_lib/session-env.sh` 而報錯。
+- **refactor(planner)** — Planner replies drop the fixed 400-token and 200-token caps in favor of one-line telegraphic output bounded by per-section item caps, with an overflow rule that keeps the most critical items and always preserves `VERDICT:`, `CONSULT USE:`, and `END`.
+- **perf(hooks)** — 將 `command-inspect.sh` 與 `credential_shell.py` 對大量相鄰命令替換與多次 heredoc 的掃描改為線性時間，3000 個相鄰替換由約 39 秒降至 2 秒內完成（#1408）。
+- **docs(agents)** — 校準 tdd-guide、tdd-workflow、frontend-reviewer 與三個 build-resolver 的 description 觸發條件，移除 PROACTIVELY 與 MUST BE USED 並釐清 TDD 方法與專家角色分界 (#1465)。
+- **docs(agent-guidance)** — Add parallel worktree worker guidance covering shared locks, worker setup, generated-surface merges, interrupted workers, and merge order, and point AGENTS.md at it and at RELEASE.md.
+
 ## 0.77.1 — 2026-11-13 — Hook bypass hardening, faster hooks and installer, scripts simplify follow-ups
 
 - **fix(hooks)** — Fix the credential reader blocking a heredoc commit message whose body holds an apostrophe or a double quote, such as a `cat` heredoc inside `"$(...)"`. A heredoc declared in a double-quoted command substitution, including `<<-` and several on one line, is now skipped up to its delimiter line, as `command-inspect.sh` does. Unterminated quotes and substitutions outside heredoc bodies still block. An unquoted substitution, or one whose output may run as a command, keeps the stricter reading. `<<` inside arithmetic, `${...}` or `$[...]` is no longer read as a heredoc, so the lines after it are checked as commands (#1396).

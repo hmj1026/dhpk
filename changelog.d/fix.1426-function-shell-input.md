@@ -1,2 +1,0 @@
-scope: hooks
-note: 函式呼叫（含 function、 -s、子殼裡的呼叫與 >(f)）、管線、巢狀子殼、{ } 與 if、while、for、case、行程替換與寫入 >(shell) 餵給 shell 或 `.` 的輸入，看得見的 git 不再放行；子殼裡的內層複合命令吃自己的管線。子殼與 `&&` 裡的重定義不會改掉外面仍會執行的函式。圓括號本體用自己的 token，內層定義不會改寫它；if、while、for、case 當本體也記成 shell。函式本體裡的內層定義用 `(` 前一個字當名稱。eval 與 source 在目前這個 shell 定義的函式留在外層，餵給 shell 的理由優先於 eval。字面 `false &&` 與 `true ||` 的新本體不會蓋掉仍會執行的 body。看不見的命令字維持未解析。stdin 裝置也算腳本。同一段文字餵給 cat，含 `cat -`，仍是資料 (#1426)。
