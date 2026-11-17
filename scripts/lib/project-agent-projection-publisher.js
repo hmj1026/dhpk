@@ -59,6 +59,9 @@ const {
   NATIVE_LINK_SHAPE,
   applyHostSelections,
   restorePreservedHostBindings,
+  selectedAdapterEntries,
+  planClaudePluginWithdrawals,
+  validateClaudePluginProvision,
   stampDiscoveryHost,
   validateLegacyUnboundFlag,
   validateReceiptBindingState,
@@ -287,8 +290,9 @@ function validateReceiptBindings(receipt, roots, { allowLegacyClaudeDiscovery = 
       && receipt.hostBindings.claude
       && receipt.hostBindings.claude.discovery
       && receipt.hostBindings.claude.discovery.sourceRoot === roots.config.managed_root;
+    validateClaudePluginProvision(receipt);
     const providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
-      entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
+      entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible, claudePluginProvided: entry.claudePluginProvided })),
       claudeSourceRoot: receipt.schema === PROJECT_RECEIPT_SCHEMA && !legacyClaudeDiscovery
         ? roots.claudeManagedRootRelative
         : roots.config.managed_root,
@@ -508,6 +512,15 @@ function sourceEntryFor(planEntry, byId) {
   return source;
 }
 
+// The descriptor is written only while an identity is withdrawn; a stale value
+// brought in by a preserved binding is dropped so the receipt never claims more
+// than the entries flag.
+function stampClaudePluginProvision(hostBindings, descriptor) {
+  if (!hostBindings.claude) return hostBindings;
+  const { pluginProvision: _stale, ...claude } = hostBindings.claude;
+  return { ...hostBindings, claude: descriptor ? { ...claude, pluginProvision: clone(descriptor) } : claude };
+}
+
 function nativeLinkShapeFrom(binding) {
   return binding && binding.bindingShape === DIRECT_SHAPE ? DIRECT_SHAPE : NATIVE_LINK_SHAPE;
 }
@@ -522,12 +535,20 @@ function buildArtifactInputs({
   hostSelections = null,
   preserveHostBindings = null,
   preserveBindingPaths = null,
+  claudeWithdrawal = null,
 } = {}) {
   const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.identityKey, entry]));
+  const withdrawnIds = new Set(claudeWithdrawal ? claudeWithdrawal.withdrawnStableIds : []);
+  const isWithdrawn = (planEntry) => planEntry.entityKind !== 'module' && withdrawnIds.has(planEntry.stableId);
   const adapterEntries = (plan.entries || []).map((planEntry) => {
     const sourceEntry = sourceEntryFor(planEntry, byId);
     const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
-    return { stableId: planEntry.stableId, name, discoveryVisible: sourceEntry.discoveryVisible };
+    return {
+      stableId: planEntry.stableId,
+      name,
+      discoveryVisible: sourceEntry.discoveryVisible,
+      ...(isWithdrawn(planEntry) ? { claudePluginProvided: true } : {}),
+    };
   });
   const cursorShape = nativeLinkShapeFrom(cursorBinding);
   const codexShape = nativeLinkShapeFrom(codexBinding);
@@ -679,6 +700,7 @@ function buildArtifactInputs({
       stableId: planEntry.stableId,
       name,
       ...(sourceEntry.discoveryVisible === false ? { discoveryVisible: false } : {}),
+      ...(isWithdrawn(planEntry) ? { claudePluginProvided: true } : {}),
       source: sourceEntry.path,
       sourceFingerprint: manifest.sourceFingerprint,
       sourceFiles: manifest.sourceFiles,
@@ -728,7 +750,10 @@ function buildArtifactInputs({
     inventoryRevision: plan.inventoryRevision || null,
     selectedIds: (plan.selectedStableIds || []).slice().sort(),
     emittedIds: (plan.entries || []).map((entry) => entry.stableId).sort(),
-    entries: receiptEntries.slice().sort((left, right) => left.name.localeCompare(right.name)),
+    // The Claude plugin withdrawal is receipt state; the portable manifest and
+    // therefore the whole portable tree stay identical across plugin states.
+    entries: receiptEntries.map(({ claudePluginProvided: _withdrawn, ...entry }) => entry)
+      .sort((left, right) => left.name.localeCompare(right.name)),
     managedPaths: Object.keys(generatedFingerprints).sort(),
     generatedFingerprints,
     claudeManagedRoot: roots.claudeManagedRootRelative,
@@ -788,6 +813,7 @@ function buildArtifactInputs({
   ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
     hostId: 'claude',
   }));
+  hostBindings = stampClaudePluginProvision(hostBindings, claudeWithdrawal && claudeWithdrawal.descriptor);
   if (!preservedHosts.has('cursor')) {
     ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
       hostId: 'cursor',
@@ -2026,6 +2052,7 @@ function stageArtifact({
   hostSelections = null,
   preserveHostBindings = null,
   preserveBindingPaths = null,
+  claudeWithdrawal = null,
   afterStep = null,
   journal = null,
 }) {
@@ -2043,6 +2070,7 @@ function stageArtifact({
       hostSelections,
       preserveHostBindings,
       preserveBindingPaths,
+      claudeWithdrawal,
     });
     const store = new ProjectionArtifactStore({ root: artifactRoot, sourceRoot, publishRoot: publishedRoot });
     const contentByPath = new Map(inputs.records.map((record) => [record.value.destination, record.content]));
@@ -2115,6 +2143,50 @@ function receiptForArtifact({ roots, plan, staged, declaredSelection = false }) 
   });
 }
 
+// The Claude selection the next receipt will bind, as named skill entities.
+function claudeSelectionEntries({ inventory, plan, hostSelections, preserveHostBindings }) {
+  let hostBindings = applyHostSelections(clone(plan.hostBindings || {}), hostSelections);
+  hostBindings = restorePreservedHostBindings(hostBindings, preserveHostBindings);
+  if (!hostBindings.claude) return [];
+  const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.identityKey, entry]));
+  const named = (plan.entries || []).map((planEntry) => {
+    const sourceEntry = sourceEntryFor(planEntry, byId);
+    const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
+    return { entityKind: planEntry.entityKind || 'skill', stableId: planEntry.stableId, name };
+  });
+  return selectedAdapterEntries(named, hostBindings.claude);
+}
+
+function claudeBindingPathSet(bindingPaths) {
+  return new Set(((bindingPaths && bindingPaths.claude) || []).map((entry) => entry.path));
+}
+
+function assertClaudePluginStateKnown({ roots, claudePlan, previous, receipt }) {
+  if (!claudePlan.guardNewActivation) return;
+  const previousPaths = claudeBindingPathSet(previous && previous.bindingPaths);
+  const added = [...claudeBindingPathSet(receipt.bindingPaths)].filter((bindingPath) => !previousPaths.has(bindingPath)).sort();
+  if (added.length === 0) return;
+  const reason = claudePlan.reason || 'UNKNOWN';
+  throw fail('CLAUDE_PLUGIN_STATE_UNKNOWN', `Claude plugin state for ${roots.projectRoot} could not be determined (${reason}); no Claude project binding was changed. Fix one of: (1) make \`claude plugin list --json\` run in this project; (2) if dhpk@dhpk is not enabled here, rerun with --claude-plugin-state inactive; (3) update the dhpk plugin to 0.69.0 or later, which ships the package catalog. See docs/platform-installation.md#claude-plugin-and-project-bindings`, { paths: added, reason });
+}
+
+function claudeDiscoveryReport({ roots, provision, claudePlan, previous, receipt }) {
+  const previousPaths = claudeBindingPathSet(previous && previous.bindingPaths);
+  const candidatePaths = claudeBindingPathSet(receipt.bindingPaths);
+  const names = new Map(receipt.entries.map((entry) => [entry.stableId, entry.name]));
+  const unowned = claudePlan.withdrawnStableIds
+    .map((stableId) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${names.get(stableId)}`)
+    .filter((bindingPath) => !previousPaths.has(bindingPath) && lstatOrNull(path.join(roots.projectRoot, bindingPath)))
+    .map((bindingPath) => ({ path: bindingPath, reason: 'UNOWNED_ENTRY_PRESERVED' }));
+  return {
+    status: provision ? provision.status : 'NOT_PROBED',
+    mode: claudePlan.mode,
+    withdrawnPaths: [...previousPaths].filter((bindingPath) => !candidatePaths.has(bindingPath)).sort(),
+    restoredPaths: [...candidatePaths].filter((bindingPath) => !previousPaths.has(bindingPath)).sort(),
+    conflicts: [...claudePlan.conflicts, ...unowned],
+  };
+}
+
 function materializeRelocatableAgentsSkillsProjection(options = {}) {
   refuseHold(options);
   const sourceRoot = options.sourceRoot || options.root;
@@ -2153,6 +2225,16 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     selectedStableIds: options.selectedStableIds,
     declaredSelection: options.declaredSelection,
   });
+  const claudePlan = planClaudePluginWithdrawals({
+    provision: options.claudePluginProvision,
+    previousReceipt: previous && !legacyAdoption && previous.schema === PROJECT_RECEIPT_SCHEMA ? previous : null,
+    claudeSelectedEntries: claudeSelectionEntries({
+      inventory: options.inventory,
+      plan,
+      hostSelections: options.hostSelections || null,
+      preserveHostBindings: options.preserveHostBindings || null,
+    }),
+  });
   const staged = stageArtifact({
     roots,
     sourceRoot: roots.sourceRoot,
@@ -2163,6 +2245,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     hostSelections: options.hostSelections || null,
     preserveHostBindings: options.preserveHostBindings || null,
     preserveBindingPaths: options.preserveBindingPaths || null,
+    claudeWithdrawal: claudePlan,
     afterStep: options.afterStep || null,
     journal: options.journal || null,
   });
@@ -2178,6 +2261,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       staged,
       declaredSelection: options.declaredSelection === true,
     });
+    assertClaudePluginStateKnown({ roots, claudePlan, previous, receipt });
     // 舊收據僅供身分驗證；實際可替換項目以本次候選交集重新觀察。
     const adoptedBindingPaths = (options.adopt || options.repair) && previous && !legacyAdoption
       ? observeUnmanagedBindings(roots, previous.bindingPaths || {}, receipt.bindingPaths || {})
@@ -2215,6 +2299,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       receipt: published.receipt,
       plan,
       artifact: staged.artifact,
+      claudeDiscovery: claudeDiscoveryReport({ roots, provision: options.claudePluginProvision, claudePlan, previous, receipt }),
       ...(legacyAdoption ? { released } : {}),
       ...(legacyAdoption ? { backupPath: published.backupPath } : {}),
       state: previous ? 'UPDATED' : 'INSTALLED',
@@ -2286,7 +2371,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
     let providers = null;
     try {
       providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
-        entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
+        entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible, claudePluginProvided: entry.claudePluginProvided })),
         claudeSourceRoot: receipt.schema === PROJECT_RECEIPT_SCHEMA
           ? roots.claudeManagedRootRelative
           : roots.config.managed_root,

@@ -2175,4 +2175,433 @@ const { test, run, assert } = require('./_lib/tinytest');
   });
 }
 
+{
+  // ADR-0039: the enabled official Claude plugin provides a Skill Identity, so the
+  // project must not publish the duplicate .claude/skills binding. The provision
+  // object is injected; no test depends on the real machine's Claude plugin state.
+  const crypto = require('node:crypto');
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const publisher = require('../scripts/lib/project-agent-projection-publisher');
+  const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+
+  const SKILL_BODY = (name) => `---\nname: ${name}\ndescription: Fixture\n---\n# ${name}\n`;
+  const CATALOG_DIGEST = 'c'.repeat(64);
+
+  function pluginInventory(ids = ['other', 'sample']) {
+    const host = (surface, shape, transform) => ({ surface, evidence_source: 'entry_surfaces', shape, transform: { id: transform, version: '1' } });
+    const names = { sample: 'dhpk-sample', other: 'dhpk-other', fresh: 'dhpk-fresh' };
+    const surfaces = ['claude-core', 'codex-sync', 'cursor-plugin', 'agy-plugin'];
+    return {
+      schema: 'dhpk.distribution-inventory.v2',
+      skills: ids.map((id) => ({ id, name: names[id], path: `skills/${names[id]}`, lifecycle: 'promoted', surfaces })),
+      surface_membership: Object.fromEntries(surfaces.map((surface) => [surface, ids.slice()])),
+      project_agent_projection: {
+        schema: 'dhpk.project-agent-projection.v1',
+        scope: 'project',
+        owner: 'dhpk.project-agent-projection',
+        managed_root: '.agents/skills',
+        receipt: '.agents/.dhpk-installed.json',
+        profiles: { 'portable-core': { version: 'portable-core-v1', compatibility_mode: 'portable-core', stable_ids: ids.slice(), hosts: ['agy', 'claude', 'codex', 'cursor'] } },
+        hosts: {
+          claude: host('claude-core', 'project-skill-directory', 'claude-project-skill'),
+          codex: host('codex-sync', 'project-skill-directory', 'codex-project-skill'),
+          cursor: host('cursor-plugin', 'project-skill-directory', 'cursor-project-skill'),
+          agy: host('agy-plugin', 'project-skill-direct-file', 'agy-project-direct-file'),
+        },
+        dependencies: {},
+      },
+    };
+  }
+
+  function enabledProvision(identities = [{ stableId: 'sample', name: 'dhpk-sample' }]) {
+    return {
+      schema: 'dhpk.claude-plugin-provision.v1',
+      status: 'ENABLED',
+      source: 'claude-plugin-list',
+      pluginId: 'dhpk@dhpk',
+      pluginVersion: '1.0.0',
+      catalogDigest: CATALOG_DIGEST,
+      providedIdentities: identities,
+    };
+  }
+
+  const statusProvision = (status, extra = {}) => ({ schema: 'dhpk.claude-plugin-provision.v1', status, pluginId: 'dhpk@dhpk', ...extra });
+
+  function setup(ids = ['other', 'sample']) {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-plugin-dedupe-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-plugin-dedupe-project-'));
+    const names = { sample: 'dhpk-sample', other: 'dhpk-other', fresh: 'dhpk-fresh' };
+    for (const id of ['sample', 'other', 'fresh']) {
+      fs.mkdirSync(path.join(sourceRoot, 'skills', names[id]), { recursive: true });
+      fs.writeFileSync(path.join(sourceRoot, 'skills', names[id], 'SKILL.md'), SKILL_BODY(names[id]));
+    }
+    // The project roots exist before the transaction; ensuring them is not part of it.
+    fs.mkdirSync(path.join(projectRoot, '.agents'), { recursive: true });
+    return { sourceRoot, projectRoot, inventory: pluginInventory(ids) };
+  }
+
+  function dispose(context) {
+    fs.rmSync(context.sourceRoot, { recursive: true, force: true });
+    fs.rmSync(context.projectRoot, { recursive: true, force: true });
+  }
+
+  function run1(context, provision, extra = {}) {
+    return publisher.materializeRelocatableAgentsSkillsProjection({
+      sourceRoot: context.sourceRoot,
+      projectRoot: context.projectRoot,
+      inventory: context.inventory,
+      ...(provision === undefined ? {} : { claudePluginProvision: provision }),
+      ...extra,
+    });
+  }
+
+  function lstat(context, relative) {
+    try { return fs.lstatSync(path.join(context.projectRoot, relative)); } catch (_) { return null; }
+  }
+
+  function receiptOf(context) {
+    return JSON.parse(fs.readFileSync(path.join(context.projectRoot, '.agents/.dhpk-installed.json'), 'utf8'));
+  }
+
+  function snapshotTree(root) {
+    const result = {};
+    const walk = (directory) => {
+      for (const name of fs.readdirSync(directory).sort()) {
+        const full = path.join(directory, name);
+        const relative = path.relative(root, full).split(path.sep).join('/');
+        const stat = fs.lstatSync(full);
+        if (stat.isSymbolicLink()) result[relative] = `link:${fs.readlinkSync(full)}`;
+        else if (stat.isDirectory()) { result[relative] = 'dir'; walk(full); }
+        else result[relative] = `file:${crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex')}`;
+      }
+    };
+    walk(root);
+    return result;
+  }
+
+  function codeOf(fn) {
+    try { fn(); } catch (error) { return error.projectionCode || `UNCODED:${error.message}`; }
+    return null;
+  }
+
+  const CLAUDE_SAMPLE = '.claude/skills/dhpk-sample';
+  const CLAUDE_OTHER = '.claude/skills/dhpk-other';
+
+  test('testInstall_enabled_omitsClaudeBindingKeepsSelectionAndSibling', () => {
+    const context = setup();
+    try {
+      const result = run1(context, enabledProvision());
+      assert.strictEqual(lstat(context, CLAUDE_SAMPLE), null);
+      assert.ok(lstat(context, CLAUDE_OTHER).isSymbolicLink());
+      const receipt = receiptOf(context);
+      assert.deepStrictEqual(receipt.bindingPaths.claude.map((entry) => entry.path), [CLAUDE_OTHER]);
+      assert.ok(receipt.hostBindings.claude.selectedStableIds.includes('sample'), 'selection is preserved');
+      assert.strictEqual(receipt.entries.find((entry) => entry.stableId === 'sample').claudePluginProvided, true);
+      assert.strictEqual(receipt.entries.find((entry) => entry.stableId === 'other').claudePluginProvided, undefined);
+      assert.deepStrictEqual(receipt.hostBindings.claude.pluginProvision, {
+        schema: 'dhpk.claude-plugin-provision.v1',
+        status: 'ENABLED',
+        pluginId: 'dhpk@dhpk',
+        pluginVersion: '1.0.0',
+        catalogDigest: CATALOG_DIGEST,
+        pluginProvidedStableIds: ['sample'],
+      });
+      assert.ok(fs.existsSync(path.join(context.projectRoot, receipt.claudeManagedRoot, 'dhpk-sample/SKILL.md')), 'Claude sibling is still produced');
+      assert.ok(lstat(context, '.codex/skills/dhpk-sample').isSymbolicLink(), 'Codex binding is unaffected');
+      assert.ok(lstat(context, '.cursor/skills/dhpk-sample').isSymbolicLink(), 'Cursor binding is unaffected');
+      assert.strictEqual(result.claudeDiscovery.status, 'ENABLED');
+      assert.strictEqual(result.claudeDiscovery.mode, 'observed');
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot: context.sourceRoot, projectRoot: context.projectRoot, inventory: context.inventory }).ok, true);
+    } finally { dispose(context); }
+  });
+
+  for (const status of ['DISABLED', 'ABSENT', 'NOT_APPLICABLE', 'INACTIVE', 'CLI_NOT_INSTALLED']) {
+    test(`testInstall_${status.toLowerCase()}_publishesAll`, () => {
+      const context = setup();
+      try {
+        const result = run1(context, statusProvision(status));
+        assert.ok(lstat(context, CLAUDE_SAMPLE).isSymbolicLink());
+        assert.ok(lstat(context, CLAUDE_OTHER).isSymbolicLink());
+        const text = fs.readFileSync(path.join(context.projectRoot, '.agents/.dhpk-installed.json'), 'utf8');
+        assert.ok(!text.includes('claudePluginProvided') && !text.includes('pluginProvision'));
+        assert.strictEqual(result.claudeDiscovery.status, status);
+      } finally { dispose(context); }
+    });
+  }
+
+  test('testInstall_unknownFresh_blocksWithoutWrites', () => {
+    const context = setup();
+    try {
+      const before = snapshotTree(context.projectRoot);
+      let error = null;
+      try { run1(context, statusProvision('UNKNOWN', { reason: 'CLAUDE_CLI_FAILED' })); } catch (caught) { error = caught; }
+      assert.ok(error, 'expected a block');
+      assert.strictEqual(error.projectionCode, 'CLAUDE_PLUGIN_STATE_UNKNOWN');
+      assert.deepStrictEqual(snapshotTree(context.projectRoot), before);
+    } finally { dispose(context); }
+  });
+
+  test('testUpdate_enabledAfterPublished_withdrawsOwnedUnchangedLink', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      assert.ok(lstat(context, CLAUDE_SAMPLE).isSymbolicLink());
+      const result = run1(context, enabledProvision());
+      assert.strictEqual(lstat(context, CLAUDE_SAMPLE), null);
+      assert.ok(lstat(context, CLAUDE_OTHER).isSymbolicLink());
+      assert.deepStrictEqual(result.claudeDiscovery.withdrawnPaths, [CLAUDE_SAMPLE]);
+      assert.deepStrictEqual(result.claudeDiscovery.restoredPaths, []);
+      assert.ok(fs.existsSync(path.join(context.projectRoot, '.agents/skills/dhpk-sample/SKILL.md')));
+    } finally { dispose(context); }
+  });
+
+  test('testUpdate_enabledRetargetedLink_blocksModifiedManaged', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const link = path.join(context.projectRoot, CLAUDE_SAMPLE);
+      fs.rmSync(link);
+      fs.symlinkSync('../../.agents/skills/dhpk-other', link, 'dir');
+      const before = snapshotTree(context.projectRoot);
+      assert.strictEqual(codeOf(() => run1(context, enabledProvision())), 'MANAGED_CONTENT_CHANGED');
+      assert.deepStrictEqual(snapshotTree(context.projectRoot), before);
+    } finally { dispose(context); }
+  });
+
+  test('testUpdate_enabledReplacedByDirectory_blocksAndPreserves', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const link = path.join(context.projectRoot, CLAUDE_SAMPLE);
+      fs.rmSync(link);
+      fs.mkdirSync(link);
+      fs.writeFileSync(path.join(link, 'SKILL.md'), 'user content\n');
+      const before = snapshotTree(context.projectRoot);
+      assert.strictEqual(codeOf(() => run1(context, enabledProvision())), 'MANAGED_CONTENT_CHANGED');
+      assert.deepStrictEqual(snapshotTree(context.projectRoot), before);
+    } finally { dispose(context); }
+  });
+
+  test('testUpdate_enabledMissingOwnedLink_succeeds', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      fs.rmSync(path.join(context.projectRoot, CLAUDE_SAMPLE));
+      run1(context, enabledProvision());
+      assert.strictEqual(lstat(context, CLAUDE_SAMPLE), null);
+      assert.strictEqual(receiptOf(context).entries.find((entry) => entry.stableId === 'sample').claudePluginProvided, true);
+    } finally { dispose(context); }
+  });
+
+  test('testUpdate_enabledForeignEntryAtPath_preservedAndReported', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      const foreign = path.join(context.projectRoot, CLAUDE_SAMPLE);
+      fs.mkdirSync(foreign, { recursive: true });
+      fs.writeFileSync(path.join(foreign, 'SKILL.md'), 'foreign\n');
+      const result = run1(context, enabledProvision());
+      assert.strictEqual(fs.readFileSync(path.join(foreign, 'SKILL.md'), 'utf8'), 'foreign\n');
+      assert.deepStrictEqual(result.claudeDiscovery.conflicts, [{ path: CLAUDE_SAMPLE, reason: 'UNOWNED_ENTRY_PRESERVED' }]);
+    } finally { dispose(context); }
+  });
+
+  test('testUpdate_disabledAfterWithdraw_restoresBinding', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      const result = run1(context, statusProvision('DISABLED'));
+      assert.ok(lstat(context, CLAUDE_SAMPLE).isSymbolicLink());
+      assert.strictEqual(fs.readlinkSync(path.join(context.projectRoot, CLAUDE_SAMPLE)), '../../.agents/claude-skills/dhpk-sample');
+      assert.deepStrictEqual(result.claudeDiscovery.restoredPaths, [CLAUDE_SAMPLE]);
+      const text = fs.readFileSync(path.join(context.projectRoot, '.agents/.dhpk-installed.json'), 'utf8');
+      assert.ok(!text.includes('claudePluginProvided') && !text.includes('pluginProvision'));
+    } finally { dispose(context); }
+  });
+
+  test('testUpdate_disabledForeignEntryAtRestorePath_blocksCollision', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      const foreign = path.join(context.projectRoot, CLAUDE_SAMPLE);
+      fs.mkdirSync(foreign, { recursive: true });
+      fs.writeFileSync(path.join(foreign, 'SKILL.md'), 'foreign\n');
+      const before = snapshotTree(context.projectRoot);
+      assert.strictEqual(codeOf(() => run1(context, statusProvision('DISABLED'))), 'GENERATED_PATH_COLLISION');
+      assert.deepStrictEqual(snapshotTree(context.projectRoot), before);
+    } finally { dispose(context); }
+  });
+
+  test('testRepeat_enabledTwice_receiptByteIdentical', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      const first = receiptOf(context);
+      run1(context, enabledProvision());
+      const second = receiptOf(context);
+      const strip = (receipt) => { const copy = { ...receipt }; delete copy.rollback; delete copy.receiptFingerprint; return copy; };
+      assert.deepStrictEqual(strip(second), strip(first));
+      assert.deepStrictEqual(second.hostBindings.claude.pluginProvision, first.hostBindings.claude.pluginProvision);
+    } finally { dispose(context); }
+  });
+
+  test('testRepeat_noPlugin_receiptUnchangedFromLegacyShape', () => {
+    const legacy = setup();
+    const probed = setup();
+    try {
+      run1(legacy, undefined);
+      run1(probed, statusProvision('ABSENT'));
+      assert.deepStrictEqual(receiptOf(probed), receiptOf(legacy));
+    } finally { dispose(legacy); dispose(probed); }
+  });
+
+  test('testUnknown_unchangedBindingSet_carriesForward', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      const result = run1(context, statusProvision('UNKNOWN', { reason: 'CLAUDE_CLI_FAILED' }));
+      assert.strictEqual(lstat(context, CLAUDE_SAMPLE), null, 'carry-forward must not restore');
+      assert.ok(lstat(context, CLAUDE_OTHER).isSymbolicLink(), 'carry-forward must not delete');
+      assert.strictEqual(receiptOf(context).entries.find((entry) => entry.stableId === 'sample').claudePluginProvided, true);
+      assert.strictEqual(result.claudeDiscovery.mode, 'carry-forward');
+    } finally { dispose(context); }
+  });
+
+  test('testUnknown_newClaudeId_blocks', () => {
+    const context = setup(['other', 'sample']);
+    try {
+      run1(context, enabledProvision());
+      const widened = { ...context, inventory: pluginInventory(['fresh', 'other', 'sample']) };
+      const before = snapshotTree(context.projectRoot);
+      let error = null;
+      try { run1(widened, statusProvision('UNKNOWN', { reason: 'CLAUDE_CLI_FAILED' }), { update: true }); } catch (caught) { error = caught; }
+      assert.ok(error, 'expected a block');
+      assert.strictEqual(error.projectionCode, 'CLAUDE_PLUGIN_STATE_UNKNOWN');
+      assert.deepStrictEqual(error.projectionDetails.paths, ['.claude/skills/dhpk-fresh']);
+      assert.deepStrictEqual(snapshotTree(context.projectRoot), before);
+    } finally { dispose(context); }
+  });
+
+  test('testOmittedProvision_carriesWithdrawalAndNeverBlocks', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      const widened = { ...context, inventory: pluginInventory(['fresh', 'other', 'sample']) };
+      run1(widened, undefined, { update: true });
+      assert.strictEqual(lstat(context, CLAUDE_SAMPLE), null);
+      assert.ok(lstat(context, '.claude/skills/dhpk-fresh').isSymbolicLink());
+    } finally { dispose(context); }
+  });
+
+  test('testCodexCursorBindings_identicalAcrossStates', () => {
+    const enabled = setup();
+    const absent = setup();
+    try {
+      run1(enabled, enabledProvision());
+      run1(absent, statusProvision('ABSENT'));
+      const left = receiptOf(enabled);
+      const right = receiptOf(absent);
+      assert.deepStrictEqual(left.bindingPaths.codex, right.bindingPaths.codex);
+      assert.deepStrictEqual(left.bindingPaths.cursor, right.bindingPaths.cursor);
+      assert.deepStrictEqual(left.hostBindings.codex, right.hostBindings.codex);
+      assert.deepStrictEqual(left.hostBindings.cursor, right.hostBindings.cursor);
+    } finally { dispose(enabled); dispose(absent); }
+  });
+
+  test('testPortableTree_identicalAcrossStates', () => {
+    const enabled = setup();
+    const absent = setup();
+    try {
+      run1(enabled, enabledProvision());
+      run1(absent, statusProvision('ABSENT'));
+      const tree = (context) => {
+        const full = snapshotTree(context.projectRoot);
+        return Object.fromEntries(Object.entries(full).filter(([name]) => name.startsWith('.agents/') && name !== '.agents/.dhpk-installed.json' && !name.startsWith('.agents/.dhpk-projection-backup')));
+      };
+      assert.deepStrictEqual(tree(enabled), tree(absent));
+      assert.strictEqual(receiptOf(enabled).artifactFingerprint, receiptOf(absent).artifactFingerprint);
+      assert.deepStrictEqual(receiptOf(enabled).generatedFingerprints, receiptOf(absent).generatedFingerprints);
+      assert.deepStrictEqual(receiptOf(enabled).claudeGeneratedFingerprints, receiptOf(absent).claudeGeneratedFingerprints);
+    } finally { dispose(enabled); dispose(absent); }
+  });
+
+  test('testUninstall_afterWithdraw_removesOnlyOwned', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      const foreign = path.join(context.projectRoot, CLAUDE_SAMPLE);
+      fs.mkdirSync(foreign, { recursive: true });
+      fs.writeFileSync(path.join(foreign, 'SKILL.md'), 'foreign\n');
+      const result = publisher.uninstallAgentsSkillsProjection({ projectRoot: context.projectRoot, inventory: context.inventory });
+      assert.strictEqual(result.ok, true, JSON.stringify(result));
+      assert.strictEqual(lstat(context, CLAUDE_OTHER), null);
+      assert.strictEqual(fs.readFileSync(path.join(foreign, 'SKILL.md'), 'utf8'), 'foreign\n');
+    } finally { dispose(context); }
+  });
+
+  test('testRollback_toPreWithdrawSnapshot_restoresLinkExactly', () => {
+    const context = setup();
+    try {
+      run1(context, statusProvision('ABSENT'));
+      const target = fs.readlinkSync(path.join(context.projectRoot, CLAUDE_SAMPLE));
+      run1(context, enabledProvision());
+      assert.strictEqual(lstat(context, CLAUDE_SAMPLE), null);
+      const result = publisher.rollbackAgentsSkillsProjection({ projectRoot: context.projectRoot, inventory: context.inventory });
+      assert.strictEqual(result.ok, true, JSON.stringify(result));
+      assert.strictEqual(fs.readlinkSync(path.join(context.projectRoot, CLAUDE_SAMPLE)), target);
+      const text = fs.readFileSync(path.join(context.projectRoot, '.agents/.dhpk-installed.json'), 'utf8');
+      assert.ok(!text.includes('claudePluginProvided'));
+    } finally { dispose(context); }
+  });
+
+  test('testOldV3Receipt_withoutFlags_readsAsNoWithdrawals', () => {
+    const context = setup();
+    try {
+      run1(context, undefined);
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot: context.sourceRoot, projectRoot: context.projectRoot, inventory: context.inventory }).ok, true);
+      run1(context, undefined);
+      assert.ok(lstat(context, CLAUDE_SAMPLE).isSymbolicLink());
+      assert.ok(lstat(context, CLAUDE_OTHER).isSymbolicLink());
+    } finally { dispose(context); }
+  });
+
+  function resealReceipt(context, mutate) {
+    const receiptPath = path.join(context.projectRoot, '.agents/.dhpk-installed.json');
+    const receipt = receiptOf(context);
+    mutate(receipt);
+    delete receipt.receiptFingerprint;
+    receipt.receiptFingerprint = fingerprint(receipt);
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  }
+
+  test('testReceipt_flagWithoutDescriptor_invalidReceipt', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      resealReceipt(context, (receipt) => {
+        delete receipt.hostBindings.claude.pluginProvision;
+        receipt.bindings = JSON.parse(JSON.stringify(receipt.hostBindings));
+      });
+      assert.strictEqual(codeOf(() => run1(context, enabledProvision())), 'INVALID_RECEIPT');
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot: context.sourceRoot, projectRoot: context.projectRoot, inventory: context.inventory }).ok, false);
+    } finally { dispose(context); }
+  });
+
+  test('testReceipt_flagWithRestoredLinkSet_invalidReceipt', () => {
+    const context = setup();
+    try {
+      run1(context, enabledProvision());
+      resealReceipt(context, (receipt) => {
+        delete receipt.entries.find((entry) => entry.stableId === 'sample').claudePluginProvided;
+        delete receipt.hostBindings.claude.pluginProvision;
+        receipt.bindings = JSON.parse(JSON.stringify(receipt.hostBindings));
+      });
+      // Flags removed but the binding set still omits the sample link: bindings no longer match.
+      assert.strictEqual(codeOf(() => run1(context, enabledProvision())), 'INVALID_RECEIPT');
+    } finally { dispose(context); }
+  });
+}
+
 run('project-agent-projection-publisher');
