@@ -3304,6 +3304,27 @@ const GIT_GATE_FLAG_1462 = [
   ['default-short', 'git commit ${x:--n} -m x'],
   ['opaque-read', 'o=--no-verify; read o; git commit $o -m x'],
   ['read-overrides-benign', 'o=--amend; read o <<< --no-verify; git commit $o -m x'],
+  ["G1a", "read -pt o <<< --no-verify; git commit $o -m x"],
+  ["G1b", "read <<< --no-verify o; git commit $o -m x"],
+  ["G1c", "IFS= read -r o <<< --no-verify; git commit $o -m x"],
+  ["G4a", "f() { git commit \"$@\"; }; x=1 f --no-verify -m x"],
+  ["G4b", "f() { git commit \"$@\"; }; \"f\" --no-verify -m x"],
+  ["G4c", "f() { git commit \"$@\"; }; \\f --no-verify -m x"],
+  ["G4d", "f() { git commit \"$@\"; }; 2>/dev/null f --no-verify -m x"],
+  ["G4e", "f() { git commit \"$@\"; }; case a in a) f --no-verify -m x;; esac"],
+  ["G4f", "f() { git commit \"$@\"; }; x=$(f --no-verify -m x)"],
+  ["G3a", "\"set\" -- --no-verify; git commit \"$@\" -m x"],
+  ["G3b", "set -- -m --no-verify; git commit -m x $2"],
+  ["G4g", "f() { git commit -m x \"$2\"; }; f -m --no-verify"],
+  ["G6a", "git commit ${1:--n} -m x"],
+  ["G6b", "git commit ${@:--n} -m x"],
+  ["G6c", "set -- a; git commit ${1:+-n} -m x"],
+  ["G7a", "read -r o <<< -\\-no-verify; git commit $o -m x"],
+  ["G7b", "printf -v o %s -\\-no-verify; git commit $o -m x"],
+  ["G7c", "git commit ${x:-'--no-'verify} -m x"],
+  ["G7d", "read -r o <<< $'--no-verify'; git commit $o -m x"],
+  ["G7e", "git commit ${x:--\\n} -m x"],
+  ['G8a', `set -- ${Array.from({ length: 300 }, (_, k) => 'w' + k).join(' ')}; git commit "$@" -m x`],
 ];
 
 for (const [id, command] of GIT_GATE_FLAG_1462) {
@@ -3329,6 +3350,9 @@ const GIT_GATE_ALLOWED_1462 = [
   ['msg-arg', 'f(){ git commit "$@"; }; f -m "$msg"'],
   ['unknown-read', 'read b; git push origin $b'],
   ['unknown-read-file', 'read o < f; git commit $o -m x'],
+  ["C10", "b=${1:-main}; git push origin $b"],
+  ["C11", "git push origin ${b:-main}"],
+  ["C12", "git commit -m \"${msg:-wip}\""],
 ];
 
 for (const [id, command] of GIT_GATE_ALLOWED_1462) {
@@ -3336,6 +3360,30 @@ for (const [id, command] of GIT_GATE_ALLOWED_1462) {
     withRepos(({ featureRepo }) => {
       for (const hook of ALL_BASH_HOOKS) {
         expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// Pinned reasons: a flag from a visible source names --no-verify; an unreadable one reports the
+// transformed flag with its rewrite hint.
+const REASON_NO_VERIFY_1462 = /'--no-verify' bypasses the pre-commit\/pre-push gates/;
+const REASON_TRANSFORMED_1462 = /unsupported shell syntax \(transformed git flag\); rewrite the command without it/;
+const GIT_GATE_REASON_1462 = [
+  ['G1', 'read -r o <<< --no-verify; git commit $o -m x', REASON_NO_VERIFY_1462],
+  ['G3', 'set -- --no-verify; git commit "$@" -m x', REASON_NO_VERIFY_1462],
+  ['opaque-read', 'o=--no-verify; read o; git commit $o -m x', REASON_TRANSFORMED_1462],
+  ['G7c', "git commit ${x:-'--no-'verify} -m x", REASON_NO_VERIFY_1462],
+];
+
+for (const [id, command, reason] of GIT_GATE_REASON_1462) {
+  test(`#1462 ${id} blocks with a stable reason (guard and dispatcher)`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        const res = bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(String(res.stderr), /\[bash-guard\] blocked:/, `${hook}: ${command}`);
+        assert.match(String(res.stderr), reason, `${hook}: ${command}`);
       }
     });
   });

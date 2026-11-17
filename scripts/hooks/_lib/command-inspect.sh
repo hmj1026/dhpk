@@ -418,6 +418,8 @@ _dhpk_ci_flag_clear() {
     _dhpk_ci_flag_names=" "
     _dhpk_ci_pos_pool=""
     _dhpk_ci_pos_opaque=0
+    _dhpk_ci_pos_segs=0
+    _dhpk_ci_pos_words=0
 }
 
 # True when a value text mentions an already recorded flag variable name.
@@ -528,33 +530,49 @@ _dhpk_ci_flag_word_extra() {
     [ -n "$rest" ]
 }
 
-# (#1462) ${NAME<op>WORD} with a default operator in git commit or push argument position. A literal
-# WORD is judged as a flag value; a recorded NAME also contributes its stored value (not for the
-# alternative operators + and :+). Returns 0 when the word was handled (_dhpk_ci_flag_hit set).
+# (#1462) ${NAME<op>WORD} with a default operator in git commit or push argument position. NAME is a
+# variable name, a positional digit, @ or *. A readable WORD is judged as a flag value; a recorded NAME
+# (for a positional: the pooled words) also contributes its stored value, except for the alternative
+# operators + and :+. Returns 0 when the word was handled (_dhpk_ci_flag_hit set).
 _dhpk_ci_flag_default_hit() {
-    local re='^\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-=+?])([^}]*)\}$'
-    local w="${1//\"/}" name op word var recorded=0 literal=1
+    local re='^\$\{([A-Za-z_][A-Za-z0-9_]*|[0-9]+|[@*])(:?[-=+?])([^}]*)\}$'
+    local w="${1//\"/}" name op word var stored="" recorded=0
     [[ "$w" =~ $re ]] || return 1
     name="${BASH_REMATCH[1]}"
     op="${BASH_REMATCH[2]}"
     word="${BASH_REMATCH[3]}"
-    case "$word" in *[\$\`\\\'\{]*) literal=0 ;; esac
-    case "$_dhpk_ci_flag_names" in *" $name "*) recorded=1 ;; esac
-    if [ "$literal" = "0" ]; then
+    if [[ "$name" =~ ^[0-9@*] ]]; then
+        if [ "${_dhpk_ci_pos_opaque:-0}" = "1" ]; then
+            recorded=1
+            stored="@opaque"
+        elif [ -n "${_dhpk_ci_pos_pool:-}" ]; then
+            recorded=1
+            stored="$_dhpk_ci_pos_pool"
+        fi
+    else
+        case "$_dhpk_ci_flag_names" in *" $name "*) recorded=1 ;; esac
+        var="_dhpk_ci_fv_$name"
+        [ "$recorded" = "1" ] && stored="${!var}"
+    fi
+    if ! _dhpk_ci_fs_value "$word"; then
         [ "$recorded" = "1" ] || return 1
         _dhpk_ci_flag_hit="transformed"
         return 0
     fi
+    word="$_dhpk_ci_fs_uq"
     if _dhpk_ci_flag_value_no_verify " $word" "$2"; then
         _dhpk_ci_flag_hit="no-verify"
         return 0
     fi
+    if [ "$_dhpk_ci_fs_uncertain" = "1" ] && [[ "$word" == -* ]]; then
+        _dhpk_ci_flag_hit="transformed"
+        return 0
+    fi
     [ "$recorded" = "1" ] || return 0
     case "$op" in *+) return 0 ;; esac
-    var="_dhpk_ci_fv_$name"
-    if [ "${!var}" = "@opaque" ]; then
+    if [ "$stored" = "@opaque" ]; then
         _dhpk_ci_flag_hit="transformed"
-    elif _dhpk_ci_flag_value_no_verify "${!var}" "$2"; then
+    elif _dhpk_ci_flag_value_no_verify "$stored" "$2"; then
         _dhpk_ci_flag_hit="no-verify"
     fi
     return 0
@@ -615,50 +633,85 @@ _dhpk_ci_flag_force() {
 }
 
 # Splits a segment into quote-aware words: _dhpk_ci_fs_raw as written, _dhpk_ci_fs_words with quotes
-# removed. After 64 words the rest stays one word, so the cost per segment is bounded.
+# and backslashes removed. After 64 words the rest stays one word, so the cost per segment is bounded.
 _dhpk_ci_fs_split() {
     local rest="$1" w sq="'" n=0
     local re_w='^[[:space:]]*(("[^"]*"|'$sq'[^'$sq']*'$sq'|[^[:space:]"'$sq']+)+)(.*)$'
     _dhpk_ci_fs_raw=()
     _dhpk_ci_fs_words=()
+    _dhpk_ci_fs_rest_len=0
     while [ "$n" -lt 64 ] && [[ "$rest" =~ $re_w ]]; do
         w="${BASH_REMATCH[1]}"
         rest="${BASH_REMATCH[3]}"
         _dhpk_ci_fs_raw+=("$w")
-        w="${w//\"/}"
-        _dhpk_ci_fs_words+=("${w//$sq/}")
+        w="${w//\$$sq/$sq}"
+        _dhpk_ci_fs_words+=("${w//[\"$sq\\]/}")
         n=$((n + 1))
     done
     rest="${rest#"${rest%%[![:space:]]*}"}"
     [ -n "$rest" ] || return 0
+    _dhpk_ci_fs_rest_len=${#rest}
     _dhpk_ci_fs_raw+=("$rest")
     _dhpk_ci_fs_words+=("$rest")
 }
 
-# True when a raw word is readable in the text: no expansion, escape or brace.
-_dhpk_ci_fs_literal() {
-    case "$1" in
-        *[\$\`\\\{]*) return 1 ;;
-    esac
+# Peels the first word off $1 into _dhpk_ci_fs_pw, leaving the rest in _dhpk_ci_fs_pr.
+_dhpk_ci_fs_peel() {
+    local sq="'"
+    local re_w='^[[:space:]]*(("[^"]*"|'$sq'[^'$sq']*'$sq'|[^[:space:]"'$sq']+)+)(.*)$'
+    [[ "$1" =~ $re_w ]] || return 1
+    _dhpk_ci_fs_pw="${BASH_REMATCH[1]}"
+    _dhpk_ci_fs_pr="${BASH_REMATCH[3]}"
+}
+
+# Reads the value of a raw word: quotes, backslashes and $'...' are removed into _dhpk_ci_fs_uq. Returns
+# 1 when the word holds an expansion or a brace. _dhpk_ci_fs_uncertain is 1 when a backslash precedes a
+# letter or digit (an escape such as \x2d or \n whose result is not computed here).
+_dhpk_ci_fs_value() {
+    local w="$1" sq="'"
+    _dhpk_ci_fs_uncertain=0
+    w="${w//\$$sq/$sq}"
+    case "$w" in *[\$\`\{]*) return 1 ;; esac
+    case "$1" in *\\[A-Za-z0-9]*) _dhpk_ci_fs_uncertain=1 ;; esac
+    _dhpk_ci_fs_uq="${w//[\"$sq\\]/}"
+}
+
+# Sets _dhpk_ci_fs_sv to the flag value stored for the value read by _dhpk_ci_fs_value: opaque when
+# an escape could hide a flag (readable part starts with a dash), else the words.
+_dhpk_ci_fs_stored() {
+    _dhpk_ci_fs_sv=" $1"
+    [ "$_dhpk_ci_fs_uncertain" = "1" ] && [[ "$1" == -* ]] && _dhpk_ci_fs_sv="@opaque"
     return 0
 }
 
 # Adds words from index $1 of the last split to the positional pool. A word with an expansion makes
-# the pool opaque, except the value of an option that takes one (it is not a positional flag).
+# the pool opaque, except the value of an option that takes one (it is ignored, not pooled). The pool
+# is capped at 16 contributing segments and 256 words; beyond that it is opaque.
 _dhpk_ci_fs_pool_add() {
     local i="$1" n="${#_dhpk_ci_fs_words[@]}" prev="" raw
+    _dhpk_ci_pos_segs=$((${_dhpk_ci_pos_segs:-0} + 1))
+    _dhpk_ci_pos_words=$((${_dhpk_ci_pos_words:-0} + n - i + _dhpk_ci_fs_rest_len / 2))
+    if [ "$_dhpk_ci_pos_segs" -gt 16 ] || [ "$_dhpk_ci_pos_words" -gt 256 ]; then
+        _dhpk_ci_pos_opaque=1
+        return 0
+    fi
     while [ "$i" -lt "$n" ]; do
         raw="${_dhpk_ci_fs_raw[$i]}"
-        if [ -n "$prev" ] && _dhpk_ci_option_consumes_next "$prev"; then
-            prev=""
-        else
-            prev="${_dhpk_ci_fs_words[$i]}"
-            if _dhpk_ci_fs_literal "$raw" || [[ "$raw" == -*=* && "${raw%%=*}" != *[\$\`\{]* ]]; then
-                _dhpk_ci_pos_pool="$_dhpk_ci_pos_pool $prev"
-            else
+        if _dhpk_ci_fs_value "$raw"; then
+            _dhpk_ci_fs_stored "$_dhpk_ci_fs_uq"
+            if [ "$_dhpk_ci_fs_sv" = "@opaque" ]; then
                 _dhpk_ci_pos_opaque=1
+            else
+                _dhpk_ci_pos_pool="$_dhpk_ci_pos_pool$_dhpk_ci_fs_sv"
             fi
+        elif [ -n "$prev" ] && _dhpk_ci_option_consumes_next "$prev"; then
+            :
+        elif [[ "$raw" == -*=* && "${raw%%=*}" != *[\$\`\{]* ]]; then
+            :
+        else
+            _dhpk_ci_pos_opaque=1
         fi
+        prev="${_dhpk_ci_fs_words[$i]}"
         i=$((i + 1))
     done
 }
@@ -674,39 +727,60 @@ _dhpk_ci_fs_unreadable() {
     fi
 }
 
-# read [opts] NAME... <<< WORD: a literal WORD is each name's value; any other source is unreadable.
+# True when read option cluster $1 ends in an option that takes a value, so the next word is that value
+# (-pt keeps its value attached; -a takes an array name, which is a target).
+_dhpk_ci_fs_read_opt() {
+    local c="${1#-}" ch
+    while [ -n "$c" ]; do
+        ch="${c:0:1}"
+        c="${c:1}"
+        case "$ch" in
+            [pdnNtui]) [ -z "$c" ]; return ;;
+        esac
+    done
+    return 1
+}
+
+# read [opts] NAME... <<< WORD: a readable WORD is each name's value; any other source is unreadable.
 _dhpk_ci_fs_read() {
     _dhpk_ci_fs_split "$1"
-    local i=1 n="${#_dhpk_ci_fs_words[@]}" w name val="" raw="" literal=0 here=0
-    local re_redir='^[0-9]*[<>]'
+    local i=1 n="${#_dhpk_ci_fs_words[@]}" w raw name rawv="" here=0 value="" readable=0
+    local re_op='^[0-9]*[<>]+$' re_redir='^[0-9]*[<>]'
     local -a rnames=()
     while [ "$i" -lt "$n" ]; do
         w="${_dhpk_ci_fs_words[$i]}"
-        case "$w" in
-            -*[pdnNtui]) i=$((i + 1)) ;;
-            -*) ;;
-            *) [[ "$w" =~ $re_redir ]] && break; rnames+=("${w%%\[*}") ;;
+        raw="${_dhpk_ci_fs_raw[$i]}"
+        case "$raw" in
+            '<<<'*)
+                here=1
+                rawv="${raw#<<<}"
+                if [ -z "$rawv" ]; then
+                    i=$((i + 1))
+                    rawv="${_dhpk_ci_fs_raw[$i]-}"
+                fi
+                ;;
+            -*) _dhpk_ci_fs_read_opt "$w" && i=$((i + 1)) ;;
+            *)
+                if [[ "$w" =~ $re_op ]]; then
+                    i=$((i + 1))
+                elif ! [[ "$w" =~ $re_redir ]]; then
+                    rnames+=("${w%%\[*}")
+                fi
+                ;;
         esac
         i=$((i + 1))
     done
     [ "${#rnames[@]}" -gt 0 ] || rnames=(REPLY)
-    while [ "$i" -lt "$n" ]; do
-        w="${_dhpk_ci_fs_words[$i]}"
-        if [[ "$w" == "<<<"* ]]; then
-            here=1
-            val="${w#<<<}"
-            raw="${_dhpk_ci_fs_raw[$i]#<<<}"
-            [ -n "$val" ] || { val="${_dhpk_ci_fs_words[$((i + 1))]-}"; raw="${_dhpk_ci_fs_raw[$((i + 1))]-}"; }
-            _dhpk_ci_fs_literal "$raw" && literal=1
-            break
-        fi
-        i=$((i + 1))
-    done
+    if [ "$here" = "1" ] && _dhpk_ci_fs_value "$rawv"; then
+        readable=1
+        _dhpk_ci_fs_stored "$_dhpk_ci_fs_uq"
+        value="$_dhpk_ci_fs_sv"
+    fi
     for name in "${rnames[@]}"; do
-        if [ "$here" = "1" ] && [ "$literal" = "1" ]; then
-            _dhpk_ci_flag_force "$name" " $val"
+        if [ "$readable" = "1" ]; then
+            _dhpk_ci_flag_force "$name" "$value"
         else
-            _dhpk_ci_fs_unreadable "$name" "$raw"
+            _dhpk_ci_fs_unreadable "$name" "$rawv"
         fi
     done
 }
@@ -722,15 +796,20 @@ _dhpk_ci_fs_printf() {
     name="${_dhpk_ci_fs_words[2]%%\[*}"
     if [ "$fmt" = "%s" ]; then
         for ((i = i + 1; i < n; i++)); do
-            _dhpk_ci_fs_literal "${_dhpk_ci_fs_raw[$i]}" || opaque=1
-            val="$val ${_dhpk_ci_fs_words[$i]}"
+            args="$args ${_dhpk_ci_fs_raw[$i]}"
+            if _dhpk_ci_fs_value "${_dhpk_ci_fs_raw[$i]}"; then
+                _dhpk_ci_fs_stored "$_dhpk_ci_fs_uq"
+                [ "$_dhpk_ci_fs_sv" = "@opaque" ] && opaque=1
+                val="$val ${_dhpk_ci_fs_uq}"
+            else
+                opaque=1
+            fi
         done
-        args="$val"
-    elif _dhpk_ci_fs_literal "${_dhpk_ci_fs_raw[$i]-}" && [[ "$fmt" != *[%\\]* ]]; then
-        val=" $fmt"
+    elif [[ "${_dhpk_ci_fs_raw[$i]-}" != *[%\\]* ]] && _dhpk_ci_fs_value "${_dhpk_ci_fs_raw[$i]-}"; then
+        val=" $_dhpk_ci_fs_uq"
     else
         opaque=1
-        for ((i = i + 1; i < n; i++)); do args="$args ${_dhpk_ci_fs_words[$i]}"; done
+        for ((i = i + 1; i < n; i++)); do args="$args ${_dhpk_ci_fs_raw[$i]}"; done
     fi
     if [ "$opaque" = "1" ]; then
         _dhpk_ci_fs_unreadable "$name" "$args"
@@ -755,31 +834,61 @@ _dhpk_ci_fs_set() {
     _dhpk_ci_fs_pool_add "$i"
 }
 
-# Strips leading reserved words and function definition prefixes from segment $1 into
-# _dhpk_ci_fs_seg. With $2 = 1 a defined function name is recorded (at most 16, then the pool is opaque).
+# Strips what precedes the command word of segment $1 into _dhpk_ci_fs_seg: reserved words, prefix
+# assignments, redirections and function definition prefixes (a name, then the () marker). With $2 = 1
+# a defined function name is recorded (at most 16, then the pool is opaque).
 _dhpk_ci_fs_strip() {
-    local s="$1" w fn
-    local re_fn='^function[[:space:]]+([A-Za-z_][A-Za-z0-9_.-]*)([[:space:]]*\(\))?[[:space:]]*(.*)$'
-    local re_paren='^([A-Za-z_][A-Za-z0-9_.-]*)[[:space:]]*\(\)[[:space:]]*(.*)$'
+    local s="$1" w fn u=$'\001'
+    local re_fn='^function[[:space:]]+([A-Za-z_][A-Za-z0-9_.-]*)([[:space:]]*'$u')?[[:space:]]*(.*)$'
+    local re_paren='^([A-Za-z_][A-Za-z0-9_.-]*)[[:space:]]*'$u'[[:space:]]*(.*)$'
+    local re_asg='^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?='
+    local re_op='^[0-9&]*[<>]+$' re_redir='^[0-9&]*[<>]'
     while :; do
         s="${s#"${s%%[![:space:]]*}"}"
+        # Fast path: a plain command word with no definition marker needs no regex.
         w="${s%%[[:space:]]*}"
-        case "$w" in
-            '{'|'}'|'!'|'('|')'|then|do|else|elif|while|until|if|time|builtin|command)
-                s="${s#"$w"}"
-                continue
+        case "$s" in
+            *"$u"*) ;;
+            *)
+                case "$w" in
+                    *[=\<\>\"\'\\\&]*|'{'|'}'|'!'|then|do|else|elif|while|until|if|time|builtin|command|function) ;;
+                    *) break ;;
+                esac
                 ;;
         esac
         if [[ "$s" =~ $re_fn ]]; then
             fn="${BASH_REMATCH[1]}"
             s="${BASH_REMATCH[3]}"
+            [ "$2" = "1" ] && _dhpk_ci_fs_define "$fn"
+            continue
         elif [[ "$s" =~ $re_paren ]]; then
             fn="${BASH_REMATCH[1]}"
             s="${BASH_REMATCH[2]}"
-        else
-            break
+            [ "$2" = "1" ] && _dhpk_ci_fs_define "$fn"
+            continue
         fi
-        [ "$2" = "1" ] && _dhpk_ci_fs_define "$fn"
+        _dhpk_ci_fs_peel "$s" || break
+        w="$_dhpk_ci_fs_pw"
+        case "$w" in
+            '{'|'}'|'!'|then|do|else|elif|while|until|if|time|builtin|command)
+                s="$_dhpk_ci_fs_pr"
+                continue
+                ;;
+        esac
+        if [[ "$w" =~ $re_asg ]]; then
+            s="$_dhpk_ci_fs_pr"
+            continue
+        fi
+        if [[ "$w" =~ $re_op ]]; then
+            _dhpk_ci_fs_peel "$_dhpk_ci_fs_pr" || { s=""; break; }
+            s="$_dhpk_ci_fs_pr"
+            continue
+        fi
+        if [[ "$w" =~ $re_redir ]]; then
+            s="$_dhpk_ci_fs_pr"
+            continue
+        fi
+        break
     done
     _dhpk_ci_fs_seg="$s"
 }
@@ -793,16 +902,21 @@ _dhpk_ci_fs_define() {
     _dhpk_ci_fs_nfn=$((_dhpk_ci_fs_nfn + 1))
 }
 
-# Dispatches one segment of the second pass to its flag source handler.
+# Dispatches one stripped segment of the second pass to its flag source handler. The head word is
+# compared without quotes or backslashes. An opaque pool takes no more words.
 _dhpk_ci_fs_apply() {
     local head="${1%%[[:space:]]*}"
+    head="${head//[\"\'\\]/}"
     case "$head" in
         read) _dhpk_ci_fs_read "$1" ;;
         printf) _dhpk_ci_fs_printf "$1" ;;
-        set) _dhpk_ci_fs_set "$1" ;;
+        set)
+            [ "${_dhpk_ci_pos_opaque:-0}" = "1" ] || _dhpk_ci_fs_set "$1"
+            ;;
         *)
             case "$_dhpk_ci_fs_funcs" in
                 *" $head "*)
+                    [ "${_dhpk_ci_pos_opaque:-0}" = "1" ] && return 0
                     _dhpk_ci_fs_split "$1"
                     _dhpk_ci_fs_pool_add 1
                     ;;
@@ -813,26 +927,28 @@ _dhpk_ci_fs_apply() {
 
 # (#1462) Flag sources other than NAME=value, bounded and read from the text only: read here-strings,
 # printf -v, set -- and the arguments of calls to functions defined in the text (one pooled positional
-# string). Pass 1 collects the function names, pass 2 applies the sources. Runs only for commit or push.
+# string). The text is cut into segments at ; & | ( ) and backticks (the () of a definition is kept as a
+# marker). Pass 1 collects the function names, pass 2 applies the sources. Runs only for commit or push.
 _dhpk_ci_scan_flag_sources() {
     local text="$1" seg
-    local -a segs=()
+    local -a segs=() stripped=()
     case "$text" in
         *commit*|*push*) ;;
         *) return 0 ;;
     esac
     _dhpk_ci_fs_funcs=" "
     _dhpk_ci_fs_nfn=0
-    text="${text//[;&|]/$'\n'}"
+    text="${text//\(\)/$'\001'}"
+    text="${text//[;&|()\`]/$'\n'}"
     while IFS= read -r seg; do
         segs+=("$seg")
     done <<<"$text"
     for seg in "${segs[@]}"; do
         _dhpk_ci_fs_strip "$seg" 1
+        stripped+=("$_dhpk_ci_fs_seg")
     done
-    for seg in "${segs[@]}"; do
-        _dhpk_ci_fs_strip "$seg" 0
-        _dhpk_ci_fs_apply "$_dhpk_ci_fs_seg"
+    for seg in "${stripped[@]}"; do
+        _dhpk_ci_fs_apply "$seg"
     done
 }
 
@@ -7476,7 +7592,7 @@ dhpk_inspect_command() {
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
     _dhpk_ci_flag_clear
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_flag_names _dhpk_ci_flag_hit _dhpk_ci_pos_pool _dhpk_ci_pos_opaque _dhpk_ci_fs_funcs _dhpk_ci_fs_nfn _dhpk_ci_fs_raw _dhpk_ci_fs_words _dhpk_ci_fs_seg _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_flag_names _dhpk_ci_flag_hit _dhpk_ci_pos_pool _dhpk_ci_pos_opaque _dhpk_ci_pos_segs _dhpk_ci_pos_words _dhpk_ci_fs_rest_len _dhpk_ci_fs_uq _dhpk_ci_fs_uncertain _dhpk_ci_fs_sv _dhpk_ci_fs_pw _dhpk_ci_fs_pr _dhpk_ci_fs_funcs _dhpk_ci_fs_nfn _dhpk_ci_fs_raw _dhpk_ci_fs_words _dhpk_ci_fs_seg _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 

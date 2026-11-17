@@ -793,6 +793,27 @@ const FLAG_SOURCE_BLOCK_1462 = [
   ['opaque-printf', 'o=--no-verify; printf -v o %s "$y"; git commit $o -m x'],
   ['printf-flagged-literal', 'printf -v o "%s%s" --no-verify; git commit $o -m x'],
   ['read-overrides-benign', 'o=--amend; read o <<< --no-verify; git commit $o -m x'],
+  ["G1a", "read -pt o <<< --no-verify; git commit $o -m x"],
+  ["G1b", "read <<< --no-verify o; git commit $o -m x"],
+  ["G1c", "IFS= read -r o <<< --no-verify; git commit $o -m x"],
+  ["G4a", "f() { git commit \"$@\"; }; x=1 f --no-verify -m x"],
+  ["G4b", "f() { git commit \"$@\"; }; \"f\" --no-verify -m x"],
+  ["G4c", "f() { git commit \"$@\"; }; \\f --no-verify -m x"],
+  ["G4d", "f() { git commit \"$@\"; }; 2>/dev/null f --no-verify -m x"],
+  ["G4e", "f() { git commit \"$@\"; }; case a in a) f --no-verify -m x;; esac"],
+  ["G4f", "f() { git commit \"$@\"; }; x=$(f --no-verify -m x)"],
+  ["G3a", "\"set\" -- --no-verify; git commit \"$@\" -m x"],
+  ["G3b", "set -- -m --no-verify; git commit -m x $2"],
+  ["G4g", "f() { git commit -m x \"$2\"; }; f -m --no-verify"],
+  ["G6a", "git commit ${1:--n} -m x"],
+  ["G6b", "git commit ${@:--n} -m x"],
+  ["G6c", "set -- a; git commit ${1:+-n} -m x"],
+  ["G7a", "read -r o <<< -\\-no-verify; git commit $o -m x"],
+  ["G7b", "printf -v o %s -\\-no-verify; git commit $o -m x"],
+  ["G7c", "git commit ${x:-'--no-'verify} -m x"],
+  ["G7d", "read -r o <<< $'--no-verify'; git commit $o -m x"],
+  ["G7e", "git commit ${x:--\\n} -m x"],
+  ['G8a', `set -- ${Array.from({ length: 300 }, (_, k) => 'w' + k).join(' ')}; git commit "$@" -m x`],
 ];
 
 for (const [id, command] of FLAG_SOURCE_BLOCK_1462) {
@@ -819,6 +840,9 @@ const FLAG_SOURCE_ALLOW_1462 = [
   ['unknown-here-string', 'read o <<< "$x"; git commit $o -m x'],
   ['unknown-printf', 'printf -v o "%s%s" "$y"; git commit $o -m x'],
   ['default-benign', 'git commit ${x:---amend} -m x'],
+  ["C10", "b=${1:-main}; git push origin $b"],
+  ["C11", "git push origin ${b:-main}"],
+  ["C12", "git commit -m \"${msg:-wip}\""],
 ];
 
 for (const [id, command] of FLAG_SOURCE_ALLOW_1462) {
