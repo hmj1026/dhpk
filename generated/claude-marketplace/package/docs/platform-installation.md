@@ -726,7 +726,10 @@ selected skill under a different stable ID is published and reported as
 The run prints `Claude plugin dhpk@dhpk: <state>; withdrew N, restored M
 project bindings`. Skip the check with `--claude-plugin-state inactive` (or
 `DHPK_CLAUDE_PLUGIN_STATE=inactive`; the flag wins). The default is `auto`.
-`DHPK_CLAUDE_PROBE_TIMEOUT_MS` changes the 30 second probe limit. The Host's
+`DHPK_CLAUDE_PROBE_TIMEOUT_MS` changes the 30 second probe limit. The `claude`
+command is resolved from absolute `PATH` entries only and never from inside the
+project root; if none qualifies the state is `CLI_NOT_INSTALLED`. Plugin roots
+that disagree on version, catalog digest or identities give `UNKNOWN`. The Host's
 `enabled` value was observed (Claude Code 2.1.326) to be computed for the
 working directory; the Host does not document that. Codex and Cursor installers
 do not probe; they carry the recorded withdrawal forward.

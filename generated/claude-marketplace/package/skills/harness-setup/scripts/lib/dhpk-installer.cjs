@@ -10940,6 +10940,12 @@ function publishManagedCandidate({
         continue;
       }
       if (adoption && (!lstatOrNull(source).isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding changed: ${binding.path}`);
+      // A binding that leaves the candidate set (withdrawn or deselected) is
+      // renamed away; prove right before the rename that it is still the owned link.
+      if (!adoption && !candidateBindingSet.has(binding.path)
+        && (!lstatOrNull(source).isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) {
+        throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned Host binding changed before removal: ${binding.path}`, { paths: [binding.path] });
+      }
       const target = path.join(backup, 'bindings', binding.path);
       backUp(source, target, 'transaction binding backup target');
       if (adoption && (!lstatOrNull(target).isSymbolicLink() || fs.readlinkSync(target) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding backup changed: ${binding.path}`);
@@ -11139,6 +11145,9 @@ function claudeDiscoveryReport({ roots, provision, claudePlan, previous, receipt
   const previousWithdrawnPaths = new Set(((previous && previous.schema === PROJECT_RECEIPT_SCHEMA && previous.entries) || [])
     .filter((entry) => entry.claudePluginProvided === true)
     .map((entry) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${entry.name}`));
+  // Only plugin withdrawals count; a deselected identity is not one.
+  const pluginWithdrawnPaths = claudePlan.withdrawnStableIds
+    .map((stableId) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${names.get(stableId)}`);
   const unowned = claudePlan.withdrawnStableIds
     .map((stableId) => `${CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT}/${names.get(stableId)}`)
     .filter((bindingPath) => !previousPaths.has(bindingPath) && lstatOrNull(path.join(roots.projectRoot, bindingPath)))
@@ -11146,7 +11155,7 @@ function claudeDiscoveryReport({ roots, provision, claudePlan, previous, receipt
   return {
     status: provision ? provision.status : 'NOT_PROBED',
     mode: claudePlan.mode,
-    withdrawnPaths: [...previousPaths].filter((bindingPath) => !candidatePaths.has(bindingPath)).sort(),
+    withdrawnPaths: pluginWithdrawnPaths.filter((bindingPath) => previousPaths.has(bindingPath) && !candidatePaths.has(bindingPath)).sort(),
     restoredPaths: [...previousWithdrawnPaths].filter((bindingPath) => candidatePaths.has(bindingPath)).sort(),
     conflicts: [...claudePlan.conflicts, ...unowned],
   };
