@@ -3230,4 +3230,67 @@ for (const [label, command] of GIT_VAR_ROUND3_ALLOWED_1452) {
   });
 }
 
+// #1460: git rebuilt in the command word by an array transform or a default operator, and flag
+// variables expanded in argument position. Plain (non-template) strings keep ${...} literal.
+// Each row: label, main command (push), feature command (carries --no-verify).
+const GIT_GATE_WORD_1460 = [
+  ['array transform', 'a=(git log); ${a[@]/log/push} origin main', 'a=(git log); ${a[@]/log/commit} --no-verify -m x'],
+  ['default operator', '${x:-git push} origin main', '${x:-git commit} --no-verify -m x'],
+  ['assign-default operator', 'l=; ${l:=git push} origin main', 'l=; ${l:=git commit} --no-verify -m x'],
+];
+
+for (const [label, mainCmd, featureCmd] of GIT_GATE_WORD_1460) {
+  test(`#1460 blocks on main (gate and dispatcher): ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, mainCmd, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${mainCmd}`);
+      }
+    });
+  });
+  test(`#1460 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, featureCmd, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${featureCmd}`);
+      }
+    });
+  });
+}
+
+const GIT_GATE_FLAG_1460 = [
+  ['flag variable', 'o=--no-verify; git commit $o -m x'],
+  ['transformed flag variable', 'o=--verify; git commit ${o/--/--no-} -m x'],
+  ['flag array', 'opts=(--no-verify); git commit "${opts[@]}" -m x'],
+  ['flag split across variables (#1460 review)', 'a=--no-; b=verify; git commit $a$b -m x'],
+  ['flag with variable suffix (#1460 review)', 'v=verify; git commit --no-$v -m x'],
+  ['flag copied into another variable (#1460 review)', 'p=--no-verify; o=$p; git commit $o -m x'],
+];
+
+for (const [label, command] of GIT_GATE_FLAG_1460) {
+  test(`#1460 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const GIT_GATE_ALLOWED_1460 = [
+  ['benign flag variable', 'o=--amend; git commit $o -m x'],
+  ['flag variable consumed as a message', 'o=--no-verify; git commit -m "$o"'],
+  ['default operator without git', '${EDITOR:-vi} notes.txt'],
+  ['non-flag variable word (#1460 review)', 'f=notes.txt; git commit $f -m x'],
+  ['option value with variable (#1460 review)', 'a=fix; git commit --author="$a" -m x'],
+];
+
+for (const [label, command] of GIT_GATE_ALLOWED_1460) {
+  test(`#1460 allows on feature: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
 run('hook-bypass');

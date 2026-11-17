@@ -17,6 +17,9 @@ VALUE_TESTS = frozenset(('-path', '-ipath', '-wholename', '-iwholename', '-regex
 RECOVERY = Recovery(
     ambiguous='name each file as an explicit literal operand of the Reader, or add a find -name filter that does not match a protected file.',
     recursive='add a find -name filter that does not match a protected file, or name each file as an explicit literal operand of the Reader.')
+# (#1460) A selection with no name filter, or with predicates this module does not model.
+UNFILTERED_RECOVERY = ('narrow the find roots to directories without protected files, or use a plain -name filter '
+                       '(no -o, !, or parentheses) that does not match a protected file.')
 
 
 @dataclass
@@ -74,13 +77,13 @@ def _selected(name, filters):
 def selection_verdict(spec, patterns, cwd, wrapped, matching, protected, effective):
     """Judge the paths find selects as Reader targets; allow when none can be a Protected Path.
 
-    Only a find whose selection is a plain conjunction with a -name or -iname filter is judged. Without a
-    name filter, or with a predicate this module does not model, the selection is unknown and keeps the
-    verdict the caller had before (no new recursive scan, no new block).
+    A plain conjunction with a -name or -iname filter is judged by those names. (#1460) Without a name
+    filter, or with a predicate this module does not model, the selection is every path under the roots,
+    judged like grep -r: blocked only when a protected path is found or the tree cannot be scanned.
     """
-    filters = spec.filters
-    if spec.unmodelled or not filters:
-        return verdict.allow()
+    unfiltered = spec.unmodelled or not spec.filters
+    filters = [] if unfiltered else spec.filters
+    recovery = UNFILTERED_RECOVERY if unfiltered else RECOVERY.recursive
     for word, folded in filters:
         if word.dynamic:
             return verdict.ambiguous('find -name %s' % ascii(word.value), RECOVERY.ambiguous)
@@ -88,7 +91,7 @@ def selection_verdict(spec, patterns, cwd, wrapped, matching, protected, effecti
             return verdict.protected()
     roots = spec.roots
     if cwd is None or wrapped or any(t.dynamic or t.glob for t in roots):
-        return verdict.recursive_unproven(None, 'find selection needs a known working directory', RECOVERY.recursive)
+        return verdict.recursive_unproven(None, 'find selection needs a known working directory', recovery)
     paths = [posixpath.join(cwd, t.value) for t in roots] or [cwd]
 
     def matcher(path):
@@ -104,4 +107,4 @@ def selection_verdict(spec, patterns, cwd, wrapped, matching, protected, effecti
         details.append('patterns ' + ', '.join(ascii(p) for p in sorted(hits)))
     if found:
         details.append('paths ' + ', '.join(ascii(p) for p in found))
-    return verdict.recursive_unproven(None, '; '.join(details), RECOVERY.recursive)
+    return verdict.recursive_unproven(None, '; '.join(details), recovery)

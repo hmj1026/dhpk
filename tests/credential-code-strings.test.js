@@ -83,6 +83,24 @@ const blocked = [
   // (#1456 review) $0, glob arguments and loop-variable arguments reach the string unresolved
   "bash -c 'cat \"$0\"' .env", "sh -c 'cat \"${0}\"' .env", "bash -c 'cat \"$1\"' _ .e*",
   "for f in .env; do bash -c 'cat \"$1\"' _ \"$f\"; done",
+  // (#1460) su with a glued -c value and other executors that run a command string
+  "su -c'cat .env'", 'su -ccat\\ .env', "su -lc'cat .env'", "runuser root -c 'cat .env'", "runuser -l root -c 'cat .env'",
+  "sg root -c 'cat .env'", "sg root 'cat .env'", "flock /tmp/l -c 'cat .env'", "flock -n /tmp/l sh -c 'cat .env'",
+  "script -qc 'cat .env' /dev/null", "script --command='cat .env' /dev/null", "busybox sh -c 'cat .env'",
+  "chroot / sh -c 'cat .env'", "chroot --userspec=nobody / sh -c 'cat .env'",
+  // (#1460) shell strings run by find and xargs
+  "find . -maxdepth 0 -exec sh -c 'cat .env' \\;", "find . -exec bash -c 'cat .env' _ {} \\;",
+  "find . -name '*.js' -execdir sh -c 'cat .env' \\;", "find . -maxdepth 0 -exec sh -c 'cat \"$1\"' _ .env \\;",
+  "echo x | xargs sh -c 'cat .env'", "echo x | xargs -0 -n1 bash -c 'cat .env' _", "echo x | xargs env sh -c 'cat .env'",
+  "echo x | xargs -a list sh -c 'cat .env'",
+  // (#1460 review) flock command option anywhere, script -t[file], repeated -c, long-option abbreviations, chroot values, xargs fallback
+  "flock -c 'cat .env' /tmp/l", "flock -x -c 'cat .env' /tmp/l", "flock -nc 'cat .env' /tmp/l", "flock --command='cat .env' /tmp/l",
+  "flock /tmp/l -x -c 'cat .env'", "flock /tmp/l -nc 'cat .env'", "script -t/x/c -c 'cat .env' /dev/null",
+  "su -c ls -c 'cat .env'", "runuser root -c ls -c 'cat .env'", "script -c ls -c 'cat .env' /dev/null",
+  "su --comm='cat .env'", "su --comm 'cat .env'", "script --comm='cat .env' /dev/null",
+  "chroot --userspec root / sh -c 'cat .env'", "chroot --groups a,b / sh -c 'cat .env'",
+  "echo x | xargs -a /dev/null su -c 'cat .env'", "echo x | xargs --arg-file=/dev/null flock /tmp/l -c 'cat .env'",
+  "echo x | xargs -l runuser root -c 'cat .env'",
 ];
 
 const allowed = [
@@ -123,6 +141,14 @@ const allowed = [
   "bash -c 'echo \"$1\"' _ .env", "su - -c 'git status'", 'watch -n1 git status', "su -s /bin/sh -c 'ls'", 'su root',
   // (#1456 review) $0 is data to echo; a literal ordinary $1 or $0 is data to cat
   "bash -c 'echo \"$0\"' .env", "bash -c 'cat \"$1\"' _ ordinary", "bash -c 'cat \"$0\"' ordinary",
+  // (#1460) harmless commands through the same executors
+  "su -c'git status'", 'su -sc /bin/sh', "runuser root -c 'ls'", "sg root -c 'ls'", "flock /tmp/l -c 'ls'",
+  "script -qc 'ls' /dev/null", "busybox sh -c 'ls'", "chroot / sh -c 'ls'",
+  "find . -name '*.js' -exec cat {} \\;", "find . -name '*.js' -exec sh -c 'cat \"$1\"' _ {} \\;",
+  "find . -maxdepth 0 -exec sh -c 'ls' \\;", "echo x | xargs sh -c 'echo \"$1\"' _",
+  "echo ordinary | xargs sh -c 'cat \"$1\"' _",
+  // (#1460 review)
+  "flock -n /tmp/l ls", "chroot --userspec root / sh -c 'ls'", "su -c ls -c 'ls -l'", "script -t/x/c -c 'ls' /dev/null",
 ];
 
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
