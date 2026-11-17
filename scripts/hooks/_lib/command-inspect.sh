@@ -420,6 +420,7 @@ _dhpk_ci_flag_clear() {
     _dhpk_ci_pos_opaque=0
     _dhpk_ci_pos_segs=0
     _dhpk_ci_pos_words=0
+    _dhpk_ci_cmd_text=""
 }
 
 # True when a value text mentions an already recorded flag variable name.
@@ -568,13 +569,57 @@ _dhpk_ci_flag_default_hit() {
         _dhpk_ci_flag_hit="transformed"
         return 0
     fi
+    if _dhpk_ci_flag_abbrev " $word"; then
+        _dhpk_ci_flag_hit="transformed"
+        return 0
+    fi
     [ "$recorded" = "1" ] || return 0
+    if [[ ! "$name" =~ ^[0-9@*] ]] && { ! _dhpk_ci_flag_bound_once "$name" || _dhpk_ci_flag_abbrev "$stored"; }; then
+        _dhpk_ci_flag_hit="transformed"
+        return 0
+    fi
     case "$op" in *+) return 0 ;; esac
     if [ "$stored" = "@opaque" ]; then
         _dhpk_ci_flag_hit="transformed"
     elif _dhpk_ci_flag_value_no_verify "$stored" "$2"; then
         _dhpk_ci_flag_hit="no-verify"
     fi
+    return 0
+}
+
+# (#1462) True when a word of $1 is a proper prefix of --no-verify at least 3 characters long, which
+# git accepts as an abbreviation.
+_dhpk_ci_flag_abbrev() {
+    local fw
+    local -a fa_a
+    read -r -a fa_a <<<"$1"
+    for fw in "${fa_a[@]}"; do
+        [ "${#fw}" -ge 3 ] && [ "$fw" != "--no-verify" ] && [[ "--no-verify" == "$fw"* ]] && return 0
+    done
+    return 1
+}
+
+# (#1462) True when flag variable $1 is provably bound once: after the $NAME and ${NAME references are
+# removed, the first whole-word occurrence in the command text is a NAME=value assignment that starts
+# a simple command, and no other whole-word occurrence follows (for, select, mapfile, declare, read,
+# printf -v, a second assignment and so on). One match over the text per judged word.
+_dhpk_ci_flag_bound_once() {
+    local name="$1" text="${_dhpk_ci_cmd_text:-}" before after
+    local re='(^|[^A-Za-z0-9_-])'"$name"'([^A-Za-z0-9_].*|)$'
+    local re_again='(^|[^A-Za-z0-9_-])'"$name"'([^A-Za-z0-9_]|$)'
+    text="${text//\$\{$name/}"
+    text="${text//\$$name/}"
+    [[ "$text" =~ $re ]] || return 1
+    before="${text:0:$((${#text} - ${#BASH_REMATCH[0]}))}${BASH_REMATCH[1]}"
+    after="${BASH_REMATCH[2]}"
+    before="${before%"${before##*[![:space:]]}"}"
+    case "$before" in
+        ''|*[\;\&\|\(\)\{]|*$'\n') ;;
+        *) return 1 ;;
+    esac
+    [[ "$after" == =* && "$after" != ==* ]] || return 1
+    after="${after#=}"
+    [[ "$after" =~ $re_again ]] && return 1
     return 0
 }
 
@@ -932,6 +977,7 @@ _dhpk_ci_fs_apply() {
 _dhpk_ci_scan_flag_sources() {
     local text="$1" seg
     local -a segs=() stripped=()
+    _dhpk_ci_cmd_text="$1"
     case "$text" in
         *commit*|*push*) ;;
         *) return 0 ;;
@@ -7592,7 +7638,7 @@ dhpk_inspect_command() {
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
     _dhpk_ci_flag_clear
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_flag_names _dhpk_ci_flag_hit _dhpk_ci_pos_pool _dhpk_ci_pos_opaque _dhpk_ci_pos_segs _dhpk_ci_pos_words _dhpk_ci_fs_rest_len _dhpk_ci_fs_uq _dhpk_ci_fs_uncertain _dhpk_ci_fs_sv _dhpk_ci_fs_pw _dhpk_ci_fs_pr _dhpk_ci_fs_funcs _dhpk_ci_fs_nfn _dhpk_ci_fs_raw _dhpk_ci_fs_words _dhpk_ci_fs_seg _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_flag_names _dhpk_ci_flag_hit _dhpk_ci_cmd_text _dhpk_ci_pos_pool _dhpk_ci_pos_opaque _dhpk_ci_pos_segs _dhpk_ci_pos_words _dhpk_ci_fs_rest_len _dhpk_ci_fs_uq _dhpk_ci_fs_uncertain _dhpk_ci_fs_sv _dhpk_ci_fs_pw _dhpk_ci_fs_pr _dhpk_ci_fs_funcs _dhpk_ci_fs_nfn _dhpk_ci_fs_raw _dhpk_ci_fs_words _dhpk_ci_fs_seg _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 

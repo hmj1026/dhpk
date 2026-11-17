@@ -3325,6 +3325,17 @@ const GIT_GATE_FLAG_1462 = [
   ["G7d", "read -r o <<< $'--no-verify'; git commit $o -m x"],
   ["G7e", "git commit ${x:--\\n} -m x"],
   ['G8a', `set -- ${Array.from({ length: 300 }, (_, k) => 'w' + k).join(' ')}; git commit "$@" -m x`],
+  ["G9a", "o=-q; for o in --no-verify; do git push ${o:-} origin x; done"],
+  ["G9b", "o=-q; for o in --no-veri\\fy; do git push ${o:-} origin x; done"],
+  ["G9c", "o=-q; select o in --no-verify; do git push ${o:-} origin x; done"],
+  ["G9d", "o=-q; o=${o/q/-no-veri}fy; git push ${o:-} origin x"],
+  ["G9e", "o=-q; mapfile -t o <<< --no-verify; git push ${o:-} origin x"],
+  ["G9f", "o=-q; declare -n o=p; p=--no-verify; git push ${o:-} origin x"],
+  ["G10a", "o=--no-veri; git commit ${o:-x} -m x"],
+  ["G10b", "o=--no-veri; git commit ${o:=x} -m x"],
+  ["G10c", "o=--no-veri; git commit ${o-x} -m x"],
+  ["G10d", "o=--no-veri; git commit ${o:?x} -m x"],
+  ["G10e", "o=--no-veri; git push ${o:-x} origin x"],
 ];
 
 for (const [id, command] of GIT_GATE_FLAG_1462) {
@@ -3374,6 +3385,7 @@ const GIT_GATE_REASON_1462 = [
   ['G3', 'set -- --no-verify; git commit "$@" -m x', REASON_NO_VERIFY_1462],
   ['opaque-read', 'o=--no-verify; read o; git commit $o -m x', REASON_TRANSFORMED_1462],
   ['G7c', "git commit ${x:-'--no-'verify} -m x", REASON_NO_VERIFY_1462],
+  ['G9a', 'o=-q; for o in --no-verify; do git push ${o:-} origin x; done', REASON_TRANSFORMED_1462],
 ];
 
 for (const [id, command, reason] of GIT_GATE_REASON_1462) {
