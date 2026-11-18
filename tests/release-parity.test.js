@@ -52,6 +52,7 @@ function allAtVersion(version) {
     '.claude-plugin/plugin.json': version,
     '.codex-plugin/plugin.json': version,
     'plugins/dhpk/.codex-plugin/plugin.json': version,
+    'plugins/dhpk/plugin.json': version,
     '.agents/plugins/marketplace.json': version,
     'plugins/dhpk/provenance.json': version,
     'plugins/dhpk-agent/plugin.json': version,
@@ -152,6 +153,7 @@ test('MANIFEST_PATHS lists retained version-bearing manifests, including native 
     '.claude-plugin/plugin.json',
     '.codex-plugin/plugin.json',
     'plugins/dhpk/.codex-plugin/plugin.json',
+    'plugins/dhpk/plugin.json',
     'plugins/dhpk/provenance.json',
     'plugins/dhpk-agent/plugin.json',
     'plugins/dhpk-agent/provenance.json',
@@ -183,7 +185,7 @@ test('checkParity passes when every manifest, native package provenance, and the
 });
 
 test('checkParity fails when native package provenance drifts from the target', () => {
-  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
     assert.ok(result.errors.some((e) => e.includes('plugins/dhpk/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
@@ -191,7 +193,7 @@ test('checkParity fails when native package provenance drifts from the target', 
 });
 
 test('checkParity fails when native AGY package provenance drifts from the target', () => {
-  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.2', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.2', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
     assert.ok(result.errors.some((e) => e.includes('plugins/dhpk-agy/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
@@ -212,6 +214,7 @@ test('checkParity fails when the bilingual AGY generator pin lags the target', (
       '.claude-plugin/plugin.json': '1.2.3',
       '.codex-plugin/plugin.json': '1.2.3',
       'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3',
+      'plugins/dhpk/plugin.json': '1.2.3',
       '.agents/plugins/marketplace.json': '1.2.3',
       'plugins/dhpk/provenance.json': '1.2.3',
       'plugins/dhpk-agent/plugin.json': '1.2.3',

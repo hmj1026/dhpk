@@ -1,10 +1,10 @@
 ---
 name: openspec-artifact-guard
-description: 'Use when validating OpenSpec artifact shape, delta placement, task/git alignment, and safe change slugs. Apply while editing OpenSpec files or reviewing them before archive. Not for implementation or archive itself. Output: a verdict with artifact and task evidence.'
+description: "Use when validating OpenSpec artifact shape, delta placement, task/git alignment, and safe change slugs. Apply while editing OpenSpec files or reviewing them before archive. Not for implementation or archive itself. Output: a verdict with artifact and task evidence."
 metadata:
-  dhpk-name-style: portable-skill
-  dhpk-capability-id: dhpk.skill.openspec-artifact-guard
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.openspec-artifact-guard"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
 ---
 
 # OpenSpec artifact guard

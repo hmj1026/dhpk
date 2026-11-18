@@ -1,6 +1,1 @@
-{
-  "description": "dhpk codex-native physical Codex release candidate (generated; not a second source of truth — see docs/distribution-surfaces.md).",
-  "name": "dhpk",
-  "version": "0.78.0",
-  "skills": "./skills/"
-}
+{"description":"Reusable software-development workflows and specialist references for Codex and ChatGPT Work.","name":"dhpk","skills":"./skills/","version":"0.78.0"}

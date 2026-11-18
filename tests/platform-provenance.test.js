@@ -311,10 +311,10 @@ test('rollback guard refuses to mutate a different surface owner', () => {
     const ROOT = path.join(__dirname, '..');
     const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
 
-    test('legacy Codex package is not counted as standard Agent Plugin conformance', () => {
+    test('Codex native package is not counted as standard Agent Plugin conformance', () => {
       const result = validateAgentPluginPackage(path.join(ROOT, 'plugins/dhpk'));
       assert.strictEqual(result.ok, false);
-      assert.ok(result.errors.some((error) => /plugin\.json/i.test(error)));
+      assert.ok(result.errors.some((error) => /plugin\.json|provenance surface/i.test(error)));
       const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
       assert.ok(!inventory.surfaces.includes('legacy-agent-plugin'));
       assert.ok(inventory.surfaces.includes('codex-native'));
