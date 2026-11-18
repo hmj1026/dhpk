@@ -110,7 +110,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!expectedPhysicalIds.includes(id), id);
       const flowDrive = path.join(output, 'skills', byId.get('flow-drive').name);
-      const expectedFlowDriveEntries = ['SKILL.md', 'references'];
+      const expectedFlowDriveEntries = surface === 'codex-native' ? ['SKILL.md', 'references'] : ['SKILL.md', 'distribution.yaml', 'references'];
       if (surface === 'codex-native') expectedFlowDriveEntries.push('agents');
       assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), expectedFlowDriveEntries.sort(), `${surface} Flow Drive package entries`);
       if (surface === 'codex-native') {
