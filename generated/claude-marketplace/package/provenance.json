@@ -1917,7 +1917,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "kind": "entry",
-      "sha256": "77e95e50e830c6643be39751bed3a23189433178b9020f92d87483bbe26d1f53"
+      "sha256": "d6a000895e814acb03a4619838e3fa55ad85e97e3d6cec7f9de12534bfd1ecb8"
     },
     {
       "skillId": "flow-guide",

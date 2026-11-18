@@ -210,6 +210,12 @@ test('quick-worker projects to gpt-6-luna at medium effort with workspace-write 
     assert.ok(body.includes('model_reasoning_effort = "medium"'), body);
     assert.doesNotMatch(body, /^sandbox_mode\s*=/m);
     assert.match(body, /needs judgment/);
+    assert.match(body, /apply_patch/);
+    // The projection rewrites Claude-only wording; a silent no-match in the
+    // generator would leak these tokens into the Codex role.
+    for (const leak of [/haiku/i, /\bfast-worker\b/, /CLAUDE_PLUGIN_ROOT/, /model-economics/, /Edit and Write/, /codex-worker/, /agy-worker/]) {
+      assert.doesNotMatch(body, leak, `Claude-only wording leaked into quick-worker.toml: ${leak}`);
+    }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

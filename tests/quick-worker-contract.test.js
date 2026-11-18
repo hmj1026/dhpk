@@ -54,7 +54,8 @@ test('model-economics lists quick-worker and drops the per-dispatch haiku overri
   assert.match(text, /\| `quick-worker` \| haiku @ medium \|/);
   assert.ok(!text.includes('sonnet vs haiku boundary'), 'old boundary paragraph still present');
   assert.ok(!text.includes('A single dispatch MAY pass the `Agent` call `model: haiku`'), 'per-dispatch haiku override still present');
-  assert.ok(text.includes('quick-worker'), 'pointer to quick-worker missing');
+  assert.match(text, /admission gate[^\n]*`agents\/quick-worker\.md`|`agents\/quick-worker\.md`[^\n]*admission gate/i, 'pointer to the quick-worker admission gate missing');
+  assert.ok(text.includes('do not pass `model: haiku` to a `fast-worker` dispatch'), 'explicit ban on the per-dispatch haiku override is missing');
 });
 
 test('execution-policy dispatch table routes literal sweeps to quick-worker', () => {
@@ -70,10 +71,15 @@ test('review-fix wave guidance splits literal fixes from interpreted fixes', () 
   assert.ok(text.includes('quick-worker'), 'quick-worker missing from implementation-dispatch');
 });
 
-test('provider catalog maps quick-worker to a workspace-write worker alias', () => {
+test('provider catalog keeps quick-worker out of dispatch-engine role aliases (native-only tier)', () => {
   const catalog = JSON.parse(read('manifests/provider-model-catalog.json'));
-  assert.deepStrictEqual(catalog.role_aliases['quick-worker'], { role: 'worker', authority: 'workspace-write' });
+  assert.strictEqual(catalog.role_aliases['quick-worker'], undefined);
   assert.deepStrictEqual(catalog.role_aliases['fast-worker'], { role: 'worker', authority: 'workspace-write' });
+});
+
+test('fast-worker description points literal sweeps to quick-worker', () => {
+  const fields = frontmatter(read('agents/fast-worker.md'));
+  assert.ok(fields.description.includes('quick-worker'), fields.description);
 });
 
 test('agents INDEX lists quick-worker under the haiku tier', () => {

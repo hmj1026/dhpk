@@ -1,6 +1,6 @@
 ---
 name: fast-worker
-description: 'Write-capable mechanical implementer. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec — dispatched per the Implementation dispatch table when the task has a clear, precise spec. Accepts a task spec (target files + exact change intent + verification command), applies surgical edits only, runs the verification command, and reports pass/fail plus the complete edited-file list. Escalates on ambiguous specs instead of guessing. Stops after 3 failed verification attempts.'
+description: 'Write-capable mechanical implementer. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec — dispatched per the Implementation dispatch table when the task has a clear, precise spec. Accepts a task spec (target files + exact change intent + verification command), applies surgical edits only, runs the verification command, and reports pass/fail plus the complete edited-file list. Escalates on ambiguous specs instead of guessing. Stops after 3 failed verification attempts. A literal sweep that meets the quick-worker admission gate goes to quick-worker instead.'
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 effort: medium
