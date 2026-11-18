@@ -271,7 +271,7 @@ test('valid portable manifest and selected skill packages pass', () => {
 });
 
 test('valid contained listing SVGs remain in the validated ZIP inventory', () => {
-  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const iconPath = 'assets/dhpk-icon.svg';
   const iconBytes = Buffer.from([
     '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
     '<rect width="48" height="48" fill="#ffffff"/>',
@@ -291,7 +291,7 @@ test('valid contained listing SVGs remain in the validated ZIP inventory', () =>
 
 test('submission ZIP rejects a listing icon that is absent from package contents', () => {
   const result = validateFixture(controlFiles({
-    'plugin.json': pluginJson({ composerIcon: './skills/flow-guide/assets/missing.svg' }),
+    'plugin.json': pluginJson({ composerIcon: './assets/missing.svg' }),
   }));
   assert.strictEqual(result.ok, false, 'listing assets must resolve to included ZIP entries');
   assert.match(errorText(result), /composerIcon|missing|asset/i);
@@ -306,7 +306,7 @@ test('submission ZIP rejects listing asset paths outside the package', () => {
 });
 
 test('submission ZIP rejects active or external-resource SVG content', () => {
-  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const iconPath = 'assets/dhpk-icon.svg';
   const result = validateFixture(controlFiles({
     'plugin.json': pluginJson({ composerIcon: `./${iconPath}` }),
     [iconPath]: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><script>alert(1)</script></svg>',
@@ -316,7 +316,7 @@ test('submission ZIP rejects active or external-resource SVG content', () => {
 });
 
 test('submission ZIP rejects CSS imports nested inside SVG style elements', () => {
-  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const iconPath = 'assets/dhpk-icon.svg';
   const nestedStyleImport = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><style><g>@import "https://example.invalid/x.css";</g></style></svg>';
   const result = validateFixture(controlFiles({
     'plugin.json': pluginJson({ composerIcon: `./${iconPath}` }),
@@ -327,7 +327,7 @@ test('submission ZIP rejects CSS imports nested inside SVG style elements', () =
 });
 
 test('submission ZIP rejects a literal non-breaking space before the SVG root', () => {
-  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const iconPath = 'assets/dhpk-icon.svg';
   const svg = '\u00a0<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>';
   const result = validateFixture(controlFiles({
     'plugin.json': pluginJson({ composerIcon: `./${iconPath}` }),
@@ -339,7 +339,7 @@ test('submission ZIP rejects a literal non-breaking space before the SVG root', 
 
 test('submission ZIP rejects screenshots on the skills-only listing profile', () => {
   const result = validateFixture(controlFiles({
-    'plugin.json': pluginJson({ screenshots: ['./skills/flow-guide/assets/preview.png'] }),
+    'plugin.json': pluginJson({ screenshots: ['./assets/preview.png'] }),
   }));
   assert.strictEqual(result.ok, false, 'the skills-only listing profile does not supply screenshots');
   assert.match(errorText(result), /screenshot|unsupported|skills.only/i);
