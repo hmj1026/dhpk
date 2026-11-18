@@ -14,6 +14,7 @@ const { createDistributionPlan } = require('../lib/distribution-projection-contr
 const { ProjectionArtifactStore } = require('../lib/projection-artifact-store');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
 const { compileMarketplaceSkillContent } = require('../lib/marketplace-skill-content');
+const { selectRuntimeFiles } = require('../lib/directory-plugin-runtime');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
@@ -24,7 +25,6 @@ const PACKAGE_PATHS = [
   'agent-traps',
   'agents',
   'commands',
-  'docs',
   'hooks',
   'manifests',
   'modules',
@@ -32,6 +32,12 @@ const PACKAGE_PATHS = [
   'scripts',
   'skills',
   'templates',
+];
+
+// Files the Directory Plugin adds at its root: [destination, source in the checkout].
+const DIRECTORY_ROOT_FILES = [
+  ['README.md', 'distribution/directory-plugin/README.md'],
+  ['LICENSE', 'LICENSE'],
 ];
 
 function usage() {
@@ -142,17 +148,8 @@ function planCanonicalTree(root) {
   const inventory = fs.existsSync(inventoryPath) ? JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) : null;
   const publicationView = inventory
     ? loadMarketplaceHostPublication({ root: sourceRoot, inventory, hostSurface: 'claude-core' }) : null;
+  // docs/ never ships in the Directory Plugin; only rules/ is a retained host resource.
   const retainedHostResourcePaths = new Set(['rules']);
-  const collectRetainedDocs = (directory, relative = 'docs') => {
-    if (['docs/design', 'docs/evidence', 'docs/knowledge'].includes(relative)) return;
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const child = path.join(directory, entry.name);
-      const childRelative = `${relative}/${entry.name}`;
-      if (entry.isDirectory()) collectRetainedDocs(child, childRelative);
-      else if (entry.isFile()) retainedHostResourcePaths.add(childRelative);
-    }
-  };
-  if (publicationView) collectRetainedDocs(path.join(sourceRoot, 'docs'));
   const content = publicationView
     ? compileMarketplaceSkillContent({ root: sourceRoot, inventory, publicationView, retainedHostResourcePaths }) : null;
   if (content && !content.ok) throw new Error(content.errors.join('; '));
@@ -164,11 +161,15 @@ function planCanonicalTree(root) {
       for (const file of content.files) addFile(files, file.path, Buffer.from(file.bytes), (file.mode & 0o111) !== 0);
     } else collectPhysicalEntry(source, relative, sourceRoot, files);
   }
-  if (content) {
-    relocateText(files, content);
-    addFile(files, 'provenance.json', Buffer.from(provenanceDocument(publicationView, content)), false);
+  if (content) relocateText(files, content);
+  const runtime = selectRuntimeFiles(files);
+  for (const [destination, source] of DIRECTORY_ROOT_FILES) {
+    addFile(runtime, destination, fs.readFileSync(path.join(sourceRoot, source)), false);
   }
-  const outputs = [...files.values()];
+  if (content) {
+    addFile(runtime, 'provenance.json', Buffer.from(provenanceDocument(publicationView, content)), false);
+  }
+  const outputs = [...runtime.values()];
   const planned = createDistributionPlan({
     surface: 'claude-marketplace',
     entries: outputs.map((output) => ({

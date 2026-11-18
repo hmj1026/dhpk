@@ -31,6 +31,13 @@ function assertNoSymlinks(directory) {
   }
 }
 
+// The Directory Plugin build adds a README and LICENSE from the source checkout.
+function writeDirectoryRootFiles(root) {
+  fs.mkdirSync(path.join(root, 'distribution', 'directory-plugin'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'distribution', 'directory-plugin', 'README.md'), 'fixture readme\n');
+  fs.writeFileSync(path.join(root, 'LICENSE'), 'MIT\n');
+}
+
 function makeHarnessPackageRoot(parent) {
   const root = path.join(parent, 'source checkout');
   for (const relative of [
@@ -42,6 +49,7 @@ function makeHarnessPackageRoot(parent) {
     '{"name":"dhpk","version":"1.0.0"}\n');
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'),
     path.join(root, '.claude-plugin', 'icon.png'));
+  writeDirectoryRootFiles(root);
   const skillRoot = path.join(root, 'skills', 'harness-setup');
   fs.mkdirSync(path.join(skillRoot, 'scripts'), { recursive: true });
   fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), [
@@ -129,52 +137,42 @@ test('Claude marketplace generator rejects symlinked output parents', () => {
   }
 });
 
-test('Claude marketplace generator omits local process docs and keeps durable contracts', () => {
+test('Claude marketplace generator ships runtime files only, plus README and LICENSE', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-docs-'));
   const root = path.join(temp, 'root');
   const out = path.join(temp, 'package');
   try {
     for (const rel of [
-      '.claude-plugin',
-      'agent-traps',
-      'agents',
-      'commands',
-      'docs',
-      'hooks',
-      'manifests',
-      'modules',
-      'rules',
-      'scripts',
-      'skills',
-      'templates',
+      '.claude-plugin', 'agent-traps', 'agents', 'commands', 'docs', 'hooks',
+      'manifests', 'modules', 'rules', 'scripts', 'skills', 'templates',
     ]) {
       fs.mkdirSync(path.join(root, rel), { recursive: true });
     }
     fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), '{"name":"dhpk","version":"1.0.0"}');
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'), path.join(root, '.claude-plugin', 'icon.png'));
-    for (const rel of [
-      'docs/design/retired-proposal.md',
-      'docs/evidence/local-run.md',
-      'docs/knowledge/investigation.md',
-      'docs/contracts/package-boundary.md',
-    ]) {
+    writeDirectoryRootFiles(root);
+    const files = {
+      'docs/contracts/package-boundary.md': 'doc\n',
+      'scripts/ci/gen.js': 'ci\n',
+      'scripts/release/prepare.js': 'release\n',
+      'scripts/hooks/guard.sh': 'hook\n',
+      'scripts/ci/_lib/frontmatter.js': 'lib\n',
+    };
+    for (const [rel, body] of Object.entries(files)) {
       fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
-      fs.writeFileSync(path.join(root, rel), `${rel}\n`);
+      fs.writeFileSync(path.join(root, rel), body);
     }
 
     GENERATOR.materialize({ root, out });
 
-    for (const rel of [
-      'docs/design/retired-proposal.md',
-      'docs/evidence/local-run.md',
-      'docs/knowledge/investigation.md',
-    ]) {
-      assert.strictEqual(fs.existsSync(path.join(out, rel)), false, `local process doc was packaged: ${rel}`);
+    for (const rel of ['docs', 'scripts/ci/gen.js', 'scripts/release']) {
+      assert.strictEqual(fs.existsSync(path.join(out, rel)), false, `non-runtime path was packaged: ${rel}`);
     }
-    assert.strictEqual(
-      fs.readFileSync(path.join(out, 'docs/contracts/package-boundary.md'), 'utf8'),
-      'docs/contracts/package-boundary.md\n',
-    );
+    for (const rel of ['scripts/hooks/guard.sh', 'scripts/ci/_lib/frontmatter.js']) {
+      assert.ok(fs.existsSync(path.join(out, rel)), `runtime path was dropped: ${rel}`);
+    }
+    assert.strictEqual(fs.readFileSync(path.join(out, 'README.md'), 'utf8'), 'fixture readme\n');
+    assert.strictEqual(fs.readFileSync(path.join(out, 'LICENSE'), 'utf8'), 'MIT\n');
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
@@ -292,15 +290,15 @@ test('check reports a drifted generated Claude marketplace package as out of dat
     }
     fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), '{"name":"dhpk","version":"1.0.0"}');
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'), path.join(root, '.claude-plugin', 'icon.png'));
-    fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'docs', 'contracts', 'keep-me.md'), 'keep me\n');
+    writeDirectoryRootFiles(root);
+    fs.writeFileSync(path.join(root, 'rules', 'keep-me.md'), 'keep me\n');
 
     GENERATOR.materialize({ root, out });
     assert.strictEqual(
-      fs.readFileSync(path.join(out, 'docs', 'contracts', 'keep-me.md'), 'utf8'),
+      fs.readFileSync(path.join(out, 'rules', 'keep-me.md'), 'utf8'),
       'keep me\n',
     );
-    fs.unlinkSync(path.join(out, 'docs', 'contracts', 'keep-me.md'));
+    fs.unlinkSync(path.join(out, 'rules', 'keep-me.md'));
 
     const result = GENERATOR.check({ root, out });
     assert.strictEqual(result.ok, false);
@@ -335,6 +333,7 @@ function transientPackageFixture() {
   fs.writeFileSync(path.join(root, '.claude-plugin/plugin.json'), '{"name":"dhpk","version":"1.0.0"}\n');
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'), path.join(root, '.claude-plugin/icon.png'));
   fs.writeFileSync(path.join(root, 'scripts/keep.js'), 'module.exports = 1;\n');
+  writeDirectoryRootFiles(root);
   return { temp, root, out };
 }
 
