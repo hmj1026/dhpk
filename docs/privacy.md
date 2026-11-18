@@ -1,16 +1,15 @@
-# Privacy policy — DHPK OpenAI Plugin candidate
+# Privacy policy — DHPK plugin for Codex and ChatGPT Work
 
-> **Publication status: DRAFT.** This page is not yet a published or approved
-> policy. The candidate manifest links to the `develop` branch; do not submit
-> that URL until this text has been reviewed and is publicly available.
+Effective 2026-11-18. This policy is published at
+https://hmj1026.github.io/dhpk/privacy.html.
 
-This draft describes the proposed skills-only DHPK plugin for Codex and
+This policy describes the skills-only DHPK plugin for Codex and
 ChatGPT Work. It does not describe separate Claude, Cursor, AGY, or other dhpk
 integrations.
 
 ## What the plugin does
 
-The candidate package contains skill instructions and supporting files. It
+The package contains skill instructions and supporting files. It
 does not include a DHPK-hosted backend, MCP server, connected app, or lifecycle
 hook. Skills guide the host model through software-development workflows. The
 host may read or write project files only through the capabilities and
@@ -45,7 +44,7 @@ provider or tool may process information as described above. DHPK has no
 plugin backend that stores workflow data. Host conversation history, provider
 records, local caches, receipts, logs, and project files follow the retention
 and deletion controls of the product, provider, or local environment that owns
-them; this draft cannot set those periods on their behalf.
+them; this policy cannot set those periods on their behalf.
 
 If a user opens a support issue at
 [GitHub Issues](https://github.com/hmj1026/dhpk/issues), the issue and any
@@ -65,5 +64,5 @@ receipts using the controls of the filesystem or host that stores them.
 
 For non-sensitive product questions, use
 [DHPK GitHub Issues](https://github.com/hmj1026/dhpk/issues) and follow
-[`docs/support.md`](./support.md). Redact identifying and confidential details
-before posting. This draft makes no response-time or service-level commitment.
+[the support page](./support.md). Redact identifying and confidential details
+before posting. This policy makes no response-time or service-level commitment.
