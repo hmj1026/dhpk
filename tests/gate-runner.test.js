@@ -375,6 +375,54 @@ test('merges per-step environment overrides without losing the gate environment'
       fs.rmSync(fixture.root, { recursive: true, force: true });
     }
   });
+
+  test('repository-tests uses a longer release budget and preserves progress when it times out', () => {
+    const fixture = mkLocalGateRepo();
+    const wrapper = path.join(fixture.root, 'scripts', 'ci', 'run-bounded-node-test.sh');
+    fs.writeFileSync(wrapper, `#!/usr/bin/env node
+require('node:fs').writeFileSync(${JSON.stringify(fixture.probe)}, JSON.stringify({
+  jobs: process.env.DHPK_TEST_JOBS,
+  timeout: process.env.TIMEOUT_SECONDS,
+  progress: process.env.DHPK_TEST_PROGRESS,
+}));
+console.error('[test-progress] started hook-bypass.test.js');
+console.error('[test-progress] completed install-journal.test.js status=PASS');
+console.error('[run-bounded-node-test] ERROR: Command timed out after 1200s');
+process.exit(124);
+`, { mode: 0o755 });
+    fs.chmodSync(wrapper, 0o755);
+    try {
+      const env = { ...process.env, TMPDIR: fixture.root, PATH: [fixture.bin, process.env.PATH || ''].join(path.delimiter) };
+      delete env.CI;
+      delete env.TIMEOUT_SECONDS;
+      const res = spawnSync(process.execPath, [CLI, '--only', 'repository-tests', '--repo-root', fixture.root], {
+        encoding: 'utf8',
+        env,
+      });
+      assert.strictEqual(res.status, 1, res.stderr);
+      const stage = JSON.parse(res.stdout);
+      assert.strictEqual(stage.verdict, 'FAIL');
+      assert.strictEqual(stage.only, 'repository-tests');
+      assert.deepStrictEqual(stage.commands.map((command) => command.exitCode), [124]);
+      assert.deepStrictEqual(JSON.parse(fs.readFileSync(fixture.probe, 'utf8')), {
+        jobs: '4', timeout: '1200s', progress: '1',
+      });
+      const [artifact] = stage.artifacts;
+      assert.strictEqual(artifact.kind, 'step-output');
+      const log = fs.readFileSync(artifact.path, 'utf8');
+      assert.match(log, /\[test-progress\] started hook-bypass\.test\.js/);
+      assert.match(log, /\[test-progress\] completed install-journal\.test\.js status=PASS/);
+      assert.match(log, /Command timed out after 1200s/);
+      const override = spawnSync(process.execPath, [CLI, '--only', 'repository-tests', '--repo-root', fixture.root], {
+        encoding: 'utf8',
+        env: { ...env, TIMEOUT_SECONDS: '1800s' },
+      });
+      assert.strictEqual(override.status, 1, override.stderr);
+      assert.strictEqual(JSON.parse(fs.readFileSync(fixture.probe, 'utf8')).timeout, '1800s');
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
 }
 
 {

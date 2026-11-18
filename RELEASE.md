@@ -304,6 +304,8 @@ the steps resolved from the gate PATH, with versions. Compare it first when
 the same gate passes in one shell and fails in another. To rerun only the
 repository tests under the gate's exact policy (worker pool and platform
 adapter), use `npm run test:gate`.
+The release test budget defaults to 1200 seconds and records test progress in
+failure logs. Set `TIMEOUT_SECONDS` for a diagnostic run with another budget.
 
 Once the checks pass, publish the tag:
 
