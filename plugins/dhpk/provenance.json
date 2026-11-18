@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.77.4",
-  "sourceCommit": "4b53877682aceeec287909b8e437816e85d09529",
-  "generatedFromCommit": "4b53877682aceeec287909b8e437816e85d09529",
-  "generatedFromTree": "603fe237ff3ea3dc25d23723e6ddc50cbe036f54",
+  "sourceCommit": "d10846a34bff2c65108c3a3e30365114f43d17a4",
+  "generatedFromCommit": "d10846a34bff2c65108c3a3e30365114f43d17a4",
+  "generatedFromTree": "5973e55d841d055c04d85265aff468be4d9b1703",
   "inventoryDigest": "55de3f7eeb35cedff1a6d1ca51d28bc10e849de81cd053634871aa6aef954d0f",
   "inventoryRevision": "sha256:3235cc1cd970c2f65a668bdd332dd796fb76abb985e950fe0a4be58fa099e1b7",
   "generatorVersion": "2.4.0",
@@ -1932,7 +1932,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "8383482f29f50293b7de1dc7f13a4a4a1fc13414"
+        "originalGitBlobDigest": "bf002eab2ee1799127cc498b89e8215073b24242"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1956,7 +1956,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
-        "originalGitBlobDigest": "4cdabf09ec40fff37ca73bba1a629ff9401a157e"
+        "originalGitBlobDigest": "66d83d70d684867b889fd95dd24d01fd80773720"
       },
       {
         "ownerId": "git-worktree",
@@ -5675,7 +5675,7 @@
     "doc-maintain": "9bc045d9d8b3089a032495598db1788a1ac88869b7a28faf3b2d6ed6bac611f5",
     "flow-drive": "7b8503df291ebe467f8cf14f68405b661c588db00ee64d32c4a8bc5d0ec0ed63",
     "flow-guide": "6cfaf67edebb9d8c8a92714b6cb0ee5781603740dc41450462b8d12235ff8fb6",
-    "git-smart-commit": "9279cd262a75639559d49229592ce7f13492d3a4c187b9f31522ba5f96e7dc76",
+    "git-smart-commit": "7af56583d28c60dc774231f6a7db308b50ac66679a5e0eab21692aa4f3998d4b",
     "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
     "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",
     "opsx-apply-resume": "1fd6ca81433cf237d6099c0a1b5ed776a3643825a3c4c7918126b90ecc68e29e",

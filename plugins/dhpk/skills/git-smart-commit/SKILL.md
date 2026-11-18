@@ -42,14 +42,14 @@ node "$SKILL_DIR/scripts/collect-changes.js" [--scope <path>]
 
 若收集器不存在、退出非零、JSON 無效或輸出不完整，回報摘要未完成並停止提交流程，不推斷「沒有變更」或「沒有 hook」。若 `files` 沒有範圍內變更，先檢查 `safety`，尤其範圍外 staged；確認沒有待處理安全狀態後，再回報目前範圍無需提交。
 
-摘要只用來選出待檢查的功能群。將 shell 工作目錄切換到輸出中的 `repoRoot`，再逐路徑閱讀該群的 staged 與 unstaged diff；新增的未追蹤檔案要閱讀檔案內容。使用 literal pathspec，rename 要同時檢查新舊路徑：
+摘要只用來選出待檢查的功能群。將 shell 工作目錄切換到輸出中的 `repoRoot`，依功能群建立完整且可複製的 literal pathspec 清單，再批次閱讀該群的 staged 與 unstaged diff；新增的未追蹤檔案要閱讀檔案內容。rename 必須同時列出來源與目的路徑，並保留每個查詢的完整 stdout 供審查：
 
 ```bash
-git --literal-pathspecs diff -- <path>
-git --literal-pathspecs diff --cached -- <path>
+git --literal-pathspecs diff -- <group-path-1> <group-path-2>
+git --literal-pathspecs diff --cached -- <group-path-1> <group-path-2>
 ```
 
-逐組檢查並控制輸出量，不先讀取整個 worktree 的完整 diff。收集器會拒絕前後觀察到的 HEAD、status 或行數統計變動，但摘要不是原子快照，也不能證明內容未變。若來源在檢查期間改變，重新收集摘要、檢查受影響內容並重擬計畫；提交前仍須核對實際 staged diff。
+逐組檢查並控制輸出量，不先讀取整個 worktree 的完整 diff。若一組的 stdout 超過可安全審查的大小，依原始路徑順序拆成多個 literal pathspec 批次，逐批保留 stdout 並確認批次涵蓋該組全部路徑。收集器會拒絕前後觀察到的 HEAD、status 或行數統計變動，但摘要不是原子快照，也不能證明內容未變。若來源在檢查期間改變，重新收集摘要、檢查受影響內容並重擬計畫；提交前仍須核對實際 staged diff。
 
 ### 2. 分析並分群
 
@@ -107,10 +107,13 @@ Commit 計畫（共 N 個 commit）
 
 ```bash
 git --literal-pathspecs add -- <reviewed-paths>
+# 每個 commit 只做一次完整 index 路徑核對與一次完整 staged patch 審查
 git diff --cached --name-status -z
-git --literal-pathspecs diff --cached -- <reviewed-paths>
+git diff --cached
 git commit -m "<type>(<scope>): <subject>"
 ```
+
+若完整 staged patch 超過可安全審查的大小，沿用已核對的 literal path 清單依原始順序分批執行 `git --literal-pathspecs diff --cached -- <verified-paths>`；分批完成後不得省略一次完整 index 路徑核對，且每個 commit 仍須確認所有 staged 路徑都已閱讀。
 
 優先遵循消費專案的 Project Convention（語言、格式與 scope）；未定義時才使用下方 fallback 格式。路徑需按 shell 規則引用，並保留 Git 路徑的原始拼寫。
 

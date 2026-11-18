@@ -149,13 +149,16 @@ function collect(scope) {
   const workingOutput = git(root, ['diff', ...diffArgs]);
   const cached = parseNumstat(cachedOutput);
   const working = parseNumstat(workingOutput);
+  const gitDirectory = line(git(root, ['rev-parse', '--path-format=absolute', '--git-dir']));
   const hooksDirectory = line(git(root, ['rev-parse', '--path-format=absolute', '--git-path', 'hooks']));
   const operationPaths = [
     ['merge', 'MERGE_HEAD'], ['rebase', 'rebase-merge'], ['rebase', 'rebase-apply'],
     ['cherry-pick', 'CHERRY_PICK_HEAD'], ['revert', 'REVERT_HEAD'], ['sequencer', 'sequencer'],
   ];
-  const operations = [...new Set(operationPaths.filter(([, marker]) => exists(line(git(root,
-    ['rev-parse', '--path-format=absolute', '--git-path', marker])))).map(([operation]) => operation))];
+  // 每個 marker 各自啟動 Git 會讓 linked worktree 的唯讀收集成本線性增加；一次解析 worktree Git dir 後只讀取固定 marker。
+  const operations = [...new Set(operationPaths
+    .filter(([, marker]) => exists(path.join(gitDirectory, marker)))
+    .map(([operation]) => operation))];
   const result = {
     schemaVersion: 1,
     repoRoot: root,
