@@ -30,7 +30,7 @@ Host support, user-owned files, and installation authority boundaries.
 
 ## Rules
 
-- The retired governance CLI, G1-G13 taxonomy, and scenario runners are unavailable; report only checks you actually ran, not their former scoring or scenario coverage.
+- Report only checks you actually ran.
 - Preserve cross-platform behavior and receipt/ownership protections.
 - Use repository-relative paths and established Host adapters.
 - Keep each fix reversible and scoped; preserve unrelated work.

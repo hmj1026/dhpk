@@ -9,13 +9,13 @@ Load references on demand:
 
 ---
 
-## What this module wires (hooks)
+## What the `xcode-tooling` module wires (hooks)
 
-- **`hooks/post-edit-swiftlint.sh`** — PostToolUse (Edit/Write). On a `.swift`
+- **`modules/xcode-tooling/hooks/post-edit-swiftlint.sh`** — PostToolUse (Edit/Write). On a `.swift`
   edit, runs SwiftLint on that file and surfaces warnings to stderr. Backgrounded
   by the dispatcher, always exits 0, **self-skips when `swiftlint` is absent** —
   no noise on machines without it.
-- **`hooks/pre-commit-swift-build.sh`** — PreToolUse (Bash). On `git commit*` with
+- **`modules/xcode-tooling/hooks/pre-commit-swift-build.sh`** — PreToolUse (Bash). On `git commit*` with
   staged `.swift`, runs a build (and tests unless skipped). **Exit 2 blocks the
   commit** on failure; **self-skips when `xcodebuild`/`swift` is absent**; honors a
   `[skip-swift-build]` commit-message sentinel for emergencies.

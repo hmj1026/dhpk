@@ -24,7 +24,6 @@ here.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
-| [tdd-guide](tdd-guide.md) | sonnet | Test-first unit/integration work (AI-judgment, pre-edit): owns test seam, acceptance design, RED, and scoped runs; hands production GREEN to the configured implementation role by default, with TDD-owned GREEN only for an explicitly authorized minimal slice |
 | [database-reviewer](database-reviewer.md) | sonnet | SQL / schema / migration / Repository edits |
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
@@ -45,8 +44,9 @@ roster navigation for the shipped worker/reasoner roles.
 
 | Agent | Model (default) | Role |
 |-------|-------|----------------|
+| [tdd-guide](tdd-guide.md) | sonnet | Test-first unit/integration specialist (pre-edit): owns test seam, acceptance design, RED, and scoped runs; hands production GREEN to the configured implementation role by default, with TDD-owned GREEN only for an explicitly authorized minimal slice |
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
-| [codex-reasoner](codex-reasoner.md) | sonnet + codex CLI | **codex CLI available** — canonical `deep-reasoner` backend selected by `--reasoner=codex/<model>[:<effort>]` (default `gpt-6.1-sol` @ `high`), with a read-only sandbox, dispatcher-attested runtime/deadline, and the same conclusion contract; the retired `CODEX=on`/`--codex` review-peer switch cannot select it |
+| [codex-reasoner](codex-reasoner.md) | sonnet + codex CLI | **codex CLI available** — canonical `deep-reasoner` backend selected by `--reasoner=codex/<model>[:<effort>]` (default `gpt-6.1-sol` @ `high`), with a read-only sandbox, dispatcher-attested runtime/deadline, and the same conclusion contract |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
 | [codex-worker](codex-worker.md) | sonnet + codex CLI | **codex CLI available** — canonical `fast-worker` backend (default `gpt-6-luna` @ `xhigh`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [agy-worker](agy-worker.md) | sonnet + agy CLI | **agy CLI available** — canonical mechanical worker on the agy backend (default `Gemini 3.8 Flash (High)`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
@@ -69,7 +69,7 @@ This index only lists the shipped roles above.
 
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
-| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (Fable is the highest per-token Claude tier, currently 5.2, see rules/model-economics.md; up-only escalation for HIGH-risk designs) |
+| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (highest per-token Claude tier, see rules/model-economics.md; up-only escalation for HIGH-risk designs) |
 | [planner](planner.md) | opus | Requested plan consultant for critique / blind-sketch / dual-plan and manual warm or cold review. Caller-provided scope is `auto\|bounded\|discovery`, distinct from work mode; bounded permits ≤4 named-source reads and 0 children, discovery ≤12 reads and ≤2 read-only children, and warm review ≤4 new reads. Pre-implementation verdicts remain `ENDORSE\|AMEND\|REPLACE`; review verdicts remain `SHIP\|FIX-THEN-SHIP\|RECONSULT`; actual reads, children, and blockers fit the existing VERDICT-first + `END` telegraphic protocol. Neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries this verdict/critique contract or dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
@@ -77,7 +77,7 @@ This index only lists the shipped roles above.
 | [doc-updater](doc-updater.md) | sonnet | Doc / codemap updates after a structural change makes docs stale |
 | [docs-writer](docs-writer.md) | sonnet | Write or revise assigned documentation (QA manuals, guides, docblock prose) from confirmed sources; reports sources and unresolved facts. Distinct from doc-updater (stale-doc refresh after a structural change) |
 | [docs-lookup](docs-lookup.md) | haiku | Library / framework / API doc lookup (Context7) |
-| [harness-reviser](harness-reviser.md) | sonnet | Scoped harness configuration review and fixes; retired governance scoring and scenario coverage are unavailable |
+| [harness-reviser](harness-reviser.md) | sonnet | Scoped harness configuration review and fixes |
 | [migration-reviewer](migration-reviewer.md) | sonnet | DB migration up/down symmetry, multi-tenant FK/index collision, online-DDL safety on high-volume tables |
 | [version-matrix-impact-reviewer](version-matrix-impact-reviewer.md) | sonnet | Per-change blast radius across a CI version matrix (PHP × Laravel/Symfony, Yii 1×2); recommends the minimum testsuite subset |
 | [swift-build-resolver](swift-build-resolver.md) | sonnet | Swift / Xcode / SwiftPM build-error resolution (compile, Sendable/actor isolation, Codable, package-version conflicts, signing) |
@@ -99,7 +99,7 @@ This index only lists the shipped roles above.
 > - `doc-updater` ← execution-policy back-stop on structural change (it runs `/update-codemaps` + `/update-docs`)
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
 > - `tdd-guide` / `tdd-workflow` ← unit/integration post-development routes; the TDD capability is `UNAVAILABLE` when its configured test stack or dispatch backend is absent, and must not be silently remapped.
-> - `e2e-runner` ← Playwright route-table entry (`agent:e2e-runner`); report `UNAVAILABLE` when the Playwright agent capability is absent rather than falling back to the retired post-development skill.
+> - `e2e-runner` ← Playwright route-table entry (`agent:e2e-runner`); report `UNAVAILABLE` when the Playwright agent capability is absent, without substituting another route.
 > - `smoke-tester`, `qa-executor`, `docs-writer` ← `rules/execution-policy.md` §Implementation dispatch table
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
 > - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `flow-guide`, which does **not** itself name these agents — so there is no deterministic route-table dispatch; they fire purely on the AI-judgment back-stop
@@ -115,7 +115,7 @@ This index only lists the shipped roles above.
 - **opus**: deep-reasoner (may be raised to fable per dispatch for multi-question policy adjudication, see rules/model-economics.md), planner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, doc-updater (edits files), qa-executor (issues verdicts), tdd-guide, refactor, ui-ux, harness, docs-writer, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
 - **haiku**: docs-lookup, doc-reviewer (high-frequency, templated, cost-first; read-only lookup and lint)
-- **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication (see rules/model-economics.md) (Fable is the highest per-token Claude tier, currently 5.2, see rules/model-economics.md; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
+- **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication; highest per-token Claude tier, with up-only escalation for HIGH-risk designs via the configured-role override (see rules/model-economics.md)
 
 ## Partial outputs and agent continuation
 

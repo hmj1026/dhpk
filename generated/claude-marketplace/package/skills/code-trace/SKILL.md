@@ -38,7 +38,7 @@ before any implementation lane touches it; this skill only reports the impact.
 
 - Implement a confirmed change → use `flow-drive`.
 - Review a proposed change → use `change-verdict`.
-- Review an existing skill document or change → use `change-verdict` in its `docs` or `risk` mode. Specialized skill governance scoring and stocktake are retired.
+- Review an existing skill document or change → use `change-verdict` in its `docs` or `risk` mode.
 
 ## `explore`
 

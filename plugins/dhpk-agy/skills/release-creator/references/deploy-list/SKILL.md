@@ -143,24 +143,24 @@ pattern — no regex escaping needed.
 
 ## NEVER
 
-- **NEVER** use Write/Edit to hand-construct schema=v1 output. schema=v1
+- Do not hand-construct schema=v1 output with Write/Edit. schema=v1
   is the script contract — the only allowed path is "invoke
   `deploy-list.sh`, forward stdout verbatim". If `rg` probe or the
   script fails (zero hits, timeout, encoding), stop and report; do not
   simulate the output (token cost ~5× and schema-contract drift risk).
-- **NEVER** use `git log --grep="[tag]"` to derive deploy scope — tag
+- Do not derive deploy scope from `git log --grep="[tag]"` — the tag
   is operational metadata, not stored in commit messages.
-- **NEVER** post-process the script's stdout — schema=v1 is the contract,
+- Forward the script's stdout unchanged — schema=v1 is the contract,
   every byte matters.
-- **NEVER** modify `--description` text (even if obviously typo'd) —
-  that's input data.
-- **NEVER** auto `git add/commit/push` — deploy-list is read-only.
-- **NEVER** skip `--deploy-commits` to auto-group commits — that's an
-  explicit "single main group, full base..head" mode (correct by design).
-- **NEVER** translate the schema markers (`# deploy-list schema=v1`,
+- Pass `--description` text through as given, typos included —
+  it is input data.
+- deploy-list is read-only: no `git add`, `commit`, or `push`.
+- Omitting `--deploy-commits` produces one main group over the full
+  base..head by design; it does not auto-group commits.
+- Do not translate the schema markers (`# deploy-list schema=v1`,
   section emoji prefixes) — they are byte-stable identifiers, not
   human-facing labels.
-- **NEVER** add project-specific paths to a generic preset — project
+- Keep project-specific paths out of generic presets — project
   rules belong in a named preset (e.g. `presets/<your-project>.sh`) or
   in `config.sh`.
 
