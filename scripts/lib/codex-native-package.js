@@ -55,6 +55,7 @@ const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
+const { REFERENCE_ENTRY } = require('./public-plugin-layout');
 const { preparePublicPlugin, publicPluginManifestFiles } = require('./public-plugin-tree');
 const { renderOpenaiSubmissionManifest } = require('./host-manifests');
 const {
@@ -190,7 +191,7 @@ function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsFie
         if (!childSkill) continue;
         expectedFiles.push({
           name: childSkill.name || childSkill.id,
-          relative: path.posix.join(ownerName, 'references', childSkill.name || childSkill.id, 'SKILL.md'),
+          relative: path.posix.join(ownerName, 'references', childSkill.name || childSkill.id, REFERENCE_ENTRY),
         });
       }
     }
@@ -203,7 +204,7 @@ function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsFie
   for (const expected of expectedFiles) {
     const skillFile = path.join(skillsRoot, ...expected.relative.split('/'));
     if (!fs.existsSync(skillFile)) {
-      if (publicationView) errors.push(`native published skill SKILL.md is missing: '${expected.relative}'`);
+      if (publicationView) errors.push(`native published skill entry file is missing: '${expected.relative}'`);
       continue;
     }
     const actualName = readSkillFrontmatterName(skillFile);
