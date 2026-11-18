@@ -7,7 +7,7 @@ Requires Claude Code 2.1.295 or newer. The edit guard blocks on failure only fro
 ## What this plugin installs
 
 - Skills, agents, and commands under `skills/`, `agents/`, and `commands/`.
-- No stack modules. Install `dhpk-stacks` (`/plugin install dhpk-stacks@dhpk`) to add them; it owns the `modules` setting. `/dhpk:setup` detects your stack and tells you when `dhpk-stacks` is missing.
+- No stack modules and no stack skills ($swift, $php, $laravel, $yii1, $js-static-checks, $python, $react, $nextjs). Install `dhpk-stacks` (`/plugin install dhpk-stacks@dhpk`) to add them; it owns the `modules` setting and ships the stack skills. Core works without it. `/dhpk:setup` detects your stack and tells you when `dhpk-stacks` is missing.
 - Hook scripts under `scripts/hooks/`, and rules under `rules/`.
 
 ## Hooks

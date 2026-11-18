@@ -338,17 +338,29 @@ function readDirectoryTree(directory) {
   return files;
 }
 
-// Directory Plugin: read the committed Claude package, run the conformance
-// rules, then let the Claude CLI validate it with the directory profile.
+// Directory Plugin: read each committed Claude package (core and dhpk-stacks),
+// run the conformance rules, then let the Claude CLI validate it with the
+// directory profile.  The reported file count is the core package's.
+const DIRECTORY_PACKAGES = Object.freeze([
+  { label: 'Directory Plugin', name: 'package' },
+  { label: 'dhpk-stacks', name: 'stacks-package' },
+]);
+
 function verifyDirectoryPlugin({ root }) {
-  const directory = path.join(root, 'generated', 'claude-marketplace', 'package');
-  if (!fs.existsSync(directory)) return publicPluginResult([`Directory Plugin is missing: ${directory}`]);
-  const files = readDirectoryTree(directory);
-  const errors = [
-    ...checkDirectoryPlugin(files, { version: readSourceVersion(root) }),
-    ...runClaudeValidate(directory),
-  ];
-  return publicPluginResult(errors, files.size);
+  const errors = [];
+  let coreCount = 0;
+  for (const { label, name } of DIRECTORY_PACKAGES) {
+    const directory = path.join(root, 'generated', 'claude-marketplace', name);
+    if (!fs.existsSync(directory)) {
+      errors.push(`${label} is missing: ${directory}`);
+      continue;
+    }
+    const files = readDirectoryTree(directory);
+    if (name === 'package') coreCount = files.size;
+    const found = [...checkDirectoryPlugin(files, { version: readSourceVersion(root) }), ...runClaudeValidate(directory)];
+    errors.push(...found.map((error) => (label === 'Directory Plugin' ? error : `${label}: ${error}`)));
+  }
+  return publicPluginResult(errors, coreCount);
 }
 
 function publicPluginResult(errors, fileCount = 0) {
