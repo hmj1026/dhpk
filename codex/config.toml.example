@@ -1,5 +1,5 @@
 [features]
-multi_agent = true
+multi_agent_v2 = true
 
 [agents]
 enabled = true

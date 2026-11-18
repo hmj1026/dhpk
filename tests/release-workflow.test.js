@@ -167,6 +167,15 @@ test('release workflow reruns repository tests under the required Linux bounded 
   const boundedBlock = raw.slice(boundedIdx, resolveIdx);
   assert.match(boundedBlock, /DHPK_BOUNDED_REQUIRE_CGROUP:\s*[\'\"]?1/);
   assert.match(boundedBlock, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js/);
+  assert.match(boundedBlock, /TIMEOUT_SECONDS:\s*[\'\"]?1200s/);
+  assert.match(boundedBlock, /DHPK_TEST_PROGRESS:\s*[\'\"]?1/);
+  assert.match(releaseJob, /timeout-minutes:\s*30/);
+});
+
+test('release runner timeout defaults stay bounded and longer than the generic test runner', () => {
+  const genericRunner = fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'run-bounded-node-test.sh'), 'utf8');
+  assert.match(genericRunner, /TIMEOUT_SECONDS="\$\{TIMEOUT_SECONDS:-900s\}"/);
+  assert.ok(/TIMEOUT_SECONDS:\s*['"]?1200s/.test(releaseJob), 'release test step must set its own 1200s budget');
 });
 
 // Ubuntu runners do not ship ripgrep, and the isolated skill fixtures delegate

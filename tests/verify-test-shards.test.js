@@ -586,6 +586,26 @@ test('malformed shard timing JSON is rejected', () => {
     }
   });
 
+  test('four-worker partition separates the three longest known test suites', () => {
+    const files = findTests(path.join(__dirname, '..', 'tests')).sort();
+    const first = partitionFiles(files, 4);
+    const second = partitionFiles(files, 4);
+    const workerFor = (name, buckets) => buckets.findIndex((bucket) => (
+      bucket.includes(path.join(__dirname, name))
+    ));
+
+    assert.deepStrictEqual(second, first, 'worker assignment must remain deterministic');
+    assert.deepStrictEqual(first.flat().sort(), files.slice().sort(), 'each test file must be assigned exactly once');
+    for (const name of ['hook-bypass.test.js', 'hook-bypass-git-gate.test.js', 'credential-read-policy.test.js']) {
+      assert.ok(workerFor(name, first) >= 0, `${name} must be assigned`);
+    }
+    assert.strictEqual(new Set([
+      workerFor('hook-bypass.test.js', first),
+      workerFor('hook-bypass-git-gate.test.js', first),
+      workerFor('credential-read-policy.test.js', first),
+    ]).size, 3, 'the three longest suites must occupy separate workers');
+  });
+
   test('shard assignment is deterministic and covers every shard', () => {
     const files = Array.from({ length: 20 }, (_, i) => `/repo/tests/${i}.test.js`);
     const assignments = files.map((file) => assignShard(file, 4));

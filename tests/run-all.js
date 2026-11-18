@@ -57,12 +57,24 @@ const MAX_JOBS = 8;
 // fixture-heavy files from landing in the same worker. The fallback weight is
 // deterministic for synthetic paths used by unit tests and future shards.
 const WEIGHT_HINTS = Object.freeze({
+  // Slow-file weights were calibrated at roughly one unit per two seconds
+  // from a four-worker, 2 GiB cgroup release-gate run.
+  'hook-bypass.test.js': 124,
+  'hook-bypass-git-gate.test.js': 106,
+  'credential-read-policy.test.js': 92,
+  'gen-agents-skills.test.js': 80,
+  'project-agent-projection-journal-crash.test.js': 60,
+  'install-codex-adapter-journal.test.js': 54,
+  'dhpk-install-lifecycle.test.js': 45,
+  'credential-code-strings.test.js': 42,
+  'install-cursor-adapter-journal.test.js': 32,
+  'hook-differential.test.js': 32,
   'install-codex-skills.test.js': 20,
   'macos-installer-darwin.test.js': 30,
   'install-codex-skills-reconciliation.test.js': 60,
   'install-codex-skills-planning.test.js': 60,
   'install-codex-skills-uninstall.test.js': 20,
-  'consumer-gate-cli.test.js': 80,
+  'consumer-gate-cli.test.js': 87,
   'gen-cursor-plugin-package.test.js': 70,
   'harness-facade-cli.test.js': 55,
   'subagent-stop-verify-autoclear.test.js': 45,

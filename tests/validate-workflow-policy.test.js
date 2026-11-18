@@ -213,6 +213,7 @@ test('the CI timeout policy retains the aggregate required-check budget and assi
 test('the release rehearsal job has an agreed timeout budget', () => {
   const { WORKFLOW_TIMEOUTS } = require('../scripts/ci/validate-workflow-policy');
   assert.strictEqual(WORKFLOW_TIMEOUTS['ci.yml']['release-rehearsal'], 10);
+  assert.strictEqual(WORKFLOW_TIMEOUTS['release.yml'].release, 30);
 });
 
 test('CI runs actionlint and the repository-owned policy gate', () => {
