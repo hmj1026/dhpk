@@ -22,16 +22,17 @@ There are three places a knob's value can come from, in increasing precedence:
 1. **Plugin default** — baked into `.claude-plugin/plugin.json`, applies if you never touch the knob.
 2. **Install-time `--config`** — set once at install, stored as the plugin's global config:
    ```bash
-   claude plugin install dhpk@dhpk \
-     --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-     --config hook_profile=standard
+   claude plugin install dhpk@dhpk --config hook_profile=standard
+   claude plugin install dhpk-stacks@dhpk \
+     --config modules=php-8.x,laravel-11,phpunit-11,library-author
    ```
+   `modules` and the module tool settings belong to the separate `dhpk-stacks` plugin (see [Stack modules](#stack-modules)); every other knob stays on `dhpk`.
    Multi-value knobs (`multiple: true` below) take a comma-separated list.
 3. **Project-level override** — a consuming project's `.claude/settings.local.json` (or `settings.json`) can override specific knobs per-project via:
    ```json
    {
      "pluginConfigs": {
-       "dhpk@dhpk": {
+       "dhpk-stacks@dhpk": {
          "options": {
            "modules": ["php-7.4", "laravel-10"]
          }
@@ -39,7 +40,7 @@ There are three places a knob's value can come from, in increasing precedence:
      }
    }
    ```
-   This is documented and confirmed for `modules` (lets one dev machine run different stacks per project) — the same `pluginConfigs.dhpk@dhpk.options.<key>` path applies to any knob since it's a general plugin-config override mechanism, not a `modules`-specific special case.
+   This is documented and confirmed for `modules` (lets one dev machine run different stacks per project) — the same `pluginConfigs.<plugin>@dhpk.options.<key>` path applies to any knob since it's a general plugin-config override mechanism, not a `modules`-specific special case.
 
 Reconfigure or inspect the effective config at any time from inside Claude Code:
 
@@ -269,9 +270,13 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 ## Stack modules
 
+Stack modules ship in the `dhpk-stacks` plugin, which requires the core `dhpk` plugin (Claude Code installs core for you). `dhpk-stacks` owns `modules` and every module tool setting in this section and the language sections below (`js_*`, `python_*`, `ruff_bin`, `pyright_bin`, `mypy_bin`, `xcode_*`, `swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, `psalm_bin`); set them under `pluginConfigs["dhpk-stacks@dhpk"].options`.
+
+**Migrating from dhpk 0.78 or earlier:** run `/plugin install dhpk-stacks@dhpk`, then move your `modules` value (and module tool settings) from the `dhpk` plugin config to `dhpk-stacks`. A leftover `pluginConfigs["dhpk@dhpk"].options.modules` in a project is still read as a fallback, and the `dhpk-stacks` value wins when both exist. `/dhpk:setup` detects your stack and tells you when `dhpk-stacks` is missing.
+
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences reviewer triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
+| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences reviewer triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs["dhpk-stacks@dhpk"].options.modules` overrides the global value. |
 
 ## Review triggers & risk heuristics
 
@@ -331,16 +336,16 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 claude plugin install dhpk@dhpk
 
 # Legacy PHP/Yii + JS fullstack project.
+claude plugin install dhpk-stacks@dhpk --config modules=php-5.6,yii-1.1,phpunit-5.7,js
 claude plugin install dhpk@dhpk \
-  --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
   --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
 
 # Modern Laravel package library spanning Laravel 6-11 (with polyfill review).
-claude plugin install dhpk@dhpk \
+claude plugin install dhpk-stacks@dhpk \
   --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
 
 # Python/FastAPI project using Poetry instead of uv, mypy instead of pyright.
-claude plugin install dhpk@dhpk \
+claude plugin install dhpk-stacks@dhpk \
   --config modules=python,fastapi,pytest \
   --config python_runner="poetry run" \
   --config python_typechecker=mypy
