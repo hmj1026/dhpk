@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.77.4",
-  "sourceCommit": "3c520198cdb7edf7d42cb01b1e7de16965dde91f",
-  "generatedFromCommit": "3c520198cdb7edf7d42cb01b1e7de16965dde91f",
-  "generatedFromTree": "ef528497f0d7439dc47f0cce41aa648c95f57375",
+  "sourceCommit": "8026030a175390352fe31265a817348254297a3e",
+  "generatedFromCommit": "8026030a175390352fe31265a817348254297a3e",
+  "generatedFromTree": "9034e1f75f049fdf16645eb1ad868b30076f42b4",
   "inventoryDigest": "55de3f7eeb35cedff1a6d1ca51d28bc10e849de81cd053634871aa6aef954d0f",
   "inventoryRevision": "sha256:3235cc1cd970c2f65a668bdd332dd796fb76abb985e950fe0a4be58fa099e1b7",
   "generatorVersion": "1.1.0",
@@ -1858,7 +1858,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "8383482f29f50293b7de1dc7f13a4a4a1fc13414"
+        "originalGitBlobDigest": "bf002eab2ee1799127cc498b89e8215073b24242"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1882,7 +1882,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
-        "originalGitBlobDigest": "4cdabf09ec40fff37ca73bba1a629ff9401a157e"
+        "originalGitBlobDigest": "66d83d70d684867b889fd95dd24d01fd80773720"
       },
       {
         "ownerId": "git-worktree",

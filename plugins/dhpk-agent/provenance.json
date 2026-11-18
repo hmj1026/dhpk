@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.77.4",
-  "sourceCommit": "3c520198cdb7edf7d42cb01b1e7de16965dde91f",
-  "generatedFromCommit": "3c520198cdb7edf7d42cb01b1e7de16965dde91f",
-  "generatedFromTree": "ef528497f0d7439dc47f0cce41aa648c95f57375",
+  "sourceCommit": "8026030a175390352fe31265a817348254297a3e",
+  "generatedFromCommit": "8026030a175390352fe31265a817348254297a3e",
+  "generatedFromTree": "9034e1f75f049fdf16645eb1ad868b30076f42b4",
   "inventoryDigest": "4e08b2bcc1950f99ba3c3776b0483c145fd3777a51236412fddf0519b59b1ede",
   "inventoryRevision": "sha256:3235cc1cd970c2f65a668bdd332dd796fb76abb985e950fe0a4be58fa099e1b7",
   "generatorVersion": "1.1.0",
@@ -1903,7 +1903,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "8383482f29f50293b7de1dc7f13a4a4a1fc13414"
+        "originalGitBlobDigest": "bf002eab2ee1799127cc498b89e8215073b24242"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1927,7 +1927,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
-        "originalGitBlobDigest": "4cdabf09ec40fff37ca73bba1a629ff9401a157e"
+        "originalGitBlobDigest": "66d83d70d684867b889fd95dd24d01fd80773720"
       },
       {
         "ownerId": "git-worktree",
@@ -5310,7 +5310,7 @@
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "09bdeb1e4cb7e8608d6c1d9d21feeec0ac76738e4dbcb80db24a0979debfc3d9",
     "flow-guide": "86b3294122fe0c56e00710a39c7b6b541ef58b55c8ce8a00598e3100d831a764",
-    "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
+    "git-smart-commit": "0902a57349a495fdeaffde7d653b1760c065ef6019e1278d62280e67d77b9189",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
     "precommit": "f53a31490a6a5001ecb13c4a2e772a6aa98d87532304abc15b79aaccb2f53640",
     "proposal-analyze": "7cbc5c6b5d5faed62e67ddb7e1f3f921c1b8faa8123ae8f36c661837f7aa4d00",
