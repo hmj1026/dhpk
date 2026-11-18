@@ -19,8 +19,8 @@ const BARE_SKILL_MARKDOWN = /(?<![\w/.-])SKILL\.md/g;
 
 // Prose that points at dhpk-repo harness paths (`.claude/rules/`, `.codex/agents/`)
 // a plugin-only install lacks. Each entry names the consumer-neutral wording that
-// replaces it. Every entry must match each file its `file` pattern selects, so a
-// stale entry fails the build instead of silently doing nothing.
+// replaces it. A reference left unrewritten (the prose changed) is caught by the
+// publication conformance path rule, not here.
 const PROSE_REWRITES = Object.freeze([
   {
     file: /\/phpunit57-legacy-test-traps\.md$/,
@@ -50,18 +50,15 @@ const PROSE_REWRITES = Object.freeze([
 ]);
 
 function rewriteInternalPaths(files) {
-  const errors = [];
-  const rewritten = files.map((file) => {
+  return files.map((file) => {
     const rules = PROSE_REWRITES.filter((rule) => rule.file.test(file.path));
     if (rules.length === 0) return file;
-    let text = Buffer.from(file.bytes).toString('utf8');
-    for (const rule of rules) {
-      if (!text.includes(rule.from)) errors.push(`${file.path}: harness path rewrite no longer matches: ${rule.from}`);
-      text = text.split(rule.from).join(rule.to);
-    }
+    const text = rules.reduce(
+      (current, rule) => current.split(rule.from).join(rule.to),
+      Buffer.from(file.bytes).toString('utf8'),
+    );
     return { ...file, bytes: Buffer.from(text, 'utf8') };
   });
-  return { errors, files: rewritten };
 }
 
 const isInternalMetadataFile = (file) => path.posix.basename(file) === 'distribution.yaml';
@@ -164,9 +161,7 @@ function layoutPublicPlugin({ files, manifest, counts }) {
     && manifest.extensions['com.openai'].interface;
   if (!listing) return { ok: false, errors: ['Public Plugin manifest has no OpenAI listing interface'], files: [], assetFiles: [], manifest };
 
-  const cleaned = rewriteInternalPaths(files);
-  if (cleaned.errors.length > 0) return { ok: false, errors: cleaned.errors, files: [], assetFiles: [], manifest };
-  const kept = cleaned.files
+  const kept = rewriteInternalPaths(files)
     .filter((file) => !isInternalMetadataFile(file.path))
     .map((file) => ({ ...file, contentPath: file.path }));
   const dirs = renamedReferenceDirs(kept);
