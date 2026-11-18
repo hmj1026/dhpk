@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.77.3 — 2026-11-18 — Release workflow timeout fix and guidance cleanup
+
+- **fix(release)** — 發佈 job timeout 提高至 20 分鐘；v0.77.2 tag 因逾時未完成發佈，其變更（見 0.77.2 段落）隨本版一併發佈；另清理 agents 與 skills 指引中的過時事實、事故敘事與退役敘述 (#1477, #1478, #1479)。
+
 ## 0.77.2 — 2026-11-17 — Hook bypass hardening, plugin skill dedupe, owning package root resolution, and telemetry/planner updates
 
 - **feat(telemetry)** — Separate explicit call-time model/effort upgrades into an `escalations` section with per-session cap (`>2`) flagging, restrict `mismatches` to unoverridden role deviations and built-in agents called without `model`, and split `generalPurpose` into `builtinCommand` and `roleCandidates` trigger groups (#1412).
