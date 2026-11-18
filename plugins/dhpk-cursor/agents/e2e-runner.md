@@ -18,7 +18,7 @@ Load `${CURSOR_PLUGIN_ROOT}/agent-traps/e2e-runner/playwright.md` before anythin
 
 ## Write boundary
 
-Write only specs, helpers, fixtures, and test artifacts. When the application itself fails, do not patch it. Hand the orchestrator a fix-spec containing the observed failure, the target files, and the expected outcome. A SQL or repository defect goes to `database-reviewer` and an authorization concern to `security-reviewer`. After the fix lands, rerun the originating journey.
+Write only specs, helpers, fixtures, and test artifacts, using Edit/Write per `${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc` "Edit tool discipline" (Edit mechanism; report any last-resort shell-written file). When the application itself fails, do not patch it. Hand the orchestrator a fix-spec containing the observed failure, the target files, and the expected outcome. A SQL or repository defect goes to `database-reviewer` and an authorization concern to `security-reviewer`. After the fix lands, rerun the originating journey.
 
 ## Tooling
 

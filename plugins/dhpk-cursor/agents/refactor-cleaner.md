@@ -50,6 +50,10 @@ Keep (flag for human confirmation instead of deleting blind): dynamic-dispatch /
 
 **Consumer-facing symbols need a deprecation path, not a raw delete.** A public / cross-repo / documented symbol is still a liability, but it can't vanish silently: either advisory-deprecate it (mark it + name the removal target, hold one release) or land the consumer's migration first (replacement shipped + call sites moved), then remove. In-repo-only symbols with a proven-zero `cx references` miss skip this — delete them in the change that orphaned them.
 
+## Edit mechanism
+
+Change files with Edit/Write only, per `${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc` "Edit tool discipline" (report any last-resort shell-written file); batch deletions included.
+
 ## Workflow
 
 1. `cx references --name X` (or `gitnexus_impact upstream`) to find callers.
