@@ -1,9 +1,9 @@
 # DHPK support
 
 The current support route is the public
-[DHPK GitHub Issues page](https://github.com/hmj1026/dhpk/issues). This is the
-candidate support URL for the OpenAI listing; the plugin is not yet published
-in the public Plugins Directory.
+[DHPK GitHub Issues page](https://github.com/hmj1026/dhpk/issues). This page is
+published at https://hmj1026.github.io/dhpk/support.html and is the support
+URL in the OpenAI listing.
 
 ## Report an issue
 
