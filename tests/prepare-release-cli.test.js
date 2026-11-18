@@ -263,14 +263,15 @@ testWithRepo('write mode updates every manifest, promotes fragments, and reports
 
 testWithRepo('write mode regenerates a drifted Claude marketplace package', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
-  const generatedSync = path.join(repo, 'generated', 'claude-marketplace', 'package', 'docs', 'contracts', 'marketplace-sync.md');
+  const generatedPackage = path.join(repo, 'generated', 'claude-marketplace', 'package');
+  const generatedSync = path.join(generatedPackage, 'docs', 'contracts', 'marketplace-sync.md');
   try {
     assert.ok(!fs.existsSync(generatedSync));
 
     const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(fs.existsSync(generatedSync), 'generated Claude marketplace package must include docs/contracts/marketplace-sync.md');
-    assert.strictEqual(fs.readFileSync(generatedSync, 'utf8'), 'Marketplace package must stay in sync.\n');
+    assert.ok(!fs.existsSync(path.join(generatedPackage, 'docs')), 'Directory Plugin ships runtime files only, with no docs/ (ADR-0040, #1500)');
+    assert.ok(fs.existsSync(path.join(generatedPackage, 'skills')), 'Directory Plugin must still ship runtime skills');
 
     const generatedPlugin = JSON.parse(fs.readFileSync(path.join(repo, 'generated', 'claude-marketplace', 'package', '.claude-plugin', 'plugin.json'), 'utf8'));
     assert.strictEqual(generatedPlugin.version, '1.1.0');
@@ -527,7 +528,7 @@ test('paths prints the release scope covering every surface a version bump rewri
     '.claude-plugin/plugin.json', 'CHANGELOG.md',
     'docs/platform-installation.md', 'docs/platform-installation.zh-TW.md',
     'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-    'generated/claude-marketplace/package/docs/platform-installation.md',
+    'generated/claude-marketplace/package/skills/tdd-workflow/SKILL.md',
     'plugins/dhpk-agent/provenance.json',
     'plugins/dhpk-agy/fingerprints.json', 'plugins/dhpk-cursor/.cursor-plugin/marketplace.json',
     'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk/provenance.json',
