@@ -37,12 +37,13 @@ Host 專用列與公開提交 catalog 分開。Cursor 引用 Agent-owned common 
 `skills/` 下的公開 owner 及其 contained 子技能資源；排除 Host-only
 與 withdrawn 技能。
 
-請提供在 `extensions["com.openai"].interface` 宣告 listing metadata
-的 portable manifest。來源 checkout 必須乾淨；比較重複產製結果時，
+Manifest 由 `manifests/listing-metadata.json`（listing metadata 位於
+`extensions["com.openai"].interface`）與 `package.json` 版本產生；`--manifest`
+為選用覆寫，版本必須相同。來源 checkout 必須乾淨；比較重複產製結果時，
 請使用 checkout 外的輸出目錄：
 
 ```bash
-bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission generate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
 ```

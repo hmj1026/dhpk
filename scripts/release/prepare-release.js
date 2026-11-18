@@ -21,7 +21,8 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { SEMVER_PATTERN, MANIFEST_PATHS, AGY_GENERATOR_DOC_PATHS, checkParity, releaseScope, writeAgyGeneratorDocPins } = require('../lib/release-parity');
+const { SEMVER_PATTERN, AGY_GENERATOR_DOC_PATHS, checkParity, releaseScope, writeAgyGeneratorDocPins } = require('../lib/release-parity');
+const { VERSION_SOURCE, versionSyncOutputs } = require('../lib/host-manifests');
 const { readFragments, validateFragments, promote } = require('../lib/changelog-fragments');
 const { materializeNativePackage, resolveCodexNativeProfileSelection } = require('../lib/codex-native-package');
 const { materializeAgentPluginPackage } = require('../lib/agent-plugin-package');
@@ -34,34 +35,15 @@ const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/pla
 const { lstatOrNull, isInside } = require('../lib/bounded-filesystem');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 
-// The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
-// provenance.json) is generated, derived output — not a hand-patchable
-// manifest. `write` mode regenerates it wholesale via materializeNativePackage
-// instead of field-patching, so skills/fingerprints/provenance never drift
-// from the version bump that produced them.
-const NATIVE_PACKAGE_PATHS = new Set([
-  'plugins/dhpk/.codex-plugin/plugin.json',
-  'plugins/dhpk/provenance.json',
-  'plugins/dhpk-agent/plugin.json',
-  'plugins/dhpk-agent/provenance.json',
-  'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
-  'plugins/dhpk-cursor/provenance.json',
-  'plugins/dhpk-agy/plugin.json',
-  'plugins/dhpk-agy/provenance.json',
-]);
-
-// The generated Claude marketplace package is regenerated wholesale via
-// materialize() in write mode rather than field-patching plugin.json, so
-// packaged docs stay in lockstep with the version bump.
-const GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS = new Set([
-  'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-]);
-
-function skipFieldPatchManifest(relPath) {
-  return NATIVE_PACKAGE_PATHS.has(relPath) || GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS.has(relPath);
-}
-
-const FIELD_PATCH_MANIFESTS = MANIFEST_PATHS.filter((relPath) => !skipFieldPatchManifest(relPath));
+// Only the generator-declared version-sync manifests (and package.json, the
+// version source) are field-patched. Every other declared manifest is generated
+// output (native, Agent, AGY, Cursor packages and the generated Claude
+// marketplace package): `write` mode regenerates those wholesale so
+// skills/fingerprints/provenance never drift from the version bump.
+const FIELD_PATCH_MANIFESTS = [
+  ...versionSyncOutputs().map((output) => output.path),
+  VERSION_SOURCE,
+];
 const OPERATION_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');

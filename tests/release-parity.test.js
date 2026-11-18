@@ -58,6 +58,7 @@ function allAtVersion(version) {
     'plugins/dhpk-agy/plugin.json': version,
     'plugins/dhpk-agy/provenance.json': version,
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json': version,
+    'plugins/dhpk-cursor/.cursor-plugin/marketplace.json': version,
     'plugins/dhpk-cursor/provenance.json': version,
     'generated/claude-marketplace/package/.claude-plugin/plugin.json': version,
   };
@@ -96,6 +97,33 @@ test('checkParity ignores leftover manifests from retired Claude profile outputs
   });
 });
 
+test('checkParity fails when a manifest exists that no generator declares', () => {
+  withRepo({
+    versions: allAtVersion('1.2.3'),
+    changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+    agyDocVersion: '1.2.3',
+  }, (root) => {
+    const rel = 'plugins/new-host/plugin.json';
+    fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), JSON.stringify({ version: '1.2.3' }));
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes(rel) && /not declared/.test(e)));
+  });
+});
+
+test('checkParity fails when the rendered OpenAI manifest version differs from the target', () => {
+  withRepo({
+    versions: { ...allAtVersion('1.2.3'), 'package.json': '1.2.2' },
+    changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+    agyDocVersion: '1.2.3',
+  }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes('openai-submission manifest') && e.includes('1.2.2')));
+  });
+});
+
 test('MANIFEST_PATHS lists retained version-bearing manifests, including native package provenance', () => {
   const originalPaths = [...MANIFEST_PATHS];
   const expectedPaths = [
@@ -109,6 +137,7 @@ test('MANIFEST_PATHS lists retained version-bearing manifests, including native 
     'plugins/dhpk-agy/plugin.json',
     'plugins/dhpk-agy/provenance.json',
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
+    'plugins/dhpk-cursor/.cursor-plugin/marketplace.json',
     'plugins/dhpk-cursor/provenance.json',
     'generated/claude-marketplace/package/.claude-plugin/plugin.json',
     'package.json',
