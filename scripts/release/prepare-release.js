@@ -85,13 +85,7 @@ function allowsPublishTargetCheck(args, branch) {
 function writeManifestVersion(root, relPath, version) {
   const abs = path.join(root, relPath);
   const data = JSON.parse(fs.readFileSync(abs, 'utf8'));
-  if (relPath.endsWith('marketplace.json')) {
-    const entry = (data.plugins || []).find((p) => p.name === 'dhpk');
-    if (!entry) throw new Error(`${relPath}: no 'dhpk' plugin entry`);
-    entry.version = version;
-  } else {
-    data.version = version;
-  }
+  data.version = version;
   fs.writeFileSync(abs, `${JSON.stringify(data, null, 2)}\n`);
 }
 
