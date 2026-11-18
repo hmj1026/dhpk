@@ -1,0 +1,1081 @@
+{
+  "schema": "dhpk.claude-stacks-package.v1",
+  "files": [
+    {
+      "destination": ".claude-plugin/icon.png",
+      "sha256": "7054e7333119a6de39ba4e4182b0d7f373997781f3012c9c8076ae01f1767052"
+    },
+    {
+      "destination": ".claude-plugin/plugin.json",
+      "sha256": "207798a4e33730afb3d63a1b613a90cb6f25d8a9590816dd05bf5fa8151f43e7"
+    },
+    {
+      "destination": "LICENSE",
+      "sha256": "cc6a184c830b1d71df9f80429dcbd8da26cf352b6b154ffc572c3c5e970c5221"
+    },
+    {
+      "destination": "README.md",
+      "sha256": "fb447f6006683548312150d2a1b6286f52ffd27500cc9c52da4ce9e00a02312f"
+    },
+    {
+      "destination": "hooks/hooks.json",
+      "sha256": "165a97be2f592fa63ea2cfb120eb208e031ecc4d95e06507d1ef595067c1c21a"
+    },
+    {
+      "destination": "modules/fastapi/module.yaml",
+      "sha256": "fcdee28f72819ceaae118bbb852910b7c7e19ef872ea6f98255fdd5a74b1a077"
+    },
+    {
+      "destination": "modules/ios-platform/module.yaml",
+      "sha256": "dde25e7e6069cf6e693f48ac11381e6adc5e5c7294dc83808eb043072b939150"
+    },
+    {
+      "destination": "modules/ios-platform/references/actor-persistence.md",
+      "sha256": "8b4efa741a95cfdd1f3fad3bbd1b5aa27b6afda5ae10897af767086456901711"
+    },
+    {
+      "destination": "modules/ios-platform/references/coredata-encryption.md",
+      "sha256": "abeaebd0021e32e8cfe3783f1536f9f08ba48f316f11010e0ae9e01024b17851"
+    },
+    {
+      "destination": "modules/ios-platform/references/cryptokit-keychain.md",
+      "sha256": "790fd8575ad85fcaca3efe10e93ecfc5c93af8f523c266aa2fd27fcaa56ebfea"
+    },
+    {
+      "destination": "modules/ios-platform/references/healthkit-read.md",
+      "sha256": "5c63e27a80c9df8c15a1d2f9e992e8465f97309d77f6e9563b61516e6f456cc4"
+    },
+    {
+      "destination": "modules/ios-platform/references/local-authentication.md",
+      "sha256": "0ec2e3f447b3a643b7807b32888f376a1f81b585c27f9811ca93a032c582c47c"
+    },
+    {
+      "destination": "modules/ios-platform/references/notifications.md",
+      "sha256": "5c8b16a1bef8fb97e67f1ca161213531b651d3586773f39b6d5834d8d03c40e8"
+    },
+    {
+      "destination": "modules/ios-platform/references/privacy-compliance.md",
+      "sha256": "adbd510810a77af059390703bad9580c4d9c73576a231be3e77b03160a499156"
+    },
+    {
+      "destination": "modules/ios-platform/references/vision-ocr.md",
+      "sha256": "cc1afcd34901f8fa4546b9fa44cda27d695711473bd72d436ec536a3b73ae1f9"
+    },
+    {
+      "destination": "modules/js/commands/ts-check-status.md",
+      "sha256": "aadce15f3f1a939c1332bd253ab78523e2fa3561b016eb3ee289b3add8cf907e"
+    },
+    {
+      "destination": "modules/js/hooks/_lib/js-tier-detect.sh",
+      "sha256": "3a6d725cc19881b28daf0bc4d65f4157423060c97de911812956ebc326ab86a6"
+    },
+    {
+      "destination": "modules/js/hooks/post-edit-js-lint.sh",
+      "sha256": "bf78d6d372cea97cc50630d750ba469d3b38759d30748dac80e6c266cb751a20"
+    },
+    {
+      "destination": "modules/js/hooks/pre-commit-js-validation.sh",
+      "sha256": "eedda278e58f88907785f40e77519366b7e3463c2198c6c0f8b3b7a1a6143cb8"
+    },
+    {
+      "destination": "modules/js/hooks/stop-js-batch-check.sh",
+      "sha256": "f79d4745ed47762d4901263659e6aa05ddf17ebd2fa92235630a0a2790234b46"
+    },
+    {
+      "destination": "modules/js/module.yaml",
+      "sha256": "18059f98c5d199a6bc178c36ef3e2ba758429f59556d7a35c9a14fdb06404509"
+    },
+    {
+      "destination": "modules/js/references/frontend-review-patterns.md",
+      "sha256": "de4315a00e0f1e64f9da6935fb15420f98ce2f28fd44d6933b11dbe27c6df8a3"
+    },
+    {
+      "destination": "modules/js/references/static-checks.md",
+      "sha256": "4cd1e80f8ed6178137cd524133cb4212ee92c4fe413cca1ec84346c1c3dee3f4"
+    },
+    {
+      "destination": "modules/laravel-10/module.yaml",
+      "sha256": "bfac8ba910cc7dea93785054d9fedb6503cb59399ebd3b33bc984b1995c06fea"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-10/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/laravel-11/module.yaml",
+      "sha256": "af3e9840864cab09ca2a78137af12de4355b06dd01d90b40fb0d8eceeabc76b7"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-11/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/laravel-5.4/module.yaml",
+      "sha256": "6c972f8e7505e4e077d82f2d175586d69fe98bbb7b9c3b5dbb6eab910de0ea78"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-5.4/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/laravel-6/module.yaml",
+      "sha256": "c3d2c28300a8a89c0a0292d575206369e0214f555550e60f9dee893886aa5ae8"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-6/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/laravel-7/module.yaml",
+      "sha256": "2ca2f99a584ea5ad914b5cf6575a95f40976aceba15280c99a472d5fd9c7018c"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-7/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/laravel-8/module.yaml",
+      "sha256": "2f10bfd3a1e61ab07a15fd04449b4e051b57aa240eade9a0b72783dc84d37661"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-8/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/laravel-9/module.yaml",
+      "sha256": "027fc38362c325e28f537ef4ba0e062b007694ad5e56d395ec997561fb693d10"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-9/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/laravel-mix/module.yaml",
+      "sha256": "572d4535a6a07354e59a80a41e5fa91652fcffefb752dd2732f3ab433e4344f9"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/SKILL.md",
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/agents/openai.yaml",
+      "sha256": "ac7a0637203bcd6298ae2f07a757fefa296cd5a8e08b81d163c2242b7860f794"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/compatibility.md",
+      "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/distribution.yaml",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/migration.md",
+      "sha256": "48281efda17f6a953733fe6704ad0d7c186d54898cb5201bd0096b872d380c04"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/10.md",
+      "sha256": "7bc89c534316bff99597b678450d6a3aaec5f3b53ee710444d3c315ac8c16353"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/11.md",
+      "sha256": "f554feb212fc45510be9087e7b0a389dacbe1fb5c1059833f6b148ccf643da12"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/5-4.md",
+      "sha256": "12ef4890f4c5eab961844e34b619660bfcf325a31273870c76b1e65ff34412ac"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/6.md",
+      "sha256": "8e8d1fb4e38942f031dbbdb34ef91a96d08ac9c6d61da4cab55c375ddf3e4e48"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/7.md",
+      "sha256": "07b4acc84e0d09e3aaa66eb869119177600150bfc6548ca9c13e1c0825ca8693"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/8.md",
+      "sha256": "096aac8f64cb141abac3a5277d326532a0d01828e228120ed8e56afe73c21214"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/9.md",
+      "sha256": "a7bfd11c9130d35005cbae215afd732974ac7badf628ed32e419284ee52cd8bd"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/references/mix.md",
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/scripts/resolve-version.js",
+      "sha256": "ea12112e24ee617350021fc8dd3176f3eddc156ed95504490ddf46f0e99accd6"
+    },
+    {
+      "destination": "modules/laravel-mix/skills/laravel/scripts/version-resolver.js",
+      "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
+    },
+    {
+      "destination": "modules/library-author/agents/polyfill-reviewer.md",
+      "sha256": "72d43935b995ae707d0691da86cf9eeadd9df51e0fe782303863877ffb7f1c96"
+    },
+    {
+      "destination": "modules/library-author/module.yaml",
+      "sha256": "39e02ecba440a4fccda2e84a8afbae5ab7a64c1ba817c4ac7b443d585f7d10f7"
+    },
+    {
+      "destination": "modules/library-author/references/openspec-naming-gotchas.md",
+      "sha256": "e31a5bc18efd65cb950f513d10cb22b2ca4006a9c1de908e88e3818fc816b71c"
+    },
+    {
+      "destination": "modules/library-author/references/polyfill-patterns.md",
+      "sha256": "af071e28923af73f344b5805ba0b5f8951874a4d61832d57a799e335a49cc044"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/SKILL.md",
+      "sha256": "5e5f16e0a441ebf2c776f22fbd5f36d6d94752362f83ad6e805c6dac3f29d521"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/agents/openai.yaml",
+      "sha256": "3c8a234c3c3a9da56d236260392cac6290908053bd607934a9d0aa1a593db734"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/distribution.yaml",
+      "sha256": "6ef02f59786b374038e07f079ec766dd5860d265bee8dd9509b42cc6c48ad93a"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/author.md",
+      "sha256": "74af1a69cc9736b85894fed771ae09e35fddefd919df8eae74c77ae9e44396a0"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/authoring-patterns.md",
+      "sha256": "cc935374e36d7d8e294de7cbd802903306aecc78b035f29c90851835e3b03a47"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/cell-onboard.md",
+      "sha256": "a160fbd3eb188985f9124f0280c969624b484be92679de90ea07a0f4cb050344"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/composer.md",
+      "sha256": "e80cb0d82befd057762e663d09b6b87d98708ac8754def9714658e4a26d47587"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/package-contracts.md",
+      "sha256": "fb1ceffc34d3bd62eac9b6b8af624da61cff2c383338442d6facbe842cc2da59"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/polyfill-audit.md",
+      "sha256": "2d661a7c2feaafbc157aae7daa6e010bd06e244aba63c0b2f018458727fe5e7e"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/suite-map.md",
+      "sha256": "c1d9837f8950adc594db9726247bc4cf9f18abe230455c19f3eef261c530b90a"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/testbench-recipes.md",
+      "sha256": "feb61080fde43b85aa8215674ee5de2f8cbc3972ba23fd20114a14770d90d785"
+    },
+    {
+      "destination": "modules/library-author/skills/library-author/references/testbench.md",
+      "sha256": "6283af8fae18214f123f66588c2a94274f490369d4664e6f684985a4a6361a81"
+    },
+    {
+      "destination": "modules/library-author/skills/openspec-artifact-guard/SKILL.md",
+      "sha256": "6d9c04e9a552f359abb86c2e07d6341ef575384967ba6ac18f6cdf7446b1a2c6"
+    },
+    {
+      "destination": "modules/library-author/skills/openspec-artifact-guard/agents/openai.yaml",
+      "sha256": "5c8ec8be9a97b76698a2946d1131dbaf5e42dfce6bfb93bb8efc384fb1fe13f0"
+    },
+    {
+      "destination": "modules/library-author/skills/openspec-artifact-guard/distribution.yaml",
+      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
+    },
+    {
+      "destination": "modules/nextjs-15.5/module.yaml",
+      "sha256": "79ac93b215d03134e228263af7a7155113b16c29ff3c0d2a2934cf28ec4cd1b9"
+    },
+    {
+      "destination": "modules/nextjs-16/module.yaml",
+      "sha256": "aa8e21db1112451d0e564919d1af3a9291088142a23562b7f066e9cd8914ba99"
+    },
+    {
+      "destination": "modules/php-5.6/hooks/post-edit-php-syntax.sh",
+      "sha256": "4b402a53831f3390eb6bae39a30681c2d94faf2531bf47b7610c9ef206b6e3e0"
+    },
+    {
+      "destination": "modules/php-5.6/module.yaml",
+      "sha256": "2ae775a6d4653b25ac6a3eb1a54eeb2b37ebf8ad012d4ca667cfea2239e2196d"
+    },
+    {
+      "destination": "modules/php-5.6/references/coding-style.md",
+      "sha256": "4f64421641deb07fc3dedbc26a31113f28a480fd50a194786cee62b2017def9c"
+    },
+    {
+      "destination": "modules/php-7.4/hooks/pre-commit-php-validation.sh",
+      "sha256": "67c6ebc463865c92b54271900f40eda326008cc77291acdff1e7d35750a9b98f"
+    },
+    {
+      "destination": "modules/php-7.4/module.yaml",
+      "sha256": "65c08109bdc549096a511d9c29e9324b1a2cf6a404e9522142d257280a0321d7"
+    },
+    {
+      "destination": "modules/php-7.4/references/static-checks.md",
+      "sha256": "11e5a6bbc963e4eb0aacc1dd639b53c17516ade766675354ca88a33cf7e46eca"
+    },
+    {
+      "destination": "modules/php-8.x/module.yaml",
+      "sha256": "6e834ac618dec6760d945637aa6ebfe434a9ef087deec2eb9d1d2cb61a7acc77"
+    },
+    {
+      "destination": "modules/php-8.x/references/conditional-features.md",
+      "sha256": "9e2424bd7ef500c6b3b24b89b2af2c0da678b2e4fdf4a46798d3683859e31e31"
+    },
+    {
+      "destination": "modules/phpunit-10/module.yaml",
+      "sha256": "a3dbdc9b9ae0fed8f10d0bcb2c8870add197f7ae36f2210851f597d32a3b6d4e"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/SKILL.md",
+      "sha256": "d7ae1450b52077dd5fb046cf37b9de1e6f98259ec735799d4636fb7287e031f2"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/agents/openai.yaml",
+      "sha256": "f2f17fdea3f295a169f65cf65b0932ea5be82cde0b6aac83fe5bf915ac653a71"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/distribution.yaml",
+      "sha256": "bc2bea3babb5134043adbe129a6e48214288f12a48d0f31df2731d00b802d243"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/references/10.md",
+      "sha256": "045b729bded1dcded099c9fe451a983f22d07e77cd7ec7df41e0f2015f1a62c6"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/references/11.md",
+      "sha256": "c6ac81da222916677f5c8614ef2d41bb37ce4bb1f1a8771351bee66b211a66b5"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/references/9.md",
+      "sha256": "3d82676d2a2e3ed1ea8546fed2b48e688d99cd64d27c1ad3e1a5cb16697eeeb8"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/scripts/resolve-version.js",
+      "sha256": "7fca1b6e081c26292d6b5a9a06fd2fb5dcf2ec24fb931ef44aa97ae18d0c330f"
+    },
+    {
+      "destination": "modules/phpunit-10/skills/phpunit/scripts/version-resolver.js",
+      "sha256": "5a1e1aa1048b046a593440eb7e374769164099b5f8c538353b3812fab58009fe"
+    },
+    {
+      "destination": "modules/phpunit-11/module.yaml",
+      "sha256": "60f7bb5193800e9ed5ee17ec867d4603abeceb97a91a8d3f55ff0bdfc3af2707"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/SKILL.md",
+      "sha256": "d7ae1450b52077dd5fb046cf37b9de1e6f98259ec735799d4636fb7287e031f2"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/agents/openai.yaml",
+      "sha256": "f2f17fdea3f295a169f65cf65b0932ea5be82cde0b6aac83fe5bf915ac653a71"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/distribution.yaml",
+      "sha256": "bc2bea3babb5134043adbe129a6e48214288f12a48d0f31df2731d00b802d243"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/references/10.md",
+      "sha256": "045b729bded1dcded099c9fe451a983f22d07e77cd7ec7df41e0f2015f1a62c6"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/references/11.md",
+      "sha256": "c6ac81da222916677f5c8614ef2d41bb37ce4bb1f1a8771351bee66b211a66b5"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/references/9.md",
+      "sha256": "3d82676d2a2e3ed1ea8546fed2b48e688d99cd64d27c1ad3e1a5cb16697eeeb8"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/scripts/resolve-version.js",
+      "sha256": "7fca1b6e081c26292d6b5a9a06fd2fb5dcf2ec24fb931ef44aa97ae18d0c330f"
+    },
+    {
+      "destination": "modules/phpunit-11/skills/phpunit/scripts/version-resolver.js",
+      "sha256": "5a1e1aa1048b046a593440eb7e374769164099b5f8c538353b3812fab58009fe"
+    },
+    {
+      "destination": "modules/phpunit-5.7/module.yaml",
+      "sha256": "8b83a2292aa7c2ab2b9db531224b854e5d22aee9e6a540b31154539f878b502e"
+    },
+    {
+      "destination": "modules/phpunit-5.7/references/testing.md",
+      "sha256": "edb9427e56b97a957e768f653a74660323edfad7bec3ce22d28ec066911b0a20"
+    },
+    {
+      "destination": "modules/phpunit-5.7/skills/legacy-characterization-tests/SKILL.md",
+      "sha256": "c742db094acc1e0c5809218714c23b28de47d47d6cfff36cf065a4ed55e3f6d7"
+    },
+    {
+      "destination": "modules/phpunit-5.7/skills/legacy-characterization-tests/agents/openai.yaml",
+      "sha256": "0d5c5d2d733bf25bad06031a1263e9c756cb8d3a27e3e0ee6c76da475e9276f1"
+    },
+    {
+      "destination": "modules/phpunit-5.7/skills/legacy-characterization-tests/distribution.yaml",
+      "sha256": "667adedf983a90d7b1fab7416cedbbb1becec4ffd2ca23934725551a5aff01d4"
+    },
+    {
+      "destination": "modules/phpunit-5.7/skills/legacy-characterization-tests/evals/evals.json",
+      "sha256": "f2d11cedda8cd7dbd2f3ca084de768139819fb62b0ea8d59d3940b0ee3eb4777"
+    },
+    {
+      "destination": "modules/phpunit-5.7/skills/legacy-characterization-tests/references/php-yii-examples.md",
+      "sha256": "5ea0340f2b532c6a5bd0398a248fb6cb01511926dffc19261e9641951be9ad8e"
+    },
+    {
+      "destination": "modules/phpunit-9/module.yaml",
+      "sha256": "2450b1f04c229cdd3330a9e40f8bbe37e75dd81bbd5200cf4d03eca0114e9896"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/SKILL.md",
+      "sha256": "d7ae1450b52077dd5fb046cf37b9de1e6f98259ec735799d4636fb7287e031f2"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/agents/openai.yaml",
+      "sha256": "f2f17fdea3f295a169f65cf65b0932ea5be82cde0b6aac83fe5bf915ac653a71"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/distribution.yaml",
+      "sha256": "bc2bea3babb5134043adbe129a6e48214288f12a48d0f31df2731d00b802d243"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/references/10.md",
+      "sha256": "045b729bded1dcded099c9fe451a983f22d07e77cd7ec7df41e0f2015f1a62c6"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/references/11.md",
+      "sha256": "c6ac81da222916677f5c8614ef2d41bb37ce4bb1f1a8771351bee66b211a66b5"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/references/9.md",
+      "sha256": "3d82676d2a2e3ed1ea8546fed2b48e688d99cd64d27c1ad3e1a5cb16697eeeb8"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/scripts/resolve-version.js",
+      "sha256": "7fca1b6e081c26292d6b5a9a06fd2fb5dcf2ec24fb931ef44aa97ae18d0c330f"
+    },
+    {
+      "destination": "modules/phpunit-9/skills/phpunit/scripts/version-resolver.js",
+      "sha256": "5a1e1aa1048b046a593440eb7e374769164099b5f8c538353b3812fab58009fe"
+    },
+    {
+      "destination": "modules/pytest/module.yaml",
+      "sha256": "17589c782c9682f84bc5b4855c553ad2951af9653769dfcae868c42fcad4f45f"
+    },
+    {
+      "destination": "modules/python/hooks/_lib/python-env.sh",
+      "sha256": "6d92f39a6d9da63ff2b871a618a29d4945d27f9bb1e462b460e3f88e5dc8fd79"
+    },
+    {
+      "destination": "modules/python/hooks/post-edit-python-lint.sh",
+      "sha256": "2d45128c2f0f38bca573845fdead979448b74e81d2cae3f1cd1daca88ba31c6b"
+    },
+    {
+      "destination": "modules/python/hooks/pre-commit-python-validation.sh",
+      "sha256": "a2838d211d0333076d74756ae37a2edc3b7ddc7fe85fdaaee2b2d9fec0c94bdc"
+    },
+    {
+      "destination": "modules/python/hooks/stop-py-batch-check.sh",
+      "sha256": "209b509cc20cb090ecb9612ad11df3d8dc40220944b5ebb99cdda2f19ca39b06"
+    },
+    {
+      "destination": "modules/python/module.yaml",
+      "sha256": "e4a7a0094fa6733ae073a16e61fbe36191afe6267f70f87c469693069dc0fb8f"
+    },
+    {
+      "destination": "modules/react-18/module.yaml",
+      "sha256": "9de8e3060c0482009dd66ef7b51d3fc1f326b53800dd460da0e710f71ab46b9d"
+    },
+    {
+      "destination": "modules/react-19/module.yaml",
+      "sha256": "8174601a46c63e39d87bc6f8cf1b0e148a24c2e4969917a87a984c0d1b635ebd"
+    },
+    {
+      "destination": "modules/swift-testing/module.yaml",
+      "sha256": "3d49dd54222ab224032e0b606d1eaa80696f05745ecf367e9128e8de82057373"
+    },
+    {
+      "destination": "modules/swift-testing/references/protocol-di-host-testing.md",
+      "sha256": "eb3003c291bb292b19b169dc1e5833cc4d1412c22c4311d32f3746a726933ee4"
+    },
+    {
+      "destination": "modules/swift-testing/references/snapshot-testing.md",
+      "sha256": "7eb48859c52999dcc25af3d40efb3908810333141c8094a084deeb8ab31aeda5"
+    },
+    {
+      "destination": "modules/swift-testing/references/swift-testing-api.md",
+      "sha256": "427e7084ec964b1a43e8a711ddda3e8f82ce11dc7c95a54dd78fd6ed926c0425"
+    },
+    {
+      "destination": "modules/swift-testing/references/test-taxonomy.md",
+      "sha256": "5becdbd85ddb3f250b70d81b1d3a6f0472de011ab214cbdbdc5afe484480634a"
+    },
+    {
+      "destination": "modules/swift-testing/references/xctest-bridging.md",
+      "sha256": "6215bedb6438e1ef84592ef7cdbe760b3d49e0de7fc33d28003c4efeee33d861"
+    },
+    {
+      "destination": "modules/swift-testing/references/xcuitest.md",
+      "sha256": "01057b573f64653b8c34c12d31823199498d3b197d73f31c8638b5bb397e4667"
+    },
+    {
+      "destination": "modules/swift/module.yaml",
+      "sha256": "cc9b012dae5690a50bc3da47ebb2fc84491c36a3b5384326b17d6bf2789b3229"
+    },
+    {
+      "destination": "modules/swift/references/approachable-concurrency.md",
+      "sha256": "59b785ce22680b177110805cc624afe0e2ef4189dff44dad7152a7c89c209a13"
+    },
+    {
+      "destination": "modules/swift/references/concurrency.md",
+      "sha256": "b0ee634a9ae46d30d2bb515bfa7701ffd16edb12ea028e9cbe3d59376e9f219d"
+    },
+    {
+      "destination": "modules/swift/references/error-handling.md",
+      "sha256": "ee8ce8715391ff15c7d65387c01c62335aea4be71647d8f0bb8f73da350a72b9"
+    },
+    {
+      "destination": "modules/swift/references/swift5-compat-notes.md",
+      "sha256": "745ff8010cb030d3e369feed2c3558b90392daf759c3a28761561490972115f9"
+    },
+    {
+      "destination": "modules/swift/references/value-vs-reference.md",
+      "sha256": "92c2e4e11e36a79640bda1734b235ecd80b5dd3a71d73e5917b48a26ae6c26a9"
+    },
+    {
+      "destination": "modules/swiftui/module.yaml",
+      "sha256": "d5dc022432b5499fe872a5f896aad894f0070063adf22631acf29cab3a824b88"
+    },
+    {
+      "destination": "modules/swiftui/references/interop.md",
+      "sha256": "5ad555cb830a53ec55b8911ef9fa5261bc62a75ce63404c628a390b24474f283"
+    },
+    {
+      "destination": "modules/swiftui/references/mvvm-coordinator.md",
+      "sha256": "d53313c46dd10bd90f9c23b9c40ce3e2d2174519d95ea68de92f3b0e8117953f"
+    },
+    {
+      "destination": "modules/swiftui/references/navigation.md",
+      "sha256": "d9dcad66217e3c71522c983d74e86f2e54efbfc5690cdd71b637b871f3fd86f6"
+    },
+    {
+      "destination": "modules/swiftui/references/observation-state.md",
+      "sha256": "2e47703afab278ee11ad934fd36e6f9a7ce1c17af377efce4fc90fb58b25bb31"
+    },
+    {
+      "destination": "modules/vue-2/module.yaml",
+      "sha256": "fb27c27b056ceef5f3f78f437898ab64b523fbfdab59b16876c5c2443cec09fc"
+    },
+    {
+      "destination": "modules/vue-2/skills/vue-2-notes/SKILL.md",
+      "sha256": "44dc617861e03b3b7978ef5653ac573ed17c434fa1e37ed7fa4d8f1c50eb5385"
+    },
+    {
+      "destination": "modules/vue-2/skills/vue-2-notes/agents/openai.yaml",
+      "sha256": "293c1b7fa3f67b16a35cd5705a7be7a54f9425ee68ad386f778f48f5bb53ba13"
+    },
+    {
+      "destination": "modules/vue-2/skills/vue-2-notes/distribution.yaml",
+      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
+    },
+    {
+      "destination": "modules/xcode-tooling/hooks/post-edit-swiftlint.sh",
+      "sha256": "7b8051ac0f93f1895f232a76e9a9c43523b4a7d1928f46de3e798ac2f1887a46"
+    },
+    {
+      "destination": "modules/xcode-tooling/hooks/pre-commit-swift-build.sh",
+      "sha256": "aeb873bbae9e889083302a36b6d26af732ff846b84eaed34f2efe0f613603e34"
+    },
+    {
+      "destination": "modules/xcode-tooling/module.yaml",
+      "sha256": "9d7f7eaad2091a75aa2b007084b3e38ce00329ea9ae0807800fafebfd61c6114"
+    },
+    {
+      "destination": "modules/xcode-tooling/references/scheme-signing.md",
+      "sha256": "f12c20feb61b1fcacb8ec8b6b4501746fd8a74b4e304572ff7cccd34d6dc632a"
+    },
+    {
+      "destination": "modules/xcode-tooling/references/swiftlint-config.md",
+      "sha256": "40cc51ec807e1cd9eb72814d463294ab7225a040f2dd3fe1c72ec1105d042c19"
+    },
+    {
+      "destination": "modules/xcode-tooling/references/xcodebuild-spm.md",
+      "sha256": "4d4fe6561fbf37a16566d3262db55f746865100429b59fab3b9a327e96591608"
+    },
+    {
+      "destination": "modules/yii-1.1/module.yaml",
+      "sha256": "82a70622cef26311ff7b5c9ae51d4d4ca4e35bd0e8ae0c8fbea2b41bbd7dd035"
+    },
+    {
+      "destination": "modules/yii-1.1/references/framework.md",
+      "sha256": "5f1beb845dc078b1667d0ceed279a0e5bb1665804af2b20f475504a609c8f53f"
+    },
+    {
+      "destination": "modules/yii-1.1/references/patterns.md",
+      "sha256": "49889ff6f6e22d0deedbe53b6bfd06eee6e95e97cc386d588d4743b9274dc6e5"
+    },
+    {
+      "destination": "modules/yii-1.1/references/security.md",
+      "sha256": "cde10a5c8f5fb64b9a7c15fc3c649060629e252a210188c00831557fccfc710e"
+    },
+    {
+      "destination": "scripts/hooks/_lib/activate-modules.py",
+      "sha256": "ab8b96f8bfdfcf9d119b00b10b817fcef4d5c71cccdbb37ba202eb47808d173d"
+    },
+    {
+      "destination": "scripts/hooks/_lib/command-inspect-api.sh",
+      "sha256": "72f132217507deea01fb446638c3637a1e0590a78649df639dcc5d3341e611d6"
+    },
+    {
+      "destination": "scripts/hooks/_lib/command-inspect-fn.sh",
+      "sha256": "37658b5cabcf29f037365f91dbbc7f2dd9ef09a33b70bd41c83d5263124b2e3c"
+    },
+    {
+      "destination": "scripts/hooks/_lib/command-inspect-scan.sh",
+      "sha256": "9fce350850baf78e57cd93eab7c40cf66b6a8e13516dc128f053f63fb168e897"
+    },
+    {
+      "destination": "scripts/hooks/_lib/command-inspect-unwrap.sh",
+      "sha256": "52ddc4372531788ead6c7da793dd1362822055066e9f1bf1196be39edaf4f6a4"
+    },
+    {
+      "destination": "scripts/hooks/_lib/command-inspect.sh",
+      "sha256": "87bd5be68d5cae5d19bcadbe1adcbd85cd4da75a651247291878c0f11d3d7e12"
+    },
+    {
+      "destination": "scripts/hooks/_lib/load-project-config.sh",
+      "sha256": "59bd4b98e0daaead94711f8fb83504b0746b0af57acb9c795cf5cfbbc54520cc"
+    },
+    {
+      "destination": "scripts/hooks/_lib/modules.sh",
+      "sha256": "89268ddcb8c69290a3c1bcbd18f12835878e049d446435a8677b70890e2c9a0a"
+    },
+    {
+      "destination": "scripts/hooks/_lib/payload.sh",
+      "sha256": "2a865d2a75f24da4039fe259d9cfa6d5e455a78c699af863472f4608a687c3a4"
+    },
+    {
+      "destination": "scripts/hooks/_lib/plugin-root.sh",
+      "sha256": "72c6d57574a18bf05eb0c90f2ef7a7cf11f9323657ac890d02cff222bc43916b"
+    },
+    {
+      "destination": "scripts/hooks/_lib/portable-timeout.sh",
+      "sha256": "5ddee00dc3c49fa60a8652102901ee11aa1bf76bd35a4331fa8641e58097a019"
+    },
+    {
+      "destination": "scripts/hooks/_lib/runtime-config.sh",
+      "sha256": "380f5a2586bdf7dd7f76fd78f8f6b7485a8e153322d6d28c3c5074463a257115"
+    },
+    {
+      "destination": "scripts/hooks/_lib/session-env.sh",
+      "sha256": "a22a06a80422da692ef5d769c35a769c2e4ad5a679b30c8b89de05daa4669079"
+    },
+    {
+      "destination": "scripts/hooks/stacks-pre-bash-dispatch.sh",
+      "sha256": "f6a0039690e519f6d6f623054d37d2b0a7c48ca09e103c82f1e5bcceb4827b42"
+    },
+    {
+      "destination": "scripts/hooks/stacks-session-start.sh",
+      "sha256": "42e8ec754af9fee339d348212e9d2b73c33d3f980ad869b897e1f5faf9e788ef"
+    }
+  ]
+}

@@ -18,7 +18,9 @@ const { selectRuntimeFiles } = require('../lib/directory-plugin-runtime');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
+const DEFAULT_STACKS_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'stacks-package');
 const PROVENANCE_SCHEMA = 'dhpk.claude-marketplace-catalog.v1';
+const STACKS_PROVENANCE_SCHEMA = 'dhpk.claude-stacks-package.v1';
 const PACKAGE_PATHS = [
   '.claude-plugin/plugin.json',
   '.claude-plugin/icon.png',
@@ -27,7 +29,6 @@ const PACKAGE_PATHS = [
   'commands',
   'hooks',
   'manifests',
-  'modules',
   'rules',
   'scripts',
   'skills',
@@ -40,21 +41,49 @@ const DIRECTORY_ROOT_FILES = [
   ['LICENSE', 'LICENSE'],
 ];
 
+// dhpk-stacks ships the stack modules plus its own manifest, hooks, and README.
+// STACKS_SOURCE holds the files that exist only in this package.
+const STACKS_SOURCE = 'distribution/stacks-plugin';
+const STACKS_PACKAGE_PATHS = ['modules'];
+const STACKS_ROOT_FILES = [
+  ['.claude-plugin/plugin.json', `${STACKS_SOURCE}/plugin.json`],
+  ['.claude-plugin/icon.png', '.claude-plugin/icon.png'],
+  ['hooks/hooks.json', `${STACKS_SOURCE}/hooks/hooks.json`],
+  ['scripts/hooks/stacks-pre-bash-dispatch.sh', `${STACKS_SOURCE}/scripts/hooks/stacks-pre-bash-dispatch.sh`],
+  ['scripts/hooks/stacks-session-start.sh', `${STACKS_SOURCE}/scripts/hooks/stacks-session-start.sh`],
+  ['README.md', `${STACKS_SOURCE}/README.md`],
+  ['LICENSE', 'LICENSE'],
+];
+// Core hook libraries the module hooks source through ../../../scripts/hooks/_lib.
+// Each package resolves its own copy; the stacks package never reads the core cache.
+const STACKS_SHARED_HOOK_LIBS = [
+  'activate-modules.py',
+  'command-inspect.sh', 'command-inspect-api.sh', 'command-inspect-fn.sh',
+  'command-inspect-scan.sh', 'command-inspect-unwrap.sh',
+  'load-project-config.sh', 'modules.sh', 'payload.sh', 'plugin-root.sh',
+  'portable-timeout.sh', 'runtime-config.sh', 'session-env.sh',
+];
+
 function usage() {
-  console.error('usage: node scripts/ci/gen-claude-marketplace-package.js [--out <directory>] [--check]');
+  console.error('usage: node scripts/ci/gen-claude-marketplace-package.js [--out <directory>] [--stacks-out <directory>] [--check]');
+  console.error('  Without --out or --stacks-out, both the core and the dhpk-stacks package are processed at their default paths.');
 }
 
 function parseArgs(argv) {
-  const args = { out: DEFAULT_OUTPUT, check: false };
+  const args = { out: null, stacksOut: null, check: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--check') args.check = true;
-    else if (arg === '--out') args.out = argv[++index] || null;
-    else if (arg.startsWith('--out=')) args.out = arg.slice('--out='.length);
+    else if (arg === '--out' || arg === '--stacks-out') {
+      const value = argv[++index];
+      if (!value) return { error: `${arg} requires a directory` };
+      args[arg === '--out' ? 'out' : 'stacksOut'] = value;
+    } else if (arg.startsWith('--out=') && arg.length > 6) args.out = arg.slice('--out='.length);
+    else if (arg.startsWith('--stacks-out=') && arg.length > 13) args.stacksOut = arg.slice('--stacks-out='.length);
     else if (arg === '--help' || arg === '-h') return { help: true };
     else return { error: `unknown argument '${arg}'` };
   }
-  if (!args.out) return { error: '--out requires a directory' };
+  if (args.out === null && args.stacksOut === null) return { ...args, out: DEFAULT_OUTPUT, stacksOut: DEFAULT_STACKS_OUTPUT };
   return args;
 }
 
@@ -140,6 +169,18 @@ function provenanceDocument(publicationView, content) {
   }, null, 2)}\n`;
 }
 
+function planOutputs(outputs) {
+  const planned = createDistributionPlan({
+    surface: 'claude-marketplace',
+    entries: outputs.map((output) => ({
+      stableId: output.destination, source: output.destination, destination: output.destination,
+      mode: output.mode, owner: 'claude-marketplace',
+    })),
+  });
+  if (!planned.ok) throw new Error(planned.error.message);
+  return { plan: planned.value, outputs };
+}
+
 // Compile the package into planned outputs: every rewrite is applied before
 // the output is handed to the store, and provenance.json is a planned output.
 function planCanonicalTree(root) {
@@ -169,16 +210,42 @@ function planCanonicalTree(root) {
   if (content) {
     addFile(runtime, 'provenance.json', Buffer.from(provenanceDocument(publicationView, content)), false);
   }
-  const outputs = [...runtime.values()];
-  const planned = createDistributionPlan({
-    surface: 'claude-marketplace',
-    entries: outputs.map((output) => ({
-      stableId: output.destination, source: output.destination, destination: output.destination,
-      mode: output.mode, owner: 'claude-marketplace',
+  return planOutputs([...runtime.values()]);
+}
+
+function stacksProvenanceDocument(runtime) {
+  return `${JSON.stringify({
+    schema: STACKS_PROVENANCE_SCHEMA,
+    files: [...runtime.keys()].sort().map((destination) => ({
+      destination, sha256: sha256Hex(runtime.get(destination).content),
     })),
-  });
-  if (!planned.ok) throw new Error(planned.error.message);
-  return { plan: planned.value, outputs };
+  }, null, 2)}\n`;
+}
+
+// The dhpk-stacks package: stack modules, its own manifest and hooks, and the
+// core hook libraries those modules source.  Plans like the core package.
+function planStacksTree(root) {
+  const sourceRoot = fs.realpathSync(root);
+  const files = new Map();
+  for (const relative of STACKS_PACKAGE_PATHS) {
+    const source = path.join(sourceRoot, relative);
+    if (!fs.existsSync(source)) throw new Error(`canonical dhpk-stacks package source is missing: ${relative}`);
+    collectPhysicalEntry(source, relative, sourceRoot, files);
+  }
+  for (const [destination, source] of STACKS_ROOT_FILES) {
+    const absolute = path.join(sourceRoot, source);
+    if (!fs.existsSync(absolute)) throw new Error(`canonical dhpk-stacks package source is missing: ${source}`);
+    addFile(files, destination, fs.readFileSync(absolute), (fs.statSync(absolute).mode & 0o111) !== 0);
+  }
+  for (const library of STACKS_SHARED_HOOK_LIBS) {
+    const source = `scripts/hooks/_lib/${library}`;
+    const absolute = path.join(sourceRoot, source);
+    if (!fs.existsSync(absolute)) throw new Error(`canonical dhpk-stacks package source is missing: ${source}`);
+    addFile(files, source, fs.readFileSync(absolute), (fs.statSync(absolute).mode & 0o111) !== 0);
+  }
+  const runtime = selectRuntimeFiles(files);
+  addFile(runtime, 'provenance.json', Buffer.from(stacksProvenanceDocument(runtime)), false);
+  return planOutputs([...runtime.values()]);
 }
 
 // Ownership proof for replacing an existing package: the generated
@@ -202,11 +269,27 @@ function verifyPackageOwnership(existingRoot) {
     : { ok: false, code: 'NO_OWNER_RECEIPT', message: 'existing tree is not a generated Claude marketplace package' };
 }
 
-function publishPackage({ root, storeRoot, publishRoot }) {
-  const { plan, outputs } = planCanonicalTree(root);
+function verifyStacksOwnership(existingRoot) {
+  if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
+  let recorded = null;
+  try { recorded = JSON.parse(fs.readFileSync(path.join(existingRoot, 'provenance.json'), 'utf8')); } catch { /* reported below */ }
+  return recorded && recorded.schema === STACKS_PROVENANCE_SCHEMA
+    ? { ok: true }
+    : { ok: false, code: 'FOREIGN_OWNER', message: 'existing tree is not a generated dhpk-stacks package' };
+}
+
+// The two Claude packages differ only in how they are planned, who owns an
+// existing output directory, and which source paths an output must not overlap.
+const PACKAGES = {
+  core: { plan: planCanonicalTree, verifyOwner: verifyPackageOwnership, sourcePaths: PACKAGE_PATHS },
+  stacks: { plan: planStacksTree, verifyOwner: verifyStacksOwnership, sourcePaths: [...STACKS_PACKAGE_PATHS, STACKS_SOURCE] },
+};
+
+function publishPackage({ root, storeRoot, publishRoot, kind = 'core' }) {
+  const { plan, outputs } = PACKAGES[kind].plan(root);
   const store = new ProjectionArtifactStore({
     root: storeRoot, sourceRoot: fs.realpathSync(root), publishRoot,
-    ownership: { verify: verifyPackageOwnership },
+    ownership: { verify: PACKAGES[kind].verifyOwner },
   });
   const session = store.begin(plan);
   try {
@@ -220,7 +303,7 @@ function publishPackage({ root, storeRoot, publishRoot }) {
   }
 }
 
-function assertSafeOutput(root, output) {
+function assertSafeOutput(root, output, kind = 'core') {
   const sourceRoot = fs.realpathSync(root);
   let outputPath = path.resolve(output);
   const missing = [];
@@ -231,7 +314,7 @@ function assertSafeOutput(root, output) {
     outputPath = parent;
   }
   outputPath = path.join(fs.realpathSync(outputPath), ...missing);
-  for (const relative of PACKAGE_PATHS) {
+  for (const relative of PACKAGES[kind].sourcePaths) {
     const sourcePath = path.resolve(sourceRoot, relative);
     if (isInside(outputPath, sourcePath) || isInside(sourcePath, outputPath)) {
       throw new Error(`generated Claude marketplace output overlaps canonical source path: ${outputPath}`);
@@ -280,24 +363,24 @@ function temporaryPackage(parent) {
   return fs.mkdtempSync(path.join(parent, '.dhpk-claude-marketplace-'));
 }
 
-function materialize({ root = ROOT, out = DEFAULT_OUTPUT } = {}) {
+function materialize({ root = ROOT, out = DEFAULT_OUTPUT, kind = 'core' } = {}) {
   const output = path.resolve(out);
-  assertSafeOutput(root, output);
+  assertSafeOutput(root, output, kind);
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
-  publishPackage({ root, storeRoot: parent, publishRoot: output });
+  publishPackage({ root, storeRoot: parent, publishRoot: output, kind });
   assertPhysicalPackage(output);
   return { output, fingerprint: fingerprint(output) };
 }
 
-function check({ root = ROOT, out = DEFAULT_OUTPUT } = {}) {
+function check({ root = ROOT, out = DEFAULT_OUTPUT, kind = 'core' } = {}) {
   const output = path.resolve(out);
   if (!fs.existsSync(output)) return { ok: false, error: `generated Claude marketplace package is missing: ${output}` };
   const parent = fs.realpathSync(path.dirname(output));
   const temporary = temporaryPackage(parent);
   try {
     const expectedRoot = path.join(temporary, 'package');
-    publishPackage({ root, storeRoot: temporary, publishRoot: expectedRoot });
+    publishPackage({ root, storeRoot: temporary, publishRoot: expectedRoot, kind });
     assertPhysicalPackage(expectedRoot);
     assertPhysicalPackage(output);
     const expected = fingerprint(expectedRoot);
@@ -310,23 +393,32 @@ function check({ root = ROOT, out = DEFAULT_OUTPUT } = {}) {
   }
 }
 
+function targets(args) {
+  return [
+    ...(args.out ? [{ kind: 'core', out: args.out }] : []),
+    ...(args.stacksOut ? [{ kind: 'stacks', out: args.stacksOut }] : []),
+  ];
+}
+
 function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.help) { usage(); return 0; }
   if (args.error) { console.error(`FAIL [gen-claude-marketplace-package]: ${args.error}`); usage(); return 2; }
   try {
-    if (args.check) {
-      const result = check({ out: args.out });
-      if (!result.ok) {
-        console.error(`FAIL [gen-claude-marketplace-package]: ${result.error}`);
-        return 1;
+    let status = 0;
+    for (const target of targets(args)) {
+      if (args.check) {
+        const result = check(target);
+        if (!result.ok) {
+          console.error(`FAIL [gen-claude-marketplace-package]: ${result.error}`);
+          status = 1;
+        } else console.log(`PASS [gen-claude-marketplace-package]: ${result.output}`);
+      } else {
+        const result = materialize(target);
+        console.log(JSON.stringify({ output: result.output, fingerprint: result.fingerprint }, null, 2));
       }
-      console.log(`PASS [gen-claude-marketplace-package]: ${result.output}`);
-      return 0;
     }
-    const result = materialize({ out: args.out });
-    console.log(JSON.stringify({ output: result.output, fingerprint: result.fingerprint }, null, 2));
-    return 0;
+    return status;
   } catch (error) {
     console.error(`FAIL [gen-claude-marketplace-package]: ${error.message}`);
     return 1;
@@ -337,10 +429,13 @@ if (require.main === module) process.exit(main());
 
 module.exports = {
   DEFAULT_OUTPUT,
+  DEFAULT_STACKS_OUTPUT,
   PACKAGE_PATHS,
+  STACKS_SHARED_HOOK_LIBS,
   check,
   // Host Adapter contract names: compile = plan the canonical tree, verify = check.
   compileClaudeMarketplacePackage: ({ root = ROOT } = {}) => planCanonicalTree(root),
+  compileStacksPackage: ({ root = ROOT } = {}) => planStacksTree(root),
   verifyClaudeMarketplacePackage: check,
   fingerprint,
   main,

@@ -63,6 +63,8 @@ function allAtVersion(version) {
     'plugins/dhpk-cursor/.cursor-plugin/marketplace.json': version,
     'plugins/dhpk-cursor/provenance.json': version,
     'generated/claude-marketplace/package/.claude-plugin/plugin.json': version,
+    'distribution/stacks-plugin/plugin.json': version,
+    'generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json': version,
   };
 }
 
@@ -163,6 +165,8 @@ test('MANIFEST_PATHS lists retained version-bearing manifests, including native 
     'plugins/dhpk-cursor/.cursor-plugin/marketplace.json',
     'plugins/dhpk-cursor/provenance.json',
     'generated/claude-marketplace/package/.claude-plugin/plugin.json',
+    'distribution/stacks-plugin/plugin.json',
+    'generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json',
     'package.json',
   ];
   assert.deepStrictEqual([...MANIFEST_PATHS].sort(), [...expectedPaths].sort());

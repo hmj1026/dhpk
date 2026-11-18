@@ -136,6 +136,7 @@ function isCanonicalReleaseTarget(root, target) {
     path.join(resolvedRoot, 'plugins', 'dhpk-cursor'),
     path.join(resolvedRoot, 'plugins', 'dhpk-agy'),
     path.join(resolvedRoot, 'generated', 'claude-marketplace', 'package'),
+    path.join(resolvedRoot, 'generated', 'claude-marketplace', 'stacks-package'),
   ]);
   if (canonicalFiles.has(resolvedTarget) || canonicalDirectories.has(resolvedTarget)) return true;
   const fragmentDirectory = path.join(resolvedRoot, 'changelog.d');
@@ -659,6 +660,9 @@ function main() {
     materialize({ root: args.root, out: stagedClaude });
     writeManifestVersion(stagedClaude, '.claude-plugin/plugin.json', args.version);
     writeAgyGeneratorDocPins(stagedClaude, args.version);
+    const stagedStacks = path.join(stagingRoot, 'claude-stacks-package');
+    materialize({ root: args.root, out: stagedStacks, kind: 'stacks' });
+    writeManifestVersion(stagedStacks, '.claude-plugin/plugin.json', args.version);
 
     const stagedChangelog = path.join(stagingRoot, 'CHANGELOG.md');
     fs.copyFileSync(changelogPath, stagedChangelog);
@@ -704,6 +708,7 @@ function main() {
       { target: path.join(args.root, 'plugins', 'dhpk-cursor'), source: stagedCursor },
       { target: path.join(args.root, 'plugins', 'dhpk-agy'), source: stagedAgy },
       { target: path.join(args.root, 'generated', 'claude-marketplace', 'package'), source: stagedClaude },
+      { target: path.join(args.root, 'generated', 'claude-marketplace', 'stacks-package'), source: stagedStacks },
       ...promoted.consumed.map((relative) => ({ target: path.join(fragmentDir, relative), source: null })),
     ];
     const operationKey = args.operationKey || `release-${args.version}-${Date.now()}`;
@@ -717,6 +722,7 @@ function main() {
     changed.push('plugins/dhpk-cursor/ (regenerated Cursor Plugin package)');
     changed.push('plugins/dhpk-agy/ (regenerated native AGY package)');
     changed.push('generated/claude-marketplace/package/ (regenerated Claude marketplace package)');
+    changed.push('generated/claude-marketplace/stacks-package/ (regenerated dhpk-stacks package)');
 
     console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
     for (const f of changed) console.log(`  - ${f}`);

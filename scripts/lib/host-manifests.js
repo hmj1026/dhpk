@@ -34,6 +34,7 @@ const GENERATORS = Object.freeze([
       { path: '.claude-plugin/plugin.json', read: 'version' },
       { path: '.codex-plugin/plugin.json', read: 'version' },
       { path: '.agents/plugins/marketplace.json', read: 'marketplaceEntry' },
+      { path: 'distribution/stacks-plugin/plugin.json', read: 'version' },
     ],
   },
   {
@@ -47,6 +48,14 @@ const GENERATORS = Object.freeze([
     outputs: [
       { path: 'generated/claude-marketplace/package/.claude-plugin/plugin.json', read: 'version' },
       { path: 'generated/claude-marketplace/package/provenance.json', read: null },
+    ],
+  },
+  {
+    id: 'claude-stacks-package',
+    command: 'node scripts/ci/gen-claude-marketplace-package.js',
+    outputs: [
+      { path: 'generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json', read: 'version' },
+      { path: 'generated/claude-marketplace/stacks-package/provenance.json', read: null },
     ],
   },
   {

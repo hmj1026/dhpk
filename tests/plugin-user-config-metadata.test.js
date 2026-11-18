@@ -19,8 +19,8 @@ const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'))
 const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
-const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 37;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '627a153405f72611bc6be08fc390ecc187c2561670e336925b4b17be4de571b6';
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 18;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '473f3a7555f18f892580777f866e1c48deed63a773345a0c54e28c18fb188de2';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'cross_provider',
   'worker_target',
@@ -125,7 +125,7 @@ test('legacy userConfig fixture contains exactly 60 options and preserves the le
   }
 });
 
-test('active userConfig preserves the canonical 37-key contract and metadata coverage', () => {
+test('active userConfig preserves the canonical 18-key core contract (module keys moved to dhpk-stacks) and metadata coverage', () => {
   const activeEntries = contractEntries(activeManifest);
   const legacyKeys = Object.keys(legacyManifest.userConfig || {});
   const activeKeys = Object.keys(activeManifest.userConfig || {});

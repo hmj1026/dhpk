@@ -18,27 +18,8 @@
     {"key":"codex_worker_timeout_secs","purpose":"Set the canonical Codex worker timeout.","trigger":"when bounding Codex wrappers","boundary":"takes precedence over the legacy alias only","pointer":"docs/configuration.md"},
     {"key":"codex_reasoner_timeout_secs","purpose":"Set the canonical Codex reasoner timeout.","trigger":"when bounding Codex wrappers","boundary":"takes precedence over the legacy alias only","pointer":"docs/configuration.md"},
     {"key":"codex_reviewer_timeout_secs","purpose":"Set the canonical Codex reviewer timeout.","trigger":"when bounding Codex wrappers","boundary":"takes precedence over the legacy bridge alias only","pointer":"docs/configuration.md"},
-    {"key":"modules","purpose":"Select stack modules.","trigger":"when enabling stack guidance","boundary":"does not change canonical skills","pointer":"docs/configuration.md"},
     {"key":"review_trigger_extra_paths","purpose":"Add review trigger paths.","trigger":"when extending reviewer path coverage","boundary":"does not change reviewer ownership","pointer":"docs/configuration.md"},
-    {"key":"js_lint_script","purpose":"Name the JavaScript lint script.","trigger":"when projects use a nonstandard lint command","boundary":"does not run the command itself","pointer":"docs/configuration.md"},
-    {"key":"js_typecheck_script","purpose":"Name the JavaScript typecheck script.","trigger":"when projects use a nonstandard typecheck command","boundary":"does not run the command itself","pointer":"docs/configuration.md"},
-    {"key":"js_check_path","purpose":"Set the JavaScript check path.","trigger":"when frontend files live outside js","boundary":"does not expand vendor scope","pointer":"docs/configuration.md"},
-    {"key":"python_project_roots","purpose":"Set Python project roots.","trigger":"when limiting Python hook scope","boundary":"does not create a Python environment","pointer":"docs/configuration.md"},
-    {"key":"python_runner","purpose":"Set the Python tool runner.","trigger":"when selecting an environment wrapper","boundary":"does not install the wrapper","pointer":"docs/configuration.md"},
-    {"key":"ruff_bin","purpose":"Name the ruff executable.","trigger":"when ruff is not on the standard path","boundary":"does not install ruff","pointer":"docs/configuration.md"},
-    {"key":"python_typechecker","purpose":"Choose the Python type checker.","trigger":"when selecting pyright or mypy","boundary":"does not install the checker","pointer":"docs/configuration.md"},
-    {"key":"pyright_bin","purpose":"Name the pyright executable.","trigger":"when pyright is not on the standard path","boundary":"does not install pyright","pointer":"docs/configuration.md"},
-    {"key":"mypy_bin","purpose":"Name the mypy executable.","trigger":"when mypy is not on the standard path","boundary":"does not install mypy","pointer":"docs/configuration.md"},
-    {"key":"xcode_scheme","purpose":"Select an Xcode scheme.","trigger":"when enabling Xcode build checks","boundary":"does not guess a scheme","pointer":"docs/configuration.md"},
-    {"key":"xcode_destination","purpose":"Select an Xcode test destination.","trigger":"when pinning simulator tests","boundary":"does not install a simulator","pointer":"docs/configuration.md"},
-    {"key":"swift_build_skip_tests","purpose":"Control Swift test execution.","trigger":"when a build-only gate is required","boundary":"does not skip build validation","pointer":"docs/configuration.md"},
-    {"key":"php_cs_fixer_bin","purpose":"Name the PHP CS Fixer executable.","trigger":"when the fixer is not in vendor bin","boundary":"does not install the fixer","pointer":"docs/configuration.md"},
-    {"key":"phpstan_bin","purpose":"Name the PHPStan executable.","trigger":"when PHPStan is not in vendor bin","boundary":"does not install PHPStan","pointer":"docs/configuration.md"},
-    {"key":"psalm_bin","purpose":"Name the Psalm executable.","trigger":"when Psalm is not in vendor bin","boundary":"does not install Psalm","pointer":"docs/configuration.md"},
     {"key":"branch_safety","purpose":"Set protected branch behavior.","trigger":"when configuring branch mutation handling","boundary":"does not authorize a protected push","pointer":"docs/configuration.md"},
-    {"key":"protected_branches","purpose":"Declare protected branch names.","trigger":"when adding protected branch patterns","boundary":"does not change repository permissions","pointer":"docs/configuration.md"},
-    {"key":"js_frontend_roots","purpose":"Set JavaScript frontend roots.","trigger":"when frontend roots differ from defaults","boundary":"does not include vendor files","pointer":"docs/configuration.md"},
-    {"key":"js_core_files","purpose":"Declare JavaScript core files.","trigger":"when identifying first-party entry bundles","boundary":"does not alter dependency loading","pointer":"docs/configuration.md"},
-    {"key":"js_vendor_globs","purpose":"Declare JavaScript vendor globs.","trigger":"when excluding vendored frontend paths","boundary":"does not change package membership","pointer":"docs/configuration.md"}
+    {"key":"protected_branches","purpose":"Declare protected branch names.","trigger":"when adding protected branch patterns","boundary":"does not change repository permissions","pointer":"docs/configuration.md"}
   ]
 }

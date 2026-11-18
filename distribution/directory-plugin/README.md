@@ -1,13 +1,13 @@
 # dhpk
 
-dhpk is a development harness for Claude Code. It adds role-based agents, workflow skills, slash commands, and opt-in stack modules (PHP, Yii, Laravel, JavaScript, Python, React, Next.js, iOS/Swift) that route software-delivery work through planning, implementation, review, and verification.
+dhpk is a development harness for Claude Code. It adds role-based agents, workflow skills, and slash commands that route software-delivery work through planning, implementation, review, and verification. Stack modules (PHP, Yii, Laravel, JavaScript, Python, React, Next.js, iOS/Swift) ship in the separate dhpk-stacks plugin, which requires this one.
 
 Requires Claude Code 2.1.295 or newer. The edit guard blocks on failure only from that version.
 
 ## What this plugin installs
 
 - Skills, agents, and commands under `skills/`, `agents/`, and `commands/`.
-- Stack modules under `modules/`. They are inactive until a project selects them.
+- No stack modules. Install `dhpk-stacks` (`/plugin install dhpk-stacks@dhpk`) to add them; it owns the `modules` setting. `/dhpk:setup` detects your stack and tells you when `dhpk-stacks` is missing.
 - Hook scripts under `scripts/hooks/`, and rules under `rules/`.
 
 ## Hooks
@@ -17,8 +17,8 @@ The plugin registers four hooks in `hooks/hooks.json`. They run local shell scri
 | Event | Matcher | Script | Purpose |
 | --- | --- | --- | --- |
 | PreToolUse | Edit, Write, MultiEdit | `pre-edit-guard.sh` | Blocks edits to `.env` files, `.git/`, and package-manager lock files. Fails closed on error or timeout (5 seconds). |
-| PreToolUse | Bash | `pre-bash-dispatch.sh` | Runs the security guard, credential-read guard, and git branch-safety gate before a shell command, plus the gates of any active stack module. |
-| SessionStart | all | `session-start.sh` | Activates configured modules and prints a fixed dispatch note. Takes no snapshots and inspects no project files. |
+| PreToolUse | Bash | `pre-bash-dispatch.sh` | Runs the security guard, credential-read guard, and git branch-safety gate before a shell command. |
+| SessionStart | all | `session-start.sh` | Prints a fixed dispatch note. Takes no snapshots and inspects no project files. |
 | SubagentStop | all | `subagent-stop-verify.sh` | Non-blocking. Clears a worker liveness marker and appends one record per stopped subagent to a local dispatch log. |
 
 ## Setup writes files
@@ -29,7 +29,7 @@ The `/dhpk:setup` command (the `harness-setup` skill) is explicit-only. When you
 
 - The `codex-reasoner`, `codex-reviewer`, and `codex-worker` agents call the Codex CLI. They need `codex` installed and signed in, and report BLOCKED when it is missing.
 - The `agy-worker` agent calls the `agy` CLI and needs it installed.
-- Several agents use `git`, `node`, and `bash`. Language modules call their own toolchains (for example `php`, `phpunit`, `eslint`, `pytest`) only when you select them.
+- Several agents use `git`, `node`, and `bash`. Stack modules in `dhpk-stacks` call their own toolchains only when you select them.
 
 ## MCP tools referenced but not bundled
 
