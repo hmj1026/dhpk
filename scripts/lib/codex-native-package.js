@@ -590,18 +590,28 @@ function compileNativePackage({
     ));
   }
 
-  if (hostPublication) {
+  const publicManifestFiles = hostPublication
     // Public Plugin tree: both manifests come from the shared renderer so the
     // OpenAI ZIP and this package carry identical bytes.
-    for (const manifestFile of publicPluginManifestFiles(renderOpenaiSubmissionManifest(resolvedRoot, version))) {
-      traversalBudget.accountBytes(manifestFile.bytes.byteLength, manifestFile.path);
-      files.push(nativeOutputRecord(`manifest:${manifestFile.path}`, `generated/${manifestFile.path}`, manifestFile.path, manifestFile.bytes, undefined, manifestFile.mode));
-    }
-  } else {
-    const manifest = nativeManifest({ outDir: resolvedOut, name, version, budget: traversalBudget });
-    const manifestContent = `${JSON.stringify(manifest, null, 2)}\n`;
-    traversalBudget.accountBytes(Buffer.byteLength(manifestContent), '.codex-plugin/plugin.json');
-    files.push(nativeOutputRecord('manifest:plugin', 'generated/.codex-plugin/plugin.json', '.codex-plugin/plugin.json', manifestContent, undefined, 0o644));
+    ? publicPluginManifestFiles(renderOpenaiSubmissionManifest(resolvedRoot, version))
+    : null;
+  const manifest = publicManifestFiles
+    ? JSON.parse(publicManifestFiles.find((file) => file.path === '.codex-plugin/plugin.json').bytes.toString('utf8'))
+    : nativeManifest({ outDir: resolvedOut, name, version, budget: traversalBudget });
+  for (const manifestFile of publicManifestFiles || [{
+    path: '.codex-plugin/plugin.json',
+    bytes: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`),
+    mode: 0o644,
+  }]) {
+    traversalBudget.accountBytes(manifestFile.bytes.byteLength, manifestFile.path);
+    files.push(nativeOutputRecord(
+      manifestFile.path === '.codex-plugin/plugin.json' ? 'manifest:plugin' : `manifest:${manifestFile.path}`,
+      `generated/${manifestFile.path}`,
+      manifestFile.path,
+      manifestFile.bytes,
+      undefined,
+      manifestFile.mode,
+    ));
   }
 
   const selectedSkillIds = nativeSelection.selected.map((entry) => entry.id).sort();
