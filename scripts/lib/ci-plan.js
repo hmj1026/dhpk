@@ -44,7 +44,6 @@ const RESOURCE_COMPANIONS = Object.freeze([
 const CANONICAL_PROSE = [
   /^(?:README(?:\.zh-TW)?|AGENTS|CONTEXT|CODING_STANDARDS|RELEASE(?:\.zh-TW)?|CHANGELOG)\.md$/i,
   /^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex|openspec)\/.*\.md$/i,
-  /^\.codex-plugin\/.*\.md$/i,
   /^changelog\.d\/.*\.md$/i,
 ];
 
@@ -60,7 +59,7 @@ function categoryFor(file) {
   if (/^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex)\/.*\.(?:json|ya?ml|toml)$/i.test(file)) return 'metadata';
   if (/^(?:\.github\/actions|scripts\/hooks|scripts\/install|install)/i.test(file)) return 'installer';
   if (/^(?:scripts|bin|tests)\//i.test(file)) return 'script';
-  if (/^(?:plugins|generated|manifests|\.claude-plugin|\.codex-plugin)\//i.test(file)) return 'package';
+  if (/^(?:plugins|generated|manifests|\.claude-plugin)\//i.test(file)) return 'package';
   return 'unknown';
 }
 

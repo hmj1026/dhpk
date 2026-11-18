@@ -13,9 +13,7 @@ function mkRepo(version, manifestVersion) {
   for (const output of versionSyncOutputs()) {
     const abs = path.join(root, output.path);
     fs.mkdirSync(path.dirname(abs), { recursive: true });
-    const body = output.read === 'marketplaceEntry'
-      ? { plugins: [{ name: 'dhpk', version: manifestVersion, source: 'x' }] }
-      : { name: 'dhpk', version: manifestVersion, keep: true };
+    const body = { name: 'dhpk', version: manifestVersion, keep: true };
     fs.writeFileSync(abs, JSON.stringify(body));
   }
   return root;

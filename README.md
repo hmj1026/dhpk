@@ -448,7 +448,6 @@ dhpk/
 │   ├── README.md, README.zh-TW.md # how to sync into a project
 │   ├── skills/                   # 24 relative symlinks to canonical skills
 │   ├── agents/, config.toml.example
-├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
 ├── plugins/dhpk/                 # tracked Codex-native package: 19 physical entries, zero symlinks
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
