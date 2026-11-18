@@ -1,13 +1,10 @@
 ---
 name: feature-verify
-disable-model-invocation: true
-description: 'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-drive), code review (use change-verdict), writing tests (use tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.'
-allowed-tools: 'Read, Grep, Glob, Bash, Bash(codex:*), WebFetch, Agent, Skill'
-context: fork
+description: "Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-drive), code review (use change-verdict), writing tests (use tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check."
 metadata:
-  dhpk-name-style: portable-skill
-  dhpk-capability-id: dhpk.skill.feature-verify
-  dhpk-invocation-class: explicit-only
+  dhpk-capability-id: "dhpk.skill.feature-verify"
+  dhpk-invocation-class: "explicit-only"
+  dhpk-name-style: "portable-skill"
 ---
 
 # Feature Verify — Runtime-First API Verification

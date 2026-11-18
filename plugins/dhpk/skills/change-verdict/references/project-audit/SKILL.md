@@ -1,11 +1,10 @@
 ---
 name: project-audit
-argument-hint: '[--dir <path>]'
-description: 'Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use change-verdict --mode security). Output: 5-dimension score + actionable findings.'
+description: "Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use change-verdict --mode security). Output: 5-dimension score + actionable findings."
 metadata:
-  dhpk-name-style: portable-skill
-  dhpk-capability-id: dhpk.skill.project-audit
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.project-audit"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
 ---
 
 # Project Audit

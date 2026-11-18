@@ -45,6 +45,7 @@ const { compileMarketplacePublicationView } = require('../lib/marketplace-select
 const { compileOpenaiSubmissionPackage } = require('../lib/openai-submission-package');
 const { renderOpenaiSubmissionManifest, readSourceVersion } = require('../lib/host-manifests');
 const { checkPublicPlugin } = require('../lib/publication-conformance');
+const { NATIVE_RECEIPT_FILES, publicPluginTreeDrift } = require('../lib/public-plugin-tree');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
@@ -278,8 +279,25 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, module
   };
 }
 
-// Public Plugin: build the OpenAI skills-only package in memory from the
-// committed tree and run the publication conformance rules on the result.
+// Committed Public Plugin tree (plugins/dhpk): path -> bytes, receipt files excluded.
+function readCommittedPublicPlugin(dir) {
+  const files = new Map();
+  const visit = (current, prefix) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) visit(path.join(current, entry.name), relative);
+      else if (!prefix && NATIVE_RECEIPT_FILES.includes(entry.name)) continue;
+      else files.set(relative, fs.readFileSync(path.join(current, entry.name)));
+    }
+  };
+  visit(dir, '');
+  return files;
+}
+
+// Public Plugin: build the skills-only tree in memory from the committed
+// sources, run the publication conformance rules on it, and require the
+// committed Public Plugin tree (the Codex native package, plugins/dhpk) to
+// equal it. The OpenAI ZIP is that same tree.
 function verifyPublicPlugin({ root, inventory }) {
   const version = readSourceVersion(root);
   const selection = readJson(path.join(root, 'manifests', 'marketplace-selection.json'));
@@ -297,7 +315,13 @@ function verifyPublicPlugin({ root, inventory }) {
   });
   if (!compiled.ok) return publicPluginResult(compiled.errors);
   const files = new Map(compiled.files.map((file) => [file.path, file.bytes]));
-  return publicPluginResult(checkPublicPlugin(files, { version }), compiled.files.length);
+  const committedRoot = path.join(root, 'plugins', 'dhpk');
+  const committed = fs.existsSync(committedRoot) ? readCommittedPublicPlugin(committedRoot) : null;
+  const errors = [
+    ...checkPublicPlugin(files, { version }),
+    ...(committed ? publicPluginTreeDrift(files, committed) : ['committed Public Plugin plugins/dhpk is missing']),
+  ];
+  return publicPluginResult(errors, compiled.files.length);
 }
 
 function publicPluginResult(errors, fileCount = 0) {

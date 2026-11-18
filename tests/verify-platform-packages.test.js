@@ -89,7 +89,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
     const codexNativeIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
       .profiles['codex-native'].skillIds;
     assert.strictEqual(commonIds.length, 14);
-    assert.strictEqual(codexNativeIds.length, 16);
+    assert.strictEqual(codexNativeIds.length, 14);
     const inventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/distribution-inventory.json'), 'utf8'));
     const selection = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/marketplace-selection.json'), 'utf8'));
     const byId = new Map(inventory.skills.map((entry) => [entry.id, entry]));

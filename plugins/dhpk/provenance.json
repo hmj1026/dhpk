@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.78.0",
-  "sourceCommit": "2b57f7ab638a17df3871c7685b1dc4e0f8a19b5d",
-  "generatedFromCommit": "2b57f7ab638a17df3871c7685b1dc4e0f8a19b5d",
-  "generatedFromTree": "919885ee721501464e1dff69f603d35ad84d40e0",
+  "sourceCommit": "2d08fee3afb585f5c3d8c0e55b93e87e2ba2b0a2",
+  "generatedFromCommit": "2d08fee3afb585f5c3d8c0e55b93e87e2ba2b0a2",
+  "generatedFromTree": "3db386386863caa1fab84c9023757b6990bee395",
   "inventoryDigest": "fc4264535f5be01960b278c34daf09a1c251166664059a38f37201ed34805d2c",
   "inventoryRevision": "sha256:8d458a726d71fb0d128b955b195d9ad42dff845b530a7beec7e6b2ad01e560bb",
   "generatorVersion": "2.4.0",
@@ -20,8 +20,6 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "library-author",
-    "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
@@ -38,8 +36,6 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "library-author",
-    "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
@@ -56,8 +52,6 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "library-author",
-    "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
@@ -74,8 +68,6 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "library-author",
-    "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
@@ -102,10 +94,7 @@
       "tdd",
       "ui-ux-verify"
     ],
-    "hostOnlyIds": [
-      "library-author",
-      "opsx-apply-resume"
-    ]
+    "hostOnlyIds": []
   },
   "bundledContentProvenance": {
     "selectionDigest": "4be71fd7150e3946d7d48f90b0690f6eabcd1d245a4305534434d29261cfbeaf",
@@ -118,8 +107,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "library-author",
-      "opsx-apply-resume",
       "precommit",
       "proposal-analyze",
       "release-creator",
@@ -1981,162 +1968,6 @@
         "source": "skills/git-worktree/references/workflow.md",
         "destination": "skills/git-worktree/references/workflow.md",
         "originalGitBlobDigest": "7b0d96aa07b0ef0200b4b1ab88cfc8e787dcf1ad"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/SKILL.md",
-        "destination": "skills/library-author/SKILL.md",
-        "originalGitBlobDigest": "720a722ee8236dcef2bafa8e48808f7214a1fa55"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/agents/openai.yaml",
-        "destination": "skills/library-author/agents/openai.yaml",
-        "originalGitBlobDigest": "edbdcb42269cc3f0d91804e4eba82c931ea1c3a2"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/distribution.yaml",
-        "destination": "skills/library-author/distribution.yaml",
-        "originalGitBlobDigest": "f16872173224f830d248844d81479ae8a7c64618"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/author.md",
-        "destination": "skills/library-author/references/author.md",
-        "originalGitBlobDigest": "d3bdfbf78852f3042b63d216c72b3fc9d54f5d88"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/authoring-patterns.md",
-        "destination": "skills/library-author/references/authoring-patterns.md",
-        "originalGitBlobDigest": "2c71d359fede3efd71c152631b77f850504b4f54"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/cell-onboard.md",
-        "destination": "skills/library-author/references/cell-onboard.md",
-        "originalGitBlobDigest": "fb28b2ef2cdaa23487739c53c5d05135378253a3"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/composer.md",
-        "destination": "skills/library-author/references/composer.md",
-        "originalGitBlobDigest": "242b71a0b9bea9299f222113e736d598b2125cb6"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/package-contracts.md",
-        "destination": "skills/library-author/references/package-contracts.md",
-        "originalGitBlobDigest": "7b5fb9b100cc348f9739b06c85639f02651f6790"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/polyfill-audit.md",
-        "destination": "skills/library-author/references/polyfill-audit.md",
-        "originalGitBlobDigest": "23a1507609aa118cff10da77d9d709378a970c9c"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/suite-map.md",
-        "destination": "skills/library-author/references/suite-map.md",
-        "originalGitBlobDigest": "407b8415c1a46b24b9632faf45b2895031a21959"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/testbench-recipes.md",
-        "destination": "skills/library-author/references/testbench-recipes.md",
-        "originalGitBlobDigest": "dcc93aff2d1fb2ccf98679edc817cae9f7f62f69"
-      },
-      {
-        "ownerId": "library-author",
-        "source": "skills/library-author/references/testbench.md",
-        "destination": "skills/library-author/references/testbench.md",
-        "originalGitBlobDigest": "8ecdda749fa58a53d6998f125d05c579d21ebea6"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/SKILL.md",
-        "destination": "skills/opsx-apply-resume/SKILL.md",
-        "originalGitBlobDigest": "a1042f3e5892293feadea8dd5e2d79be1bd4212c"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/agents/openai.yaml",
-        "destination": "skills/opsx-apply-resume/agents/openai.yaml",
-        "originalGitBlobDigest": "5a85c12cbaf969457a11f3da7fd88cb04eba9550"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/distribution.yaml",
-        "destination": "skills/opsx-apply-resume/distribution.yaml",
-        "originalGitBlobDigest": "0882f2a178742025038030c2ff81e762f5f51c54"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/evals/evals.json",
-        "destination": "skills/opsx-apply-resume/evals/evals.json",
-        "originalGitBlobDigest": "5fcfdab4d09d30597ebe57d0d61f04524502536d"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/references/load-context.md",
-        "destination": "skills/opsx-apply-resume/references/load-context.md",
-        "originalGitBlobDigest": "f8be6e2290a799e6c0f729d7275b38e09ec278fe"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/references/post-observation.md",
-        "destination": "skills/opsx-apply-resume/references/post-observation.md",
-        "originalGitBlobDigest": "65d9a9ee85ba7c56c4e3f94bc5c097bd736d733e"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/references/resume.md",
-        "destination": "skills/opsx-apply-resume/references/resume.md",
-        "originalGitBlobDigest": "e8657acba740cf3d25c74db02e42abb4e9b4ac13"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/references/save.md",
-        "destination": "skills/opsx-apply-resume/references/save.md",
-        "originalGitBlobDigest": "a47265164eeffcb617f2899a5204e5b3a2342d6c"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/scripts/detect-phase.sh",
-        "destination": "skills/opsx-apply-resume/scripts/detect-phase.sh",
-        "originalGitBlobDigest": "dbc21930bbc3f25adaece31edca43a6f4709a60f"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/scripts/extract-compact.sh",
-        "destination": "skills/opsx-apply-resume/scripts/extract-compact.sh",
-        "originalGitBlobDigest": "f0b9b5a8c6515b9cc50a26a98957879576a75dda"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/scripts/lib/portable-sed.sh",
-        "destination": "skills/opsx-apply-resume/scripts/lib/portable-sed.sh",
-        "originalGitBlobDigest": "f4a35268f7d46703acb9e66420dcadf369511e99"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/scripts/post-obs.sh",
-        "destination": "skills/opsx-apply-resume/scripts/post-obs.sh",
-        "originalGitBlobDigest": "8208c11646429e33b1d6dfb945a77298357c2b20"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
-        "destination": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
-        "originalGitBlobDigest": "3354e27199912986e5c1f214fde1fbb7e3c713cc"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "source": "skills/opsx-apply-resume/scripts/write-handoff.sh",
-        "destination": "skills/opsx-apply-resume/scripts/write-handoff.sh",
-        "originalGitBlobDigest": "a0d0835fbd891c3d0842d23058367b1e6479248a"
       },
       {
         "ownerId": "precommit",
@@ -4834,188 +4665,6 @@
         "kind": "entry"
       },
       {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/SKILL.md",
-        "destination": "skills/library-author/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/agents/openai.yaml",
-        "destination": "skills/library-author/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/distribution.yaml",
-        "destination": "skills/library-author/distribution.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/author.md",
-        "destination": "skills/library-author/references/author.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/authoring-patterns.md",
-        "destination": "skills/library-author/references/authoring-patterns.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/cell-onboard.md",
-        "destination": "skills/library-author/references/cell-onboard.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/composer.md",
-        "destination": "skills/library-author/references/composer.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/package-contracts.md",
-        "destination": "skills/library-author/references/package-contracts.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/polyfill-audit.md",
-        "destination": "skills/library-author/references/polyfill-audit.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/suite-map.md",
-        "destination": "skills/library-author/references/suite-map.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/testbench-recipes.md",
-        "destination": "skills/library-author/references/testbench-recipes.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "library-author",
-        "skillId": "library-author",
-        "sourcePath": "skills/library-author/references/testbench.md",
-        "destination": "skills/library-author/references/testbench.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/SKILL.md",
-        "destination": "skills/opsx-apply-resume/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/agents/openai.yaml",
-        "destination": "skills/opsx-apply-resume/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/distribution.yaml",
-        "destination": "skills/opsx-apply-resume/distribution.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/evals/evals.json",
-        "destination": "skills/opsx-apply-resume/evals/evals.json",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/references/load-context.md",
-        "destination": "skills/opsx-apply-resume/references/load-context.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/references/post-observation.md",
-        "destination": "skills/opsx-apply-resume/references/post-observation.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/references/resume.md",
-        "destination": "skills/opsx-apply-resume/references/resume.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/references/save.md",
-        "destination": "skills/opsx-apply-resume/references/save.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/scripts/detect-phase.sh",
-        "destination": "skills/opsx-apply-resume/scripts/detect-phase.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/scripts/extract-compact.sh",
-        "destination": "skills/opsx-apply-resume/scripts/extract-compact.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/scripts/lib/portable-sed.sh",
-        "destination": "skills/opsx-apply-resume/scripts/lib/portable-sed.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/scripts/post-obs.sh",
-        "destination": "skills/opsx-apply-resume/scripts/post-obs.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
-        "destination": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "opsx-apply-resume",
-        "skillId": "opsx-apply-resume",
-        "sourcePath": "skills/opsx-apply-resume/scripts/write-handoff.sh",
-        "destination": "skills/opsx-apply-resume/scripts/write-handoff.sh",
-        "kind": "entry"
-      },
-      {
         "ownerId": "precommit",
         "skillId": "precommit",
         "sourcePath": "skills/precommit/SKILL.md",
@@ -5669,26 +5318,24 @@
     ]
   },
   "fingerprints": {
-    "change-verdict": "f0edee133a6ca8b237424b7e6d393703f90c4f232554c53733798049059e402a",
-    "code-trace": "274106570f881979b60ba35aa952478a659d827c3e6c1d00cd9275d485e9883e",
-    "create-pr": "e8d155d01c115e97ed80051dee8be1b9eadb47c863ca1183e792884693c0aee7",
-    "doc-maintain": "9bc045d9d8b3089a032495598db1788a1ac88869b7a28faf3b2d6ed6bac611f5",
-    "flow-drive": "7b8503df291ebe467f8cf14f68405b661c588db00ee64d32c4a8bc5d0ec0ed63",
-    "flow-guide": "f70558e9f2bb21cf772c90b011573e85baa3b1b5f9552e1337991db798c3df64",
-    "git-smart-commit": "7af56583d28c60dc774231f6a7db308b50ac66679a5e0eab21692aa4f3998d4b",
-    "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
-    "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",
-    "opsx-apply-resume": "1fd6ca81433cf237d6099c0a1b5ed776a3643825a3c4c7918126b90ecc68e29e",
-    "precommit": "919fc711c946404f45cb666b04a28ffa15df65aecc773ea55be2c8cccbb65a46",
-    "proposal-analyze": "b2d81e27e4a98fb339f00502d5c2adbb1a31c2ef8507779810041a2fe19d4cc3",
-    "release-creator": "71d94729012a9f1e65177e05558818ad5dc48bed33e82fa81cbd384ffb6dd3d0",
-    "repo-verify": "6456cf74b86f26a41196229de2db527a6e3eb41a0924d21b90c36a9771f05c14",
-    "tdd-workflow": "cdfc45498e9e53ffc766fc502de7052d2aa46c5f604abd6b429368129c04210a",
-    "ui-ux-verify": "db4d2f75501fe5fe76cf3a07ca657c61e61491820557b21c40b91fc823e627b0"
+    "change-verdict": "a4c23459c90c16d0607e00ef5b6a4f9c03ef7549cd779cb932d18391d9ab875b",
+    "code-trace": "685274d43cfbdf11600561adcfb968cb60cbd1fd523eac89a428901a5f47ea6c",
+    "create-pr": "af5f23e1f77937b7dccbf208fbb217544db7d3f6dce934d65186060c8077da22",
+    "doc-maintain": "d2fc6764bb910523f691d8b4d278d772f35b5430cb247506fef85804fb77a86d",
+    "flow-drive": "1164043358713a0791b5fb01e844a83112382b98a674181f4e30973df099b9f8",
+    "flow-guide": "f08becf44392ce4cd4c48adc2b3579acda7cedf8efdf24a16988220b21c7810a",
+    "git-smart-commit": "f2409c5217ad86bb69f15925e1161d512f707b1c63ac44aa7d0a81927507c15e",
+    "git-worktree": "3bb0fbe3408fa651ccb14c8ab97f64b52d663805f40af19178cd5e67bac1bcbd",
+    "precommit": "c77137bada2f19057d6a41b29f3b3cf2d29cb63678dd1b3c4b34fd4da8c827af",
+    "proposal-analyze": "151a39c5af47335cf5cdbac2191940c82ec0e39d299a3cb2324186a9dd81f974",
+    "release-creator": "f8b943987eda5870954d713e56030006bf3837b50568a0fade044c713ccc095c",
+    "repo-verify": "6a105388e145f266afeb54235228d828eb03e10e72905b64cac6257fd655c8f7",
+    "tdd-workflow": "68eeaec2b61ca7b53613a1a9b29326ec43d48f8f212be74a079e18217b427724",
+    "ui-ux-verify": "c82df5a1139845fbc51e2a7061d1c0c181b4f3b7133353645424eb1cd197413b"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "001b3fee721e2b01fdb0b4f0a4ad78368f3d0474799aa2835c8158323253d556",
+    "planId": "23782e81898a94314487377589a056625cf609e47f37c0ff8ee364aea791382d",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -5700,8 +5347,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "library-author",
-      "opsx-apply-resume",
       "precommit",
       "proposal-analyze",
       "release-creator",
@@ -5719,8 +5364,6 @@
         "flow-guide",
         "git-smart-commit",
         "git-worktree",
-        "library-author",
-        "opsx-apply-resume",
         "precommit",
         "proposal-analyze",
         "release-creator",
@@ -5736,10 +5379,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "001b3fee721e2b01fdb0b4f0a4ad78368f3d0474799aa2835c8158323253d556",
+      "plan": "23782e81898a94314487377589a056625cf609e47f37c0ff8ee364aea791382d",
       "inventory": "fc4264535f5be01960b278c34daf09a1c251166664059a38f37201ed34805d2c"
     },
-    "rollbackIdentity": "7565592f3eeb82c13eb0baa813b08579a937bc5ca39aaa997ec5c31f884112a6"
+    "rollbackIdentity": "b56f4d940f2e2e2e041b44a157a6f30755d00e28f0798f4c7aa60cfa188faa7d"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -6414,121 +6057,6 @@
         }
       ]
     },
-    "library-author": {
-      "display_name": "Library Author",
-      "summary": "Mode-specific library-author workflows",
-      "syntax": "$library-author <task | mode> <target>",
-      "input_kind": "free-text",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "workspace-write",
-      "inputs": [
-        {
-          "id": "task",
-          "syntax": "<task | mode>",
-          "value_kind": "string",
-          "required": true,
-          "summary": "Natural-language task or explicit mode"
-        }
-      ],
-      "actions": [
-        {
-          "id": "author",
-          "summary": "author workflow",
-          "syntax": "$library-author author <target>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "testbench",
-          "summary": "testbench workflow",
-          "syntax": "$library-author testbench <target>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "composer",
-          "summary": "composer workflow",
-          "syntax": "$library-author composer <target>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "polyfill-audit",
-          "summary": "polyfill-audit workflow",
-          "syntax": "$library-author polyfill-audit <target>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "suite-map",
-          "summary": "suite-map workflow",
-          "syntax": "$library-author suite-map <target>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "cell-onboard",
-          "summary": "cell-onboard workflow",
-          "syntax": "$library-author cell-onboard <target>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        }
-      ],
-      "options": [],
-      "examples": [
-        {
-          "prompt": "$library-author author provider design",
-          "summary": "Run the selected mode"
-        }
-      ]
-    },
-    "opsx-apply-resume": {
-      "display_name": "Opsx Apply Resume",
-      "summary": "Save or resume an OpenSpec apply handoff",
-      "syntax": "$opsx-apply-resume [<save-or-resume-task>] [<change-id>]",
-      "input_kind": "identifier",
-      "invocation_class": "explicit-only",
-      "effect_authority": "workspace-write",
-      "inputs": [
-        {
-          "id": "save-or-resume-task",
-          "syntax": "<save-or-resume-task>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Describe the save or resume task"
-        },
-        {
-          "id": "change-id",
-          "syntax": "<change-id>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "OpenSpec change identifier"
-        }
-      ],
-      "actions": [
-        {
-          "id": "save",
-          "summary": "Save one apply handoff",
-          "syntax": "$opsx-apply-resume save [<change-id>]",
-          "input_kind": "identifier",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "resume",
-          "summary": "Resume one apply handoff",
-          "syntax": "$opsx-apply-resume resume [<change-id>]",
-          "input_kind": "identifier",
-          "effect_authority": "workspace-write"
-        }
-      ],
-      "options": [],
-      "examples": [
-        {
-          "prompt": "$opsx-apply-resume portable-command-skills",
-          "summary": "Use opsx apply resume with its declared interface"
-        }
-      ]
-    },
     "precommit": {
       "display_name": "Precommit",
       "summary": "Run the packaged deterministic pre-commit pipeline",
@@ -6809,8 +6337,6 @@
     "flow-guide": "5651f5d6d7823e350a348c7f34d0c07711e70acbb676ad755e61118a1f6e4bb5",
     "git-smart-commit": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5",
     "git-worktree": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689",
-    "library-author": "14052ef1f5adf7dd51882e8c59f8f4db9d927d9c064e34a5e788f4619f3b7948",
-    "opsx-apply-resume": "b7f6b8da2093f3fca1d0d3d7d95c1dba9bc08566da7a8b5c7b81afdc3b63aa07",
     "precommit": "aaf9311f021b41665056b6fdb7ffe3762853b3d72efc4354395d0437053f3e4e",
     "proposal-analyze": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33",
     "release-creator": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c",
@@ -6829,8 +6355,6 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "library-author",
-    "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
@@ -6847,8 +6371,6 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "library-author",
-    "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
@@ -6865,8 +6387,6 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "library-author",
-    "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
@@ -6876,6 +6396,6 @@
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "866c5628f067b5220a1f3dea2a44bbafa7ae1ea2f79d0d1e205cd5d87529eb7d",
-  "surfaceSelectionFingerprint": "799a8462ee236348701cb623c9bb3fd6cc883461d18cd790434806f72fe10dd1"
+  "selectionFingerprint": "36211a7ee5e4c57aa1c6f50a77cf85206d42bc1f25523b26644bf4d152d3fe6e",
+  "surfaceSelectionFingerprint": "d8fa17a65f3c13485c5d266f44c9bcf9203bdb6b6bc4a12cd1dc993363cbc7ed"
 }

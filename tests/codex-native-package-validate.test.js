@@ -359,18 +359,16 @@ test('native structural verification returns stage-bound evidence instead of a l
     assert.ok(result.ok);
   });
 
-  test('the tracked package contains the canonical common and Codex-only entries', () => {
+  test('the tracked package contains exactly the public catalog and no Host-only entry', () => {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const selection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
-    const publicationView = compileMarketplacePublicationView({ inventory, selection, hostSurface: 'codex-native' });
+    const publicationView = compileMarketplacePublicationView({ inventory, selection });
     const packageRoot = path.join(ROOT, 'plugins', 'dhpk');
     const candidateSkillNames = fs.readdirSync(path.join(packageRoot, 'skills'));
     const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
     const expectedPublicIds = publicationView.publicEntries.map((entry) => entry.id).sort();
-    const expectedHostOnlyIds = publicationView.hostOnly.map((entry) => entry.id).sort();
-    const expectedIds = [...expectedPublicIds, ...expectedHostOnlyIds].sort();
-    const expectedNames = [...publicationView.publicEntries, ...publicationView.hostOnly]
-      .map((entry) => entry.name || entry.id).sort();
+    const expectedIds = expectedPublicIds;
+    const expectedNames = publicationView.publicEntries.map((entry) => entry.name || entry.id).sort();
     const result = validateNativeMembership({ candidateSkillNames, inventory, publicationView });
 
     assert.deepStrictEqual(publicationView.errors, []);
@@ -380,7 +378,7 @@ test('native structural verification returns stage-bound evidence instead of a l
     assert.deepStrictEqual(candidateSkillNames.sort(), expectedNames);
     assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
     assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, expectedPublicIds);
-    assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, expectedHostOnlyIds);
+    assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, []);
     assert.strictEqual(provenance.marketplacePublication.selectionDigest, publicationView.selectionDigest);
   });
 }
@@ -583,12 +581,12 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     } finally { fs.rmSync(out, { recursive: true, force: true }); }
   });
 
-  test('Codex native generation requires the named profile for its exact 16-skill package', () => {
+  test('Codex native generation requires the named profile for its exact 14-skill Public Plugin package', () => {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
     const expectedIds = [
       'change-verdict', 'code-trace', 'create-pr', 'doc-maintain', 'flow-drive', 'flow-guide',
-      'git-smart-commit', 'git-worktree', 'library-author', 'opsx-apply-resume', 'precommit',
+      'git-smart-commit', 'git-worktree', 'precommit',
       'proposal-analyze', 'release-creator', 'repo-verify', 'tdd', 'ui-ux-verify',
     ].sort();
     const profile = profiles.profiles['codex-native'];
@@ -1009,9 +1007,8 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
       const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
         .map((entry) => entry.id).sort();
-      const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
-        && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
-      const expectedIds = [...commonIds, ...hostOnlyIds].sort();
+      const hostOnlyIds = [];
+      const expectedIds = commonIds;
       assert.deepStrictEqual(provenance.runtimeSupportStableIds, []);
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) {
         assert.ok(!provenance.materializedSkillIds.includes(id), id);
@@ -1186,9 +1183,8 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
       const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
         .map((entry) => entry.id).sort();
-      const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
-        && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
-      const expectedIds = [...commonIds, ...hostOnlyIds].sort();
+      const hostOnlyIds = [];
+      const expectedIds = commonIds;
 
       const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
       const generated = materializeNativePackage({

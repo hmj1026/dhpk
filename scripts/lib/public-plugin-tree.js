@@ -83,7 +83,27 @@ function compilePublicPluginTree({ root, inventory, publicationView, manifest, s
   return { ok: true, errors: [], files, content };
 }
 
+// Files the Codex native generator adds beside the Public Plugin tree: its
+// receipt and its readmes. They are not part of the tree the ZIP carries.
+const NATIVE_RECEIPT_FILES = Object.freeze(['provenance.json', 'fingerprints.json', 'README.md', 'README.zh-TW.md']);
+
+// Differences between the tree the builders produce and a committed package
+// directory (a Map of path to Buffer, receipt files excluded by the caller).
+function publicPluginTreeDrift(expected, actual) {
+  const errors = [];
+  for (const [file, bytes] of expected) {
+    if (!actual.has(file)) errors.push(`committed Public Plugin is missing ${file}`);
+    else if (!bytes.equals(actual.get(file))) errors.push(`committed Public Plugin differs from the built tree at ${file}`);
+  }
+  for (const file of actual.keys()) {
+    if (!expected.has(file)) errors.push(`committed Public Plugin has unexpected file ${file}`);
+  }
+  return errors;
+}
+
 module.exports = {
+  NATIVE_RECEIPT_FILES,
+  publicPluginTreeDrift,
   OPENAI_MANIFEST_PATH,
   CODEX_MANIFEST_PATH,
   normalizePublicSkillFile,

@@ -10,12 +10,11 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { compileMarketplacePublicationView } = require('../scripts/lib/marketplace-selection');
 const { compileOpenaiSubmissionPackage } = require('../scripts/lib/openai-submission-package');
+const { NATIVE_RECEIPT_FILES } = require('../scripts/lib/public-plugin-tree');
 const { readSourceVersion, renderOpenaiSubmissionManifest } = require('../scripts/lib/host-manifests');
 
 const ROOT = path.join(__dirname, '..');
 const NATIVE_ROOT = path.join(ROOT, 'plugins', 'dhpk');
-// Receipt and docs files the Codex native generator adds beside the tree.
-const NATIVE_ONLY = new Set(['provenance.json', 'fingerprints.json', 'README.md', 'README.zh-TW.md']);
 const SOURCE_COMMIT = '0123456789abcdef0123456789abcdef01234567';
 
 const readJson = (relative) => JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8'));
@@ -57,7 +56,7 @@ const topLevelSkills = (paths) => [...new Set(paths.filter((p) => p.startsWith('
 test('Codex native package files equal the OpenAI submission tree byte for byte', () => {
   const submission = buildSubmissionTree();
   const native = new Map(listFiles(NATIVE_ROOT)
-    .filter((relative) => !NATIVE_ONLY.has(relative))
+    .filter((relative) => !NATIVE_RECEIPT_FILES.includes(relative))
     .map((relative) => [relative, fs.readFileSync(path.join(NATIVE_ROOT, relative))]));
 
   assert.deepStrictEqual([...native.keys()].sort(), [...submission.keys()].sort());

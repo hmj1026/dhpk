@@ -1,11 +1,10 @@
 ---
 name: ui-ux-verify
-argument-hint: '[<url>] [spec:<spec-path>]'
-description: 'Read-only check of one rendered page against one OpenSpec UI specification: content, structure, and behavior. Not for E2E authoring, application edits, data mutation, or API smoke tests. Output: a severity-ranked audit with APPROVE, WARNING, BLOCK, or UNAVAILABLE.'
+description: "Read-only check of one rendered page against one OpenSpec UI specification: content, structure, and behavior. Not for E2E authoring, application edits, data mutation, or API smoke tests. Output: a severity-ranked audit with APPROVE, WARNING, BLOCK, or UNAVAILABLE."
 metadata:
-  dhpk-capability-id: dhpk.skill.ui-ux-verify
-  dhpk-name-style: portable-skill
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.ui-ux-verify"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
 ---
 
 # UI/UX Verify

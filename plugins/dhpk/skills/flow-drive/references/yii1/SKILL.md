@@ -1,10 +1,10 @@
 ---
 name: yii1
-description: 'Yii1.1 backend development, regression tests, framework hardening, and static security audit of controllers/models/configuration. Use for Yii1 request, AR/DAO, scenario, authorization, upload or session tasks. Not for Yii2, frontend-only work, or generic PHP language decisions. Output: compatible implementation evidence or a categorized framework audit.'
+description: "Yii1.1 backend development, regression tests, framework hardening, and static security audit of controllers/models/configuration. Use for Yii1 request, AR/DAO, scenario, authorization, upload or session tasks. Not for Yii2, frontend-only work, or generic PHP language decisions. Output: compatible implementation evidence or a categorized framework audit."
 metadata:
-  dhpk-capability-id: dhpk.skill.yii1
-  dhpk-name-style: portable-family
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.yii1"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-family"
 ---
 
 # Yii1

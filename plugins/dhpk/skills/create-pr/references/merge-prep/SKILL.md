@@ -1,11 +1,10 @@
 ---
 name: merge-prep
-description: 'Prepare a read-only branch merge analysis with native git merge-tree conflict detection and copy-pasteable manual commands. Use when deciding whether to merge one branch into another. Not for: checkout, merge, rebase, conflict edits, or branch mutation. Output: commits, files, conflicts, evidence, and manual commands.'
-argument-hint: '<source-branch> [--target=<branch>]'
+description: "Prepare a read-only branch merge analysis with native git merge-tree conflict detection and copy-pasteable manual commands. Use when deciding whether to merge one branch into another. Not for: checkout, merge, rebase, conflict edits, or branch mutation. Output: commits, files, conflicts, evidence, and manual commands."
 metadata:
-  dhpk-capability-id: dhpk.skill.merge-prep
-  dhpk-name-style: portable-skill
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.merge-prep"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
 ---
 
 # Merge Prep
