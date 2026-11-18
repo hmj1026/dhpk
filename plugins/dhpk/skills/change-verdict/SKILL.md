@@ -1,12 +1,6 @@
 ---
 name: change-verdict
 description: "Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts are read-only; explicit dependency fixes go to an authorized writer. Not for source repair or architecture-only design. Output: evidence-backed findings and review status."
-metadata:
-  dhpk-capability-id: "dhpk.skill.change-verdict"
-  dhpk-invocation-class: "implicit-eligible"
-  dhpk-modes: "[\"code\",\"pr\",\"security\",\"tests\",\"docs\",\"risk\"]"
-  dhpk-name-style: "portable-family"
-  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\",\"code:PASS\":\"precommit\",\"docs:PASS\":\"git-smart-commit\"}"
 ---
 
 # Change Verdict

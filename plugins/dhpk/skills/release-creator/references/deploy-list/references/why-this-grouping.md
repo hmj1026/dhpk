@@ -1,6 +1,6 @@
 # Why these decisions — sorting / filtering / grouping rationale
 
-> Progressive disclosure: SKILL.md gives the quick reference; this file
+> Progressive disclosure: REFERENCE.md gives the quick reference; this file
 > records the design rationale and the alternatives that were tried and
 > dropped.
 
@@ -111,5 +111,5 @@ Two reasons:
    produced. Claude must not become a well-meaning intermediary that
    silently edits the output.
 
-The command spec and SKILL.md both list this rule explicitly: NEVER add
+The command spec and REFERENCE.md both list this rule explicitly: NEVER add
 summaries, emoji, suggestions, or re-orderings to the script's stdout.
