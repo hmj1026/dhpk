@@ -11,6 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const VERSION_SOURCE = 'package.json';
 const LISTING_METADATA = 'manifests/listing-metadata.json';
@@ -128,22 +129,42 @@ function writeDeclaredVersion(root, output, version) {
   fs.writeFileSync(abs, `${JSON.stringify(data, null, 2)}\n`);
 }
 
-function listManifestFiles(root) {
+function isSkipped(rel) {
+  const parts = rel.split('/');
+  return parts.slice(0, -1).some((dir) => SCAN_SKIP_DIRS.has(dir) || dir.startsWith('.dhpk-test-scratch'))
+    || SCAN_SKIP_PREFIXES.some((prefix) => rel.startsWith(prefix));
+}
+
+// Git-tracked files when root is itself a Git checkout, so gitignored local
+// artifacts never count; null when root is not a checkout root.
+function listTrackedFiles(root) {
+  const top = spawnSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  if (top.status !== 0 || fs.realpathSync(top.stdout.trim()) !== fs.realpathSync(root)) return null;
+  const res = spawnSync('git', ['-C', root, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (res.status !== 0) return null;
+  return res.stdout.split('\0').filter(Boolean);
+}
+
+// Fallback for a non-Git tree (fixtures): walk the filesystem.
+function walkFiles(root) {
   const found = [];
   const visit = (dir, rel) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const childRel = rel ? `${rel}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
-        if (SCAN_SKIP_DIRS.has(entry.name) || entry.name.startsWith('.dhpk-test-scratch')) continue;
-        if (SCAN_SKIP_PREFIXES.some((prefix) => `${childRel}/`.startsWith(prefix))) continue;
-        visit(path.join(dir, entry.name), childRel);
-      } else if (entry.isFile() && MANIFEST_BASENAMES.has(entry.name)) {
-        found.push(childRel);
+        if (entry.name !== '.git' && entry.name !== 'node_modules') visit(path.join(dir, entry.name), childRel);
       }
+      else if (entry.isFile()) found.push(childRel);
     }
   };
   visit(root, '');
-  return found.sort();
+  return found;
+}
+
+function listManifestFiles(root, lister = (r) => listTrackedFiles(r) || walkFiles(r)) {
+  return lister(root)
+    .filter((rel) => MANIFEST_BASENAMES.has(path.posix.basename(rel)) && !isSkipped(rel))
+    .sort();
 }
 
 function undeclaredManifests(root) {
@@ -170,5 +191,6 @@ module.exports = {
   readDeclaredVersion,
   writeDeclaredVersion,
   undeclaredManifests,
+  listManifestFiles,
   renderOpenaiSubmissionManifest,
 };
