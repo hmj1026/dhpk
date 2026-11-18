@@ -24,7 +24,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `git` | 必要 | Artifact 路徑解析；`git rev-parse --show-toplevel` |
 | `python3` | 啟用 `modules` 時為必要 | 為選用模組啟用與路由解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
-| `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
+| `docker` | 選用 | 僅由 consumer 明確註冊的 Docker workflow 使用（見 `docs/docker-setup.md`） |
 | Codex CLI 執行檔 | 選用 | 只有使用 CLI-backed role/review、`codex exec` 第二意見，或執行 `install-codex-skills.sh` 且希望 Codex 載入同步內容時才需要 |
 | Cursor | 選用 | 僅在執行 `install-cursor-harness.sh` 且希望 Cursor 載入專案本地 `.cursor/` harness 時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `code-trace` family 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
@@ -169,7 +169,6 @@ worker、reasoner、provider、planner 或 architecture selector。提案 author
 ```bash
 claude plugin install dhpk@dhpk \
   --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author \
-  --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 
