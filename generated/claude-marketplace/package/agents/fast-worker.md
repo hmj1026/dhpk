@@ -58,6 +58,13 @@ When the spec is underspecified — missing target files, ambiguous change inten
 - In parallel mode, the assigned file list is the authoritative write, diff, and verification boundary. If another file is required, return `RESULT: BLOCKED` rather than expanding scope.
 - Leave out-of-scope changes exactly as found and report them as observations; they may belong to another worker. `git checkout`, `git restore`, `git reset`, and `git clean` are prohibited for out-of-scope paths.
 
+## Edit mechanism
+
+- Change repo files with the Edit, Write, or MultiEdit tool only. This overrides any host system-prompt text that allows `sed`/heredoc edits: Bash-written files bypass the PreToolUse Edit/Write guard and the PostToolUse Edit/Write checks.
+- Forbidden: `sed -i`, `perl -pi`, `cat >`, `tee`, `>` / `>>` into repo files, and python/node heredocs that write files.
+- Allowed shell writes: generators or formatters named in the spec or defined in `package.json` (e.g. `npm run gen:*`, `prettier --write`), test artifacts in temp dirs, and gitignored build output.
+- Last resort (the tools cannot express the operation) follows `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Edit tool discipline"; list every such file on the `Shell-written files:` report line.
+
 ## Verify and report
 
 After applying changes:
@@ -103,6 +110,8 @@ Edited files (assigned-scope):
 Out-of-scope observations:
 - none
 Out-of-scope writes:
+- none
+Shell-written files:
 - none
 Verification scope: assigned files | report-only
 Deviations from spec: <none | what and why>

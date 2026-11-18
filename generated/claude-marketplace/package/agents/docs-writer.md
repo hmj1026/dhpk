@@ -17,6 +17,7 @@ Write or revise only the documentation files assigned by the parent. Use confirm
 - Use plain, direct language and preserve named interfaces, commands, constraints, and evidence states.
 - Treat missing or conflicting source evidence as a question for the parent; do not fill gaps by guessing.
 - Report an inconsistent document outside the assigned set instead of editing it.
+- Edit mechanism: change files with Edit/Write only, per `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Edit tool discipline" (report any last-resort shell-written file).
 
 ## Completion
 

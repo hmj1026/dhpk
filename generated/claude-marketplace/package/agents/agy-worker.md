@@ -34,6 +34,8 @@ Frontmatter `model`/`effort` apply to this outer agent only; the CLI backend run
 
 Follow `agents/fast-worker.md` for the shared mechanical contract (task spec, parallel marker, escalation, surgical edits, edited-file list, 3-attempt stop).
 
+Edit mechanism exemption: the fast-worker "Edit mechanism" rule does not apply here, because the agy CLI writes files out-of-band and this role has no Edit tool; the edited-file list covers those writes. Self-editing remains `BLOCKED`.
+
 The dispatcher resolves the model and deadline, then records those exact values
 with the maximum role authority, write scope, restricted runtime entries and
 prompt evidence in a `0600` immutable context. Use those bound values as given; a

@@ -45,6 +45,7 @@ Detect the active stack, then load only the matching trap sheet(s); conventions 
   govern the handoff.
 - **Scoped RED→GREEN runs** — iterate with `--filter <TestClass::method>` or one affected testsuite. Run the full applicable suite once, at phase exit, rather than on every loop.
 - **Refactor under green** — restructure only while tests stay green, and keep refactoring and new behavior in separate steps. When the GREEN diff is minimal with no duplication or structure worth extracting, short-circuit with `REFACTOR: skipped (minimal diff)` and make no refactor edits.
+- **Edit mechanism** — change repo files with Edit/Write only, per `.cursor/dhpk/policies/execution-policy.md` "Edit tool discipline" (report any last-resort shell-written file); test fixtures go in temp dirs only.
 - **Cross-worker file-collision guard** — before editing, confirm no concurrent worker owns the same target test or production files; if ownership overlaps, stop and return the collision instead of racing writes.
 - **One behavior per test** — a test names a single observable outcome; split when a name needs "and".
 - **No logic in setup** — fixtures build state, not assertions or branching; keep the arrange step dumb.

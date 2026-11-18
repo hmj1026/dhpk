@@ -292,5 +292,165 @@ test('without jq: a fast-worker entry is still cleared (python3 fallback) and no
   }
 });
 
+// --- interruption advisory (host-generated notice instead of a real result) ---
+
+function assertInterruptAdvisory(res, kind, atype, aid) {
+  assert.strictEqual(res.status, 0, res.stderr);
+  const out = res.stdout.trim();
+  assert.strictEqual(out.split('\n').length, 1, `expected one JSON line, got: ${res.stdout}`);
+  const obj = JSON.parse(out);
+  assert.deepStrictEqual(Object.keys(obj), ['systemMessage']);
+  assert.ok(!/"decision"|"block"/.test(out), out);
+  assert.strictEqual(obj.systemMessage,
+    `dhpk: subagent ${atype} (${aid}) INTERRUPTED (${kind}) — not a result; partial edits may be on disk; inspect its assigned files (git status/diff) before re-dispatch.`);
+}
+
+const interruptCases = [
+  ["You've hit your 5-hour limit · resets 4pm (Asia/Taipei)", 'rate_limit_5h'],
+  ["You've hit your weekly limit · resets 12pm (Asia/Taipei)", 'rate_limit_weekly'],
+  ["You've hit your limit · resets 4pm", 'rate_limit'],
+  ['Please run /login · API Error: 403 Attention Required! | Cloudflare', 'auth'],
+  ['API Error: 429 too many requests', 'api_error'],
+  ['Credit balance is too low', 'api_error'],
+];
+
+for (const [msg, kind] of interruptCases) {
+  test(`interrupt advisory: last_assistant_message "${msg.slice(0, 28)}" -> ${kind}`, () => {
+    const repo = mkRepo();
+    try {
+      const res = runHook(HOOK, {
+        payload: { agent_type: 'dhpk:architect', agent_id: 'i9', last_assistant_message: msg },
+        projectDir: repo,
+      });
+      assertInterruptAdvisory(res, kind, 'dhpk:architect', 'i9');
+      const [rec] = readLog(repo);
+      assert.strictEqual(rec.interrupted, true);
+      assert.strictEqual(rec.interrupt_kind, kind);
+    } finally {
+      rmRepo(repo);
+    }
+  });
+}
+
+test('interrupt advisory: synthetic last transcript entry logs interrupted and the previous real model', () => {
+  const repo = mkRepo();
+  try {
+    const synthetic = JSON.stringify({
+      type: 'assistant',
+      message: { model: '<synthetic>', content: [{ type: 'text', text: "You've hit your weekly limit · resets 12pm (Asia/Taipei)" }] },
+    });
+    const transcript = writeTranscript(repo, [assistant('claude-sonnet-5-5'), synthetic]);
+    const res = runHook(HOOK, {
+      payload: { agent_type: 'dhpk:architect', agent_id: 's1', agent_transcript_path: transcript },
+      projectDir: repo,
+    });
+    assertInterruptAdvisory(res, 'rate_limit_weekly', 'dhpk:architect', 's1');
+    const [rec] = readLog(repo);
+    assert.strictEqual(rec.interrupted, true);
+    assert.strictEqual(rec.interrupt_kind, 'rate_limit_weekly');
+    assert.strictEqual(rec.model, 'claude-sonnet-5-5');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('interrupt advisory: synthetic entry with unrecognized text is logged as synthetic_other without advisory', () => {
+  const repo = mkRepo();
+  try {
+    const synthetic = JSON.stringify({ type: 'assistant', message: { model: '<synthetic>', content: [{ type: 'text', text: 'No response requested.' }] } });
+    const transcript = writeTranscript(repo, [synthetic]);
+    const res = runHook(HOOK, {
+      payload: { agent_type: 'dhpk:architect', agent_id: 's2', agent_transcript_path: transcript, last_assistant_message: 'No response requested.' },
+      projectDir: repo,
+    });
+    assert.strictEqual(res.status, 0);
+    assert.strictEqual(res.stdout.trim(), '', `expected no advisory, got: ${res.stdout}`);
+    const [rec] = readLog(repo);
+    assert.strictEqual(rec.interrupted, false);
+    assert.strictEqual(rec.interrupt_kind, 'synthetic_other');
+    assert.strictEqual(rec.model, null);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('interrupt advisory: a synthetic entry followed by a real assistant entry is not flagged', () => {
+  const repo = mkRepo();
+  try {
+    const synthetic = JSON.stringify({
+      type: 'assistant',
+      message: { model: '<synthetic>', content: [{ type: 'text', text: "You've hit your 5-hour limit · resets 4pm" }] },
+    });
+    const transcript = writeTranscript(repo, [synthetic, assistant('claude-sonnet-5-5')]);
+    const res = runHook(HOOK, {
+      payload: { agent_type: 'dhpk:architect', agent_id: 's3', agent_transcript_path: transcript },
+      projectDir: repo,
+    });
+    assert.strictEqual(res.stdout.trim(), '', `expected no advisory, got: ${res.stdout}`);
+    const [rec] = readLog(repo);
+    assert.strictEqual(rec.interrupted, false);
+    assert.strictEqual(rec.interrupt_kind, null);
+    assert.strictEqual(rec.model, 'claude-sonnet-5-5');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('interrupt advisory: a long normal report quoting the limit text mid-text is not flagged', () => {
+  const repo = mkRepo();
+  try {
+    const long = 'Done. Findings: ' + 'x'.repeat(500) + " the user saw \"You've hit your limit\" earlier.";
+    const mid = "Summary: the log shows You've hit your 5-hour limit once.";
+    for (const msg of [long, mid, "You've hit your limit " + 'y'.repeat(450)]) {
+      const res = runHook(HOOK, {
+        payload: { agent_type: 'dhpk:architect', agent_id: 'n9', last_assistant_message: msg },
+        projectDir: repo,
+      });
+      assert.strictEqual(res.status, 0, res.stderr);
+      assert.strictEqual(res.stdout, '');
+    }
+    for (const rec of readLog(repo)) {
+      assert.strictEqual(rec.interrupted, false);
+      assert.strictEqual(rec.interrupt_kind, null);
+    }
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('interrupt advisory: an interrupted fast-worker still removes its liveness marker', () => {
+  const repo = mkRepo();
+  try {
+    const sess = sessionsDir(repo);
+    fs.mkdirSync(sess, { recursive: true });
+    const activeFile = path.join(sess, '.active-fast-worker');
+    fs.writeFileSync(activeFile, 'l1\tdhpk:fast-worker\n');
+    const res = runHook(HOOK, {
+      payload: { agent_type: 'dhpk:fast-worker', agent_id: 'w9', last_assistant_message: "You've hit your 5-hour limit · resets 4pm" },
+      projectDir: repo,
+    });
+    assertInterruptAdvisory(res, 'rate_limit_5h', 'dhpk:fast-worker', 'w9');
+    assert.ok(!fs.existsSync(activeFile));
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('interrupt advisory: without jq stays silent with exit 0', () => {
+  const repo = mkRepo();
+  const bin = mkNoJqBin();
+  try {
+    const res = runHook(HOOK, {
+      payload: { agent_type: 'dhpk:architect', agent_id: 'j1', last_assistant_message: "You've hit your 5-hour limit" },
+      projectDir: repo,
+      env: { PATH: bin },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '');
+  } finally {
+    rmRepo(repo);
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
 
 run('subagent-stop-verify');

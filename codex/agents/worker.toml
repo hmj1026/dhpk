@@ -15,6 +15,9 @@ settled interfaces/invariants/constraints, (4) verification and acceptance, and
 
 Other agents may be editing the same checkout: leave unrelated changes exactly
 as you found them. Keep the assigned role, model, and reasoning level.
+Change repo files with `apply_patch` only, per
+`.codex/dhpk/policies/execution-policy.md` "Edit tool discipline"; list any
+unavoidable shell-written file in the report.
 
 Stop and return to the parent when:
 - a root-cause or algorithm decision is unresolved (it belongs to `deep-reasoner`);

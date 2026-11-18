@@ -238,3 +238,25 @@ the gate-owned trusted disposable-home probe—a fresh isolated temporary
 `CODEX_DHPK_NAMED_ROLES=PASS` marker alone—retain bounded evidence and report
 generic `FAIL`; investigate collaboration-tool exposure/protocol separately.
 This is neither runtime `PASS` nor an unavailable-registry diagnosis.
+
+## Edit tool discipline
+
+Change repo files with the Host's file-edit tool (Edit/Write; `apply_patch` on
+Codex), not shell writes: no `sed -i`, `perl -pi`, `cat >`, `tee`, `>`/`>>`
+redirection, or script heredocs into repo files. Generators and formatters
+named by the task or defined by the repo, test artifacts in temp dirs, and
+ignored build output stay allowed. Use a shell write only when the edit tool
+cannot express the operation, and list every such file in the report so the
+parent can apply the review it would have triggered. A CLI-backed worker that
+writes out-of-band reports those writes in its edited-file list instead.
+
+**Long-running writer cap.** When a write-capable dispatch is expected to
+exceed ~30 min or ~150 tool calls, run at most 3 such dispatches concurrently
+and queue the rest as waves; read-only reviewers are exempt. Each such worker
+updates a progress record (completed and pending assigned files, last
+verification) after each completed file group, shaped like the recoverable run
+checkpoint in `.cursor/dhpk/docs/subagent-prompt-template.md`. A child result
+that starts with a host limit or auth message ("You've hit your ... limit",
+"Please run /login", "API Error: 4xx/5xx") is `INTERRUPTED`, not a result:
+inspect the assigned files before re-dispatch. After 2+ interruptions with the
+same host error, launch no new write-capable dispatch until the reset time.
