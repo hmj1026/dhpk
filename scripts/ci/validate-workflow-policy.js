@@ -30,7 +30,7 @@ const WORKFLOW_TIMEOUTS = Object.freeze({
     lint: 5,
   }),
   'release.yml': Object.freeze({
-    release: 20,
+    release: 30,
     publish: 5,
     'consumer-verify': 10,
     'sync-develop': 5,

@@ -6,7 +6,8 @@
 # consumers must ask for it explicitly.
 #
 # Role-filtered sections (default-off; each packet is capped separately):
-#   worker/TDD — supplied handoff prompt plus bounded OpenSpec/project context
+#   worker/TDD — supplied handoff prompt, the OpenSpec change the handoff names
+#                (none when it names none), and bounded project context
 #   explorer  — routing reminder only
 #   monitor   — process identity only
 #
@@ -74,7 +75,7 @@ reviewer_roles = {
     "migration-reviewer",
 }
 reviewer_roles.update(agent for agent in agents if agent)
-worker_roles = {"worker", "fast-worker", "tdd-guide", "e2e-runner"}
+worker_roles = {"worker", "fast-worker", "quick-worker", "tdd-guide", "e2e-runner"}
 
 def read_text_safe(p, max_chars=400):
     try:
@@ -97,24 +98,22 @@ elif role == "explorer":
         f"(see {routing_path})"
     )
 
-# === Section 2: OpenSpec active change (worker/TDD and generic roles only) ===
+# === Section 2: OpenSpec change named by the handoff (worker/TDD and generic roles only) ===
+# Only a change whose directory name appears in the handoff is injected. The
+# newest-mtime change is unrelated to most dispatches and misled workers.
 opsx_changes = ROOT / "openspec" / "changes"
-if role not in reviewer_roles and role not in {"monitor", "explorer"} and opsx_changes.is_dir():
-    # Filter to real dirs before sorting so a broken symlink can't OSError the
-    # sort key and take the whole hook down.
+if role not in reviewer_roles and role not in {"monitor", "explorer"} and handoff and opsx_changes.is_dir():
     candidates = []
     for entry in opsx_changes.iterdir():
         if entry.name.startswith(".") or entry.name == "archive":
             continue
         try:
-            if entry.is_dir():
-                # Stamp the mtime now (inside the guard) so the later sort can't
-                # OSError on a dir that became inaccessible after this check.
-                candidates.append((entry.stat().st_mtime, entry))
+            if entry.is_dir() and entry.name in handoff:
+                candidates.append(entry)
         except OSError:
             continue
-    candidates.sort(key=lambda pair: pair[0], reverse=True)
-    candidates = [entry for _mtime, entry in candidates]
+    # Prefer the longest matching name so "foo-bar" wins over a "foo" prefix.
+    candidates.sort(key=lambda entry: len(entry.name), reverse=True)
     if candidates:
         active_change = candidates[0]
         lines.append(f"OpenSpec active change: {active_change.relative_to(ROOT)}")

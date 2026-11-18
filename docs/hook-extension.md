@@ -212,6 +212,58 @@ health checks, Docker probes, completion or graduation scans, SessionEnd and
 compaction work, learning observation, post-edit formatting/linting, and Stop
 reminders.
 
+The userConfig keys read only by these optional scripts (for example
+`agent_warmstart_enabled`, `completion_evidence_enabled`,
+`graduation_scan_enabled`, `skill_hint_enabled`) therefore do nothing until the
+matching hook is registered; their descriptions in `plugin.json` start with
+"Requires explicit consumer hook registration".
+
+### Registration example
+
+`/dhpk:setup --install hooks` (installer `scripts/setup/install-assets.sh`)
+copies `scripts/hooks/` including `_lib/` to
+`<project>/.claude/dhpk/scripts/hooks/` (and `hooks/hooks.json` to
+`<project>/.claude/dhpk/hooks/`). Register the copied scripts in the consumer
+project's `.claude/settings.json` (or `settings.local.json`):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/dhpk/scripts/hooks/pre-agent-warmstart.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/dhpk/scripts/hooks/stop-advisory-dispatch.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Then enable the behavior through `pluginConfigs."dhpk@dhpk".options`
+(`agent_warmstart_enabled`, `completion_evidence_enabled`,
+`graduation_scan_enabled`) or the one-shot env override such as
+`DHPK_AGENT_WARMSTART=1`. The copy is a snapshot: re-run the installer
+(`/dhpk:setup --install hooks`, with `--force` to replace differing files) after
+every dhpk upgrade so the scripts and their `_lib/` stay in step with the
+plugin.
+
 Module hooks may still participate in the combined Bash dispatcher:
 `pre-bash-*.sh` and `pre-commit-*.sh` receive Bash payloads for active modules;
 non-zero exit status blocks that Bash call. They must self-skip outside their

@@ -5,7 +5,7 @@ description: 'Reference index for the agents shipped by the dhpk plugin.'
 
 # Agents Index (dhpk plugin)
 
-<!-- dhpk-agent-roster-counts: {"schema":"dhpk.agent-roster-counts.v1","total":32,"root":31,"module":1} -->
+<!-- dhpk-agent-roster-counts: {"schema":"dhpk.agent-roster-counts.v1","total":33,"root":32,"module":1} -->
 
 > The roster is registered in `.claude-plugin/plugin.json` and discovered as `dhpk:<name>` after install.
 
@@ -48,6 +48,7 @@ roster navigation for the shipped worker/reasoner roles.
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
 | [codex-reasoner](codex-reasoner.md) | sonnet + codex CLI | **codex CLI available** — canonical `deep-reasoner` backend selected by `--reasoner=codex/<model>[:<effort>]` (default `gpt-6.1-sol` @ `high`), with a read-only sandbox, dispatcher-attested runtime/deadline, and the same conclusion contract |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
+| [quick-worker](quick-worker.md) | haiku | Literal-sweep tier below fast-worker — only for a spec that names every target file and the exact edit (rename, docblock or anchor text, format-only, literal fix-spec) with one deterministic verification; one attempt, then `BLOCKED` (`needs judgment`) so fast-worker takes over |
 | [codex-worker](codex-worker.md) | sonnet + codex CLI | **codex CLI available** — canonical `fast-worker` backend (default `gpt-6-luna` @ `xhigh`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [agy-worker](agy-worker.md) | sonnet + agy CLI | **agy CLI available** — canonical mechanical worker on the agy backend (default `Gemini 3.8 Flash (High)`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [codex-reviewer](codex-reviewer.md) | sonnet + codex CLI | Internal shared-runner read-only reviewer; capability-gated and not a native Codex dispatch target; routes through the canonical launcher only when the capability is available |
@@ -114,7 +115,7 @@ This index only lists the shipped roles above.
 
 - **opus**: deep-reasoner (may be raised to fable per dispatch for multi-question policy adjudication, see rules/model-economics.md), planner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, doc-updater (edits files), qa-executor (issues verdicts), tdd-guide, refactor, ui-ux, harness, docs-writer, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
-- **haiku**: docs-lookup, doc-reviewer (high-frequency, templated, cost-first; read-only lookup and lint)
+- **haiku**: docs-lookup, doc-reviewer (high-frequency, templated, cost-first; read-only lookup and lint), quick-worker (literal mechanical sweeps only; admission gate in `quick-worker.md`)
 - **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication; highest per-token Claude tier, with up-only escalation for HIGH-risk designs via the configured-role override (see rules/model-economics.md)
 
 ## Partial outputs and agent continuation

@@ -31,10 +31,11 @@ const EXPECTED_AGENTS = [
   'docs-writer',
   'ui-verifier',
   'scoped-worker',
+  'quick-worker',
 ];
 
 const CODEX_ONLY_AGENTS = ['ui-verifier', 'scoped-worker'];
-const SHARED_SOURCE_AGENTS = ['qa-executor', 'docs-writer'];
+const SHARED_SOURCE_AGENTS = ['qa-executor', 'docs-writer', 'quick-worker'];
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-codex-agents-'));
@@ -197,13 +198,36 @@ test('generated source keeps unknown prose and fenced-code mentions out of the e
   }
 });
 
-test('generates the explicit 15-role Codex projection without packaging authoring sources', () => {
+test('quick-worker projects to gpt-6-luna at medium effort with workspace-write handoff', () => {
+  const tmp = mkTmp();
+  try {
+    const outDir = path.join(tmp, 'out');
+    const res = runScript([outDir]);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const body = fs.readFileSync(path.join(outDir, 'quick-worker.toml'), 'utf8');
+    assert.ok(body.includes('name = "quick-worker"'), body);
+    assert.ok(body.includes('model = "gpt-6-luna"'), body);
+    assert.ok(body.includes('model_reasoning_effort = "medium"'), body);
+    assert.doesNotMatch(body, /^sandbox_mode\s*=/m);
+    assert.match(body, /needs judgment/);
+    assert.match(body, /apply_patch/);
+    // The projection rewrites Claude-only wording; a silent no-match in the
+    // generator would leak these tokens into the Codex role.
+    for (const leak of [/haiku/i, /\bfast-worker\b/, /CLAUDE_PLUGIN_ROOT/, /model-economics/, /Edit and Write/, /codex-worker/, /agy-worker/]) {
+      assert.doesNotMatch(body, leak, `Claude-only wording leaked into quick-worker.toml: ${leak}`);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('generates the explicit 16-role Codex projection without packaging authoring sources', () => {
   const root = cloneGeneratorFixture('gen-codex-projection');
   try {
     const outDir = path.join(root, 'out');
     const res = runFixtureScript(root, [outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('Generated 15 Codex role file(s).'), res.stdout);
+    assert.ok(res.stdout.includes('Generated 16 Codex role file(s).'), res.stdout);
 
     const files = fs.readdirSync(outDir).sort();
     assert.deepStrictEqual(files, EXPECTED_AGENTS.map((n) => `${n}.toml`).sort());

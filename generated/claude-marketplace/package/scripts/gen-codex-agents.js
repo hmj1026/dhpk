@@ -30,6 +30,7 @@ const RUNTIME_METADATA = Object.freeze({
   'docs-writer': { model: 'gpt-6.1-terra', effort: 'medium' },
   'qa-executor': { model: 'gpt-6-luna', effort: 'medium' },
   'scoped-worker': { model: 'gpt-6.1-terra', effort: 'medium' },
+  'quick-worker': { model: 'gpt-6-luna', effort: 'medium' },
 });
 
 // Each Codex role names its canonical source explicitly. Existing shared roles
@@ -53,6 +54,7 @@ const AGENTS = [
   { name: 'docs-writer', source: 'agents/docs-writer.md' },
   { name: 'ui-verifier', source: 'codex/agent-sources/ui-verifier.md' },
   { name: 'scoped-worker', source: 'codex/agent-sources/scoped-worker.md' },
+  { name: 'quick-worker', source: 'agents/quick-worker.md' },
 ];
 
 const AGENT_SOURCES = Object.freeze(AGENTS.map((agent) => Object.freeze({ ...agent })));
@@ -423,6 +425,21 @@ function adaptCodexBody(agentName, body) {
       )
       .replaceAll('`modules/yii-1.1/references/framework.md`', 'the project Yii migration API documentation')
       .replaceAll('`modules/laravel-*/`', 'the project Laravel migration documentation');
+  }
+  if (agentName === 'quick-worker') {
+    // Codex edits through apply_patch, its mechanical tier is luna, and the
+    // escalation target is the Codex `worker`; the CLI selector workers and the
+    // Claude-only model-economics rule have no Codex referent.
+    adapted = adapted
+      .replace(/Haiku literal-sweep tier/g, 'Literal-sweep tier')
+      .replaceAll('the Edit and Write tools', '`apply_patch`')
+      .replace(/,\s+per\s+`\.codex\/dhpk\/policies\/execution-policy\.md` "Edit tool discipline"/, '')
+      .replace(/\s+This tier is native-only;\s+the CLI selector workers\s+\(`codex-worker`, `agy-worker`\) are unchanged\./, '')
+      .replace(/re-dispatches `fast-worker` per\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/rules\/model-economics\.md` rule 6/, 're-dispatches `worker`')
+      .replace(/Otherwise follow `agents\/fast-worker\.md`:/, 'Otherwise follow the `worker` role contract:')
+      .replaceAll('`fast-worker` (sonnet)', '`worker`')
+      .replace(/\bfast-worker\b/g, 'worker')
+      .replace(/haiku \/\s+medium/, 'gpt-6-luna / medium');
   }
   if (agentName === 'deep-reasoner') {
     // This projection IS the Codex backend, so the Claude-side "pick the codex

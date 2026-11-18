@@ -33,6 +33,7 @@ Host support, user-owned files, and installation authority boundaries.
 - Preserve cross-platform behavior and receipt/ownership protections.
 - Use repository-relative paths and established Host adapters.
 - Keep each fix reversible and scoped; preserve unrelated work.
+- Edit mechanism: change files with Edit/Write only, per `${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc` "Edit tool discipline" (report any last-resort shell-written file).
 - Keep source, package, installation, and runtime evidence distinct.
 
 ## Output

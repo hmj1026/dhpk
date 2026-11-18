@@ -99,7 +99,7 @@ option。Scope selection 不會改變已設定的 planner model、effort 或 wor
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 所有 Codex CLI 角色共用的 dispatcher deadline。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。解析後的值會寫入 immutable transport context，wrapper 不會從環境讀取它。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中 delegated implementation routing 的關閉開關。`on` 時適用的實作階段委派工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示；適用的 verification gates 仍有效，planner 是否適用依缺少的 outcome 或明確 consult request 決定，不依 task count。Flow Drive 的 native task entry 沒有 dispatch mode。 |
 | `cross_provider` | boolean | `false` | `true` \| `false` | 自動 worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才檢查宣告的跨 Agent fallback 候選。明確的 `--target <agent>/<model>` 仍是定向選取，不會連帶開放其他 provider。 |
-| `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對明確註冊的 reviewer quality advisory 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 unresolved obligation。預設 `off`（無作用，不做啟發式評估）。 |
+| `subagent_quality_gate` | string | `off` | `on` \| `off` | 須由使用端明確註冊 hook（見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）。僅對明確註冊的 reviewer quality advisory 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 unresolved obligation。預設 `off`（無作用，不做啟發式評估）。 |
 
 ### 跨家派發 opt-in
 
@@ -214,7 +214,7 @@ opt-in 請求第二意見。
 
 ### Codex agent 角色（雙軌同步）
 
-這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與已退休的 MCP 機制無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。dhpk 依 Codex 文件中的 project-local discovery path 發布這些檔案，Project-local installer 即使讓 skill 使用 symlink，也一律把 agent TOML materialize 為實體檔。15 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`、`qa-executor`、`docs-writer`，以及 Codex 專用的 `ui-verifier`、`scoped-worker`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 或 `codex/agent-sources/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 19 個 direct role。
+這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與已退休的 MCP 機制無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。dhpk 依 Codex 文件中的 project-local discovery path 發布這些檔案，Project-local installer 即使讓 skill 使用 symlink，也一律把 agent TOML materialize 為實體檔。16 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`、`qa-executor`、`docs-writer`、`quick-worker`，以及 Codex 專用的 `ui-verifier`、`scoped-worker`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 或 `codex/agent-sources/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 20 個 direct role。
 
 `config.toml.example` 裡的 `[agents.<name>]` 區塊是選用 metadata，不是 runtime registry failure 的 workaround。現行支援的頂層並發設定是 `max_concurrent_threads_per_session`；範例也記錄有效的預設 subagent model 與 reasoning effort。靜態 metadata、實體 TOML 或內建 `explorer` 成功都不能證明 custom role 可派發；必須觀測到非內建 role 的真實 spawn 與 targeted wait。診斷見 [`codex/guidance.md`](../codex/guidance.md)，證據邊界見 [`platform-installation.zh-TW.md`](platform-installation.zh-TW.md)。
 
@@ -222,7 +222,7 @@ opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `docker_containers` | string[] | `[]` | container 名稱 | 保留給明確註冊的 Docker tooling；預設 SessionStart 不會檢查 container 或輸出 container 變數。 |
+| `docker_containers` | string[] | `[]` | container 名稱 | 須由使用端明確註冊 hook（見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）。保留給 consumer 自備的 Docker tooling，shipped hook 不讀取；預設 SessionStart 不會檢查 container 或輸出 container 變數。 |
 | `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 reviewer trigger 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
 
 ## Review 觸發與風險啟發式
@@ -244,19 +244,19 @@ opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | Env 覆寫 | 用途 |
 |-----|------|--------|----------|------|
-| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | 保留給明確註冊的 UserPromptSubmit hint；預設 hook 不會使用。 |
-| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | 保留給明確註冊的 learning observation/presentation；預設 SessionStart 不會注入 learned context。 |
-| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | 保留給明確註冊的 Stop advisory；預設 Stop hook 不會使用。 |
-| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | 保留給明確註冊的 Stop advisory；預設 Stop hook 不會使用。 |
-| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | 保留給明確註冊的 `Task`/`Agent` prompt injection；預設 lifecycle 不會使用。 |
-| `reap_stale_mcp_processes` | boolean | `false` | — | 保留給明確註冊的 SessionEnd/process tooling；預設 SessionStart 不會 reap process。 |
-| `harness_restore_hint` | string | `""` | — | 保留給明確註冊的 symlink-health advice；預設 SessionStart 不會輸出它。 |
+| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | 須由使用端明確註冊 `userpromptsubmit-skill-hint.sh`（UserPromptSubmit；見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；預設 hook 不會使用。 |
+| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | 須由使用端明確註冊 hook（見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；由 `_lib/learning-db.sh` 讀取，shipped 預設 hook 不會呼叫它。預設 SessionStart 不會注入 learned context。 |
+| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | 須由使用端明確註冊 `stop-advisory-dispatch.sh`（Stop；見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；預設 Stop hook 不會使用。 |
+| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | 須由使用端明確註冊 `stop-advisory-dispatch.sh`（Stop；見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；預設 Stop hook 不會使用。 |
+| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | 須由使用端明確註冊 `pre-agent-warmstart.sh`（PreToolUse `Agent\|Task`；見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；預設 lifecycle 不會使用。 |
+| `reap_stale_mcp_processes` | boolean | `false` | — | 須由使用端明確註冊 `session-end.sh`（SessionEnd；見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；預設 SessionStart 不會 reap process。 |
+| `harness_restore_hint` | string | `""` | — | 須由使用端明確註冊 hook（見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；保留給 consumer 自備的 symlink-health advice，shipped hook 不讀取，預設 SessionStart 不會輸出它。 |
 
 ## Manifest／lockfile 同步
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | 保留給明確註冊的 manifest/lockfile advisory tooling；預設不再有 PostToolUse reviewer routing。 |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | 須由使用端明確註冊 `post-edit-advisory.sh`（PostToolUse；見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）；預設不再有 PostToolUse reviewer routing。 |
 
 ## `js` 模組
 
@@ -284,7 +284,7 @@ opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | 用途 |
 |-----|------|--------|------|
-| `php_bin` | string | `"php"` | 由明確註冊的 `php-5.6` 語法檢查 workflow 使用的 PHP 執行檔／wrapper，例如 `docker exec -i my_php php`。第一個 word 不在 PATH 時自動跳過。 |
+| `php_bin` | string | `"php"` | 須由使用端明確註冊 `php-5.6` 的 `post-edit-php-syntax.sh`（見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）。該語法檢查 workflow 使用的 PHP 執行檔／wrapper，例如 `docker exec -i my_php php`。第一個 word 不在 PATH 時自動跳過。 |
 | `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | 由明確註冊的 `php-7.4` formatter workflow 與其適用 pre-commit gate 使用的執行檔。 |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | `php-7.4` 模組 pre-commit gate 使用的 PHPStan 執行檔；僅在 `phpstan.neon[.dist]` 存在時呼叫。 |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | `php-7.4` 模組 pre-commit gate 使用的 Psalm 執行檔；僅在 `psalm.xml[.dist]` 存在時呼叫。 |
@@ -293,7 +293,7 @@ opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `swiftlint_bin` | string | `"swiftlint"` | — | 明確註冊的 `xcode-tooling` SwiftLint workflow 使用的執行檔。不存在時自動跳過。 |
+| `swiftlint_bin` | string | `"swiftlint"` | — | 須由使用端明確註冊 `xcode-tooling` 的 `post-edit-swiftlint.sh`（見 [Optional extensions](hook-extension.zh-TW.md#選用-extensions)）。該 SwiftLint workflow 使用的執行檔。不存在時自動跳過。 |
 | `xcode_scheme` | string | `""` | scheme 名稱，例如 `babylon` | `xcode-tooling` pre-commit build gate 使用的 scheme。留空則完全跳過 gate（不猜測 scheme）。 |
 | `xcode_destination` | string | `""` | 例如 `platform=iOS Simulator,name=iPhone 17` | pre-commit gate *測試*步驟使用的 `-destination`。*build* 步驟一律使用不含裝置名稱的 generic destination，因此永遠不會過期。留空則自動挑選第一個可用模擬器。 |
 | `swift_build_skip_tests` | boolean | `false` | — | 設 `true` 時，Swift pre-commit gate 只 build、不跑測試（無 `xcodebuild test` / `swift test`）。 |

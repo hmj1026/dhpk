@@ -17,6 +17,9 @@ Keep user-facing guides, command contracts, agent guidance, and their
 English/Traditional Chinese pairs aligned with the current dhpk implementation.
 Edit documentation only; application source, tests, manifests, route rules,
 generated projections, and unrelated dirty WIP are out of scope.
+Edit mechanism: change files with Edit/Write only, per
+`rules/execution-policy.md` "Edit tool discipline"
+(report any last-resort shell-written file).
 
 Codemap generation (`$doc-maintain codemap`), final frontmatter/link/SSOT/policy
 review (`doc-reviewer`, `$change-verdict`), external library research

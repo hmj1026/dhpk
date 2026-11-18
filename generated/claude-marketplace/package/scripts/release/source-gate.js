@@ -62,7 +62,11 @@ function defaultSteps(root, version, releaseTargetBranch) {
       name: 'repository-tests',
       cmd: path.join(root, 'scripts/ci/run-bounded-node-test.sh'),
       args: ['node', path.join(root, 'tests/run-all.js')],
-      env: { DHPK_TEST_JOBS: TEST_JOBS },
+      env: {
+        DHPK_TEST_JOBS: TEST_JOBS,
+        DHPK_TEST_PROGRESS: '1',
+        TIMEOUT_SECONDS: process.env.TIMEOUT_SECONDS || '1200s',
+      },
     },
     { name: 'openspec-validate', cmd: 'openspec', args: ['validate', '--changes', '--strict', '--no-interactive'] },
   ];

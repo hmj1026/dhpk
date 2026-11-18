@@ -1,5 +1,5 @@
 [features]
-multi_agent = true
+multi_agent_v2 = true
 
 [agents]
 enabled = true
@@ -37,3 +37,7 @@ config_file = "agents/docs-writer.toml"
 [agents."scoped-worker"]
 description = "Implementation role for a bounded packet with exact file ownership."
 config_file = "agents/scoped-worker.toml"
+
+[agents."quick-worker"]
+description = "Literal mechanical sweep role for a spec that names every file and exact edit."
+config_file = "agents/quick-worker.toml"

@@ -154,6 +154,28 @@ function installGitBoundaryFixture(directory) {
   return executable;
 }
 
+function installGitObservationProxy(directory) {
+  fs.mkdirSync(directory, { recursive: true });
+  const executable = path.join(directory, 'git');
+  fs.writeFileSync(executable, [
+    '#!/usr/bin/env node',
+    'const fs = require("node:fs");',
+    'const { spawnSync } = require("node:child_process");',
+    'const args = process.argv.slice(2);',
+    'const trace = process.env.GIT_SMART_COMMIT_TRACE_FILE;',
+    'if (trace) fs.appendFileSync(trace, JSON.stringify(args) + "\\n");',
+    'const result = spawnSync(process.env.GIT_SMART_COMMIT_REAL_GIT, args, {',
+    '  cwd: process.cwd(), env: process.env, encoding: null, maxBuffer: 16 * 1024 * 1024, timeout: 30000,',
+    '});',
+    'if (result.stdout) process.stdout.write(result.stdout);',
+    'if (result.stderr) process.stderr.write(result.stderr);',
+    'if (result.error) { process.stderr.write(String(result.error)); process.exit(71); }',
+    'process.exit(result.status === null ? 72 : result.status);',
+  ].join('\n'));
+  fs.chmodSync(executable, 0o755);
+  return executable;
+}
+
 test('collector reports an empty unborn repository with its root and default hooks', () => {
   const { parent, root } = makeRepo();
   try {
@@ -400,6 +422,53 @@ test('collector reports an absolute custom hooks directory without executing eit
       commitMsg: { exists: true, executable: false },
     });
     assert.strictEqual(fs.existsSync(marker), false, 'collecting hook metadata must never run hooks');
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('collector reads linked-worktree operation markers without per-marker Git processes', () => {
+  const { parent, root } = makeRepo();
+  try {
+    fs.writeFileSync(path.join(root, 'base.txt'), 'base\n');
+    commitAll(root);
+    const linked = path.join(parent, 'linked');
+    git(root, ['worktree', 'add', '--quiet', '--detach', linked, 'HEAD']);
+
+    const hooksDirectory = path.join(parent, 'effective-hooks');
+    fs.mkdirSync(hooksDirectory);
+    fs.writeFileSync(path.join(hooksDirectory, 'pre-commit'), '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(path.join(hooksDirectory, 'pre-commit'), 0o755);
+    git(root, ['config', 'core.hooksPath', hooksDirectory]);
+
+    const linkedMergeMarker = git(linked, [
+      'rev-parse', '--path-format=absolute', '--git-path', 'MERGE_HEAD',
+    ]).trim();
+    const rootMergeMarker = git(root, [
+      'rev-parse', '--path-format=absolute', '--git-path', 'MERGE_HEAD',
+    ]).trim();
+    assert.notStrictEqual(linkedMergeMarker, rootMergeMarker, 'linked worktree must have an isolated marker path');
+    fs.writeFileSync(linkedMergeMarker, 'synthetic merge marker\n');
+
+    const traceFile = path.join(parent, 'git-cli-trace.jsonl');
+    const proxyDirectory = path.join(parent, 'git-proxy');
+    installGitObservationProxy(proxyDirectory);
+    const realGit = spawnSync('which', ['git'], { encoding: 'utf8' });
+    assert.strictEqual(realGit.status, 0, realGit.stderr);
+    const result = runCollector(linked, [], {
+      PATH: proxyDirectory + path.delimiter + process.env.PATH,
+      GIT_SMART_COMMIT_REAL_GIT: realGit.stdout.trim(),
+      GIT_SMART_COMMIT_TRACE_FILE: traceFile,
+    });
+    assert.strictEqual(result.status, 0, result.stderr);
+    const payload = JSON.parse(result.stdout);
+    const calls = fs.readFileSync(traceFile, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+    assert.ok(payload.safety.operations.includes('merge'), 'linked marker must be reported');
+    assert.strictEqual(payload.hooks.directory, hooksDirectory, 'configured hooks path must remain effective');
+    assert.strictEqual(fs.existsSync(rootMergeMarker), false, 'root marker must remain absent');
+    const rootPayload = collectReadOnly(parent, root);
+    assert.ok(!rootPayload.safety.operations.includes('merge'), 'root collector must not report linked-only merge marker');
+    assert.ok(calls.length <= 14, `collector should use at most 14 Git processes, got ${calls.length}`);
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }

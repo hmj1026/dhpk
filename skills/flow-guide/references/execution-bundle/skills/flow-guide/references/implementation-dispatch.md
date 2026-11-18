@@ -67,7 +67,10 @@ not require dispatch.
 **Review-fix waves follow the same posture.** After a consolidated review batch,
 combine actionable findings into one fix-spec and assess the whole fix scope.
 Choose the selector-resolved fast-worker when an independent owner improves
-focus or coordination; do not route only by the number of affected files. The
+focus or coordination; do not route only by the number of affected files.
+Literal fixes that meet the `quick-worker` admission gate
+(`agents/quick-worker.md`) go to `dhpk:quick-worker`; fixes that need
+interpretation stay with `fast-worker`. The
 fix loop is worker verification plus a diff-scope recheck;
 CRITICAL findings must be fixed before reporting done. Applying
 production fixes inline one finding at a time after review is the audited

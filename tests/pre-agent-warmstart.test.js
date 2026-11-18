@@ -92,13 +92,33 @@ test('reviewer output excludes handoff and project text and stays within 700 cha
   assert.ok(!context.includes('OpenSpec active change:'), 'reviewers do not receive implementation change context');
 }));
 
+test('worker output omits OpenSpec context when the handoff names no change, even if a newer change exists', () => withScratchProject((scratch) => {
+  seedProjectContext(scratch);
+  fs.mkdirSync(path.join(scratch, 'openspec', 'changes', 'unrelated-newer'), { recursive: true });
+  fs.writeFileSync(path.join(scratch, 'openspec', 'changes', 'unrelated-newer', 'tasks.md'), '- [ ] UNRELATED_TASK\n');
+  const context = parseOutput(invoke(scratch, 'fast-worker', 'Apply the literal fix to a.php'));
+  assert.ok(!context.includes('OpenSpec active change:'), context);
+  assert.ok(!context.includes('UNRELATED_TASK'), context);
+  assert.ok(context.includes('Handoff packet: Apply the literal fix'), context);
+}));
+
+test('worker OpenSpec context follows the change named in the handoff, not the newest change', () => withScratchProject((scratch) => {
+  seedProjectContext(scratch);
+  fs.mkdirSync(path.join(scratch, 'openspec', 'changes', 'unrelated-newer'), { recursive: true });
+  fs.writeFileSync(path.join(scratch, 'openspec', 'changes', 'unrelated-newer', 'tasks.md'), '- [ ] UNRELATED_TASK\n');
+  const context = parseOutput(invoke(scratch, 'quick-worker', 'Implement task 2 of openspec/changes/warmstart-demo'));
+  assert.ok(context.includes('OpenSpec active change: openspec/changes/warmstart-demo'), context);
+  assert.ok(!context.includes('UNRELATED_TASK'), context);
+  assert.ok(context.includes('Handoff packet: Implement task 2'), 'quick-worker is a worker role and receives the handoff');
+}));
+
 test('worker output includes task and handoff context and is capped at 1400 characters', () => withScratchProject((scratch) => {
   seedProjectContext(scratch);
-  const context = parseOutput(invoke(scratch, 'worker', 'HANDOFF_SENTINEL '.repeat(200)));
+  const context = parseOutput(invoke(scratch, 'worker', 'warmstart-demo ' + 'HANDOFF_SENTINEL '.repeat(200)));
   const body = bodyOf(context);
   assert.ok(body.includes('OpenSpec active change: openspec/changes/warmstart-demo'));
   assert.ok(body.includes('Tasks (first 3): - [x] Confirm current behavior'));
-  assert.ok(context.includes('Handoff packet: HANDOFF_SENTINEL'));
+  assert.ok(context.includes('Handoff packet: warmstart-demo HANDOFF_SENTINEL'));
   assert.strictEqual(body.length, 1400, `expected worker cap, got ${body.length}`);
   assert.ok(body.endsWith('...'), 'truncated worker packet should end with an ellipsis');
 }));

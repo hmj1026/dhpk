@@ -24,6 +24,10 @@ Per the Anti-Loop Protocol, **stop after 3 failed attempts on the same error** a
 
 On stop, output: the attempt log (what was tried + each error), ≥2 alternative paths with trade-offs, and a recommendation.
 
+## Edit mechanism
+
+Apply fixes with Edit/Write only, per `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Edit tool discipline" (report any last-resort shell-written file).
+
 ## Verification greps
 
 When a verification grep targets `$` (as in `${CLAUDE_PLUGIN_ROOT}`), `§`,

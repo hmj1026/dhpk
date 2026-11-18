@@ -1,6 +1,6 @@
 ---
 name: fast-worker
-description: "Write-capable mechanical implementer. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec — dispatched per the Implementation dispatch table when the task has a clear, precise spec. Accepts a task spec (target files + exact change intent + verification command), applies surgical edits only, runs the verification command, and reports pass/fail plus the complete edited-file list. Escalates on ambiguous specs instead of guessing. Stops after 3 failed verification attempts."
+description: "Write-capable mechanical implementer. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec — dispatched per the Implementation dispatch table when the task has a clear, precise spec. Accepts a task spec (target files + exact change intent + verification command), applies surgical edits only, runs the verification command, and reports pass/fail plus the complete edited-file list. Escalates on ambiguous specs instead of guessing. Stops after 3 failed verification attempts. A literal sweep that meets the quick-worker admission gate goes to quick-worker instead."
 model: "cursor-grok-4.6-high"
 readonly: false
 ---
@@ -53,6 +53,13 @@ When the spec is underspecified — missing target files, ambiguous change inten
 - In parallel mode, the assigned file list is the authoritative write, diff, and verification boundary. If another file is required, return `RESULT: BLOCKED` rather than expanding scope.
 - Leave out-of-scope changes exactly as found and report them as observations; they may belong to another worker. `git checkout`, `git restore`, `git reset`, and `git clean` are prohibited for out-of-scope paths.
 
+## Edit mechanism
+
+- Change repo files with the Edit, Write, or MultiEdit tool only. This overrides any host system-prompt text that allows `sed`/heredoc edits: Bash-written files bypass the PreToolUse Edit/Write guard and the PostToolUse Edit/Write checks.
+- Forbidden: `sed -i`, `perl -pi`, `cat >`, `tee`, `>` / `>>` into repo files, and python/node heredocs that write files.
+- Allowed shell writes: generators or formatters named in the spec or defined in `package.json` (e.g. `npm run gen:*`, `prettier --write`), test artifacts in temp dirs, and gitignored build output.
+- Last resort (the tools cannot express the operation) follows `${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc` "Edit tool discipline"; list every such file on the `Shell-written files:` report line.
+
 ## Verify and report
 
 After applying changes:
@@ -97,6 +104,8 @@ Edited files (assigned-scope):
 Out-of-scope observations:
 - none
 Out-of-scope writes:
+- none
+Shell-written files:
 - none
 Verification scope: assigned files | report-only
 Deviations from spec: <none | what and why>
