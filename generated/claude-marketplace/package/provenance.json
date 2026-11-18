@@ -2053,7 +2053,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
       "kind": "entry",
-      "sha256": "fe88b81d49672ff698f469190b96b60bebb5ed45dd3777d25dd69bcbe11b6f18"
+      "sha256": "81752533018c5bfc4cdee54228ed00b7e24e07d1ee4fdd2dda4b4a63512393ba"
     },
     {
       "skillId": "flow-guide",
@@ -2101,7 +2101,7 @@
       "sourcePath": "skills/flow-guide/references/invocation-classification.md",
       "destination": "skills/flow-guide/references/invocation-classification.md",
       "kind": "entry",
-      "sha256": "fe88b81d49672ff698f469190b96b60bebb5ed45dd3777d25dd69bcbe11b6f18"
+      "sha256": "81752533018c5bfc4cdee54228ed00b7e24e07d1ee4fdd2dda4b4a63512393ba"
     },
     {
       "skillId": "flow-guide",

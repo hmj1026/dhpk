@@ -633,7 +633,7 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
   /dhpk:repo-verify full --integration=tests/Integration --e2e=tests/E2E
   ```
 
-#### 9. smart-commit（智慧分組原子提交）
+#### 9. git-smart-commit（智慧分組原子提交）
 
 - **定位**：分析未提交檔案，按凝聚度（Cohesion）智慧分組，依 Conventional Commits 風格生成 Commit 訊息，輸出可複製執行的 Git 指令。
 - **呼叫語法**：`/dhpk:git-smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`

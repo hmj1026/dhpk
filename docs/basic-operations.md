@@ -669,7 +669,7 @@ legacy dispositions and the pinned release that retains those interfaces.
   /dhpk:repo-verify full --integration=tests/Integration --e2e=tests/E2E
   ```
 
-#### 9. smart-commit (Smart Atomic Batch Commit)
+#### 9. git-smart-commit (Smart Atomic Batch Commit)
 
 - **Purpose**: Analyzes unstaged/staged files, groups them by cohesion, formats Conventional Commit messages matching project conventions, and produces copy-pasteable Git commands.
 - **Invocation Syntax**: `/dhpk:git-smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`

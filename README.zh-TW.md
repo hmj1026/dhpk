@@ -384,7 +384,6 @@ dhpk/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 33 個角色 agent（32 root + 1 模組 reviewer；INDEX.md 為導覽用）
-├── commands/                     # slash 指令（review、setup、smart-commit、opsx-apply-resume 等）
 ├── skills/                       # SSOT：68 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection

@@ -2336,7 +2336,7 @@ function verifyCursorSync(root, version) {
       };
     }
     const managedEntries = receipt.managed_entries;
-    const nativeKinds = ['agents', 'rules', 'commands', 'supporting_assets'];
+    const nativeKinds = ['agents', 'rules', 'supporting_assets'];
     const leftoverSkills = Object.keys((managedEntries && managedEntries.skills) || {});
     const leftoverDirs = leftoverCursorNativeSkillDirectories(project);
     const leftoverCopies = leftoverSkills.concat(leftoverDirs.ok ? leftoverDirs.leftovers : []);
@@ -2551,7 +2551,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
   const validationStage = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-validation-'));
   let strictEvidence;
   try {
-    for (const relative of ['.claude-plugin', 'skills', 'agents', 'commands', 'modules']) {
+    for (const relative of ['.claude-plugin', 'skills', 'agents', 'modules']) {
       const source = path.join(root, relative);
       if (fs.existsSync(source)) {
         fs.cpSync(source, path.join(validationStage, relative), { recursive: true, dereference: true });

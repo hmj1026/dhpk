@@ -65,22 +65,13 @@ release, or write externally. This includes `library-author cell-onboard` (a gui
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 
-## Commands (`commands/*.md`)
+## Commands
 
-The active command surface is defined by the command disposition manifest.
-Host-only adapters retain their owning Skill contracts.
-
-`create-pr`, `create-release`, `deep-analyze`,
-`dep-audit`, `doc-refactor`, `flow-drive`, `flow-guide`, `git-worktree`,
-`harness-audit`, `harness-govern`,
-`library-author cell-onboard`, `merge-prep`, `opsx-apply-resume`,
-`pr-summary`, `precommit`, `project-brief`, `review-pending`,
-`setup`, `simplify`, `smart-commit`, `ui-ux-verify`,
-`update-codemaps`, `update-docs`, and `verify`.
-
-The command disposition manifest records the authority, owner, callers, and
-structural evidence for each physical entry. Former command aliases are kept
-only in its separate removed ledger; they are not active discovery routes.
+The plugin ships no `commands/` directory. Every workflow is a skill invoked as
+`/dhpk:<skill-name>`; the removed command names and their replacement skill
+invocations are listed in the changelog. Skills keep the invocation class
+recorded in their own metadata (for example `git-smart-commit`,
+`release-creator`, `create-pr`, and `harness-setup` stay explicit-only).
 
 ## Family migration
 

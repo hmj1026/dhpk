@@ -410,7 +410,6 @@ dhpk/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 33 role-based agents (32 root + 1 module-scoped reviewer; INDEX.md is navigation)
-├── commands/                     # slash commands (review, setup, codex-*, smart-commit, opsx-apply-resume, ...)
 ├── skills/                       # SSOT: 68 flat canonical packages rooted at skills/<public-name>/ (six portable family names are unprefixed)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
