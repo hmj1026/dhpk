@@ -668,7 +668,7 @@ function compileNativePackage({
         hostOnlyIds: hostPublication.hostOnly.map((entry) => entry.id).sort(),
       },
       bundledContentProvenance: {
-        ...catalogContent.bundleProvenance,
+        ...publicLayout.bundleProvenance,
         files: [...publicLayout.files, ...publicLayout.assetFiles].map((file) => ({
           ownerId: file.ownerId,
           skillId: file.skillId,

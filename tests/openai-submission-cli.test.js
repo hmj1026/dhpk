@@ -109,7 +109,7 @@ test('tracked listing SVGs generate a reproducible artifact with matching finger
     const zip = fs.readFileSync(path.join(f.output, 'package.zip'));
     const receipt = JSON.parse(fs.readFileSync(path.join(f.output, 'provenance.json'), 'utf8'));
     assert.strictEqual(
-      receipt.provenance.fileFingerprints[iconPath],
+      receipt.provenance.fileFingerprints['assets/dhpk-icon.svg'],
       crypto.createHash('sha256').update(iconBytes).digest('hex'),
     );
 

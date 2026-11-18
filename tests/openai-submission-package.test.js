@@ -168,10 +168,10 @@ test('bundles common child content under its owner and rewrites its entrypoint l
     const child = fileByPath(result, 'skills/package-owner/references/child-guide/notes.md');
     assert.ok(child, 'the selected child resource must be inside its owner package');
     const owner = fileByPath(result, 'skills/package-owner/SKILL.md').bytes.toString('utf8');
-    assert.match(owner, /\]\(references\/child-guide\/SKILL\.md\)/);
+    assert.match(owner, /\]\(references\/child-guide\/REFERENCE\.md\)/);
     assert.doesNotMatch(owner, /\.\.\/child-guide/);
     assert.deepStrictEqual(
-      fileByPath(result, 'skills/package-owner/references/child-guide/SKILL.md').bytes,
+      fileByPath(result, 'skills/package-owner/references/child-guide/REFERENCE.md').bytes,
       Buffer.from('---\nname: child-guide\ndescription: "Fixture skill."\n---\n\nFixture instructions.\n'),
     );
     assert.strictEqual(child.bytes.toString('utf8'), 'Supporting note.\n');
@@ -747,7 +747,7 @@ test('copies child-declared dependencies under the parent owner and rewrites chi
       fileByPath(result, 'skills/package-owner/references/_dependencies/rules/child-policy.md').bytes.toString('utf8'),
       'Child-specific declared policy.\n',
     );
-    const child = fileByPath(result, 'skills/package-owner/references/child-guide/SKILL.md').bytes.toString('utf8');
+    const child = fileByPath(result, 'skills/package-owner/references/child-guide/REFERENCE.md').bytes.toString('utf8');
     assert.match(child, /\]\(\.\.\/_dependencies\/rules\/child-policy\.md\)/);
   } finally {
     removeFixture(fixture);
@@ -998,14 +998,15 @@ test('packages passive listing SVGs with their source fingerprint and Git blob p
   try {
     const result = compile(fixture);
     assert.strictEqual(result.ok, true, errorText(result));
-    const packagedIcon = fileByPath(result, iconPath);
+    const packagedIcon = fileByPath(result, 'assets/dhpk-icon.svg');
     assert.deepStrictEqual(packagedIcon.bytes, iconBytes);
+    assert.strictEqual(fileByPath(result, iconPath), undefined, 'the icon moves out of its owning skill');
     assert.strictEqual(
-      result.provenance.fileFingerprints[iconPath],
+      result.provenance.fileFingerprints['assets/dhpk-icon.svg'],
       crypto.createHash('sha256').update(iconBytes).digest('hex'),
     );
     const record = result.provenance.bundleProvenance.sourceToDestination.find((item) => (
-      item.source === iconPath && item.destination === iconPath
+      item.source === iconPath && item.destination === 'assets/dhpk-icon.svg'
     ));
     const expectedBlob = crypto.createHash('sha1')
       .update(Buffer.concat([Buffer.from(`blob ${iconBytes.length}\0`), iconBytes]))

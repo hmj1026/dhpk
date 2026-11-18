@@ -107,7 +107,7 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
   if (publicationView.errors.length > 0) return failure(publicationView.errors.map((error) => `marketplace selection: ${error}`));
   const tree = compilePublicPluginTree({ root, inventory, publicationView, manifest, sourceFileAllowlist });
   if (!tree.ok) return failure(tree.errors);
-  const { files, content } = tree;
+  const { files, bundleProvenance } = tree;
 
   const listing = tree.manifest.extensions['com.openai'].interface;
   const assetErrors = validateOpenaiListingAssets(listing, new Map(files.map((file) => [file.path, file.bytes])));
@@ -115,8 +115,8 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
 
   const fileFingerprints = Object.fromEntries(files.map((file) => [file.path, sha256Hex(file.bytes)]));
   const selectedStableIds = [...new Set([
-    ...content.bundleProvenance.entryIds,
-    ...content.bundleProvenance.childIds,
+    ...bundleProvenance.entryIds,
+    ...bundleProvenance.childIds,
   ])].sort();
   const identity = {
     version: sourceIdentity.version,
@@ -132,7 +132,7 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
     inventoryDigest: sha256Hex(stableStringify(inventory)),
     selectedStableIds,
     fileFingerprints,
-    bundleProvenance: content.bundleProvenance,
+    bundleProvenance,
   };
   return { ok: true, errors: [], files, provenance };
 }

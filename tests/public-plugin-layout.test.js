@@ -52,8 +52,14 @@ test('layout rewrites bare SKILL.md mentions inside renamed reference directorie
   assert.match(text(result, 'skills/a/references/b/run.js'), /SKILL\.md/);
 });
 
-test('layout does not touch bytes outside renamed reference directories', () => {
-  assert.strictEqual(text(layout(), 'skills/a/SKILL.md'), '---\nname: a\n---\nsee [ref](references/b/SKILL.md)\n');
+test('layout repoints links to a renamed entry from outside its directory', () => {
+  assert.strictEqual(text(layout(), 'skills/a/SKILL.md'), '---\nname: a\n---\nsee [ref](references/b/REFERENCE.md)\n');
+});
+
+test('layout leaves unresolvable SKILL.md mentions outside renamed directories alone', () => {
+  const files = [...baseFiles(), file('skills/a/references/other.md', 'see skills/php/SKILL.md and [x](../SKILL.md) and [y](nowhere/SKILL.md)\n')];
+  const result = layoutPublicPlugin({ files, manifest: manifest(), counts });
+  assert.strictEqual(text(result, 'skills/a/references/other.md'), 'see skills/php/SKILL.md and [x](../SKILL.md) and [y](nowhere/SKILL.md)\n');
 });
 
 test('layout moves the listing icon to ./assets/ and rewrites the listing', () => {
