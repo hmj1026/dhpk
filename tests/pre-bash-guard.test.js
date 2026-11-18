@@ -544,10 +544,10 @@ test('module hook that exits without reading stdin does not turn a later block i
   }
 });
 
-test('Bash PreToolUse declares the 2100-second block ceiling', () => {
+test('Bash PreToolUse declares the 1800-second block ceiling', () => {
   const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'));
   const bash = hooks.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash').hooks[0];
-  assert.strictEqual(bash.timeout, 2100);
+  assert.strictEqual(bash.timeout, 1800);
   assert.strictEqual(bash.onFailure, 'block');
   const edit = hooks.hooks.PreToolUse.find((entry) => String(entry.matcher).includes('Edit')).hooks[0];
   assert.strictEqual(edit.timeout, 5);
@@ -557,9 +557,9 @@ test('Bash PreToolUse declares the 2100-second block ceiling', () => {
   assert.strictEqual(Object.prototype.hasOwnProperty.call(stop, 'onFailure'), false);
   for (const relative of ['docs/hook-extension.md', 'docs/hook-extension.zh-TW.md']) {
     const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');
-    assert.match(text, /2100/, relative);
+    assert.match(text, /1800/, relative);
     assert.match(text, /1732/, relative);
-    assert.match(text, /368/, relative);
+    assert.match(text, /68 seconds|68 秒/, relative);
     assert.match(text, /2\.1\.295/, relative);
   }
 });
