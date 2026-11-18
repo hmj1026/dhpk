@@ -1,12 +1,10 @@
 ---
 name: release-creator
-argument-hint: '<version> [--execute]'
-description: 'Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.'
-disable-model-invocation: true
+description: "Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved."
 metadata:
-  dhpk-capability-id: dhpk.skill.release-creator
-  dhpk-name-style: portable-skill
-  dhpk-invocation-class: explicit-only
+  dhpk-capability-id: "dhpk.skill.release-creator"
+  dhpk-invocation-class: "explicit-only"
+  dhpk-name-style: "portable-skill"
 ---
 
 # Release Creator

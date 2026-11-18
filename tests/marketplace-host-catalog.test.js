@@ -63,6 +63,7 @@ function fixture() {
   }
   write(path.join(root, 'manifests/distribution-inventory.json'), `${JSON.stringify(INVENTORY, null, 2)}\n`);
   write(path.join(root, 'manifests/marketplace-selection.json'), `${JSON.stringify(SELECTION, null, 2)}\n`);
+  write(path.join(root, 'manifests/listing-metadata.json'), `${JSON.stringify(readJson('manifests/listing-metadata.json'), null, 2)}\n`);
   write(path.join(root, '.claude-plugin/plugin.json'), fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json')));
   fs.copyFileSync(path.join(ROOT, '.claude-plugin/icon.png'), path.join(root, '.claude-plugin/icon.png'));
   write(path.join(root, 'distribution/directory-plugin/README.md'), 'fixture readme\n');
@@ -142,7 +143,7 @@ function codexNativeProfileSelection() {
   });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
   assert.strictEqual(result.value.profileId, 'codex-native');
-  assert.strictEqual(result.value.selectedStableIds.length, 16);
+  assert.strictEqual(result.value.selectedStableIds.length, COMMON_IDS.length);
   return result.value;
 }
 
@@ -167,6 +168,8 @@ function rootSkillNames(packageRoot) {
 }
 
 function expectedHostOnly(host) {
+  // Codex native is the Public Plugin tree: it never carries Host-only entries.
+  if (host.name === 'Codex') return [];
   return SELECTION.skills.filter((row) => row.selection === 'host-only'
     && inventoryById.get(row.id).surfaces.includes(host.surface)).map((row) => inventoryById.get(row.id));
 }
@@ -276,7 +279,7 @@ test('common profile selection preserves Host publication identities and folded 
   }
 }));
 
-test('Codex verifies its named native selection and separately records Host-only catalog entries', () => withFixture((state) => {
+test('Codex verifies its named native selection and records no Host-only catalog entries', () => withFixture((state) => {
   const host = HOSTS.find((candidate) => candidate.name === 'Codex');
   const profileSelection = codexNativeProfileSelection();
   generate(host, state, profileSelection);

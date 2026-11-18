@@ -37,8 +37,8 @@
           "Trace this error to its likely cause."
         ],
         "websiteURL": "https://github.com/hmj1026/dhpk",
-        "supportURL": "https://github.com/hmj1026/dhpk/issues",
-        "privacyPolicyURL": "https://github.com/hmj1026/dhpk/blob/develop/docs/privacy.md",
+        "supportURL": "https://hmj1026.github.io/dhpk/support.html",
+        "privacyPolicyURL": "https://hmj1026.github.io/dhpk/privacy.html",
         "composerIcon": "./skills/flow-guide/assets/dhpk-icon.svg",
         "logo": "./skills/flow-guide/assets/dhpk-icon.svg"
       }

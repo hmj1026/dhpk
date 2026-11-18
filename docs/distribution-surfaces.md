@@ -315,7 +315,7 @@ explicit `--out`, validated additive skill overlays, and module presets remain
 available through their existing owners.
 
 The formal Codex native package has a separate active `codex-native` profile
-that records the exact 16 skill IDs physically published by that package.
+that records the exact 14 public catalog skill IDs physically published by that package.
 Native generation and release staging both require this explicit selection;
 omitting it fails closed. This package provenance profile does not change the
 `common` default used by the other installation surfaces. A legacy native
@@ -401,6 +401,15 @@ fallback or `lifecycle=promoted` — via `materializeNativePackage()` in
 (see [ADR-0006](adr/0006-codex-native-publication-artifact.md)),
 never generated fresh at install time.
 
+**One Public Plugin tree.** The package is the Public Plugin tree: the same
+skills, `plugin.json`, and `.codex-plugin/plugin.json` bytes as the OpenAI
+submission ZIP (`scripts/lib/public-plugin-tree.js` builds both). Its skill set
+is the public catalog (public entries and their bundled children) with no
+Host-only skills; only `provenance.json`, `fingerprints.json`, and the README
+files are native-package additions. `node scripts/ci/verify-platform-packages.js
+--surface public-plugin` builds the tree from sources and fails when this
+directory differs from it.
+
 **Native package membership.** The inventory owns native package membership.
 Flow Drive is a portable task/help instruction directory and owns no transport,
 context, adapter, or runner runtime. Shared CLI dispatch support is maintained
@@ -478,9 +487,11 @@ is silently dropped. The supported Codex delivery path remains
 contract unaffected by this package (see its own tests in
 `tests/install-codex-skills.test.js` for copy/symlink/update/version-fingerprint
 coverage). The shell entries only parse options and exec the JS installer; a
-standalone `harness-setup` package carries that installer as one generated
-bundle, `scripts/lib/dhpk-installer.cjs` (`scripts/lib/installer-bundle.js`,
-checked by `npm run check:installer-bundle`).
+standalone `harness-setup` package carries that installer as readable source
+modules (the entry `scripts/lib/install-adapters/codex-cli.js` and its require
+closure, each at most 256 KiB) under the skill's own `scripts/lib/`, with no
+generated bundle (`scripts/lib/installer-modules.js`, checked by
+`npm run check:installer-modules`).
 
 **Hardened distribution evidence.** The installer contract and terminology are
 defined in [basic operations](basic-operations.md#sync-codex-cli-content). A
@@ -493,7 +504,7 @@ verification set is:
 ```text
 node tests/install-codex-skills.test.js
 node tests/install-shell-entry-parity.test.js
-node tests/installer-bundle.test.js
+node tests/installer-modules.test.js
 node tests/validate-openai-metadata.test.js
 node tests/consumer-gate-cli.test.js
 node scripts/ci/validate-openai-metadata.js --root .

@@ -12,10 +12,18 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { fakePlugin } = require('./_lib/shared-projection-plugin');
 const { CODEX_STUB_BIN } = require('./_lib/install-codex-skills-fixtures');
-const { buildInstallerBundle } = require('../scripts/lib/installer-bundle');
+const { installerModuleIds, REPO_ROOT } = require('../scripts/lib/installer-modules');
 
 const HOOKS = path.join(__dirname, '..', 'scripts', 'hooks');
 const SCRIPTS = { codex: path.join(HOOKS, 'install-codex-skills.sh'), cursor: path.join(HOOKS, 'install-cursor-harness.sh') };
+
+// The installer modules a packaged Skill ships, copied under `root` at their scripts/ paths.
+function copyInstallerModules(root) {
+  for (const id of installerModuleIds()) {
+    fs.mkdirSync(path.dirname(path.join(root, id)), { recursive: true });
+    fs.copyFileSync(path.join(REPO_ROOT, id), path.join(root, id));
+  }
+}
 const FLAGS = ['--copy', '--update', '--migrate', '--plan', '--json', '--adopt', '--skill', '--uninstall', '--recover', '--force'];
 
 function tempDir(prefix) {
@@ -42,9 +50,9 @@ for (const [host, script] of Object.entries(SCRIPTS)) {
   });
 }
 
-// A checkout runs scripts/lib/install-adapters/codex-cli.js; a packaged copy
-// runs dhpk-installer.cjs beside the script. Either way, node is all it needs.
-test('testShell_codex_prefersTheBundleBesideItAndNeedsOnlyNode', () => {
+// A checkout and a packaged copy both run install-adapters/codex-cli.js from the
+// scripts/lib/ beside the script. Either way, node is all it needs.
+test('testShell_codex_runsTheEntryBesideItAndNeedsOnlyNode', () => {
   const root = tempDir('dhpk-thin-packaged-');
   const plugin = fakePlugin();
   const project = tempDir('dhpk-thin-project-');
@@ -54,8 +62,9 @@ test('testShell_codex_prefersTheBundleBesideItAndNeedsOnlyNode', () => {
     const lib = path.join(root, 'scripts', 'lib');
     fs.mkdirSync(lib, { recursive: true });
     fs.copyFileSync(SCRIPTS.codex, path.join(lib, 'install-codex-skills.sh'));
-    // A bundle that proves it was the one executed.
-    fs.writeFileSync(path.join(lib, 'dhpk-installer.cjs'), 'process.stdout.write("bundle beside the script ran\\n");\n');
+    // An entry that proves it was the one executed.
+    fs.mkdirSync(path.join(lib, 'install-adapters'));
+    fs.writeFileSync(path.join(lib, 'install-adapters', 'codex-cli.js'), 'process.stdout.write("entry beside the script ran\\n");\n');
     for (const tool of ['bash', 'dirname', 'sed', 'node']) {
       const found = tool === 'node' ? process.execPath : spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
       fs.symlinkSync(found, path.join(bin, tool));
@@ -66,7 +75,7 @@ test('testShell_codex_prefersTheBundleBesideItAndNeedsOnlyNode', () => {
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.strictEqual(result.stdout, 'bundle beside the script ran\n');
+    assert.strictEqual(result.stdout, 'entry beside the script ran\n');
   } finally {
     for (const directory of [root, plugin, project, bin]) fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -87,15 +96,15 @@ test('testShell_codex_withoutAnyInstallerEntry_failsWithExit2', () => {
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 2);
-    assert.match(result.stderr, /the JS installer is neither beside this script nor under scripts\/lib\/install-adapters/);
+    assert.match(result.stderr, /the JS installer is not under scripts\/lib\/install-adapters/);
     assert.strictEqual(fs.existsSync(path.join(project, '.codex')), false);
   } finally {
     for (const directory of [root, plugin, project]) fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 
-// A symlinked bundle would let whatever it points at run as the installer.
-test('testShell_codex_refusesASymlinkedBundle', () => {
+// A symlinked entry would let whatever it points at run as the installer.
+test('testShell_codex_refusesASymlinkedEntry', () => {
   const root = tempDir('dhpk-thin-symlink-');
   const plugin = fakePlugin();
   const project = tempDir('dhpk-thin-symlink-project-');
@@ -106,22 +115,23 @@ test('testShell_codex_refusesASymlinkedBundle', () => {
     fs.mkdirSync(lib, { recursive: true });
     fs.copyFileSync(SCRIPTS.codex, path.join(lib, 'install-codex-skills.sh'));
     fs.writeFileSync(path.join(root, 'elsewhere.cjs'), `require("fs").writeFileSync(${JSON.stringify(marker)}, "ran");\n`);
-    fs.symlinkSync(path.join(root, 'elsewhere.cjs'), path.join(lib, 'dhpk-installer.cjs'));
+    fs.mkdirSync(path.join(lib, 'install-adapters'));
+    fs.symlinkSync(path.join(root, 'elsewhere.cjs'), path.join(lib, 'install-adapters', 'codex-cli.js'));
     const result = spawnSync('bash', [path.join(lib, 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: project,
       env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, DHPK_INSTALLER_ROOT: plugin },
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 2, result.stderr);
-    assert.match(result.stderr, /packaged JS installer .* is a symlink/);
+    assert.match(result.stderr, /JS installer .* is a symlink/);
     assert.strictEqual(fs.existsSync(marker), false);
   } finally {
     for (const directory of [root, plugin, project]) fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 
-// The Skill adapter vets the helper it runs; the bundle beside it gets the same vetting.
-test('testAdapter_refusesASymlinkedBundleBesideTheHelper', () => {
+// The Skill adapter vets the helper it runs; the installer entry beside it gets the same vetting.
+test('testAdapter_refusesASymlinkedEntryBesideTheHelper', () => {
   const skill = tempDir('dhpk-thin-adapter-');
   const artifact = fakePlugin();
   const project = tempDir('dhpk-thin-adapter-project-');
@@ -134,7 +144,8 @@ test('testAdapter_refusesASymlinkedBundleBesideTheHelper', () => {
     fs.copyFileSync(SCRIPTS.codex, path.join(scripts, 'lib', 'install-codex-skills.sh'));
     fs.chmodSync(path.join(scripts, 'lib', 'install-codex-skills.sh'), 0o755);
     fs.writeFileSync(path.join(skill, 'elsewhere.cjs'), `require("fs").writeFileSync(${JSON.stringify(marker)}, "ran");\n`);
-    fs.symlinkSync(path.join(skill, 'elsewhere.cjs'), path.join(scripts, 'lib', 'dhpk-installer.cjs'));
+    fs.mkdirSync(path.join(scripts, 'lib', 'install-adapters'));
+    fs.symlinkSync(path.join(skill, 'elsewhere.cjs'), path.join(scripts, 'lib', 'install-adapters', 'codex-cli.js'));
     const result = spawnSync('bash', [path.join(scripts, 'install-codex-project.sh'), '--source-artifact', artifact, '--copy', '--force'], {
       cwd: project,
       env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}` },
@@ -149,8 +160,8 @@ test('testAdapter_refusesASymlinkedBundleBesideTheHelper', () => {
   }
 });
 
-test('testShell_codex_runsTheGeneratedBundleAsTheInstaller', () => {
-  const root = tempDir('dhpk-thin-real-bundle-');
+test('testShell_codex_runsTheShippedModulesAsTheInstaller', () => {
+  const root = tempDir('dhpk-thin-real-modules-');
   const plugin = fakePlugin();
   const project = tempDir('dhpk-thin-real-project-');
   try {
@@ -158,7 +169,7 @@ test('testShell_codex_runsTheGeneratedBundleAsTheInstaller', () => {
     const lib = path.join(root, 'scripts', 'lib');
     fs.mkdirSync(lib, { recursive: true });
     fs.copyFileSync(SCRIPTS.codex, path.join(lib, 'install-codex-skills.sh'));
-    fs.writeFileSync(path.join(lib, 'dhpk-installer.cjs'), buildInstallerBundle());
+    copyInstallerModules(root);
     const result = spawnSync('bash', [path.join(lib, 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: project,
       env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, DHPK_INSTALLER_ROOT: plugin },
