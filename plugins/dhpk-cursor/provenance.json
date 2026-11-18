@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.77.4",
-  "sourceCommit": "3c520198cdb7edf7d42cb01b1e7de16965dde91f",
-  "generatedFromCommit": "3c520198cdb7edf7d42cb01b1e7de16965dde91f",
-  "generatedFromTree": "ef528497f0d7439dc47f0cce41aa648c95f57375",
+  "sourceCommit": "4b53877682aceeec287909b8e437816e85d09529",
+  "generatedFromCommit": "4b53877682aceeec287909b8e437816e85d09529",
+  "generatedFromTree": "603fe237ff3ea3dc25d23723e6ddc50cbe036f54",
   "inventoryDigest": "55de3f7eeb35cedff1a6d1ca51d28bc10e849de81cd053634871aa6aef954d0f",
   "inventoryRevision": "sha256:3235cc1cd970c2f65a668bdd332dd796fb76abb985e950fe0a4be58fa099e1b7",
   "generatorVersion": "1.1.0",
@@ -2038,7 +2038,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/SKILL.md",
         "destination": "skills/release-creator/SKILL.md",
-        "originalGitBlobDigest": "34872faf3d071cb6b7880b261a3af9b789b4b4e4"
+        "originalGitBlobDigest": "0be84b5bc89d851ffb614a8a0999ed12a2d427f1"
       },
       {
         "ownerId": "release-creator",
