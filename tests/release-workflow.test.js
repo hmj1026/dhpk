@@ -439,6 +439,53 @@ test('CI preserves the required Validate harness assets check as the shard aggre
   assert.match(job, /node scripts\/ci\/verify-test-shards\.js/);
 });
 
+// The develop ruleset requires the "Validate harness assets" check on any
+// commit pushed to develop. CI only runs on pull requests, so the release
+// merge commit on main never carries it; this release job reports the check
+// on the tag commit, and sync-develop waits for it before pushing.
+function releaseJobBlock(jobKey) {
+  const start = raw.indexOf('\n  ' + jobKey + ':\n');
+  assert.ok(start !== -1, 'missing release job ' + jobKey);
+  const rest = raw.slice(start + 1);
+  const next = rest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/);
+  return next === -1 ? rest : rest.slice(0, next + 2);
+}
+
+test('release reports the develop-required "Validate harness assets" check only from a successful release and publish', () => {
+  const job = releaseJobBlock('release-check');
+  assert.match(job, /\n    name: Validate harness assets\n/);
+  const needs = job.match(/needs:\s*\[([^\]]+)\]/);
+  assert.ok(needs, 'release-check must declare its upstream jobs');
+  assert.deepStrictEqual(needs[1].split(',').map((value) => value.trim()).sort(), ['publish', 'release']);
+  assert.match(job, /\n    if: always\(\)\n/, 'release-check must run even when an upstream job fails, so it never reports a skipped check');
+  assert.match(job, /RELEASE_RESULT:\s*\$\{\{\s*needs\.release\.result\s*\}\}/);
+  assert.match(job, /PUBLISH_RESULT:\s*\$\{\{\s*needs\.publish\.result\s*\}\}/);
+  assert.doesNotMatch(job, /actions\/checkout/, 'release-check needs no repository checkout');
+});
+
+test('sync-develop waits for the release-check job before pushing develop', () => {
+  const job = releaseJobBlock('sync-develop');
+  const needs = job.match(/needs:\s*\[([^\]]+)\]/);
+  assert.ok(needs, 'sync-develop must declare its upstream jobs');
+  assert.ok(needs[1].split(',').map((value) => value.trim()).includes('release-check'));
+});
+
+test('release-check rejects any upstream result other than success', () => {
+  const job = releaseJobBlock('release-check');
+  const script = job.slice(job.indexOf('run: |') + 'run: |'.length)
+    .split('\n').filter((line) => line.startsWith('          ')).map((line) => line.slice(10)).join('\n');
+  for (const [release, publish, status] of [
+    ['success', 'success', 0], ['failure', 'skipped', 1], ['success', 'failure', 1],
+    ['cancelled', 'skipped', 1], ['success', 'skipped', 1],
+  ]) {
+    const result = spawnSync('bash', ['-c', script], {
+      encoding: 'utf8',
+      env: { ...process.env, RELEASE_RESULT: release, PUBLISH_RESULT: publish },
+    });
+    assert.strictEqual(result.status, status, release + '/' + publish + ' must exit ' + status + '; stderr: ' + result.stderr);
+  }
+});
+
 test('a post-publish consumer-verify job runs the full harness release probe and reports via the job summary, never editing the release', () => {
   assert.ok(raw.includes('consumer-verify:'), 'missing consumer-verify job');
   assert.ok(raw.includes('bin/dhpk harness release'), 'consumer-verify must run the public release facade');

@@ -34,6 +34,7 @@ const WORKFLOW_TIMEOUTS = Object.freeze({
     publish: 5,
     'consumer-verify': 10,
     'sync-develop': 5,
+    'release-check': 5,
   }),
 });
 
@@ -42,6 +43,7 @@ const RELEASE_JOB_PERMISSIONS = Object.freeze({
   publish: Object.freeze({ contents: 'write' }),
   'consumer-verify': Object.freeze({ contents: 'read' }),
   'sync-develop': Object.freeze({ contents: 'write' }),
+  'release-check': Object.freeze({ contents: 'read' }),
 });
 
 // Explicit workflow/job pairs that git-push with the job token. Job names

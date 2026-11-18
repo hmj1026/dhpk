@@ -81,8 +81,9 @@ const TIMEOUT_HINTS = Object.freeze({
   // About 120s of consumer-gate children alone; 180s overran twice under the
   // four-way local portable publish gate for 0.72.0.
   'consumer-gate-cli.test.js': 300000,
-  // About 115s alone: every case spawns the real Bash hooks.
-  'credential-read-policy.test.js': 300000,
+  // About 160s alone after #1468: every case spawns the real Bash hooks. 300s overran
+  // twice in CI shard 1, next to hook-bypass and the other credential suites, for #1482.
+  'credential-read-policy.test.js': 480000,
   // 818 cases that each spawn the real Bash hooks after #1422; 180s overran in
   // CI shard 1 for #1426, and 300s overran there after #1457.
   'hook-bypass.test.js': 480000,

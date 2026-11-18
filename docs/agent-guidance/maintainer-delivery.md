@@ -116,9 +116,10 @@ Only after explicit user authorization and a successful gate, add `--execute`.
 It rechecks the gate and performs an ordinary merge with `--merge` and
 `--match-head-commit SHA`. It does not use `--auto`, `--admin`, or branch
 deletion. Observe the effective required checks and applicable ruleset live.
-Live rules must include `Validate harness assets`. The `develop` ruleset is
-deliberately disabled so the release `sync-develop` push can land (#1275).
-With no live rules, the gate applies its baseline instead: `Validate harness
+Live rules must include `Validate harness assets`. The `develop` ruleset
+requires that check; the Release workflow's `release-check` job reports it on
+the release commit so the `sync-develop` push can land (#1275). With no live
+rules, the gate applies its baseline instead: `Validate harness
 assets` from GitHub Actions (App 15368) must pass at the exact head, and the
 head must not be behind `develop`. The base check runs at the pre-merge
 recheck, not atomically with the merge; a `develop` that moves in between is an
