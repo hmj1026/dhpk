@@ -170,11 +170,11 @@ jobs:
       - name: Validate Cursor project-local sync
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-cursor-sync.js
+      - name: No-drift installer bundle check
+        run: node scripts/ci/gen-installer-bundle.js --check
       - name: No-drift Claude manifest check
-        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-manifest.js --check
       - name: No-drift Claude marketplace package check
-        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-marketplace-package.js --check
       - name: Validate invocation policy
         if: needs.plan.outputs.mode == 'full'
