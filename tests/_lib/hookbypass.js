@@ -8,6 +8,7 @@
 const { spawnSync } = require('node:child_process');
 const { assert } = require('./tinytest');
 const { mkRepo, rmRepo, runHook } = require('./hookharness');
+const { currentPhase, unguarded } = require('./hookreplay');
 
 const BLOCK = 2;
 const ALLOW = 0;
@@ -29,7 +30,23 @@ function mkBranchRepo(branch, { prefix = 'dhpk-bypass-' } = {}) {
   return dir;
 }
 
+// While a suite records or replays its hook calls (tests/_lib/hookreplay.js),
+// one pair of repos serves every test: a recordable body never mutates them
+// (a mutation disqualifies the test from batching), so sharing is safe and the
+// per-test repo setup disappears (#1506).
+let sharedRepos = null;
+function getSharedRepos() {
+  if (sharedRepos) return sharedRepos;
+  sharedRepos = unguarded(() => ({ protectedRepo: mkBranchRepo('main'), featureRepo: mkBranchRepo('feature/x') }));
+  process.on('exit', () => {
+    rmRepo(sharedRepos.protectedRepo);
+    rmRepo(sharedRepos.featureRepo);
+  });
+  return sharedRepos;
+}
+
 function withRepos(fn) {
+  if (currentPhase() !== 'direct') return fn(getSharedRepos());
   const protectedRepo = mkBranchRepo('main');
   const featureRepo = mkBranchRepo('feature/x');
   try {
@@ -62,6 +79,7 @@ module.exports = {
   git,
   mkBranchRepo,
   withRepos,
+  getSharedRepos,
   bashHook,
   expectStatus,
 };

@@ -3,7 +3,8 @@
 // #1429: tar and cp are Readers with their own source grammar (spec #1422, REQ-6, REQ-9).
 // Source versus destination roles come from each command's own options; no generic argv parser.
 // Every block has a legitimate-use allow beside it, every allow a dangerous counterpart.
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { runHook: runHookAt } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

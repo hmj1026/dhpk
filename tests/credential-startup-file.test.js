@@ -3,7 +3,8 @@
 // (#1451) A shell startup file named by BASH_ENV, ENV, --rcfile or --init-file is run as shell code,
 // so it is an execution entrance judged by the same visible-name rule as source and dot (#1430).
 // The startup file content is never read; only its name is judged.
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { mkRepo, rmRepo, runHook } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

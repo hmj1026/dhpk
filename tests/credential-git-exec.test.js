@@ -2,7 +2,8 @@
 
 // (#1431) Git 會執行指令字串的入口：rebase --exec、submodule foreach、difftool --extcmd、
 // SSH 指令（core.sshCommand、GIT_SSH_COMMAND）。字串裡可見的 Protected Path 讀取與直接寫出相同判定。
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { mkRepo, rmRepo, runHook } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');
