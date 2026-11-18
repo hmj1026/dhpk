@@ -30,8 +30,9 @@ Host-only and withdrawn skills are excluded. Optional agent-role/custom-role
 distribution has separate acceptance and is outside this skills-only candidate.
 
 The candidate metadata is maintained in
-[`manifests/openai-submission.json`](../manifests/openai-submission.json). Its
-version is `0.64.4`, matching the current repository plugin version. The
+[`manifests/listing-metadata.json`](../manifests/listing-metadata.json), the
+single listing source. The builder renders the submission manifest from it and
+takes the version from `package.json` (single version source). The
 candidate `developerName` is `hmj1026`, as directed by the user; portal identity
 verification remains `NOT_RUN`. The privacy URL is
 a candidate link to this repository's `develop` branch. The policy below is a
@@ -62,7 +63,6 @@ valid artifact and receipt produced by this builder.
 
 ```bash
 bin/dhpk distribution openai-submission generate \
-  --manifest manifests/openai-submission.json \
   --output /absolute/path/outside/dhpk/dhpk-openai-submission \
   --json
 

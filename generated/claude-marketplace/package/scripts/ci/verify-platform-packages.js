@@ -41,16 +41,21 @@ const {
   assertCleanSourceCheckout,
 } = require('../lib/platform-provenance');
 const { sha256Hex } = require('../lib/content-fingerprint');
+const { compileMarketplacePublicationView } = require('../lib/marketplace-selection');
+const { compileOpenaiSubmissionPackage } = require('../lib/openai-submission-package');
+const { renderOpenaiSubmissionManifest, readSourceVersion } = require('../lib/host-manifests');
+const { checkPublicPlugin } = require('../lib/publication-conformance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
 const ROOT = path.join(__dirname, '..', '..');
-const SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+const SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin', 'public-plugin']);
 const SURFACE_DEPENDENCIES = Object.freeze({
   'agent-plugin': Object.freeze([]),
   'cursor-plugin': Object.freeze(['agent-plugin']),
   'codex-native': Object.freeze([]),
   'agy-plugin': Object.freeze([]),
+  'public-plugin': Object.freeze([]),
 });
 
 function resolveSurfaceSelection(requested = null, dependencyMap = SURFACE_DEPENDENCIES) {
@@ -273,6 +278,38 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, module
   };
 }
 
+// Public Plugin: build the OpenAI skills-only package in memory from the
+// committed tree and run the publication conformance rules on the result.
+function verifyPublicPlugin({ root, inventory }) {
+  const version = readSourceVersion(root);
+  const selection = readJson(path.join(root, 'manifests', 'marketplace-selection.json'));
+  const view = compileMarketplacePublicationView({ inventory, selection });
+  if (view.errors.length > 0) return publicPluginResult([`marketplace selection: ${view.errors.join('; ')}`]);
+  const tracked = spawnSync('git', ['-C', root, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (tracked.status !== 0) return publicPluginResult(['git ls-files failed; cannot build the Public Plugin']);
+  const compiled = compileOpenaiSubmissionPackage({
+    root,
+    inventory,
+    selection,
+    manifest: renderOpenaiSubmissionManifest(root, version),
+    sourceIdentity: { version, commit: sourceCommit(root, 'unknown') },
+    sourceFileAllowlist: new Set(tracked.stdout.split('\0').filter(Boolean)),
+  });
+  if (!compiled.ok) return publicPluginResult(compiled.errors);
+  const files = new Map(compiled.files.map((file) => [file.path, file.bytes]));
+  return publicPluginResult(checkPublicPlugin(files, { version }), compiled.files.length);
+}
+
+function publicPluginResult(errors, fileCount = 0) {
+  return {
+    structural: errors.length === 0 ? 'PASS' : 'FAIL',
+    conformance: errors.length === 0 ? 'PASS' : 'FAIL',
+    fileCount,
+    selectedSkillIds: [],
+    errors,
+  };
+}
+
 function stripFrontmatter(content) {
   const match = String(content).match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
   return match ? String(content).slice(match[0].length) : String(content);
@@ -492,6 +529,7 @@ function main(argv = process.argv.slice(2)) {
       ...(selectedSurfaces.includes('cursor-plugin') ? { 'cursor-plugin': verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-cursor'), temp: tempCursor }) } : {}),
       ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
       ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-agy'), temp: tempAgy }) } : {}),
+      ...(selectedSurfaces.includes('public-plugin') ? { 'public-plugin': verifyPublicPlugin({ root, inventory }) } : {}),
     };
     const selection = parsed.explicit ? { requested: parsed.requested, resolved: parsed.resolved } : null;
     report = reportFromSurfaces(surfaces, verifyPolicyParity(root, inventory, selectedSurfaces), selection);
@@ -517,4 +555,5 @@ module.exports = {
   expectedAgyPolicy,
   expectedCursorPolicyBody,
   cleanCheckoutReport,
+  verifyPublicPlugin,
 };

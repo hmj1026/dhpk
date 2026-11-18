@@ -12,6 +12,7 @@ const {
   expectedAgyPolicy,
   expectedCursorPolicyBody,
   cleanCheckoutReport,
+  verifyPublicPlugin,
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
@@ -337,6 +338,20 @@ test('public Cursor selection verifies its Agent owner dependency and fails on t
   } finally {
     fs.rmSync(historicalFixture.root, { recursive: true, force: true });
   }
+});
+
+test('Public Plugin built from the committed tree passes publication conformance', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const result = verifyPublicPlugin({ root: ROOT, inventory });
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.conformance, 'PASS');
+  assert.ok(result.fileCount > 0);
+});
+
+test('public-plugin is a selectable verifier surface with no dependencies', () => {
+  assert.deepStrictEqual(resolveSurfaceSelection(['public-plugin']), {
+    ok: true, requested: ['public-plugin'], resolved: ['public-plugin'],
+  });
 });
 
 run('verify-platform-packages');
