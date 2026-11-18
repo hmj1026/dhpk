@@ -79,9 +79,8 @@ otherwise unavoidable system boundaries as described in [mocking.md](references/
 ## Test-generation
 
 Inspect the named production seam and existing conventions, then generate the
-smallest behavior-focused tests or scaffold. `test-generation` replaces the
-retired `/codex-test-gen` command; select a Codex backend only when explicitly
-requested.
+smallest behavior-focused tests or scaffold. Select a Codex backend only when
+explicitly requested.
 
 Run the scoped tests when the caller permits and the runtime is available.
 If the caller requests files only, supply the exact command and mark execution

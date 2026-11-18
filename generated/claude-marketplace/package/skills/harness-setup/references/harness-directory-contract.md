@@ -16,5 +16,4 @@ arbitrary path through unchanged. Set `HARNESS_DIR` to the selected directory an
 rule file (`CLAUDE.md` or `AGENTS.md`) before scanning. Never
 silently switch directories or treat a missing script directory as an empty
 harness. The retained setup owner is `harness-setup`; its package-local Host adapters
-define installation and inspection behavior. This directory contract does not
-provide the retired governance audit or scenario runners.
+define installation and inspection behavior.

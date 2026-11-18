@@ -51,7 +51,7 @@ observation and load only its local procedure.
 - Implement or fix a source finding: use `flow-drive`. Explicit dependency
   remediation belongs to `deps fix` within its declared bound.
 - Trace an unfamiliar code path: use `code-trace`.
-- Specialized skill governance scoring or stocktake: the former audit capability is retired. For an existing skill document or change, select this skill's `docs` or `risk` mode within its declared scope.
+- Skill governance scoring or stocktake: not provided. For an existing skill document or change, select this skill's `docs` or `risk` mode within its declared scope.
 
 ## Procedure
 
