@@ -2533,15 +2533,87 @@
       "sourcePath": "skills/harness-setup/scripts/install-codex-project.sh",
       "destination": "skills/harness-setup/scripts/install-codex-project.sh",
       "kind": "entry",
-      "sha256": "ec8238e4f699eb86190a7837ab1c8300fb1582ca1a2fb25f281ec561cda3a55e"
+      "sha256": "37fe84359c3de8196ab1fdfed4e5dd3a004e3c0b70068adbafd4581b4e14a66b"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/agent-frontmatter.js",
+      "destination": "skills/harness-setup/scripts/lib/agent-frontmatter.js",
+      "kind": "packaging-resource",
+      "sha256": "35d3f56b8a61d4315f0f77480bca7e72a08fcb1538264f09f914ac29e62cbbff"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/bounded-filesystem.js",
+      "destination": "skills/harness-setup/scripts/lib/bounded-filesystem.js",
+      "kind": "packaging-resource",
+      "sha256": "5f8ad13503ef14ca51e2d8237deb691656227dfc5fc837ed8f59f72de7f56109"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/content-fingerprint.js",
+      "destination": "skills/harness-setup/scripts/lib/content-fingerprint.js",
+      "kind": "packaging-resource",
+      "sha256": "baf314fa59ad6ab8146bc69873101fdf0ef3f469933b6d120eed8c8171341ef3"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/cursor-consumer-evidence.js",
+      "destination": "skills/harness-setup/scripts/lib/cursor-consumer-evidence.js",
+      "kind": "packaging-resource",
+      "sha256": "4642d53eaffada1336d22966b59daa50b7a858a26e9ab63a7736e3da2dcd4d98"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/distribution-compiler.js",
+      "destination": "skills/harness-setup/scripts/lib/distribution-compiler.js",
+      "kind": "packaging-resource",
+      "sha256": "b13b954ce9176c36e0ead79669e3806b9de287db6f6b6b75dc0d81dfc45ac865"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/distribution-projection-contract.js",
+      "destination": "skills/harness-setup/scripts/lib/distribution-projection-contract.js",
+      "kind": "packaging-resource",
+      "sha256": "1afc191aec267df918faed8e5d4ec1c522d91292178e798b98b15174156f5912"
     },
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
-      "destination": "skills/harness-setup/scripts/lib/dhpk-installer.cjs",
-      "kind": "generated",
-      "sha256": "c031c5855fe0d0ea672f07a14205318980d6e321a99f1dd881a83d24ac9aab80"
+      "destination": "skills/harness-setup/scripts/lib/install-adapters/codex-cli.js",
+      "kind": "packaging-resource",
+      "sha256": "27ec7727102e72b62929d215471ba605f243b2141a065991aecf2cd699cbe833"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/install-adapters/codex.js",
+      "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
+      "kind": "packaging-resource",
+      "sha256": "74e5fca87060d01a3e20e3a87f691abb88c76b3db87939a6af88c1ccb5aef3a7"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/install-adapters/cursor-plan.js",
+      "destination": "skills/harness-setup/scripts/lib/install-adapters/cursor-plan.js",
+      "kind": "packaging-resource",
+      "sha256": "dae036fe1d9c3c2e2bda6fcc09f898246a87eeb201f75cdfcacc718a2ca08493"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/install-adapters/python-compat.js",
+      "destination": "skills/harness-setup/scripts/lib/install-adapters/python-compat.js",
+      "kind": "packaging-resource",
+      "sha256": "a3f78a3b572dbb8a5d879c387a19f5bb6b8d368ad5cad7131106ba6df267fbd6"
     },
     {
       "skillId": "harness-setup",
@@ -2557,7 +2629,111 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "c11bd51c0551a0a7671cde5a1ef8468a7e4abd232194875fcf4f0e38b7194358"
+      "sha256": "d1f95a846268f94f5c5eb30e8f353359c3147b2398260aa126f54376b9f5caab"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/native-shared-skill-install.js",
+      "destination": "skills/harness-setup/scripts/lib/native-shared-skill-install.js",
+      "kind": "packaging-resource",
+      "sha256": "da0626ed359846127f89526e7457a1ed5b51eb0b7c2d2115cad927c7db12c97e"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/portable-skill-metadata.js",
+      "destination": "skills/harness-setup/scripts/lib/portable-skill-metadata.js",
+      "kind": "packaging-resource",
+      "sha256": "4f302b75f776b619b9ffe7f69ea1bda4a839621c8820aa92e6307fa04d5beda4"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/project-agent-host-binding-policy.js",
+      "destination": "skills/harness-setup/scripts/lib/project-agent-host-binding-policy.js",
+      "kind": "packaging-resource",
+      "sha256": "06d43c9008e96c10d84626da072f423fc0f99693340feba33eaf207233c4ec53"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/project-agent-projection-plan.js",
+      "destination": "skills/harness-setup/scripts/lib/project-agent-projection-plan.js",
+      "kind": "packaging-resource",
+      "sha256": "6a2aa0bd1a231ee73349ef6f9861418b2e314dca545411ccfd0406c1f4353596"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/project-agent-projection-publisher.js",
+      "destination": "skills/harness-setup/scripts/lib/project-agent-projection-publisher.js",
+      "kind": "packaging-resource",
+      "sha256": "256a607b1f8326311c8734da6b183daeb142dba362da521ec1e98b821e3b91d4"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/project-agent-provider-adapters.js",
+      "destination": "skills/harness-setup/scripts/lib/project-agent-provider-adapters.js",
+      "kind": "packaging-resource",
+      "sha256": "5199f9029906b1e7c9e6a09fa17c149a0c2b88ee45597babad94745b50cc80c1"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/projection-artifact-store.js",
+      "destination": "skills/harness-setup/scripts/lib/projection-artifact-store.js",
+      "kind": "packaging-resource",
+      "sha256": "331b7d769a163edab94dcb98398f13370d2c305235db2542fca1f9846d86971e"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/projection-journal.js",
+      "destination": "skills/harness-setup/scripts/lib/projection-journal.js",
+      "kind": "packaging-resource",
+      "sha256": "079b2cf3cc8e59659be6c063b12b01c08e65f2ff88b751b4db3e3a71f86d6b21"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/redaction.js",
+      "destination": "skills/harness-setup/scripts/lib/redaction.js",
+      "kind": "packaging-resource",
+      "sha256": "0ffea5a2fb433c2d30d85294eed9ceaee83f76bcd6e4d7722e3e261cb7599d9d"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/release-evidence.js",
+      "destination": "skills/harness-setup/scripts/lib/release-evidence.js",
+      "kind": "packaging-resource",
+      "sha256": "43c93a257f0a76243d89c1b00d9774109431ae136b4cf9ac5ac4fea1bc1c5086"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/secret-patterns.js",
+      "destination": "skills/harness-setup/scripts/lib/secret-patterns.js",
+      "kind": "packaging-resource",
+      "sha256": "9793bfaf62db8ed5f8c1d8a172a477b4e0de945cc620211ed9cdf7f0f1bad35f"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/skill-usage.js",
+      "destination": "skills/harness-setup/scripts/lib/skill-usage.js",
+      "kind": "packaging-resource",
+      "sha256": "20bf5503cd0eb94b52c9581d1a1cc7d2e21a211fa7cdc6c423f04a29884373ef"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/standalone-skill-dependencies.js",
+      "destination": "skills/harness-setup/scripts/lib/standalone-skill-dependencies.js",
+      "kind": "packaging-resource",
+      "sha256": "1ab83b8a5c2bb3587449b03782259b6a8ff9f0769ccc274f5ea4f04160a923a9"
     },
     {
       "skillId": "harness-setup",

@@ -14,7 +14,6 @@ const ROOT = path.join(__dirname, '..');
 const MARKETPLACE = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'marketplace.json'), 'utf8'));
 const ENTRY = MARKETPLACE.plugins.find((plugin) => plugin.name === 'dhpk');
 const GENERATOR = require('../scripts/ci/gen-claude-marketplace-package');
-const { buildInstallerBundle } = require('../scripts/lib/installer-bundle');
 const INSTALLER = path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh');
 const ADAPTER = path.join(ROOT, 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh');
 
@@ -58,7 +57,7 @@ function makeHarnessPackageRoot(parent) {
   fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
   fs.copyFileSync(INSTALLER, path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh'));
   fs.chmodSync(path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh'), 0o755);
-  // The entry the packaged installer bundle is built from, with one helper module.
+  // The entry the packaged installer ships, with one helper module.
   fs.mkdirSync(path.join(root, 'scripts', 'lib', 'install-adapters'), { recursive: true });
   fs.writeFileSync(path.join(root, 'scripts', 'lib', 'install-adapters', 'codex-cli.js'),
     "'use strict';\nconst { greeting } = require('../fake-helper');\nprocess.stdout.write(greeting + '\\n');\n");
@@ -204,17 +203,20 @@ test('Claude packaging supplies a physical Codex installer that survives standal
     assert.ok(record, 'the package resource must be recorded in provenance');
     assert.strictEqual(record.sourcePath, 'scripts/hooks/install-codex-skills.sh');
 
-    // The JS installer the helper execs travels as one generated file built
-    // from the entry module's closure; provenance names the entry as its source.
-    const bundle = path.join(out, 'skills', 'harness-setup', 'scripts', 'lib', 'dhpk-installer.cjs');
-    const bundleStat = fs.lstatSync(bundle);
-    assert.ok(bundleStat.isFile() && !bundleStat.isSymbolicLink(), 'the generated installer bundle must be a physical file');
-    assert.strictEqual(fs.readFileSync(bundle, 'utf8'), buildInstallerBundle({ root }));
-    const bundleRecord = provenance.files.find((file) => file.destination === 'skills/harness-setup/scripts/lib/dhpk-installer.cjs');
-    assert.ok(bundleRecord, 'the generated bundle must be recorded in provenance');
-    assert.strictEqual(bundleRecord.sourcePath, 'scripts/lib/install-adapters/codex-cli.js');
-    assert.strictEqual(bundleRecord.kind, 'generated');
-    const standalone = spawnSync(process.execPath, [bundle], { cwd: temp, encoding: 'utf8', timeout: 10000 });
+    // The JS installer the helper execs travels as readable source: the entry
+    // and its module closure at the same scripts/lib/ paths, no generated bundle.
+    const libDir = path.join(out, 'skills', 'harness-setup', 'scripts', 'lib');
+    assert.strictEqual(fs.existsSync(path.join(libDir, 'dhpk-installer.cjs')), false, 'no generated installer bundle may ship');
+    for (const [name, source] of [['install-adapters/codex-cli.js', 'scripts/lib/install-adapters/codex-cli.js'], ['fake-helper.js', 'scripts/lib/fake-helper.js']]) {
+      const stat = fs.lstatSync(path.join(libDir, name));
+      assert.ok(stat.isFile() && !stat.isSymbolicLink(), `${name} must be a physical file`);
+      assert.strictEqual(fs.readFileSync(path.join(libDir, name), 'utf8'), fs.readFileSync(path.join(root, source), 'utf8'));
+      const moduleRecord = provenance.files.find((file) => file.destination === `skills/harness-setup/scripts/lib/${name}`);
+      assert.ok(moduleRecord, `${name} must be recorded in provenance`);
+      assert.strictEqual(moduleRecord.sourcePath, source);
+      assert.strictEqual(moduleRecord.kind, 'packaging-resource');
+    }
+    const standalone = spawnSync(process.execPath, [path.join(libDir, 'install-adapters', 'codex-cli.js')], { cwd: temp, encoding: 'utf8', timeout: 10000 });
     assert.strictEqual(standalone.stdout, 'packaged installer ran\n', standalone.stderr);
 
     const relocated = path.join(temp, 'relocated skill');
@@ -249,14 +251,14 @@ test('Claude package drift check detects a changed package-only Codex installer'
   }
 });
 
-test('Claude package drift check detects a changed installer bundle', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-bundle-drift-'));
+test('Claude package drift check detects a changed installer module', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-module-drift-'));
   const { root } = makeHarnessPackageRoot(temp);
   const out = path.join(temp, 'package');
   try {
     GENERATOR.materialize({ root, out });
     assert.strictEqual(GENERATOR.check({ root, out }).ok, true);
-    fs.appendFileSync(path.join(out, 'skills', 'harness-setup', 'scripts', 'lib', 'dhpk-installer.cjs'), '\n// manual drift\n');
+    fs.appendFileSync(path.join(out, 'skills', 'harness-setup', 'scripts', 'lib', 'fake-helper.js'), '\n// manual drift\n');
     const result = GENERATOR.check({ root, out });
     assert.strictEqual(result.ok, false);
     assert.match(result.error, /out of date/i);
