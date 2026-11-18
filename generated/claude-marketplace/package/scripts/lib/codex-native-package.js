@@ -55,6 +55,8 @@ const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
+const { normalizePublicSkillFile, publicPluginManifestFiles } = require('./public-plugin-tree');
+const { renderOpenaiSubmissionManifest } = require('./host-manifests');
 const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
@@ -111,6 +113,13 @@ function serializeNativeSkillMarkdown(content, label) {
   const result = serializePortableSkillMetadata(Buffer.from(content).toString('utf8'));
   if (!result.ok) throw new Error(`${label} has invalid metadata: ${result.errors.join('; ')}`);
   return Buffer.from(result.output);
+}
+
+// Public Plugin SKILL.md bytes (shared with the OpenAI ZIP); other files as-is.
+function publicSkillBytes(file, { inventoryById }) {
+  const normalized = normalizePublicSkillFile({ ...file, skillId: file.skillId }, inventoryById);
+  if (!normalized.ok) throw new Error(`Codex marketplace ${file.path} is invalid: ${normalized.errors.join('; ')}`);
+  return normalized.bytes;
 }
 
 function resolvesInsidePackage(manifestSkillsField, packageRoot) {
@@ -486,6 +495,7 @@ function compileNativePackage({
   if (catalogContent && !catalogContent.ok) {
     throw new Error(`Codex marketplace content is invalid: ${catalogContent.errors.join('; ')}`);
   }
+  const publicSkillContext = { inventoryById: new Map((inventory.skills || []).map((entry) => [entry.id, entry])) };
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -507,9 +517,7 @@ function compileNativePackage({
           inventoryRevision,
           ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
         });
-        const content = file.path.endsWith('/SKILL.md')
-          ? serializeNativeSkillMarkdown(file.bytes, `Codex marketplace ${file.path}`)
-          : file.bytes;
+        const content = publicSkillBytes(file, publicSkillContext);
         files.push(nativeOutputRecord(
           `skill:${file.ownerId}:${file.skillId}:${file.path}`,
           file.sourcePath,
@@ -522,9 +530,7 @@ function compileNativePackage({
       }
       const ownerFingerprintFiles = ownerFiles.map((file) => ({
         destination: path.posix.relative(path.posix.join('skills', publicName), file.path),
-        content: file.path.endsWith('/SKILL.md')
-          ? serializeNativeSkillMarkdown(file.bytes, `Codex marketplace ${file.path}`)
-          : file.bytes,
+        content: publicSkillBytes(file, publicSkillContext),
       }));
       fingerprints[publicName] = nativeSkillFingerprint(ownerFingerprintFiles);
       selectedEntries.push(skill);
@@ -584,10 +590,19 @@ function compileNativePackage({
     ));
   }
 
-  const manifest = nativeManifest({ outDir: resolvedOut, name, version, budget: traversalBudget });
-  const manifestContent = `${JSON.stringify(manifest, null, 2)}\n`;
-  traversalBudget.accountBytes(Buffer.byteLength(manifestContent), '.codex-plugin/plugin.json');
-  files.push(nativeOutputRecord('manifest:plugin', 'generated/.codex-plugin/plugin.json', '.codex-plugin/plugin.json', manifestContent, undefined, 0o644));
+  if (hostPublication) {
+    // Public Plugin tree: both manifests come from the shared renderer so the
+    // OpenAI ZIP and this package carry identical bytes.
+    for (const manifestFile of publicPluginManifestFiles(renderOpenaiSubmissionManifest(resolvedRoot, version))) {
+      traversalBudget.accountBytes(manifestFile.bytes.byteLength, manifestFile.path);
+      files.push(nativeOutputRecord(`manifest:${manifestFile.path}`, `generated/${manifestFile.path}`, manifestFile.path, manifestFile.bytes, undefined, manifestFile.mode));
+    }
+  } else {
+    const manifest = nativeManifest({ outDir: resolvedOut, name, version, budget: traversalBudget });
+    const manifestContent = `${JSON.stringify(manifest, null, 2)}\n`;
+    traversalBudget.accountBytes(Buffer.byteLength(manifestContent), '.codex-plugin/plugin.json');
+    files.push(nativeOutputRecord('manifest:plugin', 'generated/.codex-plugin/plugin.json', '.codex-plugin/plugin.json', manifestContent, undefined, 0o644));
+  }
 
   const selectedSkillIds = nativeSelection.selected.map((entry) => entry.id).sort();
   const selectedSkillNames = nativeSelection.selected.map((entry) => entry.name || entry.id).sort();
