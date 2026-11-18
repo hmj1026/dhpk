@@ -365,7 +365,7 @@
     "agent_warmstart_enabled": {
       "type": "boolean",
       "title": "Enable subagent warmstart context",
-      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true, scripts/hooks/pre-agent-warmstart.sh (PreToolUse Agent|Task) injects role-filtered parent context: workers/TDD receive the supplied handoff plus bounded OpenSpec/project context, explorers a tool-routing reminder, monitors process identity; reviewers receive no extra packet. Each role has its own size cap. Default false because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true, scripts/hooks/pre-agent-warmstart.sh (PreToolUse Agent|Task) injects role-filtered parent context: workers/TDD receive the supplied handoff, the OpenSpec change the handoff names (none otherwise), and bounded project context, explorers a tool-routing reminder, monitors process identity; reviewers receive no extra packet. Each role has its own size cap. Default false because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "harness_restore_hint": {
