@@ -109,7 +109,7 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
   if (!tree.ok) return failure(tree.errors);
   const { files, content } = tree;
 
-  const listing = manifest.extensions['com.openai'].interface;
+  const listing = tree.manifest.extensions['com.openai'].interface;
   const assetErrors = validateOpenaiListingAssets(listing, new Map(files.map((file) => [file.path, file.bytes])));
   if (assetErrors.length > 0) return failure(assetErrors);
 
