@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.77.4",
-  "sourceCommit": "4bdc4c3b0ed04ea198c29ac672f3f748544be55e",
-  "generatedFromCommit": "4bdc4c3b0ed04ea198c29ac672f3f748544be55e",
-  "generatedFromTree": "21abbe3032ae62a62b4774621c0e98d288be6072",
-  "inventoryDigest": "c867b1e3d3dd79b833148b4ba1067314c0e440205fe62a967f4190f92c7f19b7",
-  "inventoryRevision": "sha256:298341bf68c52af0b673275d95c81c5cf8fbb916d6728245e1f382986056d5f6",
+  "sourceCommit": "2b69f84be941a62725a70b7a863bb3fe2e763138",
+  "generatedFromCommit": "2b69f84be941a62725a70b7a863bb3fe2e763138",
+  "generatedFromTree": "b759e124b11b9c7209ef5a6a78c539a48cf9a565",
+  "inventoryDigest": "7fad1aa7af553ab23cf19610fbf4f168e940314c8509611e1374f7bf574b7242",
+  "inventoryRevision": "sha256:5b0cc2302a1a2f2b1580e35329cd971027e3e1acfef5cc098d4eab3cf2c09d36",
   "generatorVersion": "1.1.0",
   "fingerprintAlgorithm": "tree-merkle-v1",
   "selectedSkillIds": [],
@@ -1420,7 +1420,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "4003dc89b7dc52b4c9ef6d6d57243480e791bca8"
+        "originalGitBlobDigest": "d87555a50ba2265b6a2b189cbcdd4af74129413a"
       },
       {
         "ownerId": "flow-guide",
@@ -1516,13 +1516,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "4003dc89b7dc52b4c9ef6d6d57243480e791bca8"
+        "originalGitBlobDigest": "d87555a50ba2265b6a2b189cbcdd4af74129413a"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "d43abf8b917e5fc2494c75c290c03c68b4ec7d49"
+        "originalGitBlobDigest": "840d0b3983aae670feffca6c3d025ac249890abf"
       },
       {
         "ownerId": "flow-guide",
@@ -5621,15 +5621,15 @@
     }
   ],
   "fingerprints": {
-    "rules": "c49713dc2b1b2a01b63c253c9ebac5800150dc70dab20fa253a1974646267a44",
-    "agents": "26c0c98db097166b4dd1d92e2ccc5704780376752796b2fd74ff002581e4b68e",
+    "rules": "b27a69c73ec1c7624e875016272681f159ffd9e10c1cbed6691639be477f2bbe",
+    "agents": "c58b178dd0f1ef406eb92a8cc6e21c77b9f0af682876bf79737b649ebe5e9efe",
     "commands": "12d3391961e0d575937b4e1209e532a8e9784e5bf00ff3da8aa182b8236bbc36",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
-    "agent-traps": "2647dda564556f068acf9c5c9a8f91a4c2634c05beb88b4528632896e697e701"
+    "agent-traps": "438e4c7f6c98c026a222d64cabe2c6c471fa1ae2580c6588c5f4e0e03e70e5c8"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "d5c44edcb252825c2c228399ca0827f1ea4a638330079aa289099ad590064375",
+    "planId": "f6636401c6ae7aad30cb1e462c019a7b413775fae85da745651132075980d4a4",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5673,10 +5673,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "d5c44edcb252825c2c228399ca0827f1ea4a638330079aa289099ad590064375",
-      "inventory": "c867b1e3d3dd79b833148b4ba1067314c0e440205fe62a967f4190f92c7f19b7"
+      "plan": "f6636401c6ae7aad30cb1e462c019a7b413775fae85da745651132075980d4a4",
+      "inventory": "7fad1aa7af553ab23cf19610fbf4f168e940314c8509611e1374f7bf574b7242"
     },
-    "rollbackIdentity": "d4111edaa6cf818e6dd48fd185e77d2764b3427048f5a99fbb815794aef2c41f"
+    "rollbackIdentity": "e32d23a393e564d516fd00fe501fee6d1c9c4959ebf7dc4c61f8128ebc342dd7"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6691,5 +6691,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "2ac581126f3dd9f32d4ce02d78be366275e9c05200f2081521361a2e7f5616f9"
+  "planFingerprint": "05ec9121549efbc087cead610fd3b4225d35b6e323f1f1f85a211b23522f4bb3"
 }
