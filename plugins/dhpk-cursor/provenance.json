@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.78.0",
-  "sourceCommit": "0dc7b9b64ce82425bd262508f1355824b68c4eb4",
-  "generatedFromCommit": "0dc7b9b64ce82425bd262508f1355824b68c4eb4",
-  "generatedFromTree": "67c18904020b1a92d64309dde7573b15c7a2e7fe",
+  "sourceCommit": "4839d0773b11ffe268c9d31295000ece53409814",
+  "generatedFromCommit": "4839d0773b11ffe268c9d31295000ece53409814",
+  "generatedFromTree": "4945ee3d50e0e528bd20e8b8d3f1bca6935ce473",
   "inventoryDigest": "31ce40cbb96319f6c71540a8ef0d8abcaa561dff2479afcc053ec1a5888f70ca",
   "inventoryRevision": "sha256:3e88428bc2a852b259e2a54638ab5302fab14723b8642f65a5e046a3d5c0a5bc",
   "generatorVersion": "1.1.0",
@@ -1600,7 +1600,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "05af4a725f5f1e75993019d1bd71a6abb4a07f96"
+        "originalGitBlobDigest": "fad723a1e6b12e93f3a2151454749128640813f2"
       },
       {
         "ownerId": "flow-guide",
@@ -1636,7 +1636,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "05af4a725f5f1e75993019d1bd71a6abb4a07f96"
+        "originalGitBlobDigest": "fad723a1e6b12e93f3a2151454749128640813f2"
       },
       {
         "ownerId": "flow-guide",
