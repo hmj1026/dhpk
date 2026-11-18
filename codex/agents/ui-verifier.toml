@@ -1,6 +1,5 @@
 name = "ui-verifier"
 description = "Use for a read-only check of one rendered page against one UI specification; not for application-code changes or state-changing user flows."
-model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 
 developer_instructions = """

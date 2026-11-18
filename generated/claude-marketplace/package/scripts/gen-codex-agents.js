@@ -12,25 +12,25 @@ const OWNERSHIP_MANIFEST = path.join(ROOT, 'codex', 'agent-projection-manifest.j
 const ROLE_MAP = path.join(ROOT, 'codex', 'agent-role-map.json');
 
 // Codex runtime metadata is explicit per role. Claude frontmatter describes the
-// Claude runtime and must not silently overwrite the effective Codex model or
-// reasoning effort.
+// Claude runtime and must not silently overwrite the Codex reasoning effort.
+// No role pins a model: the user's own Codex default model applies.
 const RUNTIME_METADATA = Object.freeze({
-  architect: { model: 'gpt-6.1-sol', effort: 'high' },
-  'code-reviewer': { model: 'gpt-6.1-sol', effort: 'medium' },
-  'security-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
-  'database-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
-  'tdd-guide': { model: 'gpt-6-luna', effort: 'high' },
-  'deep-reasoner': { model: 'gpt-6.1-sol', effort: 'high' },
-  'doc-reviewer': { model: 'gpt-6-luna', effort: 'high' },
-  planner: { model: 'gpt-6.1-sol', effort: 'high' },
-  'frontend-reviewer': { model: 'gpt-6.1-sol', effort: 'medium' },
-  'migration-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
-  'e2e-runner': { model: 'gpt-6.1-sol', effort: 'medium' },
-  'ui-verifier': { model: 'gpt-6.1-terra', effort: 'medium' },
-  'docs-writer': { model: 'gpt-6.1-terra', effort: 'medium' },
-  'qa-executor': { model: 'gpt-6-luna', effort: 'medium' },
-  'scoped-worker': { model: 'gpt-6.1-terra', effort: 'medium' },
-  'quick-worker': { model: 'gpt-6-luna', effort: 'medium' },
+  architect: { effort: 'high' },
+  'code-reviewer': { effort: 'medium' },
+  'security-reviewer': { effort: 'high' },
+  'database-reviewer': { effort: 'high' },
+  'tdd-guide': { effort: 'high' },
+  'deep-reasoner': { effort: 'high' },
+  'doc-reviewer': { effort: 'high' },
+  planner: { effort: 'high' },
+  'frontend-reviewer': { effort: 'medium' },
+  'migration-reviewer': { effort: 'high' },
+  'e2e-runner': { effort: 'medium' },
+  'ui-verifier': { effort: 'medium' },
+  'docs-writer': { effort: 'medium' },
+  'qa-executor': { effort: 'medium' },
+  'scoped-worker': { effort: 'medium' },
+  'quick-worker': { effort: 'medium' },
 });
 
 // Each Codex role names its canonical source explicitly. Existing shared roles
@@ -427,7 +427,7 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`modules/laravel-*/`', 'the project Laravel migration documentation');
   }
   if (agentName === 'quick-worker') {
-    // Codex edits through apply_patch, its mechanical tier is luna, and the
+    // Codex edits through apply_patch, and the
     // escalation target is the Codex `worker`; the CLI selector workers and the
     // Claude-only model-economics rule have no Codex referent.
     adapted = adapted
@@ -439,7 +439,7 @@ function adaptCodexBody(agentName, body) {
       .replace(/Otherwise follow `agents\/fast-worker\.md`:/, 'Otherwise follow the `worker` role contract:')
       .replaceAll('`fast-worker` (sonnet)', '`worker`')
       .replace(/\bfast-worker\b/g, 'worker')
-      .replace(/haiku \/\s+medium/, 'gpt-6-luna / medium');
+      .replace(/haiku \/\s+medium/, 'your configured default model / medium');
   }
   if (agentName === 'deep-reasoner') {
     // This projection IS the Codex backend, so the Claude-side "pick the codex
@@ -528,7 +528,6 @@ function buildToml(agent, frontmatter, body) {
   const lines = [
     `name = ${tomlBasicString(agent.name)}`,
     `description = ${tomlBasicString(description)}`,
-    `model = ${tomlBasicString(runtime.model)}`,
     `model_reasoning_effort = ${tomlBasicString(runtime.effort)}`,
     '',
     'developer_instructions = """',

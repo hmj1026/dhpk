@@ -1,6 +1,5 @@
 name = "docs-writer"
 description = "Use to edit assigned documentation from confirmed sources; not for refreshing docs made stale by a structural change, inventing product behavior, or claiming runtime acceptance."
-model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 
 developer_instructions = """

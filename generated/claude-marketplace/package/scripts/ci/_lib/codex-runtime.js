@@ -7,16 +7,6 @@ const { collectCodexRoleNeighborErrors } = require('../../lib/codex-role-neighbo
 
 const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
 const BACKTICKED_TOKEN = /`([a-z0-9]+(?:-[a-z0-9]+)*)`/g;
-const VALID_CODEX_MODELS = new Set([
-  'gpt-6-luna',
-  'gpt-6-sol',
-  'gpt-6.1-sol',
-  'gpt-6.1-terra',
-  'gpt-6-astra',
-  'gpt-5.6-luna',
-  'gpt-5.6-terra',
-  'gpt-5.6-sol',
-]);
 const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'max', 'xhigh']);
 const DEFAULT_SUBAGENT_MODEL = 'gpt-6.1-sol';
 const DEFAULT_SUBAGENT_EFFORT = 'medium';
@@ -270,11 +260,10 @@ function collectCodexRoleMetadataErrors(root) {
     const fields = {
       name: tomlStringField(source, 'name'),
       description: tomlStringField(source, 'description'),
-      model: tomlStringField(source, 'model'),
       model_reasoning_effort: tomlStringField(source, 'model_reasoning_effort'),
       developer_instructions: tomlStringField(source, 'developer_instructions'),
     };
-    for (const field of ['name', 'description', 'model', 'model_reasoning_effort', 'developer_instructions']) {
+    for (const field of ['name', 'description', 'model_reasoning_effort', 'developer_instructions']) {
       if (fields[field] == null || !fields[field].trim()) {
         errors.push(`${relativeFile} — missing non-empty ${field}`);
       }
@@ -282,8 +271,8 @@ function collectCodexRoleMetadataErrors(root) {
     if (fields.name && fields.name !== role) {
       errors.push(`${relativeFile} — filename '${role}.toml' does not match declared name '${fields.name}'`);
     }
-    if (fields.model && !VALID_CODEX_MODELS.has(fields.model)) {
-      errors.push(`${relativeFile} — invalid model '${fields.model}' (not in the Codex model catalog)`);
+    if (/^\s*model\s*=/m.test(source)) {
+      errors.push(`${relativeFile} — must not set model; the user's Codex default model applies`);
     }
     if (fields.model_reasoning_effort && !VALID_REASONING_EFFORTS.has(fields.model_reasoning_effort)) {
       errors.push(`${relativeFile} — invalid model_reasoning_effort '${fields.model_reasoning_effort}'`);
@@ -717,7 +706,7 @@ function collectCodexRuntimeErrors(root) {
       if (tierLabel) {
         errors.push(
           `${relative(root, file)} — description contains Claude model tier label '${tierLabel[0]}'; ` +
-          'use model and model_reasoning_effort as the runtime metadata',
+          'use model_reasoning_effort as the runtime metadata',
         );
       }
 
@@ -772,16 +761,15 @@ function loadCodexRuntimeMetadata() {
 
 function agentRuntimePair(runtimeMetadata, root, agent) {
   const generated = runtimeMetadata && runtimeMetadata[agent];
-  if (generated && typeof generated.model === 'string' && typeof generated.effort === 'string') {
-    return { model: generated.model, effort: generated.effort };
+  if (generated && typeof generated.effort === 'string') {
+    return { effort: generated.effort };
   }
   const file = path.join(root, 'codex', 'agents', `${agent}.toml`);
   if (!fs.existsSync(file)) return null;
   const source = readFileBounded(file).toString('utf8');
-  const model = tomlStringField(source, 'model');
   const effort = tomlStringField(source, 'model_reasoning_effort');
-  if (!model || !effort) return null;
-  return { model, effort };
+  if (!effort) return null;
+  return { effort };
 }
 
 function collectCodexCanonicalRoleDefaultErrors(root, {
@@ -821,12 +809,11 @@ function collectCodexCanonicalRoleDefaultErrors(root, {
       errors.push(`canonical role '${role}' (agent '${agent}'): host-profiles role_defaults are missing`);
       continue;
     }
-    const actualModel = defaults.model_id;
     const actualEffort = defaults.effort;
-    if (expected.model !== actualModel || expected.effort !== actualEffort) {
+    if (expected.effort !== actualEffort) {
       errors.push(
-        `canonical role '${role}' (agent '${agent}'): ${expected.model}/${expected.effort} `
-        + `vs host-profiles role_defaults ${actualModel}/${actualEffort}`,
+        `canonical role '${role}' (agent '${agent}'): ${expected.effort} `
+        + `vs host-profiles role_defaults ${actualEffort}`,
       );
     }
   }
