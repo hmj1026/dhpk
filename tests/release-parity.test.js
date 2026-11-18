@@ -9,6 +9,7 @@
 
 const fs = require('node:fs');
 const os = require('node:os');
+const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { MANIFEST_PATHS, checkParity } = require('../scripts/lib/release-parity');
@@ -109,6 +110,26 @@ test('checkParity fails when a manifest exists that no generator declares', () =
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
     assert.ok(result.errors.some((e) => e.includes(rel) && /not declared/.test(e)));
+  });
+});
+
+test('checkParity ignores untracked and gitignored provenance files in a Git checkout', () => {
+  withRepo({
+    versions: allAtVersion('1.2.3'),
+    changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+    agyDocVersion: '1.2.3',
+  }, (root) => {
+    const run = (args) => assert.strictEqual(spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' }).status, 0);
+    fs.writeFileSync(path.join(root, '.gitignore'), '.codex/artifacts/\n');
+    run(['init', '-q']);
+    run(['add', '.']);
+    run(['-c', 'user.name=T', '-c', 'user.email=t@example.invalid', 'commit', '-qm', 'fixture']);
+    for (const rel of ['.codex/artifacts/run1/provenance.json', 'scratch/untracked/provenance.json']) {
+      fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
+      fs.writeFileSync(path.join(root, rel), JSON.stringify({ sourceVersion: '0.0.1' }));
+    }
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, true, JSON.stringify(result.errors));
   });
 });
 
