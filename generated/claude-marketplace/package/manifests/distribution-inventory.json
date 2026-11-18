@@ -76,6 +76,7 @@
     "planner",
     "python-build-resolver",
     "qa-executor",
+    "quick-worker",
     "refactor-cleaner",
     "rust-build-resolver",
     "security-reviewer",
@@ -431,8 +432,8 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "d5292a8da2de60b2e6c9880c24ed5544f5bb9e31e8c0b5fb1e0ea3619b1b1480",
-      "projection_digest": "0c5e619b32b68a4879efb82a48afb42ebae7a48b81f31540644d6d44ffcbd221",
+      "canonical_digest": "930e27d6723224b119275af6909ef40232cdaaeb9a137e0af16cc974e2675467",
+      "projection_digest": "c28fe7bd0a96e3b92fe5247ac11e11ca515d5df19dedcbcde2b654419662b8ac",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
@@ -3267,6 +3268,7 @@
       "planner.md",
       "python-build-resolver.md",
       "qa-executor.md",
+      "quick-worker.md",
       "refactor-cleaner.md",
       "rust-build-resolver.md",
       "security-reviewer.md",

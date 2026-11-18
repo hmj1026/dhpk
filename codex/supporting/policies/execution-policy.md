@@ -205,8 +205,12 @@ parent agent type.
 
 Prefer a named specialist over the default/inherited path whenever one fits:
 live manual QA-case execution goes to `qa-executor`, assigned documentation
-authoring or revision from confirmed sources to `docs-writer`, and read-only
-codebase or environment exploration to `explorer`.
+authoring or revision from confirmed sources to `docs-writer`, a literal
+mechanical sweep that meets the `quick-worker` admission gate (spec names every
+file and the exact edit, no judgment step, one deterministic verification) to
+`quick-worker` (`gpt-6-luna` at `medium`; first failed verification returns
+`BLOCKED` and the task moves to `worker`), and read-only codebase or
+environment exploration to `explorer`.
 
 If a correctly formed named-specialist dispatch reports unavailable, diagnose
 in this order: (1) confirm the session started at the intended project root and

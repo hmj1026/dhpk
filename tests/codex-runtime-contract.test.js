@@ -41,6 +41,7 @@ const EXPECTED_RUNTIME = {
   'docs-writer': ['gpt-6.1-terra', 'medium'],
   'qa-executor': ['gpt-6-luna', 'medium'],
   'scoped-worker': ['gpt-6.1-terra', 'medium'],
+  'quick-worker': ['gpt-6-luna', 'medium'],
 };
 
 const EXPECTED_DIRECT_RUNTIME = {
@@ -188,9 +189,9 @@ test('the canonical agent coverage matrix classifies every role exactly once', (
 
 test('all committed direct roles match the approved runtime map and global defaults', () => {
   const ownership = JSON.parse(fs.readFileSync(path.join(ROOT, 'codex', 'agent-projection-manifest.json'), 'utf8'));
-  assert.strictEqual(ownership.generated_roles.length, 15);
-  assert.strictEqual(ownership.package_roles.length, 19);
-  for (const role of ['ui-verifier', 'docs-writer', 'scoped-worker']) {
+  assert.strictEqual(ownership.generated_roles.length, 16);
+  assert.strictEqual(ownership.package_roles.length, 20);
+  for (const role of ['ui-verifier', 'docs-writer', 'scoped-worker', 'quick-worker']) {
     assert.ok(ownership.generated_roles.includes(role), role);
     assert.ok(ownership.package_roles.includes(role), role);
   }

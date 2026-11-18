@@ -8,13 +8,16 @@ const CURSOR_CX_BOILERPLATE = 'Use ' + String.fromCharCode(96) + 'cx';
 const CURSOR_DEFAULT_AGENT_MODEL = 'cursor-grok-4.6-high';
 const CURSOR_DOC_AGENT_MODEL = 'composer-2.5-fast';
 const CURSOR_DOC_AGENTS = new Set(['doc-reviewer', 'docs-lookup', 'doc-updater']);
+// Cheap mechanical tier: quick-worker shares the doc agents' fast Composer model.
+const CURSOR_QUICK_AGENTS = new Set(['quick-worker']);
 
 function agentStem(basename) {
   return String(basename || '').replace(/\.(?:md|mdc|markdown|txt)$/i, '').toLowerCase();
 }
 
 function cursorAgentModel(basenameOrName) {
-  if (CURSOR_DOC_AGENTS.has(agentStem(basenameOrName))) return CURSOR_DOC_AGENT_MODEL;
+  const stem = agentStem(basenameOrName);
+  if (CURSOR_DOC_AGENTS.has(stem) || CURSOR_QUICK_AGENTS.has(stem)) return CURSOR_DOC_AGENT_MODEL;
   return CURSOR_DEFAULT_AGENT_MODEL;
 }
 

@@ -353,6 +353,12 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
     assert.strictEqual(cursorAgentModel('fast-worker'), 'cursor-grok-4.6-high');
   });
 
+  test('cursorAgentModel maps quick-worker to Composer while fast-worker stays on Grok', () => {
+    assert.strictEqual(cursorAgentModel('quick-worker.md'), 'composer-2.5-fast');
+    assert.strictEqual(cursorAgentModel('quick-worker'), 'composer-2.5-fast');
+    assert.strictEqual(cursorAgentModel('fast-worker.md'), 'cursor-grok-4.6-high');
+  });
+
   test('cursorDocumentDestinationName only rewrites rules to .mdc', () => {
     assert.strictEqual(cursorDocumentDestinationName('rules', 'prefer-const.md'), 'prefer-const.mdc');
     assert.strictEqual(cursorDocumentDestinationName('agents', 'reviewer.md'), 'reviewer.md');
