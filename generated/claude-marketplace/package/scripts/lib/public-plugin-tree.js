@@ -8,7 +8,7 @@
 
 const { normalizePortableFrontmatter, stableStringify } = require('./agent-plugin-package');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
-const { layoutPublicPlugin } = require('./public-plugin-layout');
+const { layoutPublicPlugin, remapBundleProvenance } = require('./public-plugin-layout');
 
 const OPENAI_MANIFEST_PATH = 'plugin.json';
 const CODEX_MANIFEST_PATH = '.codex-plugin/plugin.json';
@@ -61,7 +61,7 @@ function publicPluginManifestFiles(openaiManifest) {
 
 // Normalizes every content file, then lays the plugin out for review: the
 // shared step of the ZIP and the Codex native package. Returns
-// { ok, errors, files, assetFiles, manifest }; files keep their content shape
+// { ok, errors, files, assetFiles, manifest, bundleProvenance }; files keep their content shape
 // (sourcePath, ownerId, ...) with final path and bytes.
 function preparePublicPlugin({ content, inventory, publicationView, manifest }) {
   const inventoryById = new Map(inventory.skills.map((skill) => [skill.id, skill]));
@@ -73,7 +73,7 @@ function preparePublicPlugin({ content, inventory, publicationView, manifest }) 
     else normalizedFiles.push({ ...sourceFile, bytes: normalized.bytes });
   }
   if (errors.length > 0) return { ok: false, errors, files: [], assetFiles: [], manifest };
-  return layoutPublicPlugin({
+  const laidOut = layoutPublicPlugin({
     files: normalizedFiles,
     manifest,
     counts: {
@@ -81,6 +81,8 @@ function preparePublicPlugin({ content, inventory, publicationView, manifest }) 
       referenceCount: content.bundleProvenance.childIds.length,
     },
   });
+  if (!laidOut.ok) return laidOut;
+  return { ...laidOut, bundleProvenance: remapBundleProvenance(content.bundleProvenance, laidOut.pathMap) };
 }
 
 // Public Plugin tree files for a publication view: normalized skills plus both
@@ -102,7 +104,7 @@ function compilePublicPluginTree({ root, inventory, publicationView, manifest, s
   }
   files.push(...manifests);
   files.sort((left, right) => (left.path < right.path ? -1 : (left.path > right.path ? 1 : 0)));
-  return { ok: true, errors: [], files, content, manifest: prepared.manifest };
+  return { ok: true, errors: [], files, content, manifest: prepared.manifest, bundleProvenance: prepared.bundleProvenance };
 }
 
 // Files the Codex native generator adds beside the Public Plugin tree: its

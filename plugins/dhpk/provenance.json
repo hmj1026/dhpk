@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.78.0",
-  "sourceCommit": "c3c663bdaf585b4c3f5f60ec528452c35cf54519",
-  "generatedFromCommit": "c3c663bdaf585b4c3f5f60ec528452c35cf54519",
-  "generatedFromTree": "ad78b456494cb74ceb44ac6534529786f10c4ce4",
+  "sourceCommit": "fe476d2f2c53c13dcc6351850be44abc6a284b76",
+  "generatedFromCommit": "fe476d2f2c53c13dcc6351850be44abc6a284b76",
+  "generatedFromTree": "38a11a9b41accfb3cdf2fd781b164771c16df3ff",
   "inventoryDigest": "fc4264535f5be01960b278c34daf09a1c251166664059a38f37201ed34805d2c",
   "inventoryRevision": "sha256:8d458a726d71fb0d128b955b195d9ad42dff845b530a7beec7e6b2ad01e560bb",
   "generatorVersion": "2.4.0",
@@ -153,12 +153,6 @@
       },
       {
         "ownerId": "change-verdict",
-        "source": "skills/change-verdict/distribution.yaml",
-        "destination": "skills/change-verdict/distribution.yaml",
-        "originalGitBlobDigest": "f049c86f509dd62db8d4b4ad1cde255b669a85ac"
-      },
-      {
-        "ownerId": "change-verdict",
         "source": "skills/change-verdict/references/actions/deps.md",
         "destination": "skills/change-verdict/references/actions/deps.md",
         "originalGitBlobDigest": "8245c8123d3340c7bc2aac0836193d9228aae92d"
@@ -202,7 +196,7 @@
       {
         "ownerId": "change-verdict",
         "source": "skills/project-audit/SKILL.md",
-        "destination": "skills/change-verdict/references/project-audit/SKILL.md",
+        "destination": "skills/change-verdict/references/project-audit/REFERENCE.md",
         "originalGitBlobDigest": "54d6fe252547e8107501f256ca98b15cb8dcceae"
       },
       {
@@ -210,12 +204,6 @@
         "source": "skills/project-audit/agents/openai.yaml",
         "destination": "skills/change-verdict/references/project-audit/agents/openai.yaml",
         "originalGitBlobDigest": "dfa1bbea3476a01b8dfc869c25a64a6e1ba91841"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/project-audit/distribution.yaml",
-        "destination": "skills/change-verdict/references/project-audit/distribution.yaml",
-        "originalGitBlobDigest": "bb40ab8812bea9092009d454d4ca203295f15608"
       },
       {
         "ownerId": "change-verdict",
@@ -369,12 +357,6 @@
       },
       {
         "ownerId": "code-trace",
-        "source": "skills/code-trace/distribution.yaml",
-        "destination": "skills/code-trace/distribution.yaml",
-        "originalGitBlobDigest": "189958e957927397318de99ad0b5963a866e3658"
-      },
-      {
-        "ownerId": "code-trace",
         "source": "skills/code-trace/references/diagnose/checklists.md",
         "destination": "skills/code-trace/references/diagnose/checklists.md",
         "originalGitBlobDigest": "010352f94b8d1d58a3db0772c4fd5dec617fe4d4"
@@ -460,7 +442,7 @@
       {
         "ownerId": "code-trace",
         "source": "skills/repo-intake/SKILL.md",
-        "destination": "skills/code-trace/references/repo-intake/SKILL.md",
+        "destination": "skills/code-trace/references/repo-intake/REFERENCE.md",
         "originalGitBlobDigest": "9eca4eb93697054e8c949930615df7e494df88e6"
       },
       {
@@ -468,12 +450,6 @@
         "source": "skills/repo-intake/agents/openai.yaml",
         "destination": "skills/code-trace/references/repo-intake/agents/openai.yaml",
         "originalGitBlobDigest": "5e792c04f34d790d507f6384dfbe2fd27e701dff"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/repo-intake/distribution.yaml",
-        "destination": "skills/code-trace/references/repo-intake/distribution.yaml",
-        "originalGitBlobDigest": "c09666a6d59d5518f7ac0ef6989723a799eee5ef"
       },
       {
         "ownerId": "code-trace",
@@ -561,14 +537,8 @@
       },
       {
         "ownerId": "create-pr",
-        "source": "skills/create-pr/distribution.yaml",
-        "destination": "skills/create-pr/distribution.yaml",
-        "originalGitBlobDigest": "ffc36cee3a40a0fd4382150b5959da2146e9c149"
-      },
-      {
-        "ownerId": "create-pr",
         "source": "skills/merge-prep/SKILL.md",
-        "destination": "skills/create-pr/references/merge-prep/SKILL.md",
+        "destination": "skills/create-pr/references/merge-prep/REFERENCE.md",
         "originalGitBlobDigest": "351d5901066d992644c70aa69d838ba7c867baf7"
       },
       {
@@ -579,12 +549,6 @@
       },
       {
         "ownerId": "create-pr",
-        "source": "skills/merge-prep/distribution.yaml",
-        "destination": "skills/create-pr/references/merge-prep/distribution.yaml",
-        "originalGitBlobDigest": "f94906cab2939ef688c862b7f45da50a9f521869"
-      },
-      {
-        "ownerId": "create-pr",
         "source": "skills/merge-prep/references/workflow.md",
         "destination": "skills/create-pr/references/merge-prep/references/workflow.md",
         "originalGitBlobDigest": "352b10c44683aecd60f9cbc1e152cb9f42a39342"
@@ -592,7 +556,7 @@
       {
         "ownerId": "create-pr",
         "source": "skills/pr-summary/SKILL.md",
-        "destination": "skills/create-pr/references/pr-summary/SKILL.md",
+        "destination": "skills/create-pr/references/pr-summary/REFERENCE.md",
         "originalGitBlobDigest": "2c6ef639d45152097e416681e04de43c5f7311a0"
       },
       {
@@ -600,12 +564,6 @@
         "source": "skills/pr-summary/agents/openai.yaml",
         "destination": "skills/create-pr/references/pr-summary/agents/openai.yaml",
         "originalGitBlobDigest": "1c656b67310ddd73fe21f171087d05a13c4fb813"
-      },
-      {
-        "ownerId": "create-pr",
-        "source": "skills/pr-summary/distribution.yaml",
-        "destination": "skills/create-pr/references/pr-summary/distribution.yaml",
-        "originalGitBlobDigest": "3a0e894a6e95046204ba93ffde594a686670203e"
       },
       {
         "ownerId": "create-pr",
@@ -630,12 +588,6 @@
         "source": "skills/doc-maintain/agents/openai.yaml",
         "destination": "skills/doc-maintain/agents/openai.yaml",
         "originalGitBlobDigest": "444381fb603b54c6ce70a2bb2c5633ad1b7bff88"
-      },
-      {
-        "ownerId": "doc-maintain",
-        "source": "skills/doc-maintain/distribution.yaml",
-        "destination": "skills/doc-maintain/distribution.yaml",
-        "originalGitBlobDigest": "c4fd903406153c1aaf066b9b454e0dc5747eef99"
       },
       {
         "ownerId": "doc-maintain",
@@ -669,14 +621,8 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/flow-drive/distribution.yaml",
-        "destination": "skills/flow-drive/distribution.yaml",
-        "originalGitBlobDigest": "bfaf6592f36775a833a48cf7f6135c4011e301ea"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/code-simplify/SKILL.md",
-        "destination": "skills/flow-drive/references/code-simplify/SKILL.md",
+        "destination": "skills/flow-drive/references/code-simplify/REFERENCE.md",
         "originalGitBlobDigest": "1704f8d29a82bebbb9b86570f5cd65757659e7af"
       },
       {
@@ -687,12 +633,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/code-simplify/distribution.yaml",
-        "destination": "skills/flow-drive/references/code-simplify/distribution.yaml",
-        "originalGitBlobDigest": "96155bd0be8279a9df9681956ab11c7c4bd95302"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/code-simplify/references/refactor-contract.md",
         "destination": "skills/flow-drive/references/code-simplify/references/refactor-contract.md",
         "originalGitBlobDigest": "20c3815700d313a0a8b84346c704fdd5c2c93210"
@@ -700,7 +640,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/js-static-checks/SKILL.md",
-        "destination": "skills/flow-drive/references/js-static-checks/SKILL.md",
+        "destination": "skills/flow-drive/references/js-static-checks/REFERENCE.md",
         "originalGitBlobDigest": "6bf75a7e38f3fd65ce1b7cf75f19f03e664ca74a"
       },
       {
@@ -708,12 +648,6 @@
         "source": "skills/js-static-checks/agents/openai.yaml",
         "destination": "skills/flow-drive/references/js-static-checks/agents/openai.yaml",
         "originalGitBlobDigest": "9b9d1813011c8f7bdc776d295ba056d9feb20d50"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/js-static-checks/distribution.yaml",
-        "destination": "skills/flow-drive/references/js-static-checks/distribution.yaml",
-        "originalGitBlobDigest": "670e36ffd086accfe5f583780ec97705aed1c321"
       },
       {
         "ownerId": "flow-drive",
@@ -754,7 +688,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/SKILL.md",
-        "destination": "skills/flow-drive/references/laravel/SKILL.md",
+        "destination": "skills/flow-drive/references/laravel/REFERENCE.md",
         "originalGitBlobDigest": "899be77e5bd33547c40d508a4221ac45c37f2cb6"
       },
       {
@@ -768,12 +702,6 @@
         "source": "skills/laravel/compatibility.md",
         "destination": "skills/flow-drive/references/laravel/compatibility.md",
         "originalGitBlobDigest": "a7c377ff0dd5d302efcbf9ad2812a58fd84b2f62"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/laravel/distribution.yaml",
-        "destination": "skills/flow-drive/references/laravel/distribution.yaml",
-        "originalGitBlobDigest": "61b7d190381d2a49cbd3d545e1a7d42d8306d1a2"
       },
       {
         "ownerId": "flow-drive",
@@ -850,7 +778,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/nextjs/SKILL.md",
-        "destination": "skills/flow-drive/references/nextjs/SKILL.md",
+        "destination": "skills/flow-drive/references/nextjs/REFERENCE.md",
         "originalGitBlobDigest": "145afbc326648bf40b1f2b32ff734db7ccef9973"
       },
       {
@@ -858,12 +786,6 @@
         "source": "skills/nextjs/agents/openai.yaml",
         "destination": "skills/flow-drive/references/nextjs/agents/openai.yaml",
         "originalGitBlobDigest": "af08ac7d616d684e31c16c3051a10786f7466dfc"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/nextjs/distribution.yaml",
-        "destination": "skills/flow-drive/references/nextjs/distribution.yaml",
-        "originalGitBlobDigest": "97f8409b64afc25d2001cfaa7b4c092249b374f1"
       },
       {
         "ownerId": "flow-drive",
@@ -886,7 +808,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/openspec-artifact-guard/SKILL.md",
-        "destination": "skills/flow-drive/references/openspec-artifact-guard/SKILL.md",
+        "destination": "skills/flow-drive/references/openspec-artifact-guard/REFERENCE.md",
         "originalGitBlobDigest": "3edc2721023705f336aa20a9cd924de4f17651a5"
       },
       {
@@ -897,14 +819,8 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/openspec-artifact-guard/distribution.yaml",
-        "destination": "skills/flow-drive/references/openspec-artifact-guard/distribution.yaml",
-        "originalGitBlobDigest": "73cec387fa408811fe61129c769f8f1b2abc1a98"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/php/SKILL.md",
-        "destination": "skills/flow-drive/references/php/SKILL.md",
+        "destination": "skills/flow-drive/references/php/REFERENCE.md",
         "originalGitBlobDigest": "bc5d38cd56b4323c1755d624dff512e3a9c9c7d2"
       },
       {
@@ -912,12 +828,6 @@
         "source": "skills/php/agents/openai.yaml",
         "destination": "skills/flow-drive/references/php/agents/openai.yaml",
         "originalGitBlobDigest": "d0614b9b7e7f1739fa3b829105947821d231862e"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/php/distribution.yaml",
-        "destination": "skills/flow-drive/references/php/distribution.yaml",
-        "originalGitBlobDigest": "89e2850696804495a4f66d126eb35f22b97d3a52"
       },
       {
         "ownerId": "flow-drive",
@@ -1036,7 +946,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/python/SKILL.md",
-        "destination": "skills/flow-drive/references/python/SKILL.md",
+        "destination": "skills/flow-drive/references/python/REFERENCE.md",
         "originalGitBlobDigest": "af4c6a2d3f05b21e43764daaad6380279ddf92f6"
       },
       {
@@ -1044,12 +954,6 @@
         "source": "skills/python/agents/openai.yaml",
         "destination": "skills/flow-drive/references/python/agents/openai.yaml",
         "originalGitBlobDigest": "4e9fb77399b4ba7efe1ffaa7540d4bf5b6046ced"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/python/distribution.yaml",
-        "destination": "skills/flow-drive/references/python/distribution.yaml",
-        "originalGitBlobDigest": "5e7b8a0e69a53f4a73219cd0b3d2e6464c969dfd"
       },
       {
         "ownerId": "flow-drive",
@@ -1084,7 +988,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/react/SKILL.md",
-        "destination": "skills/flow-drive/references/react/SKILL.md",
+        "destination": "skills/flow-drive/references/react/REFERENCE.md",
         "originalGitBlobDigest": "bee781439ad5258b47eab6b595ac508fa2809993"
       },
       {
@@ -1092,12 +996,6 @@
         "source": "skills/react/agents/openai.yaml",
         "destination": "skills/flow-drive/references/react/agents/openai.yaml",
         "originalGitBlobDigest": "7cd20636b559624d29f31b78929231838d891e9e"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/react/distribution.yaml",
-        "destination": "skills/flow-drive/references/react/distribution.yaml",
-        "originalGitBlobDigest": "df2814518f4e74c15709f412cdd48f17ade582ec"
       },
       {
         "ownerId": "flow-drive",
@@ -1120,7 +1018,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/swift/SKILL.md",
-        "destination": "skills/flow-drive/references/swift/SKILL.md",
+        "destination": "skills/flow-drive/references/swift/REFERENCE.md",
         "originalGitBlobDigest": "47d32d7ce55514b34bf91af087b038ba5fa42be3"
       },
       {
@@ -1128,12 +1026,6 @@
         "source": "skills/swift/agents/openai.yaml",
         "destination": "skills/flow-drive/references/swift/agents/openai.yaml",
         "originalGitBlobDigest": "2b1bc9a7a633e50c5c3324e4fb82df7e8813a9c1"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/swift/distribution.yaml",
-        "destination": "skills/flow-drive/references/swift/distribution.yaml",
-        "originalGitBlobDigest": "d283061a96569f98b1ce848eb0dfd2d6857946ed"
       },
       {
         "ownerId": "flow-drive",
@@ -1348,7 +1240,7 @@
       {
         "ownerId": "flow-drive",
         "source": "skills/vue-2-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/vue-2-notes/SKILL.md",
+        "destination": "skills/flow-drive/references/vue-2-notes/REFERENCE.md",
         "originalGitBlobDigest": "04ea0304674a09822930d814d4b48a5bed4b662a"
       },
       {
@@ -1359,14 +1251,8 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/vue-2-notes/distribution.yaml",
-        "destination": "skills/flow-drive/references/vue-2-notes/distribution.yaml",
-        "originalGitBlobDigest": "73cec387fa408811fe61129c769f8f1b2abc1a98"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/yii1/SKILL.md",
-        "destination": "skills/flow-drive/references/yii1/SKILL.md",
+        "destination": "skills/flow-drive/references/yii1/REFERENCE.md",
         "originalGitBlobDigest": "ed5fa8b4c4670b7013db464b599dcf253486fa7b"
       },
       {
@@ -1374,12 +1260,6 @@
         "source": "skills/yii1/agents/openai.yaml",
         "destination": "skills/flow-drive/references/yii1/agents/openai.yaml",
         "originalGitBlobDigest": "551d6d4488e2e62fce81753a9c34ad1f6ed48d5c"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/yii1/distribution.yaml",
-        "destination": "skills/flow-drive/references/yii1/distribution.yaml",
-        "originalGitBlobDigest": "9cb00f5daddb7e97dc057d72afd6159cab858a53"
       },
       {
         "ownerId": "flow-drive",
@@ -1456,14 +1336,8 @@
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/assets/dhpk-icon.svg",
-        "destination": "skills/flow-guide/assets/dhpk-icon.svg",
+        "destination": "assets/dhpk-icon.svg",
         "originalGitBlobDigest": "9e93ff781628aa4d27fd0d1556a75d8c9df98d3c"
-      },
-      {
-        "ownerId": "flow-guide",
-        "source": "skills/flow-guide/distribution.yaml",
-        "destination": "skills/flow-guide/distribution.yaml",
-        "originalGitBlobDigest": "ebd1a7a8c7014d650270e9b9b9210e3e591fd28d"
       },
       {
         "ownerId": "flow-guide",
@@ -1929,12 +1803,6 @@
       },
       {
         "ownerId": "git-smart-commit",
-        "source": "skills/git-smart-commit/distribution.yaml",
-        "destination": "skills/git-smart-commit/distribution.yaml",
-        "originalGitBlobDigest": "c58931b2a6f8757cbf4b8dd04b42322fb06ffe6a"
-      },
-      {
-        "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/references/collector.md",
         "destination": "skills/git-smart-commit/references/collector.md",
         "originalGitBlobDigest": "959013170eb8c71aa784d5c0b62dbc4d1ab9c5cc"
@@ -1959,12 +1827,6 @@
       },
       {
         "ownerId": "git-worktree",
-        "source": "skills/git-worktree/distribution.yaml",
-        "destination": "skills/git-worktree/distribution.yaml",
-        "originalGitBlobDigest": "0a8769229f869a2c31653d5275c112dbf299326f"
-      },
-      {
-        "ownerId": "git-worktree",
         "source": "skills/git-worktree/references/workflow.md",
         "destination": "skills/git-worktree/references/workflow.md",
         "originalGitBlobDigest": "7b0d96aa07b0ef0200b4b1ab88cfc8e787dcf1ad"
@@ -1980,12 +1842,6 @@
         "source": "skills/precommit/agents/openai.yaml",
         "destination": "skills/precommit/agents/openai.yaml",
         "originalGitBlobDigest": "38770984b66255eedcb00ef00f6bc3d5776b104b"
-      },
-      {
-        "ownerId": "precommit",
-        "source": "skills/precommit/distribution.yaml",
-        "destination": "skills/precommit/distribution.yaml",
-        "originalGitBlobDigest": "323a138aa862464766db4846972fe1b723446921"
       },
       {
         "ownerId": "precommit",
@@ -2019,14 +1875,8 @@
       },
       {
         "ownerId": "proposal-analyze",
-        "source": "skills/proposal-analyze/distribution.yaml",
-        "destination": "skills/proposal-analyze/distribution.yaml",
-        "originalGitBlobDigest": "91d579e837761fdf7f5b9fddc98608d5617d11bc"
-      },
-      {
-        "ownerId": "proposal-analyze",
         "source": "skills/issue-analyze/SKILL.md",
-        "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
+        "destination": "skills/proposal-analyze/references/issue-analyze/REFERENCE.md",
         "originalGitBlobDigest": "8a87a9eb95377ec1a04ad8afd17cbe8fcd4562d3"
       },
       {
@@ -2034,12 +1884,6 @@
         "source": "skills/issue-analyze/agents/openai.yaml",
         "destination": "skills/proposal-analyze/references/issue-analyze/agents/openai.yaml",
         "originalGitBlobDigest": "1748390741ab51e5cd6f7a811679e42b9441a51c"
-      },
-      {
-        "ownerId": "proposal-analyze",
-        "source": "skills/issue-analyze/distribution.yaml",
-        "destination": "skills/proposal-analyze/references/issue-analyze/distribution.yaml",
-        "originalGitBlobDigest": "ee72ffecca30add4003323bad31ebb7a654ad281"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2056,7 +1900,7 @@
       {
         "ownerId": "proposal-analyze",
         "source": "skills/module-design/SKILL.md",
-        "destination": "skills/proposal-analyze/references/module-design/SKILL.md",
+        "destination": "skills/proposal-analyze/references/module-design/REFERENCE.md",
         "originalGitBlobDigest": "9da20ebc4e8cb7b2b0f38da274c4c2481f3b0fb2"
       },
       {
@@ -2067,12 +1911,6 @@
       },
       {
         "ownerId": "proposal-analyze",
-        "source": "skills/module-design/distribution.yaml",
-        "destination": "skills/proposal-analyze/references/module-design/distribution.yaml",
-        "originalGitBlobDigest": "9642102da419de627b815f5f0db6c4d3c4ab050c"
-      },
-      {
-        "ownerId": "proposal-analyze",
         "source": "skills/module-design/references/dependency-and-tests.md",
         "destination": "skills/proposal-analyze/references/module-design/references/dependency-and-tests.md",
         "originalGitBlobDigest": "a8c48d3e7dd29a552590dec1296a839c295d2919"
@@ -2080,7 +1918,7 @@
       {
         "ownerId": "proposal-analyze",
         "source": "skills/project-brief/SKILL.md",
-        "destination": "skills/proposal-analyze/references/project-brief/SKILL.md",
+        "destination": "skills/proposal-analyze/references/project-brief/REFERENCE.md",
         "originalGitBlobDigest": "f70f65e4832a5c0fb83e9f280823aa424bc45836"
       },
       {
@@ -2088,12 +1926,6 @@
         "source": "skills/project-brief/agents/openai.yaml",
         "destination": "skills/proposal-analyze/references/project-brief/agents/openai.yaml",
         "originalGitBlobDigest": "dc14731a44dfdefad08034bb6948c19b57e9a5d1"
-      },
-      {
-        "ownerId": "proposal-analyze",
-        "source": "skills/project-brief/distribution.yaml",
-        "destination": "skills/proposal-analyze/references/project-brief/distribution.yaml",
-        "originalGitBlobDigest": "9d9b1f471358cf806ce5090551e0cb61a09a15ea"
       },
       {
         "ownerId": "release-creator",
@@ -2109,14 +1941,8 @@
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/release-creator/distribution.yaml",
-        "destination": "skills/release-creator/distribution.yaml",
-        "originalGitBlobDigest": "e9661b01e37d494ccde40a173cd869220e6ffd54"
-      },
-      {
-        "ownerId": "release-creator",
         "source": "skills/deploy-list/SKILL.md",
-        "destination": "skills/release-creator/references/deploy-list/SKILL.md",
+        "destination": "skills/release-creator/references/deploy-list/REFERENCE.md",
         "originalGitBlobDigest": "d02e0304502b8ff1e180d6c222e1730d9ce60752"
       },
       {
@@ -2130,12 +1956,6 @@
         "source": "skills/deploy-list/config.sh.example",
         "destination": "skills/release-creator/references/deploy-list/config.sh.example",
         "originalGitBlobDigest": "b4f5337816b0912844f9a389bcc4ddd08e655ac4"
-      },
-      {
-        "ownerId": "release-creator",
-        "source": "skills/deploy-list/distribution.yaml",
-        "destination": "skills/release-creator/references/deploy-list/distribution.yaml",
-        "originalGitBlobDigest": "c301c572ae2dc8f06e5b34edc308959dec08956c"
       },
       {
         "ownerId": "release-creator",
@@ -2313,14 +2133,8 @@
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/repo-verify/distribution.yaml",
-        "destination": "skills/repo-verify/distribution.yaml",
-        "originalGitBlobDigest": "837bdb52d0e0044bb40f506676aef3871fb8cd78"
-      },
-      {
-        "ownerId": "repo-verify",
         "source": "skills/feature-verify/SKILL.md",
-        "destination": "skills/repo-verify/references/feature-verify/SKILL.md",
+        "destination": "skills/repo-verify/references/feature-verify/REFERENCE.md",
         "originalGitBlobDigest": "2e03e6bd60361ecaa6f9b66e43280a97c03abbf3"
       },
       {
@@ -2328,12 +2142,6 @@
         "source": "skills/feature-verify/agents/openai.yaml",
         "destination": "skills/repo-verify/references/feature-verify/agents/openai.yaml",
         "originalGitBlobDigest": "69e8844307ae1053c2e69676a2e13fb2ebf5c965"
-      },
-      {
-        "ownerId": "repo-verify",
-        "source": "skills/feature-verify/distribution.yaml",
-        "destination": "skills/repo-verify/references/feature-verify/distribution.yaml",
-        "originalGitBlobDigest": "9b90419d49d75daa7fb20f7d5c53e455bb7b5440"
       },
       {
         "ownerId": "repo-verify",
@@ -2409,14 +2217,8 @@
       },
       {
         "ownerId": "tdd",
-        "source": "skills/tdd-workflow/distribution.yaml",
-        "destination": "skills/tdd-workflow/distribution.yaml",
-        "originalGitBlobDigest": "dd0fb5ed8fbfbd3cf58e951fbe80855d126f9f20"
-      },
-      {
-        "ownerId": "tdd",
         "source": "skills/legacy-characterization-tests/SKILL.md",
-        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/SKILL.md",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/REFERENCE.md",
         "originalGitBlobDigest": "fd32751d2df3d4598c85adceedd70ff4986591a0"
       },
       {
@@ -2424,12 +2226,6 @@
         "source": "skills/legacy-characterization-tests/agents/openai.yaml",
         "destination": "skills/tdd-workflow/references/legacy-characterization-tests/agents/openai.yaml",
         "originalGitBlobDigest": "94a0287b90658d4b798de43cc0415e05d373ad45"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/legacy-characterization-tests/distribution.yaml",
-        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/distribution.yaml",
-        "originalGitBlobDigest": "4a1abab6a53603df905e4ac8cab875aa1690f325"
       },
       {
         "ownerId": "tdd",
@@ -2452,7 +2248,7 @@
       {
         "ownerId": "tdd",
         "source": "skills/phpunit/SKILL.md",
-        "destination": "skills/tdd-workflow/references/phpunit/SKILL.md",
+        "destination": "skills/tdd-workflow/references/phpunit/REFERENCE.md",
         "originalGitBlobDigest": "edd49741617025b5a73f19f5a0c2a8a9914de72b"
       },
       {
@@ -2460,12 +2256,6 @@
         "source": "skills/phpunit/agents/openai.yaml",
         "destination": "skills/tdd-workflow/references/phpunit/agents/openai.yaml",
         "originalGitBlobDigest": "d48c2a241946c8c4a9372ed93c41981edc5c4eff"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/phpunit/distribution.yaml",
-        "destination": "skills/tdd-workflow/references/phpunit/distribution.yaml",
-        "originalGitBlobDigest": "66d1e89695646e825cf3af99ec0c7bdae1682d15"
       },
       {
         "ownerId": "tdd",
@@ -2514,12 +2304,6 @@
         "source": "skills/ui-ux-verify/agents/openai.yaml",
         "destination": "skills/ui-ux-verify/agents/openai.yaml",
         "originalGitBlobDigest": "a3be3505456883e034cbb4e8eaa896c4102481f7"
-      },
-      {
-        "ownerId": "ui-ux-verify",
-        "source": "skills/ui-ux-verify/distribution.yaml",
-        "destination": "skills/ui-ux-verify/distribution.yaml",
-        "originalGitBlobDigest": "f6fa0cf38f5a8fa376f9b5b0f0f94e620f04810e"
       },
       {
         "ownerId": "ui-ux-verify",
