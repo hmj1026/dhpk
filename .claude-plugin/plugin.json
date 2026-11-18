@@ -10,6 +10,9 @@
   },
   "license": "MIT",
   "homepage": "https://github.com/hmj1026/dhpk",
+  "repository": "https://github.com/hmj1026/dhpk",
+  "icon": "./.claude-plugin/icon.png",
+  "bugs": "https://github.com/hmj1026/dhpk/issues",
   "keywords": [
     "harness",
     "codex",

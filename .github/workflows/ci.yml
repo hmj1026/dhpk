@@ -140,6 +140,10 @@ jobs:
         run: node scripts/ci/sync-skill-resources.js --check
       - name: Validate source references
         run: node scripts/ci/validate-references.js
+      - name: Install pinned Claude CLI for package verification
+        if: needs.plan.outputs.mode != 'light' || needs.plan.outputs.surfaces != '[]'
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
+
       - name: Validate retained distribution packages
         if: needs.plan.outputs.mode != 'light' || needs.plan.outputs.surfaces != '[]'
         env:
@@ -415,6 +419,9 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-dhpk-test-env
+
+      - name: Install pinned Claude CLI for package verification
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
 
       - name: Rehearse release verification (dry-run)
         run: bash scripts/release/release-verify.sh --mode dry-run --out-dir "$RUNNER_TEMP"

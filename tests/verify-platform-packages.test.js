@@ -13,6 +13,7 @@ const {
   expectedCursorPolicyBody,
   cleanCheckoutReport,
   verifyPublicPlugin,
+  verifyDirectoryPlugin,
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
@@ -351,6 +352,18 @@ test('Public Plugin built from the committed tree passes publication conformance
 test('public-plugin is a selectable verifier surface with no dependencies', () => {
   assert.deepStrictEqual(resolveSurfaceSelection(['public-plugin']), {
     ok: true, requested: ['public-plugin'], resolved: ['public-plugin'],
+  });
+});
+
+test('Directory Plugin built from the committed tree passes conformance and claude validate', () => {
+  const result = verifyDirectoryPlugin({ root: ROOT });
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.conformance, 'PASS');
+});
+
+test('directory-plugin is a selectable verifier surface with no dependencies', () => {
+  assert.deepStrictEqual(resolveSurfaceSelection(['directory-plugin']), {
+    ok: true, requested: ['directory-plugin'], resolved: ['directory-plugin'],
   });
 });
 

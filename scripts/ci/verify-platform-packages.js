@@ -44,19 +44,20 @@ const { sha256Hex } = require('../lib/content-fingerprint');
 const { compileMarketplacePublicationView } = require('../lib/marketplace-selection');
 const { compileOpenaiSubmissionPackage } = require('../lib/openai-submission-package');
 const { renderOpenaiSubmissionManifest, readSourceVersion } = require('../lib/host-manifests');
-const { checkPublicPlugin } = require('../lib/publication-conformance');
+const { checkPublicPlugin, checkDirectoryPlugin, runClaudeValidate } = require('../lib/publication-conformance');
 const { NATIVE_RECEIPT_FILES, publicPluginTreeDrift } = require('../lib/public-plugin-tree');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
 const ROOT = path.join(__dirname, '..', '..');
-const SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin', 'public-plugin']);
+const SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin', 'public-plugin', 'directory-plugin']);
 const SURFACE_DEPENDENCIES = Object.freeze({
   'agent-plugin': Object.freeze([]),
   'cursor-plugin': Object.freeze(['agent-plugin']),
   'codex-native': Object.freeze([]),
   'agy-plugin': Object.freeze([]),
   'public-plugin': Object.freeze([]),
+  'directory-plugin': Object.freeze([]),
 });
 
 function resolveSurfaceSelection(requested = null, dependencyMap = SURFACE_DEPENDENCIES) {
@@ -324,6 +325,32 @@ function verifyPublicPlugin({ root, inventory }) {
   return publicPluginResult(errors, compiled.files.length);
 }
 
+function readDirectoryTree(directory) {
+  const files = new Map();
+  const visit = (current, relative) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const child = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) visit(path.join(current, entry.name), child);
+      else if (entry.isFile()) files.set(child, fs.readFileSync(path.join(current, entry.name)));
+    }
+  };
+  visit(directory, '');
+  return files;
+}
+
+// Directory Plugin: read the committed Claude package, run the conformance
+// rules, then let the Claude CLI validate it with the directory profile.
+function verifyDirectoryPlugin({ root }) {
+  const directory = path.join(root, 'generated', 'claude-marketplace', 'package');
+  if (!fs.existsSync(directory)) return publicPluginResult([`Directory Plugin is missing: ${directory}`]);
+  const files = readDirectoryTree(directory);
+  const errors = [
+    ...checkDirectoryPlugin(files, { version: readSourceVersion(root) }),
+    ...runClaudeValidate(directory),
+  ];
+  return publicPluginResult(errors, files.size);
+}
+
 function publicPluginResult(errors, fileCount = 0) {
   return {
     structural: errors.length === 0 ? 'PASS' : 'FAIL',
@@ -554,6 +581,7 @@ function main(argv = process.argv.slice(2)) {
       ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
       ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-agy'), temp: tempAgy }) } : {}),
       ...(selectedSurfaces.includes('public-plugin') ? { 'public-plugin': verifyPublicPlugin({ root, inventory }) } : {}),
+      ...(selectedSurfaces.includes('directory-plugin') ? { 'directory-plugin': verifyDirectoryPlugin({ root }) } : {}),
     };
     const selection = parsed.explicit ? { requested: parsed.requested, resolved: parsed.resolved } : null;
     report = reportFromSurfaces(surfaces, verifyPolicyParity(root, inventory, selectedSurfaces), selection);
@@ -580,4 +608,5 @@ module.exports = {
   expectedCursorPolicyBody,
   cleanCheckoutReport,
   verifyPublicPlugin,
+  verifyDirectoryPlugin,
 };
