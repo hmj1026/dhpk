@@ -51,6 +51,8 @@ test('selected Cursor projection selectors have catalog identities without a new
   assert.deepStrictEqual(grokRoutes[0].authorities, ['workspace-write']);
   assert.strictEqual(cursorProfile.role_defaults.worker.model_id, 'composer-2.5');
   assert.strictEqual(cursorAgentModel('doc-reviewer.md'), 'composer-2.5-fast');
+  assert.strictEqual(cursorAgentModel('quick-worker.md'), 'composer-2.5-fast');
+  assert.strictEqual(cursorAgentModel('fast-worker.md'), 'cursor-grok-4.6-high');
   assert.strictEqual(cursorAgentModel('code-reviewer.md'), 'cursor-grok-4.6-high');
 });
 

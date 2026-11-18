@@ -15,7 +15,8 @@
     "qa-executor",
     "ui-verifier",
     "docs-writer",
-    "scoped-worker"
+    "scoped-worker",
+    "quick-worker"
   ],
   "package_roles": [
     "architect",
@@ -32,6 +33,7 @@
     "monitor",
     "planner",
     "qa-executor",
+    "quick-worker",
     "scoped-worker",
     "security-reviewer",
     "tdd-guide",
