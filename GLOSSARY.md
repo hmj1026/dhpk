@@ -90,6 +90,14 @@ _Avoid_: Orphan, retired skill, deleted entry
 A versioned skills-only dhpk package intended for public distribution through OpenAI's universal plugin directory to users of Codex and ChatGPT Work.
 _Avoid_: Local marketplace, project sync, installed skill directory
 
+**Directory Plugin**:
+A versioned dhpk package, carrying skills, agents, and hooks, intended for public distribution through Anthropic's Claude plugin directory.
+_Avoid_: Public Plugin, repository root plugin, marketplace package
+
+**Published Package**:
+Any dhpk package released for consumers outside this repository; a Public Plugin and a Directory Plugin are both Published Packages.
+_Avoid_: Generated tree, build output, surface
+
 **Development Marketplace**:
 A local or repository plugin catalog used to test dhpk before public publication.
 _Avoid_: Public Plugin, public release channel
