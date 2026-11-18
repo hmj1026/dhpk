@@ -818,7 +818,7 @@ native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--
 若 query 缺少或不受支援，結果回報 `providerCheck: UNAVAILABLE`，sync 可繼續；installer
 不會自動移除 global plugin。不要刪除整個 `.codex/` 目錄。
 
-細節請看 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
+細節請看 `plugins/dhpk/README.md`。
 
 ## 遷移現有專案
 

@@ -421,7 +421,6 @@ dhpk/
 │   ├── README.md、README.zh-TW.md # 如何同步進專案
 │   ├── skills/                   # 24 個指向 canonical skill 的相對 symlink
 │   ├── agents/、config.toml.example
-├── .codex-plugin/plugin.json     # Codex plugin manifest（marketplace 可安裝，實驗性）
 ├── plugins/dhpk/                 # 追蹤中的 Codex-native package：19 個實體項目、零 symlink
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md

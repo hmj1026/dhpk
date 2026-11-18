@@ -443,11 +443,12 @@ For the executable duplicate-discovery check and its read-only remediation
 steps, use [Check for duplicate Codex discovery](./platform-installation.md#check-for-duplicate-codex-discovery)
 in the platform installation SSOT.
 
-**Structural safety.** Both `.codex-plugin/plugin.json` (root) and
-`plugins/dhpk/.codex-plugin/plugin.json` (marketplace-target wrapper) now
-resolve to the SAME physical `plugins/dhpk/skills/` tree — the root manifest
-via the in-root-relative `./plugins/dhpk/skills/`, the wrapper via
-`./skills/` — with zero symlinks. This closes the two concrete failure
+**Structural safety.** The repo root is not a Codex plugin root: it has no
+`.codex-plugin/plugin.json`, so no Codex install loads the Claude hooks beside
+it. `plugins/dhpk/.codex-plugin/plugin.json` resolves its skills via
+`./skills/` to the physical `plugins/dhpk/skills/` tree with zero symlinks.
+The Codex marketplace entry in `.agents/plugins/marketplace.json` carries only
+documented fields and no per-entry `version`. This closes the two concrete failure
 shapes behind issue #88 (the symlink-dependent `codex/skills/` mirror and the
 parent-relative `../../codex/skills/` wrapper escape); both are enforced by
 `validateNativeCandidate()` and pinned by
@@ -480,7 +481,7 @@ what a release ships without secrets.
 real CONSUMER PASS are necessary evidence, not sufficient by themselves.
 Native Codex marketplace support remains **experimental** until a later,
 separately approved graduation decision — this document, `README.md`, and
-`.codex-plugin/README.md` continue to say so, and
+`plugins/dhpk/README.md` continue to say so, and
 `tests/codex-native-package-validate.test.js` fails loudly if that labeling
 is silently dropped. The supported Codex delivery path remains
 `scripts/hooks/install-codex-skills.sh`, a separate project-local sync
