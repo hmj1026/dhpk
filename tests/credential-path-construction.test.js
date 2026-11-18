@@ -5,7 +5,8 @@
 // quoting, brace expansion, parameter defaults, split words, and variables set
 // earlier in the same command. Public seam: the guard and the dispatcher read
 // the host JSON payload; fixtures are synthetic and nothing is executed.
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { runHook: runHookAt } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');
