@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## 0.78.0 — 2026-11-18 — 新增 quick-worker 低成本層、子代理改檔紀律與中斷偵測，並修正選用 hook 設定說明
+
+- **feat(agents)** — 新增 quick-worker 角色（Claude haiku／Codex gpt-6-luna／Cursor composer-2.5-fast），專責字面明確的機械式修改，需判斷時退回 fast-worker。
+- **feat(hooks)** — SubagentStop 偵測額度用完或需重新登入而中斷的子代理，提示其結果不可採用並記錄於 dispatch log。
+- **fix(release)** — 增加發布測試的執行時間預算並記錄逾時進度。
+- **fix(hooks)** — warmstart 只注入 handoff 中明確寫出的 OpenSpec change，不再注入最近修改、與派工無關的 change，並將 quick-worker 納入 worker 角色。
+- **fix(agents)** — 寫檔類子代理一律以 Edit／Write 修改檔案並申報例外，並限制長時間寫檔子代理的同時執行數量。
+- **perf(git-smart-commit)** — 減少變更收集器的 Git 子程序啟動次數並強化分組 diff 的完整審查流程。
+- **docs(config)** — 修正選用 hook 設定說明：須由使用端註冊 hook 才會生效，並補上註冊範例。
+- **docs(release-creator)** — Clarify project-owned release routing and keep standalone publish gates diagnostic.
+
 ## 0.77.4 — 2026-11-18 — Fix sync-develop required check reporting and credential-read-policy timeout
 
 No user-visible changes in this release.
