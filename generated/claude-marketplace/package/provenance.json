@@ -2397,7 +2397,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "652a5ca5dd7875a2573e937d37a4498bd484d97e52d92f31060012196edb34c9"
+      "sha256": "b1f70ca400f3e5998f8854b26e2f835d76a39f18037264d09f6b93b315001cd6"
     },
     {
       "skillId": "git-smart-commit",
@@ -2429,7 +2429,7 @@
       "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
       "destination": "skills/git-smart-commit/scripts/collect-changes.js",
       "kind": "entry",
-      "sha256": "16e2a76e613763be51297886d3ffbc1e091be96d68466d776c08b2a38d92e2ff"
+      "sha256": "554ef41805d75d7e67bb3bbb2fd465119dc34fc6261fddafb78ad66401353579"
     },
     {
       "skillId": "git-worktree",
