@@ -15,7 +15,6 @@
   ],
   "rules": "./rules/",
   "agents": "./agents/",
-  "commands": "./commands/",
   "hooks": "./hooks/hooks.json",
   "variables": {
     "type": "object",
