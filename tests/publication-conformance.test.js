@@ -199,4 +199,34 @@ test('claude plugin validate failure and missing CLI are reported', () => {
   assert.ok(missing.some((error) => /could not run/.test(error)), missing.join('; '));
 });
 
+const skillWith = (text) => tree({ 'skills/a/references/guide.md': Buffer.from(text) });
+
+test('Public Plugin may name consumer-project output, cache, and settings paths', () => {
+  for (const text of [
+    'Write to `.claude/artifacts/reviews/x.md` or `.codex/artifacts/reviews/x.md`.',
+    'Logs go under `.claude/cache/verify/<repoKey>/`; see ~/.claude/cache/repo-intake/.',
+    'Read `.claude/settings.local.json` before `.claude/settings.json`; see `.codex/config.toml`.',
+    'Run `node .claude/dhpk/skills/repo-verify/scripts/verify-runner.js` when present.',
+    'Excludes `.claude/`, `.codex/` and `.git/` directories.',
+  ]) assert.deepStrictEqual(run1(skillWith(text)), [], text);
+});
+
+test('Public Plugin telling the agent to read dhpk-internal harness content fails', () => {
+  for (const text of [
+    'Read `.claude/rules/execution-policy.md` first.',
+    'Delegate to `.claude/agents/code-reviewer.md`.',
+    'See `.codex/agents/tdd-guide.toml`.',
+    'Follow .claude/docs/guide.md.',
+  ]) {
+    const errors = run1(skillWith(text));
+    assert.ok(mentions(errors, /dhpk-internal path \.(claude|codex)\//), `${text}: ${errors.join('; ')}`);
+  }
+});
+
+test('Public Plugin harness path allowance is per file for shipped scripts', () => {
+  const comment = Buffer.from('# see .claude/rules/dev-workflow-project.md\n');
+  assert.deepStrictEqual(run1(tree({ 'skills/a/scripts/prepare_dev_scope.py': comment })), []);
+  assert.ok(run1(tree({ 'skills/a/scripts/other.py': comment })).length > 0);
+});
+
 run('publication-conformance');

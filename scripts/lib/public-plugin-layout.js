@@ -17,6 +17,53 @@ const TOP_LEVEL_SKILL_MARKDOWN = /^skills\/[^/]+\/SKILL\.md$/;
 const SKILL_MARKDOWN_MENTION = /(?<![\w/.-])((?:\.{1,2}\/|[\w.-]+\/)*)SKILL\.md/g;
 const BARE_SKILL_MARKDOWN = /(?<![\w/.-])SKILL\.md/g;
 
+// Prose that points at dhpk-repo harness paths (`.claude/rules/`, `.codex/agents/`)
+// a plugin-only install lacks. Each entry names the consumer-neutral wording that
+// replaces it. Every entry must match each file its `file` pattern selects, so a
+// stale entry fails the build instead of silently doing nothing.
+const PROSE_REWRITES = Object.freeze([
+  {
+    file: /\/phpunit57-legacy-test-traps\.md$/,
+    from: '`.codex/agents/tdd-guide-<your-project>.toml`',
+    to: "the project's own tdd-guide agent definition",
+  },
+  {
+    file: /\/rules\/execution-policy\.md$/,
+    from: 'their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section)',
+    to: 'their own short project rule file (or `CLAUDE.md` section)',
+  },
+  {
+    file: /\/rules\/execution-policy\.md$/,
+    from: "each project's `.claude/rules/<stack>.md`",
+    to: "each project's own stack rule file",
+  },
+  {
+    file: /\/flow-guide\/references\/projects-index\.md$/,
+    from: '（位於該專案的 `.claude/rules/`）',
+    to: '（位於該專案的 rules 目錄）',
+  },
+  {
+    file: /\/flow-guide\/references\/projects-index\.md$/,
+    from: '使用端專案的 `.claude/rules/dev-workflow-project.md`',
+    to: '使用端專案 rules 目錄下的 `dev-workflow-project.md`',
+  },
+]);
+
+function rewriteInternalPaths(files) {
+  const errors = [];
+  const rewritten = files.map((file) => {
+    const rules = PROSE_REWRITES.filter((rule) => rule.file.test(file.path));
+    if (rules.length === 0) return file;
+    let text = Buffer.from(file.bytes).toString('utf8');
+    for (const rule of rules) {
+      if (!text.includes(rule.from)) errors.push(`${file.path}: harness path rewrite no longer matches: ${rule.from}`);
+      text = text.split(rule.from).join(rule.to);
+    }
+    return { ...file, bytes: Buffer.from(text, 'utf8') };
+  });
+  return { errors, files: rewritten };
+}
+
 const isInternalMetadataFile = (file) => path.posix.basename(file) === 'distribution.yaml';
 const isNestedSkillMarkdown = (file) => file.startsWith('skills/') && file.endsWith('/SKILL.md') && !TOP_LEVEL_SKILL_MARKDOWN.test(file);
 
@@ -117,7 +164,9 @@ function layoutPublicPlugin({ files, manifest, counts }) {
     && manifest.extensions['com.openai'].interface;
   if (!listing) return { ok: false, errors: ['Public Plugin manifest has no OpenAI listing interface'], files: [], assetFiles: [], manifest };
 
-  const kept = files
+  const cleaned = rewriteInternalPaths(files);
+  if (cleaned.errors.length > 0) return { ok: false, errors: cleaned.errors, files: [], assetFiles: [], manifest };
+  const kept = cleaned.files
     .filter((file) => !isInternalMetadataFile(file.path))
     .map((file) => ({ ...file, contentPath: file.path }));
   const dirs = renamedReferenceDirs(kept);

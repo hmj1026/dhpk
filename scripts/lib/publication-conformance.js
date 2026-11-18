@@ -4,6 +4,8 @@
 // package as a Map of relative path to Buffer so the same rules run on a
 // compiled tree, an extracted ZIP, or a directory read.  Later tickets add rules.
 
+const { findInternalPathReferences } = require('./public-plugin-paths');
+
 const MANIFEST_PATHS = Object.freeze(['plugin.json', '.codex-plugin/plugin.json']);
 
 function readManifest(files, manifestPath, errors) {
@@ -115,6 +117,9 @@ function checkPublicPlugin(files, { version } = {}) {
   const errors = [];
   if (!files.has('plugin.json')) errors.push('Public Plugin is missing plugin.json');
   errors.push(...internalFileErrors(files), ...metadataErrors(files));
+  for (const { file, reference } of findInternalPathReferences(files)) {
+    errors.push(`Public Plugin ${file} references dhpk-internal path ${reference} that a plugin-only install lacks`);
+  }
 
   for (const file of hookPaths(files)) errors.push(`Public Plugin must not contain hooks: ${file}`);
 

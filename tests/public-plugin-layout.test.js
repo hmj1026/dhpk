@@ -107,4 +107,19 @@ test('layout requires an OpenAI listing interface', () => {
   assert.strictEqual(result.ok, false);
 });
 
+const INDEX = 'skills/flow-guide/references/projects-index.md';
+
+test('layout rewrites dhpk-internal harness paths in known prose', () => {
+  const body = '（位於該專案的 `.claude/rules/`）\n使用端專案的 `.claude/rules/dev-workflow-project.md`\n';
+  const result = layoutPublicPlugin({ files: [...baseFiles(), file(INDEX, body)], manifest: manifest(), counts });
+  assert.strictEqual(result.ok, true, result.errors.join('; '));
+  assert.strictEqual(text(result, INDEX), '（位於該專案的 rules 目錄）\n使用端專案 rules 目錄下的 `dev-workflow-project.md`\n');
+});
+
+test('layout fails when a harness path rewrite no longer matches its file', () => {
+  const result = layoutPublicPlugin({ files: [...baseFiles(), file(INDEX, 'reworded already\n')], manifest: manifest(), counts });
+  assert.strictEqual(result.ok, false);
+  assert.match(result.errors.join('; '), /no longer matches/);
+});
+
 run('public-plugin-layout');
