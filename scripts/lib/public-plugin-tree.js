@@ -8,16 +8,22 @@
 
 const { normalizePortableFrontmatter, stableStringify } = require('./agent-plugin-package');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
+const { layoutPublicPlugin, remapBundleProvenance } = require('./public-plugin-layout');
 
 const OPENAI_MANIFEST_PATH = 'plugin.json';
 const CODEX_MANIFEST_PATH = '.codex-plugin/plugin.json';
+
+// Portable frontmatter without metadata: dhpk-* keys are internal bookkeeping.
+const PUBLIC_FRONTMATTER_ALLOWLIST = Object.freeze(['name', 'description', 'license', 'compatibility']);
 
 // Public Plugin SKILL.md bytes: portable frontmatter only. Returns
 // { ok, bytes, errors }; files other than a SKILL.md pass through unchanged.
 function normalizePublicSkillFile(file, inventoryById) {
   const isSkillMarkdown = file.path.startsWith('skills/') && file.path.endsWith('/SKILL.md');
   if (!isSkillMarkdown) return { ok: true, bytes: Buffer.from(file.bytes), errors: [] };
-  const parsed = normalizePortableFrontmatter(Buffer.from(file.bytes).toString('utf8'));
+  const parsed = normalizePortableFrontmatter(Buffer.from(file.bytes).toString('utf8'), {
+    allowlist: PUBLIC_FRONTMATTER_ALLOWLIST,
+  });
   if (!parsed.ok) return { ok: false, bytes: null, errors: parsed.errors.map((error) => `${file.skillId} ${error}`) };
   const skill = inventoryById.get(file.skillId);
   if (skill && parsed.name !== skill.name) {
@@ -53,26 +59,44 @@ function publicPluginManifestFiles(openaiManifest) {
   ];
 }
 
+// Normalizes every content file, then lays the plugin out for review: the
+// shared step of the ZIP and the Codex native package. Returns
+// { ok, errors, files, assetFiles, manifest, bundleProvenance }; files keep their content shape
+// (sourcePath, ownerId, ...) with final path and bytes.
+function preparePublicPlugin({ content, inventory, publicationView, manifest }) {
+  const inventoryById = new Map(inventory.skills.map((skill) => [skill.id, skill]));
+  const errors = [];
+  const normalizedFiles = [];
+  for (const sourceFile of content.files) {
+    const normalized = normalizePublicSkillFile(sourceFile, inventoryById);
+    if (!normalized.ok) errors.push(...normalized.errors);
+    else normalizedFiles.push({ ...sourceFile, bytes: normalized.bytes });
+  }
+  if (errors.length > 0) return { ok: false, errors, files: [], assetFiles: [], manifest };
+  const laidOut = layoutPublicPlugin({
+    files: normalizedFiles,
+    manifest,
+    counts: {
+      workflowCount: publicationView.publicEntries.length,
+      referenceCount: content.bundleProvenance.childIds.length,
+    },
+  });
+  if (!laidOut.ok) return laidOut;
+  return { ...laidOut, bundleProvenance: remapBundleProvenance(content.bundleProvenance, laidOut.pathMap) };
+}
+
 // Public Plugin tree files for a publication view: normalized skills plus both
 // manifests, sorted by path. Fails closed on any content or collision error.
 function compilePublicPluginTree({ root, inventory, publicationView, manifest, sourceFileAllowlist } = {}) {
   const content = compileMarketplaceSkillContent({ root, inventory, publicationView, sourceFileAllowlist });
   if (!content.ok) return { ok: false, errors: content.errors, files: [], content: null };
 
-  const inventoryById = new Map(inventory.skills.map((skill) => [skill.id, skill]));
-  const errors = [];
-  const files = [];
-  for (const sourceFile of content.files) {
-    const normalized = normalizePublicSkillFile(sourceFile, inventoryById);
-    if (!normalized.ok) {
-      errors.push(...normalized.errors);
-      continue;
-    }
-    files.push({ path: sourceFile.path, bytes: normalized.bytes, mode: sourceFile.mode & 0o111 ? 0o755 : 0o644 });
-  }
-  if (errors.length > 0) return { ok: false, errors, files: [], content: null };
+  const prepared = preparePublicPlugin({ content, inventory, publicationView, manifest });
+  if (!prepared.ok) return { ok: false, errors: prepared.errors, files: [], content: null };
 
-  const manifests = publicPluginManifestFiles(manifest);
+  const files = [...prepared.files, ...prepared.assetFiles]
+    .map((file) => ({ path: file.path, bytes: Buffer.from(file.bytes), mode: file.mode & 0o111 ? 0o755 : 0o644 }));
+  const manifests = publicPluginManifestFiles(prepared.manifest);
   for (const file of manifests) {
     if (files.some((existing) => existing.path === file.path)) {
       return { ok: false, errors: [`package path collision at ${file.path}`], files: [], content: null };
@@ -80,7 +104,7 @@ function compilePublicPluginTree({ root, inventory, publicationView, manifest, s
   }
   files.push(...manifests);
   files.sort((left, right) => (left.path < right.path ? -1 : (left.path > right.path ? 1 : 0)));
-  return { ok: true, errors: [], files, content };
+  return { ok: true, errors: [], files, content, manifest: prepared.manifest, bundleProvenance: prepared.bundleProvenance };
 }
 
 // Files the Codex native generator adds beside the Public Plugin tree: its
@@ -109,5 +133,6 @@ module.exports = {
   normalizePublicSkillFile,
   renderCodexPluginManifest,
   publicPluginManifestFiles,
+  preparePublicPlugin,
   compilePublicPluginTree,
 };

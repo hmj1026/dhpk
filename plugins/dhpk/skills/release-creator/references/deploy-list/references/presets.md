@@ -230,4 +230,4 @@ identifiers, adjust paths to match your project's layout, then pin via
 ## See also
 
 - `references/why-this-grouping.md` — design rationale.
-- `SKILL.md` § "When NOT to use" / "NEVER" — operational guardrails.
+- `REFERENCE.md` § "When NOT to use" / "NEVER" — operational guardrails.

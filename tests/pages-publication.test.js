@@ -4,8 +4,7 @@
 // points there (#1499). Static checks only: the live URL needs repository
 // Pages settings that a test cannot change.
 
-const test = require('node:test');
-const assert = require('node:assert');
+const { test, run, assert } = require('./_lib/tinytest');
 const fs = require('node:fs');
 const path = require('node:path');
 const { renderOpenaiSubmissionManifest } = require('../scripts/lib/host-manifests.js');
@@ -45,3 +44,5 @@ test('the Pages workflow publishes exactly the privacy and support pages with pi
   assert.match(workflow, /id-token: write/);
   assert.doesNotMatch(workflow, /uses: [^\n]*@(v\d|main|master)\b/);
 });
+
+run('pages-publication');

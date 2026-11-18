@@ -1014,7 +1014,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
         assert.ok(!provenance.materializedSkillIds.includes(id), id);
       }
       const flowDrive = path.join(out, 'skills', 'flow-drive');
-      assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
+      assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'references']);
       assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
       const references = fs.readdirSync(path.join(flowDrive, 'references')).sort();
       assert.ok(references.includes('migration.md'), 'Flow Drive retains its migration guide');

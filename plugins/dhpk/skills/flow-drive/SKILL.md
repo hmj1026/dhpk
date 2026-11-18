@@ -1,10 +1,6 @@
 ---
 name: flow-drive
 description: "Use the current Host and Model to complete one bounded, authorized task and report observed verification evidence or a precise blocker."
-metadata:
-  dhpk-capability-id: "dhpk.skill.flow-drive"
-  dhpk-invocation-class: "explicit-only"
-  dhpk-name-style: "portable-family"
 ---
 
 # Flow Drive

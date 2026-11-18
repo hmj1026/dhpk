@@ -14,7 +14,7 @@ for missing, absolute, traversal, or symlink escaping paths. Do not infer the
 base from an active Skill, environment variable, checkout search, or fallback
 chain.
 
-> Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra reviewer trigger paths, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
+> Project overrides: projects that adopt this policy should keep their own short project rule file (or `CLAUDE.md` section) that only encodes deltas — e.g. extra reviewer trigger paths, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
 >
 > The project policy is an input delta: it may extend the selected base policy
 > with project-specific triggers or tables, but it cannot supply a missing base
@@ -778,7 +778,7 @@ Addition/removal justification and residue-cleanup requirements live in `${POLIC
 
 ## Not in scope
 
-- **Does not restate** stack-specific coding conventions — those live in each project's `.claude/rules/<stack>.md` or the matching dhpk module reference.
+- **Does not restate** stack-specific coding conventions — those live in each project's own stack rule file or the matching dhpk module reference.
 - **Does not restate** the anti-rationalization phrasing table — see `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md`.
 - **Does not restate** the tool-selection decision tree — see `${POLICY_BUNDLE_ROOT}/rules/tool-routing.md`.
 - **Does not restate** the full end-of-task self-check — use the selected entry

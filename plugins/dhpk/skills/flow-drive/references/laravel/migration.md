@@ -84,4 +84,4 @@ framework or Mix version and keep the migration unresolved rather than
 assuming the nearest reference.
 
 See [`compatibility.md`](compatibility.md) for the cross-version matrix and
-[`SKILL.md`](SKILL.md) for the family resolver contract.
+[`REFERENCE.md`](REFERENCE.md) for the family resolver contract.

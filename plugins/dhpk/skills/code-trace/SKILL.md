@@ -1,11 +1,6 @@
 ---
 name: code-trace
 description: "Trace unfamiliar code, diagnose a reproducible failure, investigate history, or pick a code-navigation tool, following symbols, callers, data flow, or regressions. Not for implementing a fix, reviewing a diff, or plain-text search. Output: an evidence-backed trace or root cause."
-metadata:
-  dhpk-capability-id: "dhpk.skill.code-trace"
-  dhpk-invocation-class: "implicit-eligible"
-  dhpk-name-style: "portable-family"
-  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Code Trace

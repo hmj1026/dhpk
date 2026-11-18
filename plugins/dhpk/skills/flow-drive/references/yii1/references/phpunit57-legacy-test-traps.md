@@ -2,7 +2,7 @@
 
 Use this file when writing or reviewing tests for legacy PHP 5.6 + Yii 1.x codebases.
 
-Source basis: project conventions in `CLAUDE.md`, `protected/tests/AGENTS.md`, and `.codex/agents/tdd-guide-<your-project>.toml`.
+Source basis: project conventions in `CLAUDE.md`, `protected/tests/AGENTS.md`, and the project's own tdd-guide agent definition.
 
 ## API compatibility traps
 
