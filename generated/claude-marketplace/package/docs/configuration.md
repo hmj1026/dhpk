@@ -133,7 +133,7 @@ for the selection rule.
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared dispatcher deadline for all Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. The resolved value is copied into the immutable transport context, never read by a wrapper from its environment. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for delegated implementation routing in the Implementation dispatch table. `on` routes applicable implement-phase delegation through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. Flow Drive's native task entry does not expose a dispatch mode. |
 | `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--target <agent>/<model>` remains directional and does not open other target Agents. |
-| `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
+| `subagent_quality_gate` | string | `off` | `on` \| `off` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `subagent-stop-quality.sh`. Retained for that advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
 
 ### Cross-provider opt-in
 
@@ -273,7 +273,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `docker_containers` | string[] | `[]` | container name(s) | Retained for explicitly registered Docker tooling; default SessionStart does not probe containers or export container variables. |
+| `docker_containers` | string[] | `[]` | container name(s) | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)). Retained for consumer-provided Docker tooling; no shipped hook reads it, and default SessionStart does not probe containers or export container variables. |
 | `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences reviewer triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
 
 ## Review triggers & risk heuristics
@@ -295,19 +295,19 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Env override | Purpose |
 |-----|------|---------|--------------|---------|
-| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | Retained for an explicitly registered UserPromptSubmit hint; no default hook consumes it. |
-| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | Retained for explicitly registered learning observation and presentation; default SessionStart does not inject learned context. |
-| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Retained for explicitly registered Stop advisory work; no default Stop hook consumes it. |
-| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | Retained for explicitly registered Stop advisory work; no default Stop hook consumes it. |
-| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | Retained for explicitly registered `Task`/`Agent` prompt injection; no default lifecycle entry consumes it. |
-| `reap_stale_mcp_processes` | boolean | `false` | — | Retained for explicitly registered SessionEnd/process tooling; default SessionStart does not reap processes. |
-| `harness_restore_hint` | string | `""` | — | Retained for explicitly registered symlink-health advice; default SessionStart does not emit it. |
+| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `userpromptsubmit-skill-hint.sh` (UserPromptSubmit); no default hook consumes it. |
+| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)); read by `_lib/learning-db.sh`, which no shipped default hook calls. Default SessionStart does not inject learned context. |
+| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `stop-advisory-dispatch.sh` (Stop); no default Stop hook consumes it. |
+| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `stop-advisory-dispatch.sh` (Stop); no default Stop hook consumes it. |
+| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `pre-agent-warmstart.sh` (PreToolUse `Agent\|Task`); no default lifecycle entry consumes it. |
+| `reap_stale_mcp_processes` | boolean | `false` | — | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `session-end.sh` (SessionEnd); default SessionStart does not reap processes. |
+| `harness_restore_hint` | string | `""` | — | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)); retained for consumer-provided symlink-health advice, no shipped hook reads it, and default SessionStart does not emit it. |
 
 ## Manifest / lockfile sync
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Retained for explicitly registered manifest/lockfile advisory tooling; no default PostToolUse reviewer routing remains. |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `post-edit-advisory.sh` (PostToolUse); no default PostToolUse reviewer routing remains. |
 
 ## `js` module
 
@@ -335,7 +335,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `php_bin` | string | `"php"` | PHP binary/wrapper for an explicitly registered `php-5.6` syntax-check workflow, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
+| `php_bin` | string | `"php"` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of the `php-5.6` `post-edit-php-syntax.sh`. PHP binary/wrapper for that syntax-check workflow, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
 | `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | Binary for an explicitly registered `php-7.4` formatter workflow and its applicable pre-commit gate. |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | PHPStan binary for the `php-7.4` module's pre-commit gate; only invoked when `phpstan.neon[.dist]` is present. |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | Psalm binary for the `php-7.4` module's pre-commit gate; only invoked when `psalm.xml[.dist]` is present. |
@@ -344,7 +344,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `swiftlint_bin` | string | `"swiftlint"` | — | Binary for an explicitly registered `xcode-tooling` SwiftLint workflow. Self-skips when absent. |
+| `swiftlint_bin` | string | `"swiftlint"` | — | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of the `xcode-tooling` `post-edit-swiftlint.sh`. Binary for that SwiftLint workflow. Self-skips when absent. |
 | `xcode_scheme` | string | `""` | scheme name, e.g. `babylon` | Scheme for the `xcode-tooling` pre-commit build gate. Empty skips the gate entirely (no scheme guessing). |
 | `xcode_destination` | string | `""` | e.g. `platform=iOS Simulator,name=iPhone 17` | `-destination` for the *test* step of the pre-commit gate. The *build* step always uses a device-name-free generic destination so it never goes stale. Empty auto-picks the first available simulator. |
 | `swift_build_skip_tests` | boolean | `false` | — | When `true`, the Swift pre-commit gate builds only (no `xcodebuild test` / `swift test`). |

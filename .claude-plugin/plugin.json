@@ -142,7 +142,7 @@
     "subagent_quality_gate": {
       "type": "string",
       "title": "SubagentStop thin-report quality gate",
-      "description": "Retained for an explicitly registered advisory scripts/hooks/subagent-stop-quality.sh hook. The shipped default hooks do not register it, so this setting has no default-lifecycle effect. When a consumer registers that hook, 'on'/'true'/'1' enables its one-retry thin-report check; 'off' keeps it inactive. Extraction hit/miss is recorded to .claude/artifacts/sessions/.subagent-stop-quality-extraction.json.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered, the advisory scripts/hooks/subagent-stop-quality.sh (SubagentStop) honors this setting; it has no default-lifecycle effect. 'on'/'true'/'1' enables its one-retry thin-report check; 'off' keeps it inactive. Extraction hit/miss is recorded to .claude/artifacts/sessions/.subagent-stop-quality-extraction.json.",
       "default": "off"
     },
     "codex_timeout_secs": {
@@ -173,7 +173,7 @@
       "type": "string",
       "multiple": true,
       "title": "Docker containers",
-      "description": "Container names checked at SessionStart. Empty list disables the check.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered, consumer-provided Docker tooling may read these container names; no shipped hook consumes them and default SessionStart does not probe containers.",
       "default": []
     },
     "modules": {
@@ -255,7 +255,7 @@
     "swiftlint_bin": {
       "type": "string",
       "title": "SwiftLint binary path",
-      "description": "Binary invoked by modules/xcode-tooling/hooks/post-edit-swiftlint.sh. Default 'swiftlint' (resolved on PATH). Override for a non-standard location or a wrapper. The hook self-skips when the binary is absent.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered, modules/xcode-tooling/hooks/post-edit-swiftlint.sh (PostToolUse) invokes this binary. Default 'swiftlint' (resolved on PATH). Override for a non-standard location or a wrapper. The hook self-skips when the binary is absent.",
       "default": "swiftlint"
     },
     "xcode_scheme": {
@@ -297,7 +297,7 @@
     "reap_stale_mcp_processes": {
       "type": "boolean",
       "title": "Reap stale gitnexus MCP processes",
-      "description": "When enabled, SessionStart kills ORPHANED gitnexus mcp processes (parent session dead / reparented to init). Processes owned by a live parallel session in the same repo are never killed. Off by default — only useful for projects that use the gitnexus MCP server.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true, scripts/hooks/session-end.sh (SessionEnd) kills ORPHANED gitnexus mcp processes (parent session dead / reparented to init). Processes owned by a live parallel session in the same repo are never killed. Off by default — only useful for projects that use the gitnexus MCP server.",
       "default": false
     },
     "sentinel_commit_gate": {
@@ -328,50 +328,50 @@
     "skill_hint_enabled": {
       "type": "boolean",
       "title": "Enable UserPromptSubmit skill hint",
-      "description": "When true (default), the userpromptsubmit-skill-hint hook prints a one-line suggestion mapping the user prompt to the most likely dhpk command (e.g. 'bug' → /dhpk:dhpk-bug-fix). Set false to silence. Env DHPK_DISABLE_SKILL_HINT=1 overrides for one-shot disable.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true (default), scripts/hooks/userpromptsubmit-skill-hint.sh (UserPromptSubmit) prints a one-line suggestion mapping the user prompt to the most likely dhpk command (e.g. 'bug' → /dhpk:dhpk-bug-fix). Set false to silence. Env DHPK_DISABLE_SKILL_HINT=1 overrides for one-shot disable.",
       "default": true
     },
     "learning_db_enabled": {
       "type": "boolean",
       "title": "Enable cross-session learning DB",
-      "description": "When true, hooks append signals (reviewer result, subagent failure, abnormal stop) to an append-only .claude/artifacts/learning.jsonl, and SessionStart surfaces the top recurring signatures as a [learned-context] block (capped at 5 lines). Confidence is derived per signature with recency decay; the log self-rotates past 50MB. Default false (opt-in) — zero behaviour change until a project turns it on. Env DHPK_LEARNING_DB=1/0 overrides for one-shot toggles.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true, hooks that source scripts/hooks/_lib/learning-db.sh can append signals to an append-only .claude/artifacts/learning.jsonl and read back top recurring signatures; no shipped default hook calls it. Confidence is derived per signature with recency decay; the log self-rotates past 50MB. Default false (opt-in). Env DHPK_LEARNING_DB=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "graduation_scan_enabled": {
       "type": "boolean",
       "title": "Enable knowledge graduation scan",
-      "description": "When true, a Stop hook scans the session transcript for cited auto-memory entries (~/.claude/projects/<slug>/memory/<entry>.md), maintains cross-session counts + confidence in .claude/artifacts/memory-usage-counts.json, and regenerates .claude/artifacts/graduation-candidates.md (bootstrapped from the plugin template on first run). Entries cited ≥3 times across ≥24h/≥3 dates without trap re-occurrence are proposed for promotion to a rule/skill; in OpsX projects, high-confidence entries also auto-draft a change skeleton. Requires python3. Default false (opt-in). Env DHPK_GRADUATION_SCAN=1/0 overrides for one-shot toggles.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true, scripts/hooks/stop-advisory-dispatch.sh (Stop) scans the session transcript for cited auto-memory entries (~/.claude/projects/<slug>/memory/<entry>.md), maintains cross-session counts + confidence in .claude/artifacts/memory-usage-counts.json, and regenerates .claude/artifacts/graduation-candidates.md (bootstrapped from the plugin template on first run). Entries cited ≥3 times across ≥24h/≥3 dates without trap re-occurrence are proposed for promotion to a rule/skill; in OpsX projects, high-confidence entries also auto-draft a change skeleton. Requires python3. Default false (opt-in). Env DHPK_GRADUATION_SCAN=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "lockfile_sync_commands": {
       "type": "string",
       "multiple": true,
       "title": "Lock-file sync commands",
-      "description": "Per-manifest lock-sync commands for the post-edit manifest-guard reminder, entries shaped '<manifest>:<command>' (e.g. 'composer.json:docker exec -i my_php composer update --lock'). Manifests without an entry fall back to a generic default (composer update --lock / npm install / bundle install / cargo build / poetry lock). Commands must not contain commas.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered, scripts/hooks/post-edit-advisory.sh (PostToolUse) reads per-manifest lock-sync commands for its manifest-guard reminder, entries shaped '<manifest>:<command>' (e.g. 'composer.json:docker exec -i my_php composer update --lock'). Manifests without an entry fall back to a generic default (composer update --lock / npm install / bundle install / cargo build / poetry lock). Commands must not contain commas.",
       "default": []
     },
     "php_bin": {
       "type": "string",
       "title": "PHP binary",
-      "description": "PHP binary or wrapper command used by the php-5.6 module's post-edit syntax check (php -l), e.g. 'docker exec -i my_php php'. The hook silently skips when the command's first word is not on PATH.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered, modules/php-5.6/hooks/post-edit-php-syntax.sh (PostToolUse) uses this PHP binary or wrapper command for its syntax check (php -l), e.g. 'docker exec -i my_php php'. The hook silently skips when the command's first word is not on PATH.",
       "default": "php"
     },
     "completion_evidence_enabled": {
       "type": "boolean",
       "title": "Enable completion-evidence Stop advisory",
-      "description": "When true, a Stop hook warns when the assistant claims completion while the working tree has source-code changes with no matching test changes (doc-only / harness-only changes are exempt). Advisory only — never blocks Stop. Default false (opt-in). Env DHPK_COMPLETION_EVIDENCE=1/0 overrides for one-shot toggles.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true, scripts/hooks/stop-advisory-dispatch.sh (Stop) warns when the assistant claims completion while the working tree has source-code changes with no matching test changes (doc-only / harness-only changes are exempt). Advisory only — never blocks Stop. Default false (opt-in). Env DHPK_COMPLETION_EVIDENCE=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "agent_warmstart_enabled": {
       "type": "boolean",
       "title": "Enable subagent warmstart context",
-      "description": "When true, a PreToolUse (Task|Agent) hook injects role-filtered parent context: reviewers receive the Review Request scope, workers/TDD receive the supplied handoff plus bounded task context, explorers receive routing, and monitors receive process identity. Each role has its own cap; the hook remains default false (opt-in) because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered and true, scripts/hooks/pre-agent-warmstart.sh (PreToolUse Agent|Task) injects role-filtered parent context: workers/TDD receive the supplied handoff plus bounded OpenSpec/project context, explorers a tool-routing reminder, monitors process identity; reviewers receive no extra packet. Each role has its own size cap. Default false because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "harness_restore_hint": {
       "type": "string",
       "title": "Harness restore hint",
-      "description": "Command line printed by the SessionStart broken-symlink advisory when symlinks directly under .claude/ are dangling (for projects deploying the harness via symlinks from a separate repo). Empty disables the hint line (the WARN itself still prints).",
+      "description": "Requires explicit consumer hook registration (not wired by default; see docs/hook-extension.md \"Optional extensions\"). When registered, a consumer-provided broken-symlink advisory may print this command line when symlinks directly under .claude/ are dangling (for projects deploying the harness via symlinks from a separate repo); no shipped hook reads it. Empty disables the hint line.",
       "default": ""
     },
     "js_frontend_roots": {

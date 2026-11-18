@@ -166,6 +166,54 @@ key 就自動註冊。需要它們的 consumer 必須自行註冊 hook command�
 probe、completion/graduation scan、SessionEnd 與 compaction、learning observation、
 post-edit formatting/lint，以及 Stop reminder。
 
+只被這些選用 script 讀取的 userConfig key（例如 `agent_warmstart_enabled`、
+`completion_evidence_enabled`、`graduation_scan_enabled`、`skill_hint_enabled`）
+在對應 hook 註冊前不會有任何作用；它們在 `plugin.json` 的說明一律以
+"Requires explicit consumer hook registration" 開頭。
+
+### 註冊範例
+
+`/dhpk:setup --install hooks`（installer `scripts/setup/install-assets.sh`）會把
+`scripts/hooks/`（含 `_lib/`）複製到 `<project>/.claude/dhpk/scripts/hooks/`，
+並把 `hooks/hooks.json` 複製到 `<project>/.claude/dhpk/hooks/`。請在 consumer
+project 的 `.claude/settings.json`（或 `settings.local.json`）註冊複製後的 script：
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/dhpk/scripts/hooks/pre-agent-warmstart.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/dhpk/scripts/hooks/stop-advisory-dispatch.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+接著透過 `pluginConfigs."dhpk@dhpk".options`（`agent_warmstart_enabled`、
+`completion_evidence_enabled`、`graduation_scan_enabled`）或一次性 env override
+（例如 `DHPK_AGENT_WARMSTART=1`）啟用行為。複製出來的檔案只是快照：每次升級 dhpk
+後，必須重跑 installer（`/dhpk:setup --install hooks`，內容不同時加 `--force`）
+讓 script 與 `_lib/` 跟上 plugin 版本。
+
 Module hook 仍可參與合併的 Bash dispatcher：active module 的 `pre-bash-*.sh` 與
 `pre-commit-*.sh` 會收到 Bash payload；非零 exit status 會阻擋該 Bash 呼叫。這些
 script 必須在不適用的 project/file context 自行 skip。
