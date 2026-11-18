@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.77.4",
-  "sourceCommit": "7a5515ed3f5b737761bed77dee24dd24eea8af22",
-  "generatedFromCommit": "7a5515ed3f5b737761bed77dee24dd24eea8af22",
-  "generatedFromTree": "8d343bbaa9bc2574c44f8acde982b5898ed104a1",
+  "sourceCommit": "4bdc4c3b0ed04ea198c29ac672f3f748544be55e",
+  "generatedFromCommit": "4bdc4c3b0ed04ea198c29ac672f3f748544be55e",
+  "generatedFromTree": "21abbe3032ae62a62b4774621c0e98d288be6072",
   "inventoryDigest": "142db6045bd88e30c15804a9415484d5f4b08c82890ba6c9bcd32ae475efeb45",
   "inventoryRevision": "sha256:298341bf68c52af0b673275d95c81c5cf8fbb916d6728245e1f382986056d5f6",
   "generatorVersion": "1.1.0",
@@ -1543,7 +1543,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "cb7f829e92aba8b1b0691bbdd72895c775b429ba"
+        "originalGitBlobDigest": "e4c33efa661351a8e4e70aecd4a3c3c862d3f291"
       },
       {
         "ownerId": "flow-guide",
@@ -5309,7 +5309,7 @@
     "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "09bdeb1e4cb7e8608d6c1d9d21feeec0ac76738e4dbcb80db24a0979debfc3d9",
-    "flow-guide": "8b3204e9755976340a77cc46db95ba6c4def1e5da3ba20581eac413146e6c911",
+    "flow-guide": "eccff8799a3befb917fe1c23cd50a1cf81e9a95b2385ca3bf361d71579450d6a",
     "git-smart-commit": "0902a57349a495fdeaffde7d653b1760c065ef6019e1278d62280e67d77b9189",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
     "precommit": "f53a31490a6a5001ecb13c4a2e772a6aa98d87532304abc15b79aaccb2f53640",
