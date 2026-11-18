@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.77.4",
-  "sourceCommit": "8026030a175390352fe31265a817348254297a3e",
-  "generatedFromCommit": "8026030a175390352fe31265a817348254297a3e",
-  "generatedFromTree": "9034e1f75f049fdf16645eb1ad868b30076f42b4",
+  "sourceCommit": "4b53877682aceeec287909b8e437816e85d09529",
+  "generatedFromCommit": "4b53877682aceeec287909b8e437816e85d09529",
+  "generatedFromTree": "603fe237ff3ea3dc25d23723e6ddc50cbe036f54",
   "inventoryDigest": "55de3f7eeb35cedff1a6d1ca51d28bc10e849de81cd053634871aa6aef954d0f",
   "inventoryRevision": "sha256:3235cc1cd970c2f65a668bdd332dd796fb76abb985e950fe0a4be58fa099e1b7",
   "generatorVersion": "2.4.0",
@@ -1932,7 +1932,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "bf002eab2ee1799127cc498b89e8215073b24242"
+        "originalGitBlobDigest": "8383482f29f50293b7de1dc7f13a4a4a1fc13414"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1956,7 +1956,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
-        "originalGitBlobDigest": "66d83d70d684867b889fd95dd24d01fd80773720"
+        "originalGitBlobDigest": "4cdabf09ec40fff37ca73bba1a629ff9401a157e"
       },
       {
         "ownerId": "git-worktree",
@@ -2268,7 +2268,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/SKILL.md",
         "destination": "skills/release-creator/SKILL.md",
-        "originalGitBlobDigest": "34872faf3d071cb6b7880b261a3af9b789b4b4e4"
+        "originalGitBlobDigest": "0be84b5bc89d851ffb614a8a0999ed12a2d427f1"
       },
       {
         "ownerId": "release-creator",
@@ -5675,13 +5675,13 @@
     "doc-maintain": "9bc045d9d8b3089a032495598db1788a1ac88869b7a28faf3b2d6ed6bac611f5",
     "flow-drive": "7b8503df291ebe467f8cf14f68405b661c588db00ee64d32c4a8bc5d0ec0ed63",
     "flow-guide": "6cfaf67edebb9d8c8a92714b6cb0ee5781603740dc41450462b8d12235ff8fb6",
-    "git-smart-commit": "7af56583d28c60dc774231f6a7db308b50ac66679a5e0eab21692aa4f3998d4b",
+    "git-smart-commit": "9279cd262a75639559d49229592ce7f13492d3a4c187b9f31522ba5f96e7dc76",
     "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
     "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",
     "opsx-apply-resume": "1fd6ca81433cf237d6099c0a1b5ed776a3643825a3c4c7918126b90ecc68e29e",
     "precommit": "919fc711c946404f45cb666b04a28ffa15df65aecc773ea55be2c8cccbb65a46",
     "proposal-analyze": "b2d81e27e4a98fb339f00502d5c2adbb1a31c2ef8507779810041a2fe19d4cc3",
-    "release-creator": "13bbe37be60a50bd1198afda79170dfb9c19a6f868b618388e48d1bb4ed19ce6",
+    "release-creator": "71d94729012a9f1e65177e05558818ad5dc48bed33e82fa81cbd384ffb6dd3d0",
     "repo-verify": "6456cf74b86f26a41196229de2db527a6e3eb41a0924d21b90c36a9771f05c14",
     "tdd-workflow": "cdfc45498e9e53ffc766fc502de7052d2aa46c5f604abd6b429368129c04210a",
     "ui-ux-verify": "db4d2f75501fe5fe76cf3a07ca657c61e61491820557b21c40b91fc823e627b0"
