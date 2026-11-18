@@ -92,7 +92,7 @@ below are conditional anchors, not universal requirements.
 
 ### 4. Large ALTER strategy (HIGH — production downtime risk)
 
-For high-volume tables (declared per project via the `hot_tables` userConfig key or CLAUDE.md):
+For high-volume tables (declared per project in CLAUDE.md):
 
 - [ ] For a declared high-volume relational table, estimate affected rows with
       the engine-appropriate count/metadata method; `SELECT COUNT(*) FROM

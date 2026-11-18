@@ -170,10 +170,32 @@ key 就自動註冊。需要它們的 consumer 必須自行註冊 hook command�
 probe、completion/graduation scan、SessionEnd 與 compaction、learning observation、
 post-edit formatting/lint，以及 Stop reminder。
 
-只被這些選用 script 讀取的 userConfig key（例如 `agent_warmstart_enabled`、
+這些選用 script 在 `plugin.json` 沒有對應的 userConfig 選項，Claude Code 設定
+介面不會顯示它們。它們的開關（例如 `agent_warmstart_enabled`、
 `completion_evidence_enabled`、`graduation_scan_enabled`、`skill_hint_enabled`）
-在對應 hook 註冊前不會有任何作用；它們在 `plugin.json` 的說明一律以
-"Requires explicit consumer hook registration" 開頭。
+只在對應 hook 註冊後，由專案 overlay 或 `DHPK_*` env override 讀取。
+
+### 已移除的 userConfig key
+
+下列 key 已不再是 `plugin.json` 的 userConfig 選項。對應 hook script 仍把它們當作 env
+後備來讀取，因此手動註冊 hook 的 consumer 需自行設定 env 變數。
+
+| 原 key | Consumer 設定的 env 變數 | 讀取者 |
+|--------|--------------------------|--------|
+| `subagent_quality_gate` | `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` (via `dhpk_config_get`) | `scripts/hooks/subagent-stop-quality.sh` |
+| `docker_containers` | `CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS` (comma-separated) | `scripts/statusline/statusline.sh` |
+| `swiftlint_bin` | `CLAUDE_PLUGIN_OPTION_SWIFTLINT_BIN` | `modules/xcode-tooling/hooks/post-edit-swiftlint.sh` |
+| `reap_stale_mcp_processes` | `CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES=true` | `scripts/hooks/session-end.sh` |
+| `skill_hint_enabled` | `CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED` (via `dhpk_config_bool`; `DHPK_DISABLE_SKILL_HINT=1` also disables) | `scripts/hooks/userpromptsubmit-skill-hint.sh` |
+| `learning_db_enabled` | `CLAUDE_PLUGIN_OPTION_LEARNING_DB_ENABLED` or `DHPK_LEARNING_DB=1` (via `dhpk_config_bool`) | `scripts/hooks/_lib/learning-db.sh` |
+| `graduation_scan_enabled` | `CLAUDE_PLUGIN_OPTION_GRADUATION_SCAN_ENABLED` or `DHPK_GRADUATION_SCAN=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `completion_evidence_enabled` | `CLAUDE_PLUGIN_OPTION_COMPLETION_EVIDENCE_ENABLED` or `DHPK_COMPLETION_EVIDENCE=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `agent_warmstart_enabled` | `CLAUDE_PLUGIN_OPTION_AGENT_WARMSTART_ENABLED` or `DHPK_AGENT_WARMSTART=1` (via `dhpk_config_bool`) | `scripts/hooks/pre-agent-warmstart.sh` |
+| `lockfile_sync_commands` | `CLAUDE_PLUGIN_OPTION_LOCKFILE_SYNC_COMMANDS` (comma-separated `<manifest>:<command>`) | `scripts/hooks/post-edit-advisory.sh` |
+| `php_bin` | `CLAUDE_PLUGIN_OPTION_PHP_BIN` | `modules/php-5.6/hooks/post-edit-php-syntax.sh` |
+| `harness_restore_hint` | none (no shipped script reads it) | none |
+| `sentinel_commit_gate` | none (retired; `DHPK_SENTINEL_COMMIT_GATE` is not read) | none |
+| `hot_tables` | none (prose-only; declare hot tables in CLAUDE.md) | none |
 
 ### 註冊範例
 
