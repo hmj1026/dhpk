@@ -218,11 +218,12 @@ health checks, Docker probes, completion or graduation scans, SessionEnd and
 compaction work, learning observation, post-edit formatting/linting, and Stop
 reminders.
 
-The userConfig keys read only by these optional scripts (for example
+These optional scripts have no `plugin.json` userConfig options, so the Claude
+Code configuration UI does not offer them. Their switches (for example
 `agent_warmstart_enabled`, `completion_evidence_enabled`,
-`graduation_scan_enabled`, `skill_hint_enabled`) therefore do nothing until the
-matching hook is registered; their descriptions in `plugin.json` start with
-"Requires explicit consumer hook registration".
+`graduation_scan_enabled`, `skill_hint_enabled`) are read only from the
+project overlay or the `DHPK_*` env overrides once the matching hook is
+registered.
 
 ### Registration example
 
@@ -262,7 +263,7 @@ project's `.claude/settings.json` (or `settings.local.json`):
 }
 ```
 
-Then enable the behavior through `pluginConfigs."dhpk@dhpk".options`
+Then enable the behavior through the project overlay `pluginConfigs."dhpk@dhpk".options`
 (`agent_warmstart_enabled`, `completion_evidence_enabled`,
 `graduation_scan_enabled`) or the one-shot env override such as
 `DHPK_AGENT_WARMSTART=1`. The copy is a snapshot: re-run the installer

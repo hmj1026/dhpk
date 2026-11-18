@@ -52,7 +52,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:930e27d6723224b119275af6909ef40232cdaaeb9a137e0af16cc974e2675467",
+      "sha256": "sha256:bb5cad2747eaa972f903a2d99e9b7a8a5df9e320ec9c85a2362d7058b5309016",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -196,7 +196,7 @@
     "skills/harness-setup/data/module-catalog.json": {
       "skill_id": "harness-setup",
       "source": "manifests/module-catalog.json",
-      "sha256": "sha256:fb6412a96c83789d2ea96c5c89de42195e3c231d20a9fbf409b302b1b6a5a865",
+      "sha256": "sha256:9bceb7f9ab10d4692af8e01ed2eaf5722532f9fc040d0d66d683c245f484d93a",
       "mode": "0644"
     },
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {

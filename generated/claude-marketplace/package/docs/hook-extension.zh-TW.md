@@ -170,10 +170,10 @@ key 就自動註冊。需要它們的 consumer 必須自行註冊 hook command�
 probe、completion/graduation scan、SessionEnd 與 compaction、learning observation、
 post-edit formatting/lint，以及 Stop reminder。
 
-只被這些選用 script 讀取的 userConfig key（例如 `agent_warmstart_enabled`、
+這些選用 script 在 `plugin.json` 沒有對應的 userConfig 選項，Claude Code 設定
+介面不會顯示它們。它們的開關（例如 `agent_warmstart_enabled`、
 `completion_evidence_enabled`、`graduation_scan_enabled`、`skill_hint_enabled`）
-在對應 hook 註冊前不會有任何作用；它們在 `plugin.json` 的說明一律以
-"Requires explicit consumer hook registration" 開頭。
+只在對應 hook 註冊後，由專案 overlay 或 `DHPK_*` env override 讀取。
 
 ### 註冊範例
 

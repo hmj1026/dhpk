@@ -1,7 +1,6 @@
 # performance-analyzer — Yii 1.1 / MySQL traps
 
-Declare your project's actual high-volume tables via the `hot_tables` userConfig key
-(or list them in CLAUDE.md / `.claude/rules/`). The rows below are **illustrative only**
+List your project's actual high-volume tables in CLAUDE.md / `.claude/rules/`. The rows below are **illustrative only**
 (shapes drawn from a POS system) — substitute your own table/column names.
 
 | Trigger | Action | Non-apply |
