@@ -183,7 +183,8 @@ test('the actual distribution CLI flushes complete large provenance JSON before 
     assert.ok(payload.provenance.provenance.sourceIdentity.commit);
     assert.ok(payload.provenance.provenance.sourceIdentity.tree);
     const fingerprints = payload.provenance.provenance.fileFingerprints;
-    assert.strictEqual(Object.keys(fingerprints).length, resourceCount + 2);
+    // SKILL.md, plugin.json, and .codex-plugin/plugin.json beside the references.
+    assert.strictEqual(Object.keys(fingerprints).length, resourceCount + 3);
     assert.strictEqual(
       fingerprints['skills/alpha/references/reference-0599.txt'],
       crypto.createHash('sha256').update('Reference fixture 0599.\n').digest('hex'),

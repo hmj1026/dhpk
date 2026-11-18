@@ -1,13 +1,10 @@
 ---
 name: repo-intake
-description: 'Project initialization inventory (one-time), for first onboarding a project or rebuilding cache after structural changes. Not for: day-to-day development (read cache directly), finding specific files (use code-trace). Output: project map with entrypoints + test map + next steps.'
-allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(node:*), Read, Write, Grep, Glob'
-context: fork
-disable-model-invocation: true
+description: "Project initialization inventory (one-time), for first onboarding a project or rebuilding cache after structural changes. Not for: day-to-day development (read cache directly), finding specific files (use code-trace). Output: project map with entrypoints + test map + next steps."
 metadata:
-  dhpk-name-style: portable-skill
-  dhpk-capability-id: dhpk.skill.repo-intake
-  dhpk-invocation-class: explicit-only
+  dhpk-capability-id: "dhpk.skill.repo-intake"
+  dhpk-invocation-class: "explicit-only"
+  dhpk-name-style: "portable-skill"
 ---
 
 # Repo Intake

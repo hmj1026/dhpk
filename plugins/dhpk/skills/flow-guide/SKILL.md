@@ -1,12 +1,10 @@
 ---
 name: flow-guide
-argument-hint: '<help|route|rules|next|close> [--go] [--host <host>] [<query>]'
-description: 'Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff.'
-allowed-tools: 'Read, Grep, Glob, Skill, Agent, Bash(node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js:*), Bash(node ${CLAUDE_SKILL_DIR}/scripts/usage-card.js:*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/pre-route.sh:*)'
+description: "Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff."
 metadata:
-  dhpk-capability-id: dhpk.skill.flow-guide
-  dhpk-name-style: portable-family
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.flow-guide"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-family"
 ---
 
 # Flow Guide

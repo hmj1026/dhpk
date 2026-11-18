@@ -201,7 +201,7 @@ test('Codex native previews use the exact named package selection by default', (
   assert.strictEqual(result.status, 0, result.stderr);
   const payload = report(result);
   assert.strictEqual(payload.verdict, 'PASS');
-  assert.strictEqual(payload.skillCount, 16);
+  assert.strictEqual(payload.skillCount, 14);
   const output = payload.output;
   try {
     const receipt = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));

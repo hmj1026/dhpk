@@ -210,7 +210,8 @@ test('every generated package lists skills under their inventory name, never an 
   const aliasSet = new Set(ALIASES);
   for (const { root: relative, surface, includeCommon } of PACKAGE_SKILL_CATALOGS) {
     const root = path.join(ROOT, relative);
-    const publication = compilePublication({ hostSurface: surface });
+    // Codex native is the Public Plugin tree: the public catalog without a Host overlay.
+    const publication = compilePublication(surface === 'codex-native' ? {} : { hostSurface: surface });
     assert.deepStrictEqual(publication.errors, [], `${surface} publication must compile`);
     const expectedEntries = includeCommon
       ? [...publication.publicEntries, ...publication.hostOnly]

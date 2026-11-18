@@ -1,12 +1,10 @@
 ---
 name: code-simplify
-argument-hint: '[<target>]'
-description: 'Use when cleaning changed code for reuse, simplicity, efficiency, and the right abstraction level without changing behavior. Not for correctness review, broad redesign, or unbounded cleanup. Output: four-angle findings, applied/skipped changes, and baseline/final test evidence.'
-allowed-tools: 'Read, Grep, Glob, Edit, Bash'
+description: "Use when cleaning changed code for reuse, simplicity, efficiency, and the right abstraction level without changing behavior. Not for correctness review, broad redesign, or unbounded cleanup. Output: four-angle findings, applied/skipped changes, and baseline/final test evidence."
 metadata:
-  dhpk-capability-id: dhpk.skill.code-simplify
-  dhpk-name-style: portable-skill
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.code-simplify"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
   dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 

@@ -2,9 +2,9 @@
 name: react
 description: "React runtime guidance for root setup, concurrent rendering, StrictMode effects, Actions, hooks, refs, and React 18/19 migrations. Use for version-specific React implementation or review after resolving the target package. Not for Next.js framework APIs or generic JS tooling. Output: target-scoped guidance, migration traps, and verification evidence."
 metadata:
-  dhpk-capability-id: dhpk.skill.react
-  dhpk-name-style: portable-family
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.react"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-family"
 ---
 
 # React
