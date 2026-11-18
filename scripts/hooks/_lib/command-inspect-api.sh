@@ -379,7 +379,7 @@ dhpk_commit_targets() {
     while [ "$i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
         if [ "${DHPK_GIT_SUB[$i]}" = "commit" ]; then
             segment="${DHPK_GIT_SEGMENT[$i]}"
-            if [ -n "$marker" ] && printf '%s' "$segment" | grep -Fq -- "$marker"; then
+            if [ -n "$marker" ] && grep -Fq -- "$marker" < <(printf '%s' "$segment"); then
                 i=$((i + 1))
                 continue
             fi
@@ -408,7 +408,7 @@ dhpk_load_commit_roots() {
         while [ "$i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
             if [ "${DHPK_GIT_SUB[$i]}" = "commit" ]; then
                 segment="${DHPK_GIT_SEGMENT[$i]}"
-                if printf '%s' "$segment" | grep -Fq -- "$marker"; then
+                if grep -Fq -- "$marker" < <(printf '%s' "$segment"); then
                     echo "[$label] $marker skip marker found in command; bypassing" >&2
                 fi
             fi

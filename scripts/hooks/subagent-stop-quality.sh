@@ -126,13 +126,13 @@ REASON=""
 
 if [ "$LEN" -lt 120 ]; then
     REASON="The subagent final report is too thin for repo-harness delegation."
-elif printf '%s' "$TRIMMED" | grep -Eiq '^(looks good|lgtm|ok|done|no issues|all good)[.![:space:]]*$'; then
+elif grep -Eiq '^(looks good|lgtm|ok|done|no issues|all good)[.![:space:]]*$' < <(printf '%s' "$TRIMMED"); then
     REASON="The subagent final report is too thin for repo-harness delegation."
-elif printf '%s' "$TRIMMED" | grep -Eiq '\b(error|failed|failure|blocked|exception|timeout)\b' \
-    && ! printf '%s' "$TRIMMED" | grep -Eiq '\b(risk|uncertain|recommend|next|because)\b'; then
+elif grep -Eiq '\b(error|failed|failure|blocked|exception|timeout)\b' < <(printf '%s' "$TRIMMED") \
+    && ! grep -Eiq '\b(risk|uncertain|recommend|next|because)\b' < <(printf '%s' "$TRIMMED"); then
     REASON="The subagent reported an unresolved error without a risk or parent-action recommendation."
-elif printf '%s' "$TRIMMED" | grep -Eiq '\b(review|explore|investigate|audit|map)\b' \
-    && ! printf '%s' "$TRIMMED" | grep -Eq '([A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+|\.[A-Za-z0-9]+\b|:[0-9]+\b|`[^`]+`|\b(symbols?|files?|evidence|tests?|commands?)\b)'; then
+elif grep -Eiq '\b(review|explore|investigate|audit|map)\b' < <(printf '%s' "$TRIMMED") \
+    && ! grep -Eq '([A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+|\.[A-Za-z0-9]+\b|:[0-9]+\b|`[^`]+`|\b(symbols?|files?|evidence|tests?|commands?)\b)' < <(printf '%s' "$TRIMMED"); then
     REASON="The subagent report lacks file, symbol, command, or evidence references."
 fi
 

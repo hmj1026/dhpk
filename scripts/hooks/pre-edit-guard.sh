@@ -130,10 +130,13 @@ edit_guard_match() {
         shopt -u nocasematch
         return "$rc"
     fi
+    # The reader takes a process substitution, never the end of a pipe: under
+    # pipefail an early-exiting grep -q turns the producer's SIGPIPE into a false
+    # "no match" and the guard fails open on a path it should block.
     if [ "$icase" = i ]; then
-        printf '%s\n' "$@" | grep -Eiq -- "$re"
+        grep -Eiq -- "$re" < <(printf '%s\n' "$@")
     else
-        printf '%s\n' "$@" | grep -Eq -- "$re"
+        grep -Eq -- "$re" < <(printf '%s\n' "$@")
     fi
 }
 
@@ -207,8 +210,10 @@ fi
 # Project-supplied extra patterns.
 if [ -n "${GUARD_EXTRA_PATTERNS:-}" ]; then
     # Validate the regex before applying — avoid grep's exit 2 on bad regex blowing up the hook.
-    if echo "" | grep -Eq "$GUARD_EXTRA_PATTERNS" 2>/dev/null || [ $? -le 1 ]; then
-        if echo "$file_path" | grep -Eq "$GUARD_EXTRA_PATTERNS"; then
+    extra_rc=0
+    grep -Eq "$GUARD_EXTRA_PATTERNS" <<<"" 2>/dev/null || extra_rc=$?
+    if [ "$extra_rc" -le 1 ]; then
+        if grep -Eq "$GUARD_EXTRA_PATTERNS" < <(printf '%s\n' "$file_path"); then
             echo "[edit-guard] blocked by GUARD_EXTRA_PATTERNS: $file_path" >&2
             exit 2
         fi
