@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { runHook, ROOT } = require('./_lib/hookharness');
+const { makeTempDir } = require('./_lib/temp-dir');
 
 const FILLER = 'y'.repeat(99).concat('\n').repeat(1000); // about 100 KB, above any pipe buffer and below the 128 KB per-variable env limit the harness passes the payload through
 const editHook = (filePath, env = {}) =>
@@ -41,6 +42,41 @@ test('pre-edit-guard still allows an ordinary multi-line path', () => {
   assert.strictEqual(res.status, 0, `expected exit 0, got ${res.status}; stderr=${res.stderr}`);
 });
 
+test('pre-edit-guard blocks a normal-length non-ASCII path that reaches .git through a dot-dot segment', () => {
+  const res = editHook('/work/é/../.git/hooks/pre-commit');
+  assert.strictEqual(res.status, 2, `expected exit 2, got ${res.status}; stderr=${res.stderr}`);
+});
+
+// The decision must not depend on any external reader: a grep that always exits
+// 2 (and a failed redirect, which reads the same way) must neither allow a
+// blocked path nor block an ordinary one.
+test('pre-edit-guard decides without grep: a grep stub that exits 2 changes no verdict', () => {
+  const stubDir = makeTempDir('dhpk-grep-stub-');
+  fs.writeFileSync(path.join(stubDir, 'grep'), '#!/bin/sh\nexit 2\n', { mode: 0o755 });
+  const env = { PATH: `${stubDir}${path.delimiter}${process.env.PATH}` };
+  for (const blocked of ['.env\nx', 'x\n.env', 'é/../.git/config', 'a/package-lock.json\nb']) {
+    const res = editHook(blocked, env);
+    assert.strictEqual(res.status, 2, `${JSON.stringify(blocked)}: expected exit 2, got ${res.status}; stderr=${res.stderr}`);
+  }
+  const allowed = editHook('notes.txt\nmore', env);
+  assert.strictEqual(allowed.status, 0, `expected exit 0, got ${allowed.status}; stderr=${allowed.stderr}`);
+});
+
+test('pre-edit-guard fails closed on a GUARD_EXTRA_PATTERNS regex that does not compile', () => {
+  for (const filePath of ['notes.txt', `notes\n${FILLER}`]) {
+    const res = editHook(filePath, { GUARD_EXTRA_PATTERNS: '(unbalanced' });
+    assert.strictEqual(res.status, 2, `expected exit 2, got ${res.status}; stderr=${res.stderr}`);
+    assert.match(res.stderr, /invalid GUARD_EXTRA_PATTERNS regex/);
+  }
+});
+
+test('pre-edit-guard applies a GUARD_EXTRA_PATTERNS regex that starts with a dash', () => {
+  const blocked = editHook('src/a-secret.txt', { GUARD_EXTRA_PATTERNS: '-secret' });
+  assert.strictEqual(blocked.status, 2, `expected exit 2, got ${blocked.status}; stderr=${blocked.stderr}`);
+  assert.match(blocked.stderr, /blocked by GUARD_EXTRA_PATTERNS/);
+  assert.strictEqual(editHook('src/plain.txt', { GUARD_EXTRA_PATTERNS: '-secret' }).status, 0);
+});
+
 // Static guard for the whole class: no hook script may put an early-exiting
 // reader at the end of a pipe inside a condition.
 function hookScripts() {
@@ -60,7 +96,17 @@ function hookScripts() {
   return out;
 }
 
-const EARLY_EXIT_READER = /\|\s*(?:grep\s+(?:-[A-Za-z]*q[A-Za-z]*|--quiet|--silent)\b|dhpk__version_covered\b)/;
+// An early-exiting reader at the end of a pipe: grep with -q or -m (in any option
+// position, short or long), dhpk__version_covered (returns on the first match),
+// and head or awk ...exit when the pipe sits in a condition (if, elif, while,
+// until, !, &&, ||).
+const EARLY_EXIT_READER = new RegExp(
+  [
+    String.raw`\|\s*grep\b[^|;&]*\s(?:-[A-Za-z]*[qm][A-Za-z]*|--quiet|--silent|--max-count)`,
+    String.raw`\|\s*dhpk__version_covered\b`,
+    String.raw`(?:^\s*(?:if|elif|while|until)\b|\s&&\s|\s\|\|\s|^\s*!)[^#]*\|\s*(?:head\b|awk\b[^|]*\bexit\b)`,
+  ].join('|')
+);
 
 test('no hook script ends a pipe in an early-exiting reader', () => {
   const offenders = [];
