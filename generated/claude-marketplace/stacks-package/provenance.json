@@ -71,7 +71,7 @@
     },
     {
       "destination": "modules/js/hooks/post-edit-js-lint.sh",
-      "sha256": "bf78d6d372cea97cc50630d750ba469d3b38759d30748dac80e6c266cb751a20"
+      "sha256": "5cdfe3ba9b84b586066a4c9815208cf28e0ffc3e9ae7dd0d794607e68d367194"
     },
     {
       "destination": "modules/js/hooks/pre-commit-js-validation.sh",
@@ -79,7 +79,7 @@
     },
     {
       "destination": "modules/js/hooks/stop-js-batch-check.sh",
-      "sha256": "f79d4745ed47762d4901263659e6aa05ddf17ebd2fa92235630a0a2790234b46"
+      "sha256": "63707eaa1c27b1d751be1d7aec389271772b5db9b4912a9107d329fbf3ab68f6"
     },
     {
       "destination": "modules/js/module.yaml",
@@ -867,7 +867,7 @@
     },
     {
       "destination": "modules/python/hooks/post-edit-python-lint.sh",
-      "sha256": "2d45128c2f0f38bca573845fdead979448b74e81d2cae3f1cd1daca88ba31c6b"
+      "sha256": "0cf407725dd88b2c7c033a170da28baedfa8e7510cf7e88ba9f63a21cbe50e4d"
     },
     {
       "destination": "modules/python/hooks/pre-commit-python-validation.sh",
@@ -875,7 +875,7 @@
     },
     {
       "destination": "modules/python/hooks/stop-py-batch-check.sh",
-      "sha256": "209b509cc20cb090ecb9612ad11df3d8dc40220944b5ebb99cdda2f19ca39b06"
+      "sha256": "4325a41971602a33bfbf9c66dd79397b73f284845523858f5d3c4799eeb02805"
     },
     {
       "destination": "modules/python/module.yaml",
@@ -983,7 +983,7 @@
     },
     {
       "destination": "modules/xcode-tooling/hooks/pre-commit-swift-build.sh",
-      "sha256": "aeb873bbae9e889083302a36b6d26af732ff846b84eaed34f2efe0f613603e34"
+      "sha256": "6e39ac25638477e2520f2a97498aa0d24d105346e3062c387fb750a1655295f6"
     },
     {
       "destination": "modules/xcode-tooling/module.yaml",
@@ -1023,7 +1023,7 @@
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect-api.sh",
-      "sha256": "72f132217507deea01fb446638c3637a1e0590a78649df639dcc5d3341e611d6"
+      "sha256": "8d2bd10be2d721abeb2df1547f6974af257ba0ed7b45bb0c0c266f7978660056"
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect-fn.sh",

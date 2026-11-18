@@ -60,7 +60,7 @@ elif [ -d "$DHPK_CACHE" ]; then
     for _dir in "$DHPK_CACHE"/*; do
         [ -d "$_dir" ] || continue
         _v="${_dir##*/}"
-        if printf '%s\n' "$_v" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+        if grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$' < <(printf '%s\n' "$_v"); then
             VERSIONS="$VERSIONS $_v"
         fi
     done

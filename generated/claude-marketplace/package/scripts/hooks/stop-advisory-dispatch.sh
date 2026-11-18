@@ -83,7 +83,7 @@ printf '%s' "$_advisory_payload" | (
     # Completion-claim keywords (English + Traditional Chinese). Word boundaries
     # via trailing space/period so "donate" / "donor" don't trip "done".
     claim_pattern='(已完成|已修[復正完]|完成了|完成。|completed[[:space:]\.]|implemented[[:space:]\.]|all done|task done|done[[:space:]\.]|step.*complete|fix(ed)?[[:space:]\.]|shipped[[:space:]\.])'
-    if ! printf '%s' "$recent_assistant_text" | grep -qiE "$claim_pattern"; then
+    if ! grep -qiE "$claim_pattern" < <(printf '%s' "$recent_assistant_text"); then
         exit 0
     fi
 
