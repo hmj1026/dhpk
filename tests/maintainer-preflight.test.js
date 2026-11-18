@@ -23,7 +23,7 @@ const CHECKERS = [
   {
     name: 'catalog',
     relativePath: 'scripts/ci/catalog.js',
-    args: (base) => ['--check', 'all', '--diff-base', base],
+    args: () => ['--check', 'all'],
   },
 ];
 
