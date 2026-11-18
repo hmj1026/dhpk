@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.78.0",
-  "sourceCommit": "a7d0d570c548e43cd6ace42c9e1a5407281933d3",
-  "generatedFromCommit": "a7d0d570c548e43cd6ace42c9e1a5407281933d3",
-  "generatedFromTree": "013f63a3ee0e3948f4c9465380a08e35c95d043b",
-  "inventoryDigest": "fc4264535f5be01960b278c34daf09a1c251166664059a38f37201ed34805d2c",
-  "inventoryRevision": "sha256:8d458a726d71fb0d128b955b195d9ad42dff845b530a7beec7e6b2ad01e560bb",
+  "sourceCommit": "c7c165b0fd2bacc1633353414fc796f5060acbef",
+  "generatedFromCommit": "c7c165b0fd2bacc1633353414fc796f5060acbef",
+  "generatedFromTree": "c33c6751f0193a15541e8e4107c1d2d80b85ea8e",
+  "inventoryDigest": "ff3e2efb7b4a34e07d8f24f2aaa2c2b041371da6720dd1e6ee484957f8dafdb0",
+  "inventoryRevision": "sha256:60b5cf1783f429ff4deffb4043ea46cc1c097aa4ed66760af1ec01081d4d71a7",
   "generatorVersion": "2.4.0",
   "fingerprintAlgorithm": "tree-merkle-v1",
   "selectedSkillIds": [
@@ -1157,7 +1157,7 @@
         "ownerId": "flow-drive",
         "source": "skills/swift/references/build.md",
         "destination": "skills/flow-drive/references/swift/references/build.md",
-        "originalGitBlobDigest": "fa0b261719e30b9b3f04bf776b81b786239932c1"
+        "originalGitBlobDigest": "86f9399f875caa33a404bfb56579bd50d80c75ed"
       },
       {
         "ownerId": "flow-drive",
@@ -1481,7 +1481,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "d87555a50ba2265b6a2b189cbcdd4af74129413a"
+        "originalGitBlobDigest": "301e38ab34602b687e99e47b1b0d17e455d7d174"
       },
       {
         "ownerId": "flow-guide",
@@ -1577,7 +1577,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "d87555a50ba2265b6a2b189cbcdd4af74129413a"
+        "originalGitBlobDigest": "301e38ab34602b687e99e47b1b0d17e455d7d174"
       },
       {
         "ownerId": "flow-guide",
@@ -5322,8 +5322,8 @@
     "code-trace": "685274d43cfbdf11600561adcfb968cb60cbd1fd523eac89a428901a5f47ea6c",
     "create-pr": "af5f23e1f77937b7dccbf208fbb217544db7d3f6dce934d65186060c8077da22",
     "doc-maintain": "d2fc6764bb910523f691d8b4d278d772f35b5430cb247506fef85804fb77a86d",
-    "flow-drive": "1164043358713a0791b5fb01e844a83112382b98a674181f4e30973df099b9f8",
-    "flow-guide": "f08becf44392ce4cd4c48adc2b3579acda7cedf8efdf24a16988220b21c7810a",
+    "flow-drive": "7517462f39757cc8932ab42279660077ddcd9b03d6e9fda65ee764701115a4ba",
+    "flow-guide": "3e20cae7a5c6b842eb979e20cbef4f5ecac91d25376d9015b1fe3e0b416abec1",
     "git-smart-commit": "f2409c5217ad86bb69f15925e1161d512f707b1c63ac44aa7d0a81927507c15e",
     "git-worktree": "3bb0fbe3408fa651ccb14c8ab97f64b52d663805f40af19178cd5e67bac1bcbd",
     "precommit": "c77137bada2f19057d6a41b29f3b3cf2d29cb63678dd1b3c4b34fd4da8c827af",
@@ -5335,7 +5335,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "23782e81898a94314487377589a056625cf609e47f37c0ff8ee364aea791382d",
+    "planId": "834c42d53014c64b3c5bc3f8da834daa25c08e9f76845594eeb73acd8dd83779",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -5379,10 +5379,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "23782e81898a94314487377589a056625cf609e47f37c0ff8ee364aea791382d",
-      "inventory": "fc4264535f5be01960b278c34daf09a1c251166664059a38f37201ed34805d2c"
+      "plan": "834c42d53014c64b3c5bc3f8da834daa25c08e9f76845594eeb73acd8dd83779",
+      "inventory": "ff3e2efb7b4a34e07d8f24f2aaa2c2b041371da6720dd1e6ee484957f8dafdb0"
     },
-    "rollbackIdentity": "b56f4d940f2e2e2e041b44a157a6f30755d00e28f0798f4c7aa60cfa188faa7d"
+    "rollbackIdentity": "0cc76fb8a9352e3e95498dfc7d9bf6a981cc4b1d06bc52788347a2431bab0f71"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

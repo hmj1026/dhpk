@@ -109,7 +109,7 @@ session.
 
 ## Output and verification
 
-Return a confirmation block containing `modules`, `docker_containers`,
+Return a confirmation block containing `modules`,
 `review_agents`, `hook_profile`, and the four-role dispatch summary
 (`planner`, `reasoner`, `worker`, `reviewer`) from the config report,
 each with before/after values where settings changed, followed by exactly

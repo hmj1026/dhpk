@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.78.0",
-  "sourceCommit": "2b57f7ab638a17df3871c7685b1dc4e0f8a19b5d",
-  "generatedFromCommit": "2b57f7ab638a17df3871c7685b1dc4e0f8a19b5d",
-  "generatedFromTree": "919885ee721501464e1dff69f603d35ad84d40e0",
-  "inventoryDigest": "fc4264535f5be01960b278c34daf09a1c251166664059a38f37201ed34805d2c",
-  "inventoryRevision": "sha256:8d458a726d71fb0d128b955b195d9ad42dff845b530a7beec7e6b2ad01e560bb",
+  "sourceCommit": "c7c165b0fd2bacc1633353414fc796f5060acbef",
+  "generatedFromCommit": "c7c165b0fd2bacc1633353414fc796f5060acbef",
+  "generatedFromTree": "c33c6751f0193a15541e8e4107c1d2d80b85ea8e",
+  "inventoryDigest": "ff3e2efb7b4a34e07d8f24f2aaa2c2b041371da6720dd1e6ee484957f8dafdb0",
+  "inventoryRevision": "sha256:60b5cf1783f429ff4deffb4043ea46cc1c097aa4ed66760af1ec01081d4d71a7",
   "generatorVersion": "1.1.0",
   "fingerprintAlgorithm": "tree-merkle-v1",
   "selectedSkillIds": [],
@@ -1096,7 +1096,7 @@
         "ownerId": "flow-drive",
         "source": "skills/swift/references/build.md",
         "destination": "skills/flow-drive/references/swift/references/build.md",
-        "originalGitBlobDigest": "fa0b261719e30b9b3f04bf776b81b786239932c1"
+        "originalGitBlobDigest": "86f9399f875caa33a404bfb56579bd50d80c75ed"
       },
       {
         "ownerId": "flow-drive",
@@ -1420,7 +1420,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "d87555a50ba2265b6a2b189cbcdd4af74129413a"
+        "originalGitBlobDigest": "301e38ab34602b687e99e47b1b0d17e455d7d174"
       },
       {
         "ownerId": "flow-guide",
@@ -1516,7 +1516,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "d87555a50ba2265b6a2b189cbcdd4af74129413a"
+        "originalGitBlobDigest": "301e38ab34602b687e99e47b1b0d17e455d7d174"
       },
       {
         "ownerId": "flow-guide",
@@ -5621,15 +5621,15 @@
     }
   ],
   "fingerprints": {
-    "rules": "b27a69c73ec1c7624e875016272681f159ffd9e10c1cbed6691639be477f2bbe",
-    "agents": "c58b178dd0f1ef406eb92a8cc6e21c77b9f0af682876bf79737b649ebe5e9efe",
+    "rules": "bdeff1afef0fcca16281dc2f945ab5ffd2297d5b1bd0b48e036e2f495fa73246",
+    "agents": "c5018836dd8969f628cbaa49152486fb9f8037d624b7bd505b62a300d64fcf74",
     "commands": "12d3391961e0d575937b4e1209e532a8e9784e5bf00ff3da8aa182b8236bbc36",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
     "agent-traps": "438e4c7f6c98c026a222d64cabe2c6c471fa1ae2580c6588c5f4e0e03e70e5c8"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "a982b27ff4fa12899a50e6ce74e1573ccb69bed6aaf9de46a7d886cef6db9588",
+    "planId": "4ad3e38a31e3612de7c2d001a6cb808fc7c5806b2fc54bed96e32f19f6f62fda",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5673,10 +5673,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "a982b27ff4fa12899a50e6ce74e1573ccb69bed6aaf9de46a7d886cef6db9588",
-      "inventory": "fc4264535f5be01960b278c34daf09a1c251166664059a38f37201ed34805d2c"
+      "plan": "4ad3e38a31e3612de7c2d001a6cb808fc7c5806b2fc54bed96e32f19f6f62fda",
+      "inventory": "ff3e2efb7b4a34e07d8f24f2aaa2c2b041371da6720dd1e6ee484957f8dafdb0"
     },
-    "rollbackIdentity": "bb2dada7fcc5db58e90b020a2d9fce91d4c622b8ac62a20afc3825d81de52722"
+    "rollbackIdentity": "8e97b54ff47d35300fafd03ae75f781bcde2fae25a09076c388646cbdeb5b768"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6691,5 +6691,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "b9c71626c4b5790dd3616147467f84977b84ef23e5884ad2c7be86aeba2a24fa"
+  "planFingerprint": "76205f074c5c91c80ca50e7a9ed5e6335578408e82609f1eb210a1929bcf87ac"
 }
