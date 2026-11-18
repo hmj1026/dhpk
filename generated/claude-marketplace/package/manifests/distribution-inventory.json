@@ -431,15 +431,15 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "438deba91cd1cb2f72fb33a9b7d63a0725069724e52219101e38a7b28bbe6928",
-      "projection_digest": "0b23ba057e70f03e5a7511aba9884beb31b4293ef8f057135fa44e19a644312b",
+      "canonical_digest": "d5292a8da2de60b2e6c9880c24ed5544f5bb9e31e8c0b5fb1e0ea3619b1b1480",
+      "projection_digest": "0c5e619b32b68a4879efb82a48afb42ebae7a48b81f31540644d6d44ffcbd221",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
       "id": "codex-supporting-agent-traps-_common-build-resolver-skeleton-md",
       "source": "codex/supporting/agent-traps/_common/build-resolver-skeleton.md",
       "canonical_source": "agent-traps/_common/build-resolver-skeleton.md",
-      "canonical_digest": "bd9e3cf0e81d522ae4ac9d0b2880cc5eac2a162de536deb572015a2c8145c8e5",
+      "canonical_digest": "c3ba6b42fe1893d9a53edc56f5747054e225e5c9da78b8094535ad97e7afd3e1",
       "projection_digest": "21b71a73d06407fb8a561b885a07d318630f0a44c93b91ac1b90ac0ddabd4041",
       "destination": "dhpk/agent-traps/_common/build-resolver-skeleton.md"
     },

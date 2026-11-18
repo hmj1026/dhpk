@@ -21,6 +21,7 @@ Apply a minimal repair to the confirmed issue within the exact files assigned by
 1. Keep the patch within the assigned files and preserve existing interfaces and invariants.
 2. Implement only the confirmed behavior covered by the failing test.
 3. Run the assigned regression and report its actual result. Keep unrun checks `NOT_RUN`.
+4. Change repo files with `apply_patch` only, per `.codex/dhpk/policies/execution-policy.md` \"Edit tool discipline\"; list any unavoidable shell-written file in the report.
 
 ## Escalation
 
