@@ -308,7 +308,7 @@ implementation，沒有 `/dhpk:do`。主要入口為：
 - `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>`：Claude 明確呼叫 task；`--help` 唯讀。
 - `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>`：唯讀 review variants。
 - `/dhpk:precommit`，需要時搭配 `--fast`。
-- `/dhpk:setup --install hooks|rules|scripts|all`：設定與 asset 安裝。
+- `/dhpk:harness-setup --install hooks|rules|scripts|all`：設定與 asset 安裝。
 
 上述五個 `0.47.0` retirement 與九個 `0.52.0` Codex MCP capability retirement 都不發布
 discovery 或 compatibility alias。若另有文件化的相容期限而保留無關 command alias，它
@@ -326,7 +326,7 @@ claude plugin update --scope project -y dhpk@dhpk
 請使用與 plugin 安裝時相同 scope 的指令。CLI 預設使用 user scope；在沒有
 TTY 的環境（例如 CI）執行更新時，請加上 `-y`／`--yes`。
 
-啟動新的 Claude session 或執行 `/reload-plugins`。確認 `/dhpk:setup`、
+啟動新的 Claude session 或執行 `/reload-plugins`。確認 `/dhpk:harness-setup`、
 `/dhpk:flow-guide`、`/dhpk:flow-drive` 與 `/dhpk:change-verdict` 都能解析。Marketplace 不會更新專案本地複製的
 舊 dhpk skill；只有在確認它們已重複且有版控或其他可恢復方式後才移除。
 

@@ -310,17 +310,12 @@ test('check reports a drifted generated Claude marketplace package as out of dat
   }
 });
 
-test('canonical Claude commands resolve relocated child skills inside the generated package', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-command-links-'));
+test('the generated Claude package ships skills only and no commands directory', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-no-commands-'));
   try {
     GENERATOR.materialize({ root: ROOT, out: path.join(temp, 'package') });
-    for (const name of ['doc-refactor', 'simplify', 'project-brief', 'update-codemaps']) {
-      const command = path.join(temp, 'package', 'commands', `${name}.md`);
-      const body = fs.readFileSync(command, 'utf8');
-      const targets = [...body.matchAll(/\.\.\/skills\/[^\s)]+\/SKILL\.md/g)].map((match) => match[0]);
-      assert.ok(targets.length > 0, `${name} must retain its local skill binding`);
-      for (const target of targets) assert.ok(fs.existsSync(path.resolve(path.dirname(command), target)), `${name}: ${target}`);
-    }
+    assert.strictEqual(fs.existsSync(path.join(temp, 'package', 'commands')), false);
+    assert.ok(fs.existsSync(path.join(temp, 'package', 'skills', 'doc-maintain', 'SKILL.md')));
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 

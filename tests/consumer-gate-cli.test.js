@@ -986,7 +986,7 @@ test('an authorized but unsupported AGY plugin-loader requirement stays blocked 
 
 test('default installation acceptance passes configured contracts while runtime remains excluded', () => {
   const root = makeConfiguredScopeRoot([
-    '.claude-plugin', 'skills', 'agents', 'commands', 'modules',
+    '.claude-plugin', 'skills', 'agents', 'modules',
     'rules', 'cursor', 'scripts', 'manifests', 'docs',
     'plugins/dhpk-agent', 'plugins/dhpk-cursor', 'plugins/dhpk-agy',
     'AGENTS.md',
@@ -1707,7 +1707,6 @@ test('default scope runs configured targets and excludes unconfigured Hosts with
     '.claude-plugin',
     'skills',
     'agents',
-    'commands',
     'modules',
   ]);
   try {
@@ -1890,7 +1889,7 @@ if [ "$1 $2" = "plugin validate" ]; then
   printf 'VALIDATE_FLAG=%s\\n' "$4" >> "$LOG"
   case "$PWD" in
     *dhpk-claude-validation-*)
-  for path in .claude-plugin/plugin.json skills agents commands modules; do
+  for path in .claude-plugin/plugin.json skills agents modules; do
     if [ ! -e "$PWD/$path" ]; then printf 'MISSING=%s\\n' "$path" >> "$LOG"; exit 2; fi
   done
   if [ -e "$PWD/CLAUDE.md" ]; then printf 'ROOT_CLAUDE_PRESENT=1\\n' >> "$LOG"; exit 3; fi
@@ -2538,7 +2537,7 @@ test('restricted Claude installation evidence stays NOT_RUN without resolving or
 
 test('restricted configured Claude selection returns typed BLOCKED without probing another host', () => {
   const configuredRoot = makeConfiguredScopeRoot([
-    '.claude-plugin', 'skills', 'agents', 'commands', 'modules',
+    '.claude-plugin', 'skills', 'agents', 'modules',
   ]);
   try {
     withConsumerGateBin((bin) => {

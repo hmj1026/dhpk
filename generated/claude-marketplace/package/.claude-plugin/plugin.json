@@ -60,9 +60,6 @@
     "./agents/ui-ux-verifier.md",
     "./agents/version-matrix-impact-reviewer.md"
   ],
-  "commands": [
-    "./commands/"
-  ],
   "userConfig": {
     "credential_read_paths": {
       "type": "string",

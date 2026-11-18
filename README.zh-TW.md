@@ -77,14 +77,14 @@ Claude 的詳細安裝路徑、更新、migration 與 receipt 管理請見[平�
 Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整合面)
 及 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
-安裝後隨時可用 `/dhpk:setup` 重新設定（或 `/dhpk:setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
+安裝後隨時可用 `/dhpk:harness-setup` 重新設定（或 `/dhpk:harness-setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
 ## 你會得到什麼
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | Role-based agents | Trigger table 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
-| Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:change-verdict pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
+| Slash entries | 以 `/dhpk:<skill-name>` 呼叫的 skill；沒有 `commands/` 目錄 | `/dhpk:precommit`、`/dhpk:harness-setup`、`/dhpk:change-verdict pending`、`/dhpk:git-smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
 | Canonical skills | Inventory 管理的 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；portable family 負責整併介面。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 3 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git branch-safety gate）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
@@ -134,11 +134,11 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 4. **提交前驗證**：品質把關，確保 Lint、型別與測試全數通過：
    ```text
    /dhpk:precommit                                   # 執行本機快速/完整驗證管線
-   /dhpk:verify                                      # 執行跨專案完整驗證
+   /dhpk:repo-verify                                      # 執行跨專案完整驗證
    ```
 5. **提交與 PR**：確認全綠後安全交付：
    ```text
-   /dhpk:smart-commit                                # 智慧分組組織 Git commit
+   /dhpk:git-smart-commit                                # 智慧分組組織 Git commit
    /dhpk:create-pr                                   # 建立目標為 develop 的 PR
    ```
 
@@ -164,7 +164,7 @@ worker、reasoner、provider、planner 或 architecture selector。提案 author
 
 ## userConfig
 
-74 個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定，也可隨時用 `/dhpk:setup` 重新設定。完整參考（每個旋鈕在哪裡設定、所有選項、專案層級覆寫語法）見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
+74 個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定，也可隨時用 `/dhpk:harness-setup` 重新設定。完整參考（每個旋鈕在哪裡設定、所有選項、專案層級覆寫語法）見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
 ```bash
 claude plugin install dhpk@dhpk \
@@ -261,7 +261,7 @@ OnePassword 驗證是 operator action，不是可 discovery 的 skill：需要 c
 - **`react-19`** — React 19（2024 年 12 月）。Actions 與 async transitions、新 hooks（`useActionState`/`useOptimistic`/`useFormStatus`、`use()`）、`ref` 作為一般 prop（免 `forwardRef`）、`<Context>` 直接當 provider、document metadata 自動 hoist、資源預載（`preload`/`preinit`）、穩定的 Server Components。移除 `ReactDOM.render`/`hydrate`、function component 的 `propTypes`/`defaultProps`、legacy Context 與 string refs。Next.js 16 建議但非必需。
 
 **跨版本**：
-- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（由 reviewer trigger table 建議）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動選取。
+- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（由 reviewer trigger table 建議）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:library-author cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動選取。
 
 **iOS / Swift**（依賴鏈式——每個都 `requires: swift`；可用 `ios-app` 安裝 profile 一次啟用整套）：
 - **`swift`** — Swift 6 strict-concurrency 基線 + Swift 5.10 / iOS 17 相容性 + Swift 6.2 approachable-concurrency。整套套件的基礎。
@@ -384,7 +384,6 @@ dhpk/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 33 個角色 agent（32 root + 1 模組 reviewer；INDEX.md 為導覽用）
-├── commands/                     # slash 指令（review、setup、smart-commit、opsx-apply-resume 等）
 ├── skills/                       # SSOT：68 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection

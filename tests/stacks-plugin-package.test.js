@@ -104,7 +104,7 @@ test('the core Directory Plugin carries no stack modules and the stacks package 
 test('every path the stacks manifest registers exists in the package', () => {
   const root = stacksPackage();
   const manifest = readJson(root, '.claude-plugin', 'plugin.json');
-  for (const entry of [...manifest.agents, ...manifest.commands]) {
+  for (const entry of [...manifest.agents, ...(manifest.commands || [])]) {
     assert.ok(fs.existsSync(path.join(root, entry)), `missing ${entry}`);
   }
   const hooks = readJson(root, 'hooks', 'hooks.json');

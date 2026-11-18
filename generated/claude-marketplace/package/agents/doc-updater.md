@@ -28,7 +28,7 @@ review (`doc-reviewer`, `$change-verdict`), external library research
 (`docs-writer`) are other roles' work; hand back rather than doing them. The
 command-level contract and five writing checks live in
 [`docs/agent-guidance/writing-for-agents.md`](../docs/agent-guidance/writing-for-agents.md)
-and [`commands/update-docs.md`](../commands/update-docs.md).
+and [`skills/doc-maintain/SKILL.md`](../skills/doc-maintain/SKILL.md).
 
 ## Authority map
 

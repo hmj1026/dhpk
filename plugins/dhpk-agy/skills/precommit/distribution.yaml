@@ -75,26 +75,5 @@
         "summary": "Use precommit with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "precommit",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:precommit",
-      "argument_contract": "[--fast] [--dry-run]",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $precommit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/precommit.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/precommit.md"
-      ]
-    }
-  ]
+  }
 }

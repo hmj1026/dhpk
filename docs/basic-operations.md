@@ -108,7 +108,7 @@ claude plugin install dhpk@dhpk
 /plugin install dhpk@dhpk
 ```
 
-Add `--config` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:setup` after install) — see [`docs/configuration.md`](./configuration.md) for the full knob reference:
+Add `--config` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:harness-setup` after install) — see [`docs/configuration.md`](./configuration.md) for the full knob reference:
 
 ```bash
 claude plugin install dhpk@dhpk \
@@ -121,8 +121,8 @@ Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@
 After install, reconfigure any time from inside Claude Code:
 
 ```text
-/dhpk:setup           # rerun the same questions
-/dhpk:setup --show    # print current effective config
+/dhpk:harness-setup           # rerun the same questions
+/dhpk:harness-setup --show    # print current effective config
 ```
 
 ### Path B — Local clone + interactive installer
@@ -229,7 +229,7 @@ and is also the safe order for copy mode.
 | `marketplace add` says the path doesn't exist | You followed Path B but skipped the `git clone` step | Run `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk` first — or switch to Path A which needs no clone |
 | `claude plugin install dhpk@dhpk` says marketplace not found | `marketplace add` didn't run, or you removed it earlier | Re-run the `marketplace add` line from your chosen path |
 | `/dhpk:*` commands or hooks don't appear after install | Session loaded its skill list before install finished | Run `/reload-plugins` inside Claude Code, or restart the session |
-| `claude plugin list` shows dhpk but `/dhpk:setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk@dhpk` (or `/plugin enable dhpk@dhpk`) |
+| `claude plugin list` shows dhpk but `/dhpk:harness-setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk@dhpk` (or `/plugin enable dhpk@dhpk`) |
 | `install.sh` errors on `gum` / `jq` not found | Optional UI deps missing | The script falls back to plain shell / `python3`; install `gum` and `jq` for the nicer flow, or ignore the warning |
 | Some skill descriptions truncated/dropped (seen in `/doctor`) | Many modules shipped → skill-listing budget overflow (module skills list regardless of `modules`, [#12](https://github.com/hmj1026/dhpk/issues/12)) | Raise `skillListingBudgetFraction` in `settings.json` (default ~1% → `0.02`–`0.03`), or install fewer modules / disable the whole plugin with `/plugin` where unused |
 | Version advisory asks you to update `.claude/dhpk-versions.json`, but it is a symlink | The Write tool refuses symlink targets | Run `realpath .claude/dhpk-versions.json` and write the verified entry to that real path; `scripts/version-diff.sh` prints the same safe instruction |
@@ -357,7 +357,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
 
 - **Actions**:
   - For installation, activation, or unfamiliar configuration, use `/dhpk:flow-guide help` (Codex: `$flow-guide help`) for available entries.
-  - When module configuration needs inspection, use `/dhpk:setup --show` on its supported Host. Reuse an established environment for routine work.
+  - When module configuration needs inspection, use `/dhpk:harness-setup --show` on its supported Host. Reuse an established environment for routine work.
 - **Completion Criterion**: Active modules and configuration match project requirements without missing prerequisites.
 
 #### Step 2: Inquire, Explore & Route
@@ -413,7 +413,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
     /dhpk:precommit --fast --dry-run                  # preview selected commands
     /dhpk:precommit --fast                            # omit build; selected tests may be the full suite
     /dhpk:precommit                                   # full pipeline (lint:fix -> build -> test:unit)
-    /dhpk:verify                                      # cross-layer validation (includes integration & e2e)
+    /dhpk:repo-verify                                      # cross-layer validation (includes integration & e2e)
     ```
     Select the checks required by the project and change scope. Apply the kernel's
     [Evidence snapshots](../rules/execution-policy-kernel.md#evidence-snapshots)
@@ -429,8 +429,8 @@ owns the requested outcome. The vocabulary and boundary are defined in
 - **Actions**:
   - **Smart Batch Commit**: When commit work is authorized, group changes by cohesion into project-compliant messages and runnable Git commands:
     ```text
-    /dhpk:smart-commit
-    /dhpk:smart-commit --scope resources/assets/js --type refactor
+    /dhpk:git-smart-commit
+    /dhpk:git-smart-commit --scope resources/assets/js --type refactor
     ```
   - **Open Pull Request**: Extract ticket IDs and generate project-compliant PR summaries:
     ```text
@@ -439,7 +439,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
     ```
   - **Release & Deployment Checklist**: Use for a separately requested release or deployment outcome:
     ```text
-    /dhpk:create-release                              # version bump, changelog update, and Git tag
+    /dhpk:release-creator                              # version bump, changelog update, and Git tag
     deploy-list --tag="[RELEASE-1.0.0]" --description="Release summary" --lang=en
     ```
 - **Completion Criterion**: The requested handoff outcome is produced under the Project Convention, with required checks accounted for. Commit, PR, merge, release, and deployment remain separate states.
@@ -645,10 +645,10 @@ legacy dispositions and the pinned release that retains those interfaces.
   /dhpk:precommit
   ```
 
-#### 8. repo-verify / /dhpk:verify (Repository Cross-Layer Verification)
+#### 8. repo-verify / /dhpk:repo-verify (Repository Cross-Layer Verification)
 
 - **Purpose**: Read-only cross-layer validation across all project levels (lint, typecheck, unit, integration, e2e).
-- **Invocation Syntax**: `/dhpk:verify [<mode>] [--integration=<path>] [--e2e=<path>]` (Codex: `$repo-verify ...`)
+- **Invocation Syntax**: `/dhpk:repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]` (Codex: `$repo-verify ...`)
 - **Parameter Breakdown**:
 
   | Parameter | Type / Choices | Default | Description |
@@ -660,19 +660,19 @@ legacy dispositions and the pinned release that retains those interfaces.
 - **Practical Examples**:
   ```text
   # Run full repository verification
-  /dhpk:verify
+  /dhpk:repo-verify
 
   # Run fast verification stage
-  /dhpk:verify fast
+  /dhpk:repo-verify fast
 
   # Run full verification with customized test directories
-  /dhpk:verify full --integration=tests/Integration --e2e=tests/E2E
+  /dhpk:repo-verify full --integration=tests/Integration --e2e=tests/E2E
   ```
 
-#### 9. smart-commit (Smart Atomic Batch Commit)
+#### 9. git-smart-commit (Smart Atomic Batch Commit)
 
 - **Purpose**: Analyzes unstaged/staged files, groups them by cohesion, formats Conventional Commit messages matching project conventions, and produces copy-pasteable Git commands.
-- **Invocation Syntax**: `/dhpk:smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
+- **Invocation Syntax**: `/dhpk:git-smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
 - **Parameter Breakdown**:
 
   | Parameter | Type | Description |
@@ -684,13 +684,13 @@ legacy dispositions and the pinned release that retains those interfaces.
 - **Practical Examples**:
   ```text
   # Analyze all working tree changes and group into atomic commits
-  /dhpk:smart-commit
+  /dhpk:git-smart-commit
 
   # Stage only frontend assets and enforce refactor type
-  /dhpk:smart-commit --scope resources/assets/js --type refactor
+  /dhpk:git-smart-commit --scope resources/assets/js --type refactor
 
   # Include AI co-author trailer
-  /dhpk:smart-commit --ai-co-author
+  /dhpk:git-smart-commit --ai-co-author
   ```
 
 #### 10. create-pr (Pull Request Creation)

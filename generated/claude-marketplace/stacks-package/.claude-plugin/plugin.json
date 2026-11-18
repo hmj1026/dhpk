@@ -33,9 +33,6 @@
   "agents": [
     "./modules/library-author/agents/polyfill-reviewer.md"
   ],
-  "commands": [
-    "./modules/js/commands/"
-  ],
   "userConfig": {
     "modules": {
       "type": "string",
@@ -59,7 +56,7 @@
     "js_check_path": {
       "type": "string",
       "title": "JS @ts-check scan path",
-      "description": "Path scanned by the /ts-check-status command. Default 'js/'. Override for projects laying out JS under e.g. 'src/' or 'app/javascript/'.",
+      "description": "Path scanned by the /dhpk:js-static-checks status command. Default 'js/'. Override for projects laying out JS under e.g. 'src/' or 'app/javascript/'.",
       "default": "js/"
     },
     "python_project_roots": {

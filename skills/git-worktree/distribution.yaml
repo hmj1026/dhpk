@@ -66,26 +66,5 @@
         "summary": "Use git worktree with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "git-worktree",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:git-worktree",
-      "argument_contract": "[add|list|remove|prune] [--branch <name>] [--base <ref>]",
-      "authority": "git-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $git-worktree Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/git-worktree.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/git-worktree.md"
-      ]
-    }
-  ]
+  }
 }

@@ -26,7 +26,6 @@ const PACKAGE_PATHS = [
   '.claude-plugin/icon.png',
   'agent-traps',
   'agents',
-  'commands',
   'hooks',
   'manifests',
   'rules',
@@ -143,7 +142,7 @@ function relocateText(files, content) {
     .map((file) => ({ source: file.sourcePath.slice(0, -9), destination: file.path.slice(0, -9) }))
     .filter((entry) => entry.source !== entry.destination)
     .sort((left, right) => right.source.length - left.source.length);
-  const roots = ['commands', 'docs', 'agents', 'rules', 'templates'];
+  const roots = ['docs', 'agents', 'rules', 'templates'];
   for (const [destination, file] of files) {
     if (!destination.endsWith('.md') || !roots.some((root) => destination.startsWith(`${root}/`))) continue;
     const original = file.content.toString('utf8');

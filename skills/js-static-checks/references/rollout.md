@@ -48,12 +48,12 @@ find <frontend-root> -maxdepth 1 -name '*.js' -exec \
     grep -lE '^[[:space:]]*//[[:space:]]*@ts-nocheck' {} \;
 ```
 
-`/ts-check-status` runs both queries plus a summary.
+`/dhpk:js-static-checks status` runs both queries plus a summary.
 
 ## Status mode owner
 
 `$js-static-checks status [--path <directory>]` owns the
-`/dhpk:ts-check-status` status contract. With `--path`, resolve the directory
+`/dhpk:js-static-checks status` status contract. With `--path`, resolve the directory
 from the consumer repository's working directory; without it, use
 `CLAUDE_PLUGIN_OPTION_JS_CHECK_PATH` or the `js/` default. Scan only immediate
 regular `*.js` files, classify anchored `// @ts-check` and `// @ts-nocheck`
@@ -186,7 +186,7 @@ permanent-exclude) with a tracked exit.
 
 ## Verification
 
-- The line-anchored `^\s*//\s*@ts-check\s*$` grep (via `/ts-check-status`)
+- The line-anchored `^\s*//\s*@ts-check\s*$` grep (via `/dhpk:js-static-checks status`)
   counts the flipped leaf; the `// @ts-nocheck` set trends toward only the
   permanent-exclude files.
 - `tsc --noEmit` passes after the flip; contract/unit tests show no regression.

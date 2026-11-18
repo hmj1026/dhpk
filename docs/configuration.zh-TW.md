@@ -39,8 +39,8 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **74 個 active `userConfig` 旋
 隨時可在 Claude Code 內重新設定或檢視生效中的設定：
 
 ```text
-/dhpk:setup           # 重跑同一份安裝問答
-/dhpk:setup --show    # 印出目前生效設定
+/dhpk:harness-setup           # 重跑同一份安裝問答
+/dhpk:harness-setup --show    # 印出目前生效設定
 ```
 
 部分布林/模式類旋鈕額外支援**單次環境變數覆寫**（僅限當次 session）——見下表「Env 覆寫」欄。
@@ -221,7 +221,7 @@ opt-in 請求第二意見。
 
 技術棧模組與技術棧 skill（`swift`、`php`、`laravel`、`yii1`、`js-static-checks`、`python`、`react`、`nextjs`）隨 `dhpk-stacks` plugin 發佈；沒有 `dhpk-stacks` 時核心仍可運作，安裝它才會有這些技術棧 skill。它需要核心 `dhpk` plugin（Claude Code 會替你一併安裝核心）。`dhpk-stacks` 擁有 `modules` 與本節及後續語言章節中的所有模組工具設定（`js_*`、`python_*`、`ruff_bin`、`pyright_bin`、`mypy_bin`、`xcode_*`、`swift_build_skip_tests`、`php_cs_fixer_bin`、`phpstan_bin`、`psalm_bin`），請設定在 `pluginConfigs["dhpk-stacks@dhpk"].options` 之下。
 
-**從 dhpk 0.78 或更早版本遷移：** 執行 `/plugin install dhpk-stacks@dhpk`，再把 `modules`（與模組工具設定）從 `dhpk` 的 plugin 設定搬到 `dhpk-stacks`。專案內殘留的 `pluginConfigs["dhpk@dhpk"].options.modules` 仍會被讀取作為後備，兩者並存時以 `dhpk-stacks` 的值為準。`/dhpk:setup` 會偵測你的技術棧，並在缺少 `dhpk-stacks` 時提示。
+**從 dhpk 0.78 或更早版本遷移：** 執行 `/plugin install dhpk-stacks@dhpk`，再把 `modules`（與模組工具設定）從 `dhpk` 的 plugin 設定搬到 `dhpk-stacks`。專案內殘留的 `pluginConfigs["dhpk@dhpk"].options.modules` 仍會被讀取作為後備，兩者並存時以 `dhpk-stacks` 的值為準。`/dhpk:harness-setup` 會偵測你的技術棧，並在缺少 `dhpk-stacks` 時提示。
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
@@ -246,7 +246,7 @@ opt-in 請求第二意見。
 |-----|------|--------|------|
 | `js_lint_script` | string | `"lint"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。可覆寫非標準名稱（例如 `lint:strict`）。 |
 | `js_typecheck_script` | string | `"typecheck"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。 |
-| `js_check_path` | string | `"js/"` | `/ts-check-status` 掃描 `// @ts-check` 推進度時的路徑。可覆寫給 JS 放在 `src/` 或 `app/javascript/` 下的專案。 |
+| `js_check_path` | string | `"js/"` | `/dhpk:js-static-checks status` 掃描 `// @ts-check` 推進度時的路徑。可覆寫給 JS 放在 `src/` 或 `app/javascript/` 下的專案。 |
 | `js_frontend_roots` | string[] | `[]` | `js` 模組 tier 偵測的專案覆寫——掃描第一方 JS/TS 的根目錄。留空回退 `modules/js/module.yaml`（預設 `[js, src]`）。 |
 | `js_core_files` | string[] | `[]` | 專案覆寫——frontend root 下屬於第一方 entry bundle（受 lint）而非 vendor 的 basename，例如 `["app.js","main.js"]`。留空回退 `module.yaml`。 |
 | `js_vendor_globs` | string[] | `[]` | 專案覆寫——視為 vendored（任何深度都跳過 lint）的 glob 路徑前綴，例如 `js/ckeditor/`、`js/jquery-*`。glob 不可含逗號。留空回退 `module.yaml`。 |

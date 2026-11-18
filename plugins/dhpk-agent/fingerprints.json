@@ -2,19 +2,19 @@
   "generatorVersion": "1.1.0",
   "surface": "agent-plugin",
   "skills": {
-    "change-verdict": "81a399a568428b471acc40abf4e3a36d3772a6830e2ae4c20bca0519011ebe4d",
+    "change-verdict": "23609d78d004ff2616e5699156d1220a2b329d269e3f8813df9abdb17f537fd8",
     "code-trace": "e8f4978283ce6b3b8f8af37432de80e9b4b1a291175e537732bf01002b11d510",
-    "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
-    "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
-    "flow-drive": "c0c10efe73de32c5e59021111858192372ac3135ee7c9729842195d996476136",
-    "flow-guide": "ad28abe4421f166e5e6b8d1a3979e4a4153171ae8f35b245005a33205e3e17fb",
-    "git-smart-commit": "0902a57349a495fdeaffde7d653b1760c065ef6019e1278d62280e67d77b9189",
-    "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
-    "precommit": "f53a31490a6a5001ecb13c4a2e772a6aa98d87532304abc15b79aaccb2f53640",
-    "proposal-analyze": "7cbc5c6b5d5faed62e67ddb7e1f3f921c1b8faa8123ae8f36c661837f7aa4d00",
-    "release-creator": "2afe070b018bea14caf638424c615c22a8c80963ca6cbebb6a9169ba292f64ff",
-    "repo-verify": "a384a5d193c27e3fb3e670d3e8b89b386a0c0f5d3d68a20e3db67e86cd68d7b0",
+    "create-pr": "d1c36f359efa048370bae70268985f765527fa32795ae579478ac797111a9acc",
+    "doc-maintain": "70d4c8c765e43a10bb33cb4688cf15a2baa112cb9146f0f1c62b2c344d400f59",
+    "flow-drive": "d2aae9581a049d3dda858698bc18ffff0168bbfc42f9354189b36ef24d838430",
+    "flow-guide": "23edb0ed2fb967b2bd5dafb6485e59e03e24164ce371c6428306ed9169a6a03d",
+    "git-smart-commit": "4d39ab196b1215cccb6302a01594b4e769e8876d0119644513e50b42e58a352a",
+    "git-worktree": "5ec324df73e58332e94ee54e63dad4db3f58cf4f521d3c5893613a3b75633c95",
+    "precommit": "eb8c8107e813757cd94cee6b47a05a023ba837fe565175ad0e60d1597b45fecf",
+    "proposal-analyze": "fb2f617e815a415b16a1ccae19d29fe571a4fce63986bcdae2db896b8b13c72e",
+    "release-creator": "058a73138622ce95a11db3947e1843222346c098dafdc4038a47968f9038ec16",
+    "repo-verify": "5a3729b8e8c03a8f103fc17a08736c4591939175fa84d5a99e495c134b85894b",
     "tdd-workflow": "6b9190911a8b56245c5c0f51882ae4aad52fde24615dc723e5b4a8f74537dc1d",
-    "ui-ux-verify": "e3595020b7382995d4335fb288b2e324c837151faa75fc5d61604fafd0ce9746"
+    "ui-ux-verify": "65193a8ccd7b7170c9f3d46986d241b7dc07311687cff27534886dcf8680d533"
   }
 }

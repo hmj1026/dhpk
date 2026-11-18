@@ -321,9 +321,10 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
   });
 
   test('canonical commands retire the approved aliases and retain supported adapters', () => {
-    const read = (name) => fs.readFileSync(path.join(ROOT, 'commands', name), 'utf8');
-    assert.match(read('precommit.md'), /--fast/);
-    assert.match(read('setup.md'), /--install hooks\|rules\|scripts\|all/);
+    const readSkill = (name) => fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf8');
+    assert.match(readSkill('precommit'), /--fast/);
+    assert.match(readSkill('harness-setup'), /--install=<group>/);
+    assert.equal(fs.existsSync(path.join(ROOT, 'commands')), false, 'the plugin ships skills only');
 
     for (const name of [
       'check-skill.md', 'create-dev.md', 'do.md', 'codex-review.md',
@@ -343,16 +344,13 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
   test('flow-guide routing, flow-drive implementation, and setup installation have deterministic executable contracts', () => {
     const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
     const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
-    const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
     const setupProcedure = fs.readFileSync(path.join(ROOT, 'skills', 'harness-setup', 'references', 'claude-setup.md'), 'utf8');
     assert.match(guide, /route --go/);
     assert.match(guide, /advisory|does not execute|without `--go`/i);
     assert.match(drive, /confirmed specification|confirmed work/i);
     assert.doesNotMatch(drive, /--route-only|flow-drive:author/);
-    assert.match(setup, /canonical `\$harness-setup` Skill/);
     assert.match(setupProcedure, /scripts\/setup\/install-assets\.sh/);
     assert.match(setupProcedure, /--source.*--target.*--dry-run.*--force/is);
-    assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
   });
 
 
@@ -363,7 +361,7 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
     ];
 
     function assertCurrentCommandSurface(commandsDir, inventory) {
-      const currentNames = new Set(fs.readdirSync(commandsDir)
+      const currentNames = new Set((fs.existsSync(commandsDir) ? fs.readdirSync(commandsDir) : [])
         .filter((name) => name.endsWith('.md') && name !== 'INDEX.md')
         .map((name) => name.slice(0, -3)));
       const historicalNames = new Set(inventory.commands.map((entry) => entry.name));
@@ -390,7 +388,8 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
       const tmp = makeTempRepo();
       try {
         const mutatedCommands = path.join(tmp, 'commands');
-        fs.cpSync(commandsDir, mutatedCommands, { recursive: true });
+        fs.mkdirSync(mutatedCommands, { recursive: true });
+        if (fs.existsSync(commandsDir)) fs.cpSync(commandsDir, mutatedCommands, { recursive: true });
         fs.writeFileSync(path.join(mutatedCommands, 'do.md'), '---\ndescription: retired alias mutation\n---\nbody\n');
         const structurallyValid = runValidator(tmp);
         assert.strictEqual(structurallyValid.status, 0, structurallyValid.out);

@@ -22,19 +22,6 @@
         "repo-verify",
         "ui-ux-verify"
       ],
-      "commandIds": [
-        "create-pr",
-        "create-release",
-        "deep-analyze",
-        "flow-drive",
-        "flow-guide",
-        "git-worktree",
-        "precommit",
-        "smart-commit",
-        "ui-ux-verify",
-        "update-docs",
-        "verify"
-      ],
       "compatibilityMode": "profile"
     },
     "codex-native": {

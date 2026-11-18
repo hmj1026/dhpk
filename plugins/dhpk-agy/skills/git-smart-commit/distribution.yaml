@@ -72,27 +72,5 @@
         "summary": "Use git smart commit with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "smart-commit",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:smart-commit",
-      "argument_contract": "[--scope <path>] [--type <type>] [--ai-co-author]",
-      "authority": "git-write",
-      "disposition": "thin-front-door",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/smart-commit.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/smart-commit.md"
-      ],
-      "reason": "Canonical $git-smart-commit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "allowed_tools": "Bash(git:*), Read, Grep, Glob"
-    }
-  ]
+  }
 }

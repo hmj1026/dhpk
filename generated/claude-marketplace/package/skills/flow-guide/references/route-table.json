@@ -80,8 +80,8 @@
       "pattern": "(refactor(ing)?|simplify|clean[ -]?up|dedup(licate)?|tidy +up|(remove|delete|strip|eliminate) +dead[ -]?code)|(重構|簡化|清理|去重)",
       "label": "refactor / simplify",
       "target": {
-        "kind": "command",
-        "id": "simplify"
+        "kind": "skill",
+        "id": "code-simplify"
       }
     },
     {
@@ -96,7 +96,7 @@
       "pattern": "(precommit|pre[- ]commit|pre +push)|(pre.?commit|提交前|commit 前).{0,8}(檢查|驗證)",
       "label": "pre-commit checks",
       "target": {
-        "kind": "command",
+        "kind": "skill",
         "id": "precommit"
       }
     },
@@ -104,7 +104,7 @@
       "pattern": "(create(?!-)|open|draft)\\b.{0,20}\\b(pr|pull +request|merge +request)\\b|(建立?|開|發|draft).{0,8}(pr|pull request|合併請求)",
       "label": "create PR",
       "target": {
-        "kind": "command",
+        "kind": "skill",
         "id": "create-pr"
       }
     },
@@ -120,8 +120,8 @@
       "pattern": "(smart +)?commit|stage +(and +)?commit|(提交|暫存).{0,8}(修改|變更|差異)?",
       "label": "smart commit",
       "target": {
-        "kind": "command",
-        "id": "smart-commit"
+        "kind": "skill",
+        "id": "git-smart-commit"
       }
     },
     {
@@ -168,8 +168,8 @@
       "pattern": "(verify|verification|run +all +tests?|full +test +run|run +tests?|validate\\s+(artifact|skill|agent|command))|(跑.{0,8}測試|執行.{0,8}測試|跑 phpunit)",
       "label": "verification loop",
       "target": {
-        "kind": "command",
-        "id": "verify"
+        "kind": "skill",
+        "id": "repo-verify"
       }
     }
   ]

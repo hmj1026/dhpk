@@ -1,9 +1,0 @@
----
-description: 'Prepare a read-only branch merge analysis with native git merge-tree conflict detection and copy-pasteable manual commands. Use when deciding whether to merge one branch into another. Not for: checkout, merge, rebase, conflict edits, or branch mutation. Output: commits, files, conflicts, evidence, and manual commands.'
-argument-hint: '<source-branch> [--target <branch>]'
-metadata:
-  dhpk-invocation-class: implicit-eligible
----
-
-Load the canonical `$merge-prep` Skill from [SKILL.md](../skills/create-pr/references/merge-prep/SKILL.md) and follow it with `$ARGUMENTS`.
-Keep its argument contract, authority boundary, verification, and output.

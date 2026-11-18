@@ -7,7 +7,7 @@
     },
     {
       "destination": ".claude-plugin/plugin.json",
-      "sha256": "207798a4e33730afb3d63a1b613a90cb6f25d8a9590816dd05bf5fa8151f43e7"
+      "sha256": "67a06bf0fffecd9b63291acc88cdd7f79562ff77fba1cfd9ad79ae1ebf4995a8"
     },
     {
       "destination": "LICENSE",
@@ -15,7 +15,7 @@
     },
     {
       "destination": "README.md",
-      "sha256": "f70edd974006d006ac7f9be160d21f5ceea1af6e1cfa4691d4eb773694dabf71"
+      "sha256": "f20381e5d90bf08d5d034def6a3b156637b530dca46c566c59d58023bdb9af21"
     },
     {
       "destination": "hooks/hooks.json",
@@ -62,10 +62,6 @@
       "sha256": "cc1afcd34901f8fa4546b9fa44cda27d695711473bd72d436ec536a3b73ae1f9"
     },
     {
-      "destination": "modules/js/commands/ts-check-status.md",
-      "sha256": "aadce15f3f1a939c1332bd253ab78523e2fa3561b016eb3ee289b3add8cf907e"
-    },
-    {
       "destination": "modules/js/hooks/_lib/js-tier-detect.sh",
       "sha256": "3a6d725cc19881b28daf0bc4d65f4157423060c97de911812956ebc326ab86a6"
     },
@@ -83,7 +79,7 @@
     },
     {
       "destination": "modules/js/module.yaml",
-      "sha256": "18059f98c5d199a6bc178c36ef3e2ba758429f59556d7a35c9a14fdb06404509"
+      "sha256": "6f8aff8f5cd3b3d762de89e62deba3481ab7e6c5d8c29c6b9a209cfc5ec84ae4"
     },
     {
       "destination": "modules/js/references/frontend-review-patterns.md",
@@ -91,7 +87,7 @@
     },
     {
       "destination": "modules/js/references/static-checks.md",
-      "sha256": "4cd1e80f8ed6178137cd524133cb4212ee92c4fe413cca1ec84346c1c3dee3f4"
+      "sha256": "fc53e9f08fa6d04b5c146e36438e7de73ae34b117eb4b5290143efe566cccdd8"
     },
     {
       "destination": "modules/laravel-10/module.yaml",
@@ -631,7 +627,7 @@
     },
     {
       "destination": "modules/library-author/skills/library-author/distribution.yaml",
-      "sha256": "6ef02f59786b374038e07f079ec766dd5860d265bee8dd9509b42cc6c48ad93a"
+      "sha256": "a50ef14a950b2f3a7adea59a535749a14182fb76c333ccb7babbe1f66526c80f"
     },
     {
       "destination": "modules/library-author/skills/library-author/references/author.md",
@@ -1087,15 +1083,15 @@
     },
     {
       "destination": "skills/js-static-checks/references/rollout.md",
-      "sha256": "385cc480564cd2b16048ec4bea2308ba312362fe169ea41832cfbf631d962908"
+      "sha256": "6fd5a99083076ed938734c8b597c30a3f35529f85eb533b57951712b6e775cbe"
     },
     {
       "destination": "skills/js-static-checks/references/setup.md",
-      "sha256": "7bb77d75b05fe19ca2dc632b50e755c324159b33538dbaac683c7807ce0745b4"
+      "sha256": "ef466d129951ac7e0ae17e5c9aa3a0480d73f5a87716baaa26cda18157dd69e1"
     },
     {
       "destination": "skills/js-static-checks/references/static-checks.md",
-      "sha256": "7d106059bec76dcbc09f523d0b65c25ca93733a28e9d39049e9066c182a5fef3"
+      "sha256": "7700a64618efe3ba6a301d152f43bb1b596bf47cb2e20478513361115b62ac25"
     },
     {
       "destination": "skills/js-static-checks/scripts/status.js",

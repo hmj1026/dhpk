@@ -432,7 +432,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "bb5cad2747eaa972f903a2d99e9b7a8a5df9e320ec9c85a2362d7058b5309016",
+      "canonical_digest": "edcaf3e59a5bc0334724c80a5709b11fcd6af0bd6f731b121ff3efe1736e0247",
       "projection_digest": "c28fe7bd0a96e3b92fe5247ac11e11ca515d5df19dedcbcde2b654419662b8ac",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -461,7 +461,7 @@
       "id": "codex-supporting-docs-docker-setup-md",
       "source": "codex/supporting/docs/docker-setup.md",
       "canonical_source": "docs/docker-setup.md",
-      "canonical_digest": "bf7034c53f6f3adf1244fc751eee29e1b55baabfcdc37c3cc2a85033dd87d7c1",
+      "canonical_digest": "a1043890a8af8f6c02e6c77d297c791d3bcd202558e159c88d324bff67fb09d8",
       "projection_digest": "07898ac72561aeb87325925b8623fc0413eb67e29b0b15ed71f4ea9c80ec0303",
       "destination": "dhpk/docs/docker-setup.md"
     },

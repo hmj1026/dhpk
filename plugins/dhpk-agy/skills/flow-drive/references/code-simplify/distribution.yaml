@@ -41,26 +41,5 @@
         "summary": "Use code simplify with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "simplify",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:simplify",
-      "argument_contract": "[<PR|branch|file|directory>]",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $code-simplify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/simplify.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/simplify.md"
-      ]
-    }
-  ]
+  }
 }

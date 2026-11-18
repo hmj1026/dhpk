@@ -580,7 +580,7 @@ dhpk_print_installed() {
   echo
   echo "✓ Installed. Next steps:"
   echo "    • Inspect install   : claude plugin list --json"
-  echo "    • Reconfigure later : /dhpk:setup  (inside Claude Code)"
+  echo "    • Reconfigure later : /dhpk:harness-setup  (inside Claude Code)"
 }
 
 dhpk_run_plugin_update() {
