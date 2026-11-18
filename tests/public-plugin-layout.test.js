@@ -116,10 +116,10 @@ test('layout rewrites dhpk-internal harness paths in known prose', () => {
   assert.strictEqual(text(result, INDEX), '（位於該專案的 rules 目錄）\n使用端專案 rules 目錄下的 `dev-workflow-project.md`\n');
 });
 
-test('layout fails when a harness path rewrite no longer matches its file', () => {
+test('layout leaves prose alone when a harness path rewrite does not match', () => {
   const result = layoutPublicPlugin({ files: [...baseFiles(), file(INDEX, 'reworded already\n')], manifest: manifest(), counts });
-  assert.strictEqual(result.ok, false);
-  assert.match(result.errors.join('; '), /no longer matches/);
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(text(result, INDEX), 'reworded already\n');
 });
 
 run('public-plugin-layout');
