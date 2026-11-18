@@ -6,6 +6,7 @@ const { compileMarketplacePublicationView } = require('./marketplace-selection')
 const { isInside, readFileBounded } = require('./bounded-filesystem');
 
 const SELECTION_RELATIVE_PATH = 'manifests/marketplace-selection.json';
+const PUBLIC_PLUGIN_HOST_SURFACE = 'codex-native';
 
 function readSelection(root) {
   let physicalRoot;
@@ -91,18 +92,21 @@ function loadMarketplaceHostPublication({ root, inventory, hostSurface, profileS
     }
     return null;
   }
-  const view = compileMarketplacePublicationView({ inventory, selection, hostSurface });
+  // The Codex native package is the Public Plugin tree: public catalog only,
+  // never the Host-only skills a per-Host overlay would add.
+  const view = compileMarketplacePublicationView({
+    inventory,
+    selection,
+    hostSurface: hostSurface === PUBLIC_PLUGIN_HOST_SURFACE ? undefined : hostSurface,
+  });
   if (view.errors.length > 0) {
     throw new Error(`marketplace publication selection is invalid: ${view.errors.join('; ')}`);
   }
   if (profileSelection) {
     const publicEntryIds = view.publicEntries.map((entry) => entry.id);
-    const expectedIds = codexNativeProfile
-      ? [...view.publicEntries, ...view.hostOnly].map((entry) => entry.id)
-      : publicEntryIds;
-    if (!sameUniqueIdSet(profileSelection.selectedStableIds, expectedIds)) {
+    if (!sameUniqueIdSet(profileSelection.selectedStableIds, publicEntryIds)) {
       throw new Error(codexNativeProfile
-        ? 'codex-native profile selection does not match marketplace public and Host-only entries'
+        ? 'codex-native profile selection does not match marketplace public entries'
         : 'common profile selection does not match marketplace public entries');
     }
   }

@@ -1,10 +1,10 @@
 ---
 name: phpunit
-description: 'Use when writing, reviewing, or migrating PHPUnit 9, 10, or 11 tests, resolving a project version, or choosing assertion, metadata, provider, mock, hook, runner, or coverage APIs. Not for PHPUnit 5/6/7-only suites, everyday assertion writing without a version decision, or Laravel routing. Output: selected version boundary, applicable reference, migration guidance, and verification evidence.'
+description: "Use when writing, reviewing, or migrating PHPUnit 9, 10, or 11 tests, resolving a project version, or choosing assertion, metadata, provider, mock, hook, runner, or coverage APIs. Not for PHPUnit 5/6/7-only suites, everyday assertion writing without a version decision, or Laravel routing. Output: selected version boundary, applicable reference, migration guidance, and verification evidence."
 metadata:
-  dhpk-capability-id: dhpk.skill.phpunit
-  dhpk-name-style: portable-family
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.phpunit"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-family"
 ---
 
 # PHPUnit family — version router

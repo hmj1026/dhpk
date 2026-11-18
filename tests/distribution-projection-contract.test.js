@@ -971,7 +971,12 @@ test('plans can derive the ownership binding from an inventory without changing 
   }
 
   function expectedMarketplacePublication(surface) {
-    const publication = compileMarketplacePublicationView({ inventory: INVENTORY, selection: SELECTION, hostSurface: surface });
+    // Codex native is the Public Plugin tree: the public catalog without a Host overlay.
+    const publication = compileMarketplacePublicationView({
+      inventory: INVENTORY,
+      selection: SELECTION,
+      hostSurface: surface === 'codex-native' ? undefined : surface,
+    });
     assert.deepStrictEqual(publication.errors, [], `${surface} publication must compile`);
     return {
       publicEntryIds: publication.publicEntries.map((entry) => entry.id).sort(),

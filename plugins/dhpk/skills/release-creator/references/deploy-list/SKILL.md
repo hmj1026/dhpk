@@ -1,10 +1,10 @@
 ---
 name: deploy-list
-description: 'Generate a deterministic deploy file-list (schema=v1) from git history. Use when: building a deploy/release checklist, 部署清單, or listing files to ship via --anchor, --deploy-commits, or base..head. Not for: commit lookup, raw diffs, or running the deploy. Output: a deploy checklist.'
+description: "Generate a deterministic deploy file-list (schema=v1) from git history. Use when: building a deploy/release checklist, 部署清單, or listing files to ship via --anchor, --deploy-commits, or base..head. Not for: commit lookup, raw diffs, or running the deploy. Output: a deploy checklist."
 metadata:
-  dhpk-name-style: portable-skill
-  dhpk-capability-id: dhpk.skill.deploy-list
-  dhpk-invocation-class: implicit-eligible
+  dhpk-capability-id: "dhpk.skill.deploy-list"
+  dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
 ---
 
 # deploy-list
