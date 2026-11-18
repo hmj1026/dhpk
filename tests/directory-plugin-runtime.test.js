@@ -1,6 +1,8 @@
 'use strict';
 
 const { test, run, assert } = require('./_lib/tinytest');
+const fs = require('node:fs');
+const path = require('node:path');
 const { selectRuntimeFiles } = require('../scripts/lib/directory-plugin-runtime');
 
 const entry = (text) => ({ content: Buffer.from(text), mode: 0o644 });
@@ -19,6 +21,41 @@ test('docs, CI, release, and maintainer files are dropped', () => {
 
 test('the shared CI library that runtime scripts require is kept', () => {
   assert.deepStrictEqual(selected(['scripts/ci/_lib/frontmatter.js', 'scripts/ci/gen.js']), ['scripts/ci/_lib/frontmatter.js']);
+});
+
+test('per-skill build metadata, OpenAI listing metadata, and eval fixtures are dropped', () => {
+  const dropped = [
+    'skills/a/distribution.yaml', 'skills/a/references/b/distribution.yaml', 'skills/a/agents/openai.yaml',
+    'skills/a/evals/evals.json', 'skills/a/references/b/evals/x/fixture.sh', 'skills/a/scripts/check-golden.sh',
+  ];
+  assert.deepStrictEqual(selected(['skills/a/SKILL.md', 'skills/a/scripts/run.sh', ...dropped]), ['skills/a/SKILL.md', 'skills/a/scripts/run.sh']);
+});
+
+test('build-only libraries and manifests are dropped while runtime ones are kept', () => {
+  const dropped = ['scripts/lib/publication-conformance.js', 'scripts/lib/openai-submission-zip.js', 'manifests/skill-resources.json', 'scripts/dhpk-install.js'];
+  const kept = ['scripts/lib/dispatch-config.js', 'manifests/host-profiles.json', 'scripts/hooks/install-codex-skills.sh'];
+  assert.deepStrictEqual(selected([...dropped, ...kept]), [...kept].sort());
+});
+
+// A dropped module that a shipped script still requires would crash at runtime.
+test('every relative require in the committed Directory Plugin resolves inside the package', () => {
+  const root = path.join(__dirname, '..', 'generated', 'claude-marketplace', 'package');
+  const files = new Set();
+  const visit = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) visit(full); else files.add(path.relative(root, full).split(path.sep).join('/'));
+  });
+  visit(root);
+  const missing = [];
+  for (const file of files) {
+    if (!/\.(?:js|cjs)$/.test(file)) continue;
+    const text = fs.readFileSync(path.join(root, file), 'utf8');
+    for (const [, spec] of text.matchAll(/require\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g)) {
+      const base = path.posix.normalize(path.posix.join(path.posix.dirname(file), spec));
+      if (![base, `${base}.js`, `${base}.json`, `${base}.cjs`, `${base}/index.js`].some((candidate) => files.has(candidate))) missing.push(`${file} -> ${spec}`);
+    }
+  }
+  assert.deepStrictEqual(missing, []);
 });
 
 test('selection returns a new Map and leaves its input intact', () => {
