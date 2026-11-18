@@ -11,7 +11,7 @@ under `skills/<public-name>/SKILL.md` and keeps its procedure and completion
 contract in that file.
 
 The `common` collection in `manifests/install-profiles.json` is the sole main
-installation default; public profiles are retired. `flow-guide help <skill>`
+installation default. `flow-guide help <skill>`
 returns the selected skill's usage and stop conditions; optional skills require
 an explicit overlay or host-supported standalone projection.
 

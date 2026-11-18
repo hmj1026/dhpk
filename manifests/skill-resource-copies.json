@@ -124,13 +124,13 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/deterministic-first.md",
-      "sha256": "sha256:c040fe827d431f2e34fc70a6ef70bcf37d632f01b2aaab8d15b823118ca6d05c",
+      "sha256": "sha256:30ae3f48e90e250011ee8e0b30048671cb686e8e83d3aa980c264dc2ea1246ee",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:ab8f2a616f1268847e945fd4c9d2aefcb65e02c761e7e384ab771325046e25ad",
+      "sha256": "sha256:5cdea8ce76e8a6a749c6f0ff707ebb60d501989c7eb0de2efc1b2d409f1062c0",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
