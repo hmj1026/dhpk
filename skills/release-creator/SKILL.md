@@ -61,12 +61,10 @@ When `RELEASE.md` selects this runner, perform only its documented preparation
 steps, then continue to the common runner flow below. When it selects another
 route, stop after following that document.
 
-For dhpk, run `node scripts/release/prepare-release.js check --version <version>`
-after the documented `prepare-release.js write --version <version> ...` command
-and before preparing the PR. This is the single dhpk parity check. Do not run
-the full repository suite as an extra local preparation step. Pull-request CI
-supplies the first release proof and the publish runner supplies the post-merge
-gate.
+For dhpk, follow the `RELEASE.md` release-candidate steps in order. Run its
+`prepare-release.js write` command, then its `prepare-release.js check` command
+once before preparing the PR. Pull-request CI supplies the first full-suite
+proof and the publish runner supplies the post-merge gate.
 
 For a project without `RELEASE.md`, use the generic fallback. Update every
 `{VERSION_FILES}` entry to `<version>` in lockstep, add the release notes at the
