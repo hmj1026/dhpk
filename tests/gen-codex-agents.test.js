@@ -198,7 +198,7 @@ test('generated source keeps unknown prose and fenced-code mentions out of the e
   }
 });
 
-test('quick-worker projects to gpt-6-luna at medium effort with workspace-write handoff', () => {
+test('quick-worker projects at medium effort without a model key with workspace-write handoff', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
@@ -206,7 +206,7 @@ test('quick-worker projects to gpt-6-luna at medium effort with workspace-write 
     assert.strictEqual(res.status, 0, res.stderr);
     const body = fs.readFileSync(path.join(outDir, 'quick-worker.toml'), 'utf8');
     assert.ok(body.includes('name = "quick-worker"'), body);
-    assert.ok(body.includes('model = "gpt-6-luna"'), body);
+    assert.doesNotMatch(body, /^model\s*=/m);
     assert.ok(body.includes('model_reasoning_effort = "medium"'), body);
     assert.doesNotMatch(body, /^sandbox_mode\s*=/m);
     assert.match(body, /needs judgment/);
@@ -234,16 +234,16 @@ test('generates the explicit 16-role Codex projection without packaging authorin
 
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
     assert.ok(architect.includes('name = "architect"'), architect);
-    assert.ok(architect.includes('model = "gpt-6.1-sol"'), architect);
+    assert.doesNotMatch(architect, /^model\s*=/m);
     assert.ok(architect.includes('model_reasoning_effort = "high"'), architect);
     assert.ok(architect.includes('developer_instructions = """'), architect);
 
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
-    assert.ok(tddGuide.includes('model = "gpt-6-luna"'), tddGuide);
+    assert.doesNotMatch(tddGuide, /^model\s*=/m);
     assert.ok(tddGuide.includes('model_reasoning_effort = "high"'), tddGuide);
     for (const name of CODEX_ONLY_AGENTS) {
       const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
-      assert.ok(body.includes(`model = "gpt-6.1-terra"`), name);
+      assert.doesNotMatch(body, /^model\s*=/m, name);
       assert.ok(body.includes('model_reasoning_effort = "medium"'), name);
       assert.ok(body.includes(`Canonical fixture instructions for ${name}.`), name);
       assert.strictEqual(fs.existsSync(path.join(root, 'agents', `${name}.md`)), false, `${name} must remain Codex-only`);
@@ -254,7 +254,7 @@ test('generates the explicit 16-role Codex projection without packaging authorin
       assert.ok(fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8').includes(`name = "${name}"`), name);
     }
     const qaExecutor = fs.readFileSync(path.join(outDir, 'qa-executor.toml'), 'utf8');
-    assert.ok(qaExecutor.includes('model = "gpt-6-luna"'), qaExecutor);
+    assert.doesNotMatch(qaExecutor, /^model\s*=/m);
     assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
     assert.match(qaExecutor, /host-supported skill-loading mechanism/);
     assert.doesNotMatch(qaExecutor, /with the Skill tool/);
@@ -448,7 +448,7 @@ test('generated planner keeps its inline verdict protocol without a review artif
     const planner = fs.readFileSync(path.join(outDir, 'planner.toml'), 'utf8');
     assert.doesNotMatch(planner, /Write the final review under `\.codex\/artifacts\/reviews\//);
     assert.match(planner, /Every reply begins with `VERDICT:` and ends with literal `END`/);
-    assert.match(planner, /model = "gpt-6.1-sol"/);
+    assert.doesNotMatch(planner, /^model\s*=/m);
     assert.match(planner, /model_reasoning_effort = "high"/);
     assert.doesNotMatch(planner, /^sandbox_mode\s*=/m);
     assert.doesNotMatch(planner, /stronger judgment than the driver/);
@@ -495,7 +495,7 @@ test('generated deep reasoner keeps its inline conclusion contract without a rev
     assert.match(reasoner, /unresolved/);
     assert.doesNotMatch(reasoner, /stated as fact/);
     assert.match(reasoner, /## Next actions/);
-    assert.match(reasoner, /model = "gpt-6.1-sol"/);
+    assert.doesNotMatch(reasoner, /^model\s*=/m);
     assert.match(reasoner, /model_reasoning_effort = "high"/);
     assert.doesNotMatch(reasoner, /^sandbox_mode\s*=/m);
   } finally {
@@ -550,7 +550,7 @@ test('generated E2E runner keeps its journey artifact contract without a review 
       assert.ok(fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8').includes(`name = "${name}"`), name);
     }
     const qaExecutor = fs.readFileSync(path.join(outDir, 'qa-executor.toml'), 'utf8');
-    assert.ok(qaExecutor.includes('model = "gpt-6-luna"'), qaExecutor);
+    assert.doesNotMatch(qaExecutor, /^model\s*=/m);
     assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.match(e2eRunner, /artifact_paths:/);
@@ -576,7 +576,7 @@ test('E2E verdict projection is idempotent when BLOCKED is already present', () 
       assert.ok(fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8').includes(`name = "${name}"`), name);
     }
     const qaExecutor = fs.readFileSync(path.join(outDir, 'qa-executor.toml'), 'utf8');
-    assert.ok(qaExecutor.includes('model = "gpt-6-luna"'), qaExecutor);
+    assert.doesNotMatch(qaExecutor, /^model\s*=/m);
     assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.match(e2eRunner, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED/);
