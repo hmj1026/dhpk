@@ -43,6 +43,9 @@ function write(file, content) {
   fs.writeFileSync(file, content);
 }
 
+// The Public Plugin (Codex native) names nested reference entry files REFERENCE.md.
+const referenceEntry = (host) => (host.name === 'Codex' ? 'REFERENCE.md' : 'SKILL.md');
+
 function fixture() {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-host-catalog-'));
   const root = path.join(temp, 'source');
@@ -66,7 +69,10 @@ function fixture() {
   write(path.join(root, 'manifests/listing-metadata.json'), `${JSON.stringify(readJson('manifests/listing-metadata.json'), null, 2)}\n`);
   write(path.join(root, '.claude-plugin/plugin.json'), fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json')));
   fs.copyFileSync(path.join(ROOT, '.claude-plugin/icon.png'), path.join(root, '.claude-plugin/icon.png'));
+  write(path.join(root, 'distribution/directory-plugin/README.md'), 'fixture readme\n');
+  write(path.join(root, 'LICENSE'), 'MIT\n');
   write(path.join(root, 'skills/flow-guide/references/codex-usage-catalog.json'), fs.readFileSync(path.join(ROOT, 'skills/flow-guide/references/codex-usage-catalog.json')));
+  write(path.join(root, 'skills/flow-guide/assets/dhpk-icon.svg'), fs.readFileSync(path.join(ROOT, 'skills/flow-guide/assets/dhpk-icon.svg')));
   const executionPolicy = 'skills/flow-guide/references/execution-bundle/rules/execution-policy.md';
   write(path.join(root, executionPolicy), fs.readFileSync(path.join(ROOT, executionPolicy), 'utf8'));
   const promptTemplate = 'skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md';
@@ -207,7 +213,7 @@ for (const host of HOSTS) {
     // Cursor's common content is physically owned by its Agent Plugin dependency.
     const commonRoot = host.name === 'Cursor' ? path.join(state.temp, 'shared-agent') : state.outDir;
     if (host.name === 'Cursor') generate(HOSTS[0], { ...state, outDir: commonRoot });
-    const children = filesUnder(commonRoot).filter((relative) => /^skills\/[^/]+\/references\/[^/]+\/SKILL\.md$/.test(relative));
+    const children = filesUnder(commonRoot).filter((relative) => new RegExp(`^skills/[^/]+/references/[^/]+/${referenceEntry(host)}$`).test(relative));
     assert.strictEqual(children.length, 22);
     const provenance = provenanceRecords(readReceipt(commonRoot));
     for (const child of CHILDREN) {
@@ -217,13 +223,13 @@ for (const host of HOSTS) {
       assert.strictEqual(fs.readFileSync(path.join(commonRoot, destination, 'references/catalog-probe.txt'), 'utf8'), `raw resource for ${child.id}\n`);
       assert.strictEqual(fs.readFileSync(path.join(commonRoot, destination, 'scripts/catalog-probe.cjs'), 'utf8'), "'use strict';\nmodule.exports = 'catalog-child-sentinel';\n");
       const ownerContent = fs.readFileSync(path.join(commonRoot, 'skills', owner.name, 'SKILL.md'), 'utf8');
-      assert.ok(ownerContent.includes(`](references/${source.name}/SKILL.md)`), `${child.id} owner link must resolve inside ${owner.name}`);
+      assert.ok(ownerContent.includes(`](references/${source.name}/${referenceEntry(host)})`), `${child.id} owner link must resolve inside ${owner.name}`);
       assert.ok(provenance.some((record) => {
         const fields = Object.values(record).filter((value) => typeof value === 'string');
         return fields.some((value) => value === child.id || value.includes(`:${child.id}:`))
           && fields.includes(child.owner)
           && fields.some((value) => value === source.path || value === `${source.path}/SKILL.md`)
-          && fields.includes(`${destination}/SKILL.md`);
+          && fields.includes(`${destination}/${referenceEntry(host)}`);
       }), `${child.id} provenance must associate its identity, canonical source, owner and emitted document`);
     }
     const content = fs.readFileSync(path.join(commonRoot, 'skills/flow-drive/SKILL.md'), 'utf8');
@@ -266,7 +272,7 @@ test('common profile selection preserves Host publication identities and folded 
     assert.deepStrictEqual(rootSkillNames(hostState.outDir), expectedNames, `${host.name} common publication entries`);
 
     const commonRoot = host.name === 'Cursor' ? outputs.get('Agent') : hostState.outDir;
-    const childEntrypoints = filesUnder(commonRoot).filter((relative) => /^skills\/[^/]+\/references\/[^/]+\/SKILL\.md$/.test(relative));
+    const childEntrypoints = filesUnder(commonRoot).filter((relative) => new RegExp(`^skills/[^/]+/references/[^/]+/${referenceEntry(host)}$`).test(relative));
     assert.strictEqual(childEntrypoints.length, 22, `${host.name} common publication retains every folded child`);
 
     if (host.name === 'Cursor') {

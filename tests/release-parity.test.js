@@ -50,10 +50,8 @@ function withRepo(options, callback) {
 function allAtVersion(version) {
   return {
     '.claude-plugin/plugin.json': version,
-    '.codex-plugin/plugin.json': version,
     'plugins/dhpk/.codex-plugin/plugin.json': version,
     'plugins/dhpk/plugin.json': version,
-    '.agents/plugins/marketplace.json': version,
     'plugins/dhpk/provenance.json': version,
     'plugins/dhpk-agent/plugin.json': version,
     'plugins/dhpk-agent/provenance.json': version,
@@ -63,6 +61,8 @@ function allAtVersion(version) {
     'plugins/dhpk-cursor/.cursor-plugin/marketplace.json': version,
     'plugins/dhpk-cursor/provenance.json': version,
     'generated/claude-marketplace/package/.claude-plugin/plugin.json': version,
+    'distribution/stacks-plugin/plugin.json': version,
+    'generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json': version,
   };
 }
 
@@ -149,9 +149,7 @@ test('checkParity fails when the rendered OpenAI manifest version differs from t
 test('MANIFEST_PATHS lists retained version-bearing manifests, including native package provenance', () => {
   const originalPaths = [...MANIFEST_PATHS];
   const expectedPaths = [
-    '.agents/plugins/marketplace.json',
     '.claude-plugin/plugin.json',
-    '.codex-plugin/plugin.json',
     'plugins/dhpk/.codex-plugin/plugin.json',
     'plugins/dhpk/plugin.json',
     'plugins/dhpk/provenance.json',
@@ -163,6 +161,8 @@ test('MANIFEST_PATHS lists retained version-bearing manifests, including native 
     'plugins/dhpk-cursor/.cursor-plugin/marketplace.json',
     'plugins/dhpk-cursor/provenance.json',
     'generated/claude-marketplace/package/.claude-plugin/plugin.json',
+    'distribution/stacks-plugin/plugin.json',
+    'generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json',
     'package.json',
   ];
   assert.deepStrictEqual([...MANIFEST_PATHS].sort(), [...expectedPaths].sort());
@@ -185,7 +185,7 @@ test('checkParity passes when every manifest, native package provenance, and the
 });
 
 test('checkParity fails when native package provenance drifts from the target', () => {
-  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
     assert.ok(result.errors.some((e) => e.includes('plugins/dhpk/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
@@ -193,7 +193,7 @@ test('checkParity fails when native package provenance drifts from the target', 
 });
 
 test('checkParity fails when native AGY package provenance drifts from the target', () => {
-  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.2', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.2', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
     assert.ok(result.errors.some((e) => e.includes('plugins/dhpk-agy/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
@@ -201,10 +201,10 @@ test('checkParity fails when native AGY package provenance drifts from the targe
 });
 
 test('checkParity reports every manifest that drifts from the target, with observed values', () => {
-  withRepo({ versions: { '.codex-plugin/plugin.json': '1.2.4' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: { 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.4' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
-    assert.ok(result.errors.some((e) => e.includes('.codex-plugin/plugin.json') && e.includes('1.2.4') && e.includes('1.2.3')));
+    assert.ok(result.errors.some((e) => e.includes('plugins/dhpk/.codex-plugin/plugin.json') && e.includes('1.2.4') && e.includes('1.2.3')));
   });
 });
 
@@ -212,10 +212,8 @@ test('checkParity fails when the bilingual AGY generator pin lags the target', (
   withRepo({
     versions: {
       '.claude-plugin/plugin.json': '1.2.3',
-      '.codex-plugin/plugin.json': '1.2.3',
       'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3',
       'plugins/dhpk/plugin.json': '1.2.3',
-      '.agents/plugins/marketplace.json': '1.2.3',
       'plugins/dhpk/provenance.json': '1.2.3',
       'plugins/dhpk-agent/plugin.json': '1.2.3',
       'plugins/dhpk-agent/provenance.json': '1.2.3',
@@ -283,10 +281,10 @@ test('checkParity fails when the changelog heading for the target version is mis
     test('fails and lists every mismatched surface when a manifest drifts from the tag', () => {
       const repo = mkRepo('1.2.3');
       try {
-        fs.writeFileSync(path.join(repo, '.codex-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.2.4' }));
+        fs.writeFileSync(path.join(repo, 'plugins/dhpk/.codex-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.2.4' }));
         const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
         assert.notStrictEqual(res.status, 0);
-        assert.match(res.stderr, /\.codex-plugin\/plugin\.json/);
+        assert.match(res.stderr, /plugins\/dhpk\/\.codex-plugin\/plugin\.json/);
       } finally {
         fs.rmSync(repo, { recursive: true, force: true });
       }

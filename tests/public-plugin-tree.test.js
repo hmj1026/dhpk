@@ -11,6 +11,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { compileMarketplacePublicationView } = require('../scripts/lib/marketplace-selection');
 const { compileOpenaiSubmissionPackage } = require('../scripts/lib/openai-submission-package');
 const { NATIVE_RECEIPT_FILES } = require('../scripts/lib/public-plugin-tree');
+const { checkPublicPlugin } = require('../scripts/lib/publication-conformance');
 const { readSourceVersion, renderOpenaiSubmissionManifest } = require('../scripts/lib/host-manifests');
 
 const ROOT = path.join(__dirname, '..');
@@ -87,6 +88,25 @@ test('Codex native manifest is derived from the OpenAI manifest', () => {
   assert.strictEqual(codex.version, readSourceVersion(ROOT));
   assert.strictEqual(codex.description, openai.description);
   assert.strictEqual(codex.skills, './skills/');
+});
+
+test('built Public Plugin passes the publication conformance rules', () => {
+  assert.deepStrictEqual(checkPublicPlugin(buildSubmissionTree(), { version: readSourceVersion(ROOT) }), []);
+});
+
+test('built Public Plugin listing counts come from the catalog', () => {
+  const { view } = publicCatalog();
+  const tree = buildSubmissionTree();
+  const listing = JSON.parse(tree.get('plugin.json').toString('utf8')).extensions['com.openai'].interface;
+  assert.ok(listing.longDescription.includes(`${view.publicEntries.length} general`), listing.longDescription);
+  assert.ok(listing.shortDescription.length <= 30);
+  assert.strictEqual(listing.composerIcon, './assets/dhpk-icon.svg');
+});
+
+test('canonical skill sources keep their distribution.yaml and metadata', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
+  assert.match(source, /dhpk-capability-id/);
+  assert.ok(fs.existsSync(path.join(ROOT, 'skills', 'flow-guide', 'distribution.yaml')));
 });
 
 run('public-plugin-tree');

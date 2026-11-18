@@ -22,17 +22,17 @@ There are three places a knob's value can come from, in increasing precedence:
 1. **Plugin default** — baked into `.claude-plugin/plugin.json`, applies if you never touch the knob.
 2. **Install-time `--config`** — set once at install, stored as the plugin's global config:
    ```bash
-   claude plugin install dhpk@dhpk \
-     --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-     --config docker_containers=php-fpm,mysql \
-     --config hook_profile=standard
+   claude plugin install dhpk@dhpk --config hook_profile=standard
+   claude plugin install dhpk-stacks@dhpk \
+     --config modules=php-8.x,laravel-11,phpunit-11,library-author
    ```
+   `modules` and the module tool settings belong to the separate `dhpk-stacks` plugin (see [Stack modules](#stack-modules)); every other knob stays on `dhpk`.
    Multi-value knobs (`multiple: true` below) take a comma-separated list.
 3. **Project-level override** — a consuming project's `.claude/settings.local.json` (or `settings.json`) can override specific knobs per-project via:
    ```json
    {
      "pluginConfigs": {
-       "dhpk@dhpk": {
+       "dhpk-stacks@dhpk": {
          "options": {
            "modules": ["php-7.4", "laravel-10"]
          }
@@ -40,7 +40,7 @@ There are three places a knob's value can come from, in increasing precedence:
      }
    }
    ```
-   This is documented and confirmed for `modules` (lets one dev machine run different stacks per project) — the same `pluginConfigs.dhpk@dhpk.options.<key>` path applies to any knob since it's a general plugin-config override mechanism, not a `modules`-specific special case.
+   This is documented and confirmed for `modules` (lets one dev machine run different stacks per project) — the same `pluginConfigs.<plugin>@dhpk.options.<key>` path applies to any knob since it's a general plugin-config override mechanism, not a `modules`-specific special case.
 
 Reconfigure or inspect the effective config at any time from inside Claude Code:
 
@@ -133,7 +133,6 @@ for the selection rule.
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared dispatcher deadline for all Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. The resolved value is copied into the immutable transport context, never read by a wrapper from its environment. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for delegated implementation routing in the Implementation dispatch table. `on` routes applicable implement-phase delegation through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. Flow Drive's native task entry does not expose a dispatch mode. |
 | `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--target <agent>/<model>` remains directional and does not open other target Agents. |
-| `subagent_quality_gate` | string | `off` | `on` \| `off` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `subagent-stop-quality.sh`. Retained for that advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
 
 ### Cross-provider opt-in
 
@@ -269,45 +268,28 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 `[agents.<name>]` blocks in `config.toml.example` are optional metadata, not a workaround for a runtime registry failure. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also records the effective default subagent model and reasoning effort. Static metadata, a physical TOML, or built-in `explorer` success does not prove custom-role callability; require an observed non-built-in spawn and targeted wait. See [`codex/guidance.md`](../codex/guidance.md) for diagnostics and [`platform-installation.md`](platform-installation.md) for the evidence boundary.
 
-## Docker & stack modules
+## Stack modules
+
+Stack modules ship in the `dhpk-stacks` plugin, which requires the core `dhpk` plugin (Claude Code installs core for you). `dhpk-stacks` owns `modules` and every module tool setting in this section and the language sections below (`js_*`, `python_*`, `ruff_bin`, `pyright_bin`, `mypy_bin`, `xcode_*`, `swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, `psalm_bin`); set them under `pluginConfigs["dhpk-stacks@dhpk"].options`.
+
+**Migrating from dhpk 0.78 or earlier:** run `/plugin install dhpk-stacks@dhpk`, then move your `modules` value (and module tool settings) from the `dhpk` plugin config to `dhpk-stacks`. A leftover `pluginConfigs["dhpk@dhpk"].options.modules` in a project is still read as a fallback, and the `dhpk-stacks` value wins when both exist. `/dhpk:setup` detects your stack and tells you when `dhpk-stacks` is missing.
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `docker_containers` | string[] | `[]` | container name(s) | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)). Retained for consumer-provided Docker tooling; no shipped hook reads it, and default SessionStart does not probe containers or export container variables. |
-| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences reviewer triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
+| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences reviewer triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs["dhpk-stacks@dhpk"].options.modules` overrides the global value. |
 
 ## Review triggers & risk heuristics
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `review_trigger_extra_paths` | string[] | `[]` | `<slot>:<prefix>`, slot ∈ `code\|db\|sec\|fe\|doc\|mig` | Extra path prefixes per reviewer slot, e.g. `code:protected/`, `fe:resources/views/`, `mig:db/migrate/`. |
-| `hot_tables` | string[] | `[]` | table name(s), e.g. `orders`, `order_lines`, `inventory` | Project-specific high-volume table names that `performance-analyzer` and `migration-reviewer` treat as elevated risk (large-ALTER downtime, N+1, missing composite index). The shipped agents only carry POS-system examples; declare your real hot tables here (or in `CLAUDE.md` / `.claude/rules/`). Empty falls back to generic heuristics. |
 
 ## Git safety gates
 
 | Key | Type | Default | Options | Env override | Purpose |
 |-----|------|---------|---------|--------------|---------|
-| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Retained legacy setting; reviewer dispatch is advisory. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | Behavior when a history-mutating git verb (`commit/merge/rebase/cherry-pick/reset/push`) runs on a protected branch. |
 | `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | branch name(s) / bash `case` globs | — | Branches the `branch_safety` gate checks against. Set to `[]` to disable per-branch gating without setting `branch_safety=off`. |
-
-## Session behavior & advisories
-
-| Key | Type | Default | Env override | Purpose |
-|-----|------|---------|--------------|---------|
-| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `userpromptsubmit-skill-hint.sh` (UserPromptSubmit); no default hook consumes it. |
-| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)); read by `_lib/learning-db.sh`, which no shipped default hook calls. Default SessionStart does not inject learned context. |
-| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `stop-advisory-dispatch.sh` (Stop); no default Stop hook consumes it. |
-| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `stop-advisory-dispatch.sh` (Stop); no default Stop hook consumes it. |
-| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `pre-agent-warmstart.sh` (PreToolUse `Agent\|Task`); no default lifecycle entry consumes it. |
-| `reap_stale_mcp_processes` | boolean | `false` | — | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `session-end.sh` (SessionEnd); default SessionStart does not reap processes. |
-| `harness_restore_hint` | string | `""` | — | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)); retained for consumer-provided symlink-health advice, no shipped hook reads it, and default SessionStart does not emit it. |
-
-## Manifest / lockfile sync
-
-| Key | Type | Default | Options | Purpose |
-|-----|------|---------|---------|---------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of `post-edit-advisory.sh` (PostToolUse); no default PostToolUse reviewer routing remains. |
 
 ## `js` module
 
@@ -335,7 +317,6 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `php_bin` | string | `"php"` | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of the `php-5.6` `post-edit-php-syntax.sh`. PHP binary/wrapper for that syntax-check workflow, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
 | `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | Binary for an explicitly registered `php-7.4` formatter workflow and its applicable pre-commit gate. |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | PHPStan binary for the `php-7.4` module's pre-commit gate; only invoked when `phpstan.neon[.dist]` is present. |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | Psalm binary for the `php-7.4` module's pre-commit gate; only invoked when `psalm.xml[.dist]` is present. |
@@ -344,7 +325,6 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `swiftlint_bin` | string | `"swiftlint"` | — | Requires explicit consumer hook registration ([Optional extensions](hook-extension.md#optional-extensions)) of the `xcode-tooling` `post-edit-swiftlint.sh`. Binary for that SwiftLint workflow. Self-skips when absent. |
 | `xcode_scheme` | string | `""` | scheme name, e.g. `babylon` | Scheme for the `xcode-tooling` pre-commit build gate. Empty skips the gate entirely (no scheme guessing). |
 | `xcode_destination` | string | `""` | e.g. `platform=iOS Simulator,name=iPhone 17` | `-destination` for the *test* step of the pre-commit gate. The *build* step always uses a device-name-free generic destination so it never goes stale. Empty auto-picks the first available simulator. |
 | `swift_build_skip_tests` | boolean | `false` | — | When `true`, the Swift pre-commit gate builds only (no `xcodebuild test` / `swift test`). |
@@ -356,17 +336,16 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 claude plugin install dhpk@dhpk
 
 # Legacy PHP/Yii + JS fullstack project.
+claude plugin install dhpk-stacks@dhpk --config modules=php-5.6,yii-1.1,phpunit-5.7,js
 claude plugin install dhpk@dhpk \
-  --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
-  --config docker_containers=php-fpm,mysql \
   --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
 
 # Modern Laravel package library spanning Laravel 6-11 (with polyfill review).
-claude plugin install dhpk@dhpk \
+claude plugin install dhpk-stacks@dhpk \
   --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
 
 # Python/FastAPI project using Poetry instead of uv, mypy instead of pyright.
-claude plugin install dhpk@dhpk \
+claude plugin install dhpk-stacks@dhpk \
   --config modules=python,fastapi,pytest \
   --config python_runner="poetry run" \
   --config python_typechecker=mypy

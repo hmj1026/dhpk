@@ -44,7 +44,6 @@ const RESOURCE_COMPANIONS = Object.freeze([
 const CANONICAL_PROSE = [
   /^(?:README(?:\.zh-TW)?|AGENTS|CONTEXT|CODING_STANDARDS|RELEASE(?:\.zh-TW)?|CHANGELOG)\.md$/i,
   /^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex|openspec)\/.*\.md$/i,
-  /^\.codex-plugin\/.*\.md$/i,
   /^changelog\.d\/.*\.md$/i,
 ];
 
@@ -60,7 +59,7 @@ function categoryFor(file) {
   if (/^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex)\/.*\.(?:json|ya?ml|toml)$/i.test(file)) return 'metadata';
   if (/^(?:\.github\/actions|scripts\/hooks|scripts\/install|install)/i.test(file)) return 'installer';
   if (/^(?:scripts|bin|tests)\//i.test(file)) return 'script';
-  if (/^(?:plugins|generated|manifests|\.claude-plugin|\.codex-plugin)\//i.test(file)) return 'package';
+  if (/^(?:plugins|generated|manifests|\.claude-plugin)\//i.test(file)) return 'package';
   return 'unknown';
 }
 
@@ -124,7 +123,7 @@ const OWNER_GROUPS = Object.freeze([
   {
     name: 'adapter-package',
     paths: [/^scripts\/lib\/(?:agy|agent|agents|claude|codex|cursor|marketplace|standalone|workflow)-.*(?:package|adapter|publication)\.js$/i, /^scripts\/ci\/(?:gen-(?:.*package|.*manifest|cursor-sync)|validate-agent-plugin-package)\.js$/i, /^plugins\//i],
-    tests: ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js'],
+    tests: ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'stacks-plugin-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js'],
   },
 ]);
 

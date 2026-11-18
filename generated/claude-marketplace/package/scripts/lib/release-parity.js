@@ -43,6 +43,7 @@ const REGENERATED_RELEASE_DIRS = [
   'plugins/dhpk-cursor/',
   'plugins/dhpk-agy/',
   'generated/claude-marketplace/package/',
+  'generated/claude-marketplace/stacks-package/',
 ];
 
 const CHANGELOG_FRAGMENT_DIR = 'changelog.d/';

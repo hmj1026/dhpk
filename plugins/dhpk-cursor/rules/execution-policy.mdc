@@ -655,7 +655,7 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 
 - New feature / bugfix in business layer → establish independent RED evidence before implementation; use `tdd-guide` when a separate test seam, runtime setup, or specialist ownership is needed.
 - Money / crypto / cert / token paths not matched by hook patterns → `security-reviewer`.
-- Repository methods on high-volume tables (each project declares its own hot tables via the `hot_tables` userConfig key or its CLAUDE.md / rules — names like `orders` / `records` / `stock` are POS-system examples only) → `performance-analyzer`.
+- Repository methods on high-volume tables (each project declares its own hot tables in its CLAUDE.md / rules — names like `orders` / `records` / `stock` are POS-system examples only) → `performance-analyzer`.
 - Editing `<script>` blocks inside view-layer template files (PHP / ERB / Twig / Razor) → `frontend-reviewer`.
 - New / changed domain type, value object, enum, or struct with non-trivial invariants ("make illegal states unrepresentable") → `type-design-analyzer` (also a `code-reviewer` delegate).
 - Deep error-handling audit (empty catch / swallowed exceptions / hidden fallbacks / missing rollback) → `silent-failure-hunter` (also a `code-reviewer` delegate).

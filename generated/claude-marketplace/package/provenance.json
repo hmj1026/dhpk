@@ -1381,7 +1381,7 @@
       "sourcePath": "skills/swift/references/build.md",
       "destination": "skills/flow-drive/references/swift/references/build.md",
       "kind": "branch",
-      "sha256": "f4c6d7120395e1b01a178c6d750d7f52e0449a903d0b4b50b03c90a650dcd270"
+      "sha256": "d41b62ae8beace231de73caae9928e7db0a9445ac4973294a9f089a7dfb0515a"
     },
     {
       "skillId": "swift",
@@ -1813,7 +1813,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "930e27d6723224b119275af6909ef40232cdaaeb9a137e0af16cc974e2675467"
+      "sha256": "bb5cad2747eaa972f903a2d99e9b7a8a5df9e320ec9c85a2362d7058b5309016"
     },
     {
       "skillId": "flow-guide",
@@ -1941,7 +1941,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "930e27d6723224b119275af6909ef40232cdaaeb9a137e0af16cc974e2675467"
+      "sha256": "bb5cad2747eaa972f903a2d99e9b7a8a5df9e320ec9c85a2362d7058b5309016"
     },
     {
       "skillId": "flow-guide",
@@ -2485,7 +2485,7 @@
       "sourcePath": "skills/harness-setup/data/module-catalog.json",
       "destination": "skills/harness-setup/data/module-catalog.json",
       "kind": "entry",
-      "sha256": "fb6412a96c83789d2ea96c5c89de42195e3c231d20a9fbf409b302b1b6a5a865"
+      "sha256": "9bceb7f9ab10d4692af8e01ed2eaf5722532f9fc040d0d66d683c245f484d93a"
     },
     {
       "skillId": "harness-setup",
@@ -2501,7 +2501,7 @@
       "sourcePath": "skills/harness-setup/references/claude-setup.md",
       "destination": "skills/harness-setup/references/claude-setup.md",
       "kind": "entry",
-      "sha256": "3d08a7d4917fa7759cc7da6ac150eeb45b6f3e809b7107fa0e3dec72d3c79361"
+      "sha256": "4bfb48a700391772a796b854be4cc8a733fffe9fe016f24a939005c04b2e3ad0"
     },
     {
       "skillId": "harness-setup",

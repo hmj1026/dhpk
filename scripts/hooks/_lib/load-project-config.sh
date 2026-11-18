@@ -51,13 +51,19 @@ try:
         cfg = json.load(f)
 except Exception:
     sys.exit(1)
-for part in ("pluginConfigs", "dhpk@dhpk", "options"):
-    if not isinstance(cfg, dict):
-        sys.exit(1)
-    cfg = cfg.get(part, {})
-if not isinstance(cfg, dict):
+# dhpk-stacks owns `modules` and the module tool keys. Its project options
+# overlay the core plugin's, so a project that still carries `modules` under
+# `dhpk@dhpk` keeps working until it moves the value.
+plugin_configs = cfg.get("pluginConfigs", {}) if isinstance(cfg, dict) else None
+if not isinstance(plugin_configs, dict):
     sys.exit(1)
-opts = cfg
+opts = {}
+for plugin in ("dhpk@dhpk", "dhpk-stacks@dhpk"):
+    entry = plugin_configs.get(plugin, {})
+    entry = entry.get("options", {}) if isinstance(entry, dict) else None
+    if not isinstance(entry, dict):
+        sys.exit(1)
+    opts.update(entry)
 # Known userConfig keys (mirrors .claude-plugin/plugin.json userConfig, e.g.
 # hook_profile, modules, review_agents, orchestration_dispatch, cross_provider,
 # worker_target, reasoner_target, planner_target, reviewer_target,

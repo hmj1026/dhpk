@@ -682,4 +682,32 @@ test('CLI exposes the harness help contract', () => {
   });
 }
 
+// The directory-plugin verifier surface runs `claude plugin validate` and fails
+// when the CLI is missing, so every job that runs the package verifier installs
+// the pinned CLI first, as a blocking step.
+test('jobs that run the package verifier install the pinned Claude CLI first, without continue-on-error', () => {
+  const fs = require('node:fs');
+  const read = (file) => fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
+  const installName = '- name: Install pinned Claude CLI for package verification';
+  const cases = [
+    ['ci.yml', 'preflight', 'node scripts/ci/verify-platform-packages.js'],
+    ['ci.yml', 'release-rehearsal', 'scripts/release/release-verify.sh'],
+    ['release.yml', 'release', 'scripts/release/release-verify.sh'],
+  ];
+  for (const [file, job, verifier] of cases) {
+    const workflow = read(file);
+    const start = workflow.indexOf(`\n  ${job}:\n`);
+    assert.ok(start !== -1, `${file} has no ${job} job`);
+    const next = workflow.slice(start + 1).search(/\n  [a-z][a-z-]*:\n/);
+    const block = next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
+    const install = block.indexOf(installName);
+    assert.ok(install !== -1, `${file} ${job} must install the pinned Claude CLI`);
+    assert.ok(install < block.indexOf(verifier), `${file} ${job} must install the CLI before ${verifier}`);
+    const stepEnd = block.indexOf('\n      - ', install + 1);
+    const step = block.slice(install, stepEnd === -1 ? block.length : stepEnd);
+    assert.match(step, /@anthropic-ai\/claude-code@\$\(cat scripts\/ci\/claude-code-cli-version\.txt\)/);
+    assert.doesNotMatch(step, /continue-on-error/, `${file} ${job} install must be blocking`);
+  }
+});
+
 run('harness-facade-contract');

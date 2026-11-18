@@ -78,6 +78,33 @@ Real installation requires Python 3 with the physical descriptor capabilities
 used by the writer; if unavailable, installation stops before target mutation
 with exit 2. `--dry-run` remains available without Python 3.
 
+## Stack detection and dhpk-stacks
+
+Stack modules ship in the separate `dhpk-stacks` plugin, which requires this
+core plugin and owns the `modules` setting. Core carries no `modules/`
+directory.
+
+1. Detect the project's stacks from its root manifests, read-only: `composer.json`
+   (php, laravel, phpunit, yii), `package.json` (js, react, vue, nextjs),
+   `pyproject.toml` or `requirements.txt` (python), and `Package.swift` or an
+   `*.xcodeproj` (swift). Map each hit to a `.stacks[].id` in the catalog.
+2. Decide whether `dhpk-stacks` is installed. It is when
+   `enabledPlugins["dhpk-stacks@dhpk"]` is true in the project or user Claude
+   settings, or `claude plugin list` shows it. If neither can be read, report
+   `dhpk-stacks` as `UNAVAILABLE`; do not guess.
+3. When a stack was detected and `dhpk-stacks` is not installed, report the
+   install hint and stop the Stacks question below until the plugin is present:
+
+   ```text
+   /plugin marketplace add hmj1026/dhpk      (skip when the dhpk marketplace is already added)
+   /plugin install dhpk-stacks@dhpk
+   ```
+
+   Core keeps working without it; only the stack modules are missing.
+4. When a project still carries `modules` under `pluginConfigs["dhpk@dhpk"]`,
+   tell the operator to move it to `pluginConfigs["dhpk-stacks@dhpk"]`. The
+   old location is still read as a fallback, so nothing breaks while moving it.
+
 ## Interactive configuration
 
 After the plugin is installed, use one native `AskUserQuestion` call per
@@ -102,14 +129,17 @@ logical step. Do not ask these questions in free-form prose:
    `.hook_profiles[].id`.
 
 Write the resolved values under the existing local settings/userConfig shape,
-preserving unrelated settings. Show a before/after diff. Module changes need
-the normal Claude plugin reload (`/plugin configure dhpk@dhpk` or the documented
-terminal uninstall/install equivalent); settings-only changes apply next
-session.
+preserving unrelated settings. `modules` and the module tool settings
+(`js_*`, `python_*`, `ruff_bin`, `pyright_bin`, `mypy_bin`, `xcode_*`,
+`swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, `psalm_bin`) go
+under `pluginConfigs["dhpk-stacks@dhpk"].options`; every other option stays under
+`dhpk@dhpk`. Show a before/after diff. Module changes need the normal Claude
+plugin reload (`/plugin configure dhpk-stacks@dhpk` or the documented terminal
+uninstall/install equivalent); settings-only changes apply next session.
 
 ## Output and verification
 
-Return a confirmation block containing `modules`, `docker_containers`,
+Return a confirmation block containing `modules`,
 `review_agents`, `hook_profile`, and the four-role dispatch summary
 (`planner`, `reasoner`, `worker`, `reviewer`) from the config report,
 each with before/after values where settings changed, followed by exactly
@@ -121,6 +151,8 @@ a skipped prompt into a successful configuration.
 
 - [ ] Catalog was read as the only source for stacks, versions, slots, and
       hook profiles.
+- [ ] A detected stack without `dhpk-stacks` produced the install hint, not a
+      silent `modules` write.
 - [ ] `--show` included the four-role dispatch summary without model-selection
       prompts.
 - [ ] Existing settings and unknown keys were preserved.

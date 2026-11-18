@@ -19,7 +19,6 @@ const LISTING_METADATA = 'manifests/listing-metadata.json';
 // How the version is read from (and, for 'version-sync', written to) a file.
 const READERS = Object.freeze({
   version: (data) => data.version,
-  marketplaceEntry: (data) => ((data.plugins || []).find((p) => p.name === 'dhpk') || {}).version,
   sourceVersion: (data) => data.sourceVersion,
   metadataVersion: (data) => (data.metadata || {}).version,
 });
@@ -32,8 +31,7 @@ const GENERATORS = Object.freeze([
     command: 'node scripts/ci/gen-host-manifests.js',
     outputs: [
       { path: '.claude-plugin/plugin.json', read: 'version' },
-      { path: '.codex-plugin/plugin.json', read: 'version' },
-      { path: '.agents/plugins/marketplace.json', read: 'marketplaceEntry' },
+      { path: 'distribution/stacks-plugin/plugin.json', read: 'version' },
     ],
   },
   {
@@ -42,11 +40,24 @@ const GENERATORS = Object.freeze([
     outputs: [{ path: '.claude-plugin/marketplace.json', read: null }],
   },
   {
+    id: 'codex-marketplace-listing',
+    command: 'hand-maintained marketplace descriptor (no version field)',
+    outputs: [{ path: '.agents/plugins/marketplace.json', read: null }],
+  },
+  {
     id: 'claude-marketplace-package',
     command: 'node scripts/ci/gen-claude-marketplace-package.js',
     outputs: [
       { path: 'generated/claude-marketplace/package/.claude-plugin/plugin.json', read: 'version' },
       { path: 'generated/claude-marketplace/package/provenance.json', read: null },
+    ],
+  },
+  {
+    id: 'claude-stacks-package',
+    command: 'node scripts/ci/gen-claude-marketplace-package.js',
+    outputs: [
+      { path: 'generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json', read: 'version' },
+      { path: 'generated/claude-marketplace/stacks-package/provenance.json', read: null },
     ],
   },
   {
@@ -118,11 +129,7 @@ function readDeclaredVersion(root, output) {
 function writeDeclaredVersion(root, output, version) {
   const abs = path.join(root, output.path);
   const data = JSON.parse(fs.readFileSync(abs, 'utf8'));
-  if (output.read === 'marketplaceEntry') {
-    const entry = (data.plugins || []).find((p) => p.name === 'dhpk');
-    if (!entry) throw new Error(`${output.path}: no 'dhpk' plugin entry`);
-    entry.version = version;
-  } else if (output.read === 'version') {
+  if (output.read === 'version') {
     data.version = version;
   } else {
     throw new Error(`${output.path}: version is not patched by version-sync`);

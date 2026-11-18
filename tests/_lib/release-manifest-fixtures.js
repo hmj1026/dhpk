@@ -10,7 +10,6 @@ const { LISTING_METADATA } = require('../../scripts/lib/host-manifests');
 
 function manifestBody(relPath, version) {
   if (relPath.endsWith('.cursor-plugin/marketplace.json')) return { metadata: { version } };
-  if (relPath.endsWith('marketplace.json')) return { plugins: [{ name: 'dhpk', version }] };
   if (relPath.endsWith('provenance.json')) return { sourceVersion: version };
   return { name: 'dhpk', version };
 }

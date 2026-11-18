@@ -9,12 +9,12 @@
 ## Load Order
 
 1. 先讀 `projects-generic.md`（通用 pattern 與中性範例，隨 plugin 出貨）。
-2. 若使用端專案提供了 `@rules/dev-workflow-project.md`（位於該專案的 `.claude/rules/`），再讀它套用
+2. 若使用端專案提供了 `@rules/dev-workflow-project.md`（位於該專案的 rules 目錄），再讀它套用
    專案預填值、shortcut 與覆寫規則。
 3. 若專案沒有提供該檔，就停在 generic guidance，不要假設任何既有專案規則。
 
 ## Project Override File
 
-- 路徑：使用端專案的 `.claude/rules/dev-workflow-project.md`（透過 `@rules/dev-workflow-project.md` 解析）。
+- 路徑：使用端專案 rules 目錄下的 `dev-workflow-project.md`（透過 `@rules/dev-workflow-project.md` 解析）。
 - 內容：profile 預填值、work-item system、repo-specific example、以及 path→test 提示等。
 - 只有這份覆寫檔可以放專案 shortcut 與 repo-specific example；plugin 內的通用 reference 不應內嵌這些內容。

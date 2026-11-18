@@ -13,6 +13,7 @@ const {
   expectedCursorPolicyBody,
   cleanCheckoutReport,
   verifyPublicPlugin,
+  verifyDirectoryPlugin,
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
@@ -110,7 +111,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!expectedPhysicalIds.includes(id), id);
       const flowDrive = path.join(output, 'skills', byId.get('flow-drive').name);
-      const expectedFlowDriveEntries = ['SKILL.md', 'distribution.yaml', 'references'];
+      const expectedFlowDriveEntries = surface === 'codex-native' ? ['SKILL.md', 'references'] : ['SKILL.md', 'distribution.yaml', 'references'];
       if (surface === 'codex-native') expectedFlowDriveEntries.push('agents');
       assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), expectedFlowDriveEntries.sort(), `${surface} Flow Drive package entries`);
       if (surface === 'codex-native') {
@@ -351,6 +352,18 @@ test('Public Plugin built from the committed tree passes publication conformance
 test('public-plugin is a selectable verifier surface with no dependencies', () => {
   assert.deepStrictEqual(resolveSurfaceSelection(['public-plugin']), {
     ok: true, requested: ['public-plugin'], resolved: ['public-plugin'],
+  });
+});
+
+test('Directory Plugin built from the committed tree passes conformance and claude validate', () => {
+  const result = verifyDirectoryPlugin({ root: ROOT });
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.conformance, 'PASS');
+});
+
+test('directory-plugin is a selectable verifier surface with no dependencies', () => {
+  assert.deepStrictEqual(resolveSurfaceSelection(['directory-plugin']), {
+    ok: true, requested: ['directory-plugin'], resolved: ['directory-plugin'],
   });
 });
 

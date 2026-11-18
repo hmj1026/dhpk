@@ -113,7 +113,6 @@ Add `--config` flags to pre-seed config (skip if you'd rather answer interactive
 ```bash
 claude plugin install dhpk@dhpk \
   --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-  --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 
@@ -861,9 +860,8 @@ exact tracked `plugins/dhpk/` artifact into a sandboxed `CODEX_HOME`,
 deletes the source checkout, and verifies every allowlisted native skill
 materialized as a real (non-symlink) file — the exact failure mode
 [issue #88](https://github.com/hmj1026/dhpk/issues/88) tracked is closed at
-the manifest level (both `.codex-plugin/plugin.json` and
-`plugins/dhpk/.codex-plugin/plugin.json` now resolve to the same tracked
-physical tree). This proof runs as part of the release CONSUMER gate
+the manifest level (`plugins/dhpk/.codex-plugin/plugin.json` resolves to the
+tracked physical tree; the repo root is not a Codex plugin root). This proof runs as part of the release CONSUMER gate
 whenever a `codex` CLI is available; see
 [`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package)
 for the full gate model.
@@ -885,7 +883,7 @@ available. If the query is missing or unsupported, the result reports
 `providerCheck: UNAVAILABLE` and sync may proceed; the installer never removes
 the global plugin automatically. Do not delete the whole `.codex/` directory.
 
-See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
+See `plugins/dhpk/README.md` for details.
 
 ## Migrating an existing project
 

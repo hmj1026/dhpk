@@ -169,7 +169,7 @@ test('agents/INDEX.md machine-readable roster counts must match manifest agent p
     const counts = JSON.parse(metadata[1]);
     counts.total += 1;
     fs.writeFileSync(indexPath, indexText.replace(metadata[0], `<!-- dhpk-agent-roster-counts: ${JSON.stringify(counts)} -->`));
-    writePluginJson(tmp, { version: '1.0.0', agents: sourcePlugin.agents });
+    writePluginJson(tmp, { name: 'dhpk', version: '1.0.0', agents: sourcePlugin.agents });
 
     const { status, out } = runValidator(tmp);
     assert.strictEqual(status, 1, `stale agents/INDEX.md roster counts should fail validation:\n${out}`);
@@ -184,7 +184,12 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
   const tmp = makeTempRepo();
   try {
     const sourcePlugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-    for (const declaredPath of sourcePlugin.agents) {
+    // Module agents are registered by the dhpk-stacks manifest, not the core one.
+    const stacksPath = path.join('distribution', 'stacks-plugin', 'plugin.json');
+    const stacksPlugin = JSON.parse(fs.readFileSync(path.join(ROOT, stacksPath), 'utf8'));
+    fs.mkdirSync(path.join(tmp, path.dirname(stacksPath)), { recursive: true });
+    fs.writeFileSync(path.join(tmp, stacksPath), JSON.stringify({ ...stacksPlugin, userConfig: {}, commands: [] }));
+    for (const declaredPath of [...sourcePlugin.agents, ...stacksPlugin.agents]) {
       const relative = declaredPath.replace(/^\.\//, '');
       const source = path.join(ROOT, relative);
       const target = path.join(tmp, relative);
@@ -195,7 +200,7 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
     fs.mkdirSync(path.dirname(indexPath), { recursive: true });
     const sourceIndex = fs.readFileSync(path.join(ROOT, 'agents', 'INDEX.md'), 'utf8');
     fs.writeFileSync(indexPath, sourceIndex.replace(/^> .*$/m, '> Roster details are maintained with the plugin manifest.'));
-    writePluginJson(tmp, { version: '1.0.0', agents: sourcePlugin.agents });
+    writePluginJson(tmp, { name: 'dhpk', version: '1.0.0', agents: sourcePlugin.agents });
 
     const { status, out } = runValidator(tmp);
     assert.strictEqual(status, 0, `prose wording should not control roster validation:\n${out}`);
