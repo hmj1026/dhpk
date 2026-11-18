@@ -263,7 +263,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.3 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.4 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1207,7 +1207,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.3 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.77.4 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
