@@ -40,28 +40,5 @@
         "summary": "Use proposal analyze with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "deep-analyze",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:deep-analyze",
-      "argument_contract": "<initial proposal description or file path>",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $proposal-analyze Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/deep-analyze.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/deep-analyze.md"
-      ],
-      "allowed_tools": "Read, Grep, Glob, Bash(git:*), Bash(node:*), Write",
-      "description": "Alias of $proposal-analyze; same contract."
-    }
-  ]
+  }
 }

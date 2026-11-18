@@ -45,8 +45,8 @@ There are three places a knob's value can come from, in increasing precedence:
 Reconfigure or inspect the effective config at any time from inside Claude Code:
 
 ```text
-/dhpk:setup           # rerun the same install questions
-/dhpk:setup --show    # print current effective config
+/dhpk:harness-setup           # rerun the same install questions
+/dhpk:harness-setup --show    # print current effective config
 ```
 
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
@@ -272,7 +272,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 Stack modules ship in the `dhpk-stacks` plugin, which requires the core `dhpk` plugin (Claude Code installs core for you). `dhpk-stacks` owns `modules` and every module tool setting in this section and the language sections below (`js_*`, `python_*`, `ruff_bin`, `pyright_bin`, `mypy_bin`, `xcode_*`, `swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, `psalm_bin`); set them under `pluginConfigs["dhpk-stacks@dhpk"].options`.
 
-**Migrating from dhpk 0.78 or earlier:** run `/plugin install dhpk-stacks@dhpk`, then move your `modules` value (and module tool settings) from the `dhpk` plugin config to `dhpk-stacks`. A leftover `pluginConfigs["dhpk@dhpk"].options.modules` in a project is still read as a fallback, and the `dhpk-stacks` value wins when both exist. `/dhpk:setup` detects your stack and tells you when `dhpk-stacks` is missing.
+**Migrating from dhpk 0.78 or earlier:** run `/plugin install dhpk-stacks@dhpk`, then move your `modules` value (and module tool settings) from the `dhpk` plugin config to `dhpk-stacks`. A leftover `pluginConfigs["dhpk@dhpk"].options.modules` in a project is still read as a fallback, and the `dhpk-stacks` value wins when both exist. `/dhpk:harness-setup` detects your stack and tells you when `dhpk-stacks` is missing.
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
@@ -297,7 +297,7 @@ Stack modules ship in the `dhpk-stacks` plugin, which requires the core `dhpk` p
 |-----|------|---------|---------|
 | `js_lint_script` | string | `"lint"` | npm script invoked by the `js` module's pre-commit gate. Override for non-standard names (e.g. `lint:strict`). |
 | `js_typecheck_script` | string | `"typecheck"` | npm script invoked by the `js` module's pre-commit gate. |
-| `js_check_path` | string | `"js/"` | Path scanned by `/ts-check-status` for `// @ts-check` rollout progress. Override for projects laying out JS under `src/` or `app/javascript/`. |
+| `js_check_path` | string | `"js/"` | Path scanned by `/dhpk:js-static-checks status` for `// @ts-check` rollout progress. Override for projects laying out JS under `src/` or `app/javascript/`. |
 | `js_frontend_roots` | string[] | `[]` | Project override for the `js` module's tier detection — root dirs scanned for first-party JS/TS. Empty falls back to `modules/js/module.yaml` (default `[js, src]`). |
 | `js_core_files` | string[] | `[]` | Project override — basenames at a frontend root that are first-party entry bundles (linted) rather than vendor, e.g. `["app.js","main.js"]`. Empty falls back to `module.yaml`. |
 | `js_vendor_globs` | string[] | `[]` | Project override — glob path prefixes treated as vendored (lint-skipped at any depth), e.g. `js/ckeditor/`, `js/jquery-*`. Globs must not contain commas. Empty falls back to `module.yaml`. |

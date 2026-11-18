@@ -97,7 +97,7 @@ This index only lists the shipped roles above.
 > - `architect` ← `flow-guide` classification / architecture handoff
 > - `refactor-cleaner` ← `/simplify` (back-stop for >800-line splits / cross-file dedup / multi-module dead-code sweep)
 > - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the code review in `change-verdict` and confirmed implementation workflows
-> - `doc-updater` ← execution-policy back-stop on structural change (it runs `/update-codemaps` + `/update-docs`)
+> - `doc-updater` ← execution-policy back-stop on structural change (it runs `/dhpk:doc-maintain codemap` + `/dhpk:doc-maintain update`)
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
 > - `tdd-guide` / `tdd-workflow` ← unit/integration post-development routes; the TDD capability is `UNAVAILABLE` when its configured test stack or dispatch backend is absent, and must not be silently remapped.
 > - `e2e-runner` ← Playwright route-table entry (`agent:e2e-runner`); report `UNAVAILABLE` when the Playwright agent capability is absent, without substituting another route.

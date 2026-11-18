@@ -7,7 +7,7 @@ Requires Claude Code 2.1.295 or newer. The edit guard blocks on failure only fro
 ## What this plugin installs
 
 - Skills, agents, and commands under `skills/`, `agents/`, and `commands/`.
-- No stack modules. Install `dhpk-stacks` (`/plugin install dhpk-stacks@dhpk`) to add them; it owns the `modules` setting. `/dhpk:setup` detects your stack and tells you when `dhpk-stacks` is missing.
+- No stack modules. Install `dhpk-stacks` (`/plugin install dhpk-stacks@dhpk`) to add them; it owns the `modules` setting. `/dhpk:harness-setup` detects your stack and tells you when `dhpk-stacks` is missing.
 - Hook scripts under `scripts/hooks/`, and rules under `rules/`.
 
 ## Hooks
@@ -23,7 +23,7 @@ The plugin registers four hooks in `hooks/hooks.json`. They run local shell scri
 
 ## Setup writes files
 
-The `/dhpk:setup` command (the `harness-setup` skill) is explicit-only. When you run it with `--install`, it copies selected hooks, rules, or scripts into the project's `.claude/` directory and writes a project rules stub at `.claude/rules/dhpk-overrides.md`. It never overwrites a differing file without `--force`, and `--dry-run` prints the plan without writing. It does not run unless you invoke it.
+The `/dhpk:harness-setup` command (the `harness-setup` skill) is explicit-only. When you run it with `--install`, it copies selected hooks, rules, or scripts into the project's `.claude/` directory and writes a project rules stub at `.claude/rules/dhpk-overrides.md`. It never overwrites a differing file without `--force`, and `--dry-run` prints the plan without writing. It does not run unless you invoke it.
 
 ## External tools
 

@@ -659,7 +659,7 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 - Editing `<script>` blocks inside view-layer template files (PHP / ERB / Twig / Razor) → `frontend-reviewer`.
 - New / changed domain type, value object, enum, or struct with non-trivial invariants ("make illegal states unrepresentable") → `type-design-analyzer` (also a `code-reviewer` delegate).
 - Deep error-handling audit (empty catch / swallowed exceptions / hidden fallbacks / missing rollback) → `silent-failure-hunter` (also a `code-reviewer` delegate).
-- Structural change (new module / renamed dir / new public service or API surface) → `doc-updater` (it runs `/update-codemaps` + `/update-docs`).
+- Structural change (new module / renamed dir / new public service or API surface) → `doc-updater` (it runs `/dhpk:doc-maintain codemap` + `/dhpk:doc-maintain update`).
 - Needing current / up-to-date library / framework / API docs mid-task → `docs-lookup` (Context7).
 - Cleanup beyond a single file — a file > 800 lines to split, cross-file duplicate logic, or a multi-module dead-code sweep → `refactor-cleaner` (use `/simplify` for in-place single-file work).
 - `swift build` / `xcodebuild` / SPM resolution failure → `swift-build-resolver` (swift / xcode-tooling module active).

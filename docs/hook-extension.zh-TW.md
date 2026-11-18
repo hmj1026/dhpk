@@ -199,7 +199,7 @@ post-edit formatting/lint，以及 Stop reminder。
 
 ### 註冊範例
 
-`/dhpk:setup --install hooks`（installer `scripts/setup/install-assets.sh`）會把
+`/dhpk:harness-setup --install hooks`（installer `scripts/setup/install-assets.sh`）會把
 `scripts/hooks/`（含 `_lib/`）複製到 `<project>/.claude/dhpk/scripts/hooks/`，
 並把 `hooks/hooks.json` 複製到 `<project>/.claude/dhpk/hooks/`。請在 consumer
 project 的 `.claude/settings.json`（或 `settings.local.json`）註冊複製後的 script：
@@ -237,7 +237,7 @@ project 的 `.claude/settings.json`（或 `settings.local.json`）註冊複製�
 接著透過 `pluginConfigs."dhpk@dhpk".options`（`agent_warmstart_enabled`、
 `completion_evidence_enabled`、`graduation_scan_enabled`）或一次性 env override
 （例如 `DHPK_AGENT_WARMSTART=1`）啟用行為。複製出來的檔案只是快照：每次升級 dhpk
-後，必須重跑 installer（`/dhpk:setup --install hooks`，內容不同時加 `--force`）
+後，必須重跑 installer（`/dhpk:harness-setup --install hooks`，內容不同時加 `--force`）
 讓 script 與 `_lib/` 跟上 plugin 版本。
 
 Module hook 仍可參與合併的 Bash dispatcher：active module 的 `pre-bash-*.sh` 與
@@ -253,7 +253,7 @@ runtime 重新確認。來源對應仍以 [`hooks/hooks.json`](../hooks/hooks.js
 
 ## 將 assets 複製到 consumer project
 
-`/dhpk:setup --install hooks|rules|scripts|all` 會呼叫
+`/dhpk:harness-setup --install hooks|rules|scripts|all` 會呼叫
 `scripts/setup/install-assets.sh`。hooks 與 scripts 複製到
 `<project>/.claude/dhpk/{hooks,scripts}`。預設 `--install rules` 寫入
 `<project>/.claude/rules/dhpk-overrides.md`，不會把 upstream policy 複製到

@@ -250,7 +250,7 @@ manually sets the env var itself.
 
 ### Registration example
 
-`/dhpk:setup --install hooks` (installer `scripts/setup/install-assets.sh`)
+`/dhpk:harness-setup --install hooks` (installer `scripts/setup/install-assets.sh`)
 copies `scripts/hooks/` including `_lib/` to
 `<project>/.claude/dhpk/scripts/hooks/` (and `hooks/hooks.json` to
 `<project>/.claude/dhpk/hooks/`). Register the copied scripts in the consumer
@@ -290,7 +290,7 @@ Then enable the behavior through the project overlay `pluginConfigs."dhpk@dhpk".
 (`agent_warmstart_enabled`, `completion_evidence_enabled`,
 `graduation_scan_enabled`) or the one-shot env override such as
 `DHPK_AGENT_WARMSTART=1`. The copy is a snapshot: re-run the installer
-(`/dhpk:setup --install hooks`, with `--force` to replace differing files) after
+(`/dhpk:harness-setup --install hooks`, with `--force` to replace differing files) after
 every dhpk upgrade so the scripts and their `_lib/` stay in step with the
 plugin.
 
@@ -310,7 +310,7 @@ runtime before changing hook argument paths. The source mapping remains
 
 ## Copying assets to a consumer project
 
-`/dhpk:setup --install hooks|rules|scripts|all` invokes
+`/dhpk:harness-setup --install hooks|rules|scripts|all` invokes
 `scripts/setup/install-assets.sh`. Hooks and scripts copy into
 `<project>/.claude/dhpk/{hooks,scripts}`. Default `--install rules` writes
 `<project>/.claude/rules/dhpk-overrides.md` and does not copy upstream policy

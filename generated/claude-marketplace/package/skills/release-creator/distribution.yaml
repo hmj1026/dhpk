@@ -59,27 +59,5 @@
         "summary": "Use release creator with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "create-release",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:create-release",
-      "argument_contract": "<version> [--execute]",
-      "authority": "external-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $release-creator Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/create-release.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/create-release.md"
-      ],
-      "allowed_tools": "Bash(git:*), Bash(gh:*), Bash(jq:*), Bash(test:*), Read, Grep, Glob"
-    }
-  ]
+  }
 }

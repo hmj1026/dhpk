@@ -169,7 +169,7 @@ find <frontend-root> -maxdepth 1 -name '*.js' -exec \
 > Always use a line-anchored regex (`^\s*//\s*@ts-check\s*$`) so only a
 > dedicated leading directive counts.
 
-Use the `/ts-check-status` command for a one-shot rendered summary.
+Use the `/dhpk:js-static-checks status` command for a one-shot rendered summary.
 
 ---
 

@@ -217,8 +217,8 @@ test('real explicit-only routes emit exact commands without Skill-tool advice', 
     ],
     [
       'please commit these changes',
-      'smart-commit',
-      '[skill-hint] This prompt looks like a smart commit task — run /dhpk:smart-commit directly; do not call the generic Skill tool.',
+      'git-smart-commit',
+      '[skill-hint] This prompt looks like a smart commit task — run /dhpk:git-smart-commit directly; do not call the generic Skill tool.',
     ],
   ];
   for (const [prompt, name, expectedAdditionalContext] of cases) {

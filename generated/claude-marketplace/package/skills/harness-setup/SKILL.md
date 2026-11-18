@@ -12,12 +12,12 @@ metadata:
 # Harness Setup
 
 `$harness-setup` is the explicit setup capability behind the Claude
-`/dhpk:setup` front door. It owns setup and configuration evidence; it does not
+`/dhpk:harness-setup` front door. It owns setup and configuration evidence; it does not
 silently broaden a host's authority or invent a second installer.
 
 ## When to Use
 
-- The operator explicitly requests `$harness-setup` or `/dhpk:setup`.
+- The operator explicitly requests `$harness-setup` or `/dhpk:harness-setup`.
 - The operator wants to inspect effective setup with `--show`.
 - The operator explicitly selects a host-supported asset installation group.
 

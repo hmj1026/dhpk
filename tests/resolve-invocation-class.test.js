@@ -33,8 +33,8 @@ function makeResolverFixture() {
   return pluginRoot;
 }
 
-test('resolves a paired explicit-only command from a namespaced route target', () => {
-  assert.strictEqual(resolveInvocationClass(ROOT, 'dhpk:smart-commit'), 'explicit-only');
+test('resolves a explicit-only skill from a namespaced route target', () => {
+  assert.strictEqual(resolveInvocationClass(ROOT, 'dhpk:git-smart-commit'), 'explicit-only');
 });
 
 test('resolves an implicit-eligible skill from a namespaced route target', () => {

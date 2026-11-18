@@ -156,6 +156,7 @@ test('retired Codex MCP policy rejects any frontmatter grant', () => {
 
 test('retired Codex MCP policy rejects an unreviewed command grant', () => {
   const commandPath = path.join(repo, 'commands', 'new-mcp.md');
+  fs.mkdirSync(path.dirname(commandPath), { recursive: true });
   fs.writeFileSync(commandPath, [
     '---',
     'description: unreviewed Codex MCP command',
@@ -170,7 +171,7 @@ test('retired Codex MCP policy rejects an unreviewed command grant', () => {
     assert.strictEqual(result.status, 1);
     assert.match(result.out, /MCP-backed Codex command grants are retired: expected 0, computed 1/);
   } finally {
-    fs.rmSync(commandPath, { force: true });
+    fs.rmSync(path.dirname(commandPath), { recursive: true, force: true });
   }
 });
 

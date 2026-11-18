@@ -2,7 +2,7 @@
 
 > **語言**：[English](./docker-setup.md) · **繁體中文**
 
-本文件說明 consumer 明確註冊 Docker workflow 時使用的 Docker 設定。Installer 與 `/dhpk:setup` 預設都不會加入 Docker hook。若專案不用
+本文件說明 consumer 明確註冊 Docker workflow 時使用的 Docker 設定。Installer 與 `/dhpk:harness-setup` 預設都不會加入 Docker hook。若專案不用
 Docker，可略過本文件；dhpk 的預設 hook 不會探測 Docker。
 
 ## dhpk 如何使用 Docker
@@ -71,4 +71,4 @@ bash ~/projects/dhpk/scripts/install.sh
 - **Workflow 沒觸發**：dhpk 不預設註冊 Docker script，須明確註冊 consumer script。
 - **暫時停用**：移除 consumer hook registration。
 
-相關 SSOT：`manifests/module-catalog.json`、`scripts/install.sh`、`/dhpk:setup`。
+相關 SSOT：`manifests/module-catalog.json`、`scripts/install.sh`、`/dhpk:harness-setup`。

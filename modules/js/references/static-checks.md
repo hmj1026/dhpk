@@ -58,5 +58,5 @@ ignored files.
 
 ## Related command
 
-- `/ts-check-status` — renders the `// @ts-check` / `// @ts-nocheck` /
+- `/dhpk:js-static-checks status` — renders the `// @ts-check` / `// @ts-nocheck` /
   unmarked distribution for the configured frontend root.

@@ -119,7 +119,7 @@ logical step. Do not ask these questions in free-form prose:
    warning.
 3. **Docker** — ask about container names only after explicit opt-in to the
    separate Docker workflow. Explain that Docker must be installed and the
-   operator must provide the intended container names; `/dhpk:setup` does not
+   operator must provide the intended container names; `/dhpk:harness-setup` does not
    register a Docker SessionStart check. Keep Docker setup outside this Skill's
    automatic writes.
 4. **Review agents** — offer overrides for the seven slots: code, database,

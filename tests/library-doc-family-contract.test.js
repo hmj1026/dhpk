@@ -59,18 +59,14 @@ test('family entrypoints select one procedure and retain distinct output contrac
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'modules', 'library-author', 'agents', 'polyfill-reviewer.md')));
 });
 
-test('documentation commands retain stable names and fixed family modes', () => {
+test('documentation modes are skill modes and no command forwarders remain', () => {
+  assert.strictEqual(fs.existsSync(path.join(__dirname, '..', 'commands')), false);
   const dispositions = require('../manifests/command-skill-dispositions.json').commands;
-  for (const [id, mode] of [['update-docs', 'update'], ['update-codemaps', 'codemap'], ['doc-refactor', 'refactor']]) {
-    const row = dispositions.find((entry) => entry.id === id);
-    assert.strictEqual(row.skill_owner, 'doc-maintain');
-    assert.strictEqual(row.mode, mode);
-    const command = fs.readFileSync(path.join(__dirname, '..', 'commands', `${id}.md`), 'utf8');
-    assert.ok(command.includes('$doc-maintain'));
-    assert.ok(command.includes(mode));
-    assert.ok(command.includes('$ARGUMENTS'));
-    assert.ok(!command.includes('## Usage Grammar'));
+  for (const id of ['update-docs', 'update-codemaps', 'doc-refactor']) {
+    assert.ok(!dispositions.some((entry) => entry.id === id), id);
   }
+  const skill = fs.readFileSync(path.join(__dirname, '..', 'skills', 'doc-maintain', 'SKILL.md'), 'utf8');
+  for (const mode of ['update', 'codemap', 'refactor']) assert.ok(skill.includes(`| ${mode} |`), mode);
 });
 
 const replacements = [
@@ -121,7 +117,7 @@ test('keep-separate skills retain independent inventory identities and physical 
 });
 
 test('active canonical library and documentation delegates have no retired skill pointer', () => {
-  const roots = ['skills', 'agents', 'commands', 'modules/library-author', 'rules'];
+  const roots = ['skills', 'agents', 'modules/library-author', 'rules'];
   const forbidden = replacements.flatMap(([, name]) => [`skills/${name}/SKILL.md`, `$${name}\``]);
   const libraryNames = replacements.slice(0, 5).map(([, name]) => name);
   function visit(directory) {

@@ -24,7 +24,7 @@ printf '%s' "$_advisory_payload" | (
     # Detects when the assistant claims completion ("done" / "fixed" / "已完成")
     # in this session while the working tree shows source-code changes with NO
     # matching test changes — and prints a stderr warning. Advisory only (exit 0);
-    # it never blocks Stop, and it does NOT replace the reviewer chain or /verify.
+    # it never blocks Stop, and it does NOT replace the reviewer chain or /dhpk:repo-verify.
     #
     # Design:
     # - stdin payload → transcript_path → scan the last N assistant messages
@@ -120,7 +120,7 @@ $extra"
     msg="$msg
 
 If this was a refactor / dead-code removal / doc-only path, ignore this.
-Otherwise: add a failing-first test (tdd-guide) or run /verify."
+Otherwise: add a failing-first test (tdd-guide) or run /dhpk:repo-verify."
 
     # Advisory only — never block Stop. systemMessage so the user decides (exit-0
     # stderr is inert; see _lib/json-out.sh).

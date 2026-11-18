@@ -261,12 +261,12 @@ function registerAuditFamilyFixtures() {
       stubs: {},
       expected: {
         status: 2,
-        output: ['"status": "Blocked"', '"/dhpk:update-docs"'],
+        output: ['"status": "Blocked"', '"/dhpk:doc-maintain update"'],
       },
     }, (report) => {
       assert.strictEqual(report.status, 'Blocked');
-      assert.ok(report.next_actions.some((action) => action.command === '/dhpk:update-docs'));
-      assert.ok(!report.next_actions.some((action) => action.command === '/update-docs'));
+      assert.ok(report.next_actions.some((action) => action.command === '/dhpk:doc-maintain update'));
+      assert.ok(!report.next_actions.some((action) => action.command === '/doc-maintain update'));
     }),
     jsonDefinition({
       id: 'audit-repo-intake-scan',

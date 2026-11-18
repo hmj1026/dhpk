@@ -162,7 +162,8 @@ test('INDEX.md is not checked even when a skill directory shares that name', () 
 
 test('the real repo has no same-name command forwarders and passes validation', () => {
   const skillNames = new Set(fs.readdirSync(path.join(ROOT, 'skills')));
-  const sameName = fs.readdirSync(path.join(ROOT, 'commands'))
+  const commandsDir = path.join(ROOT, 'commands');
+  const sameName = (fs.existsSync(commandsDir) ? fs.readdirSync(commandsDir) : [])
     .filter((file) => file.endsWith('.md') && skillNames.has(file.slice(0, -3)));
   assert.deepStrictEqual(sameName, []);
   assert.deepStrictEqual(commandToolSubsetFindings(ROOT), []);

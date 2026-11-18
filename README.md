@@ -79,14 +79,14 @@ handling, see the [platform installation guide](./docs/platform-installation.md)
 
 **Requirements**: Claude Code 2.x. Current dhpk workflows are Codex-free by default. Optional Codex CLI and external app-server integrations are documented in the [Codex integration surfaces](#codex-integration-surfaces) section and [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
-Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the current config). Full install paths (GitHub vs. local clone), update/uninstall, and troubleshooting live in **[`docs/basic-operations.md`](./docs/basic-operations.md)**. Full `--config` knob reference: **[`docs/configuration.md`](./docs/configuration.md)**.
+Reconfigure any time with `/dhpk:harness-setup` (or `/dhpk:harness-setup --show` to print the current config). Full install paths (GitHub vs. local clone), update/uninstall, and troubleshooting live in **[`docs/basic-operations.md`](./docs/basic-operations.md)**. Full `--config` knob reference: **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ## What you get
 
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | Role-based agents | Trigger-table-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
-| Commands | dhpk commands | `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:change-verdict pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:ui-ux-verify`, etc. |
+| Slash entries | Skills invoked as `/dhpk:<skill-name>`; no `commands/` directory. | `/dhpk:precommit`, `/dhpk:harness-setup`, `/dhpk:change-verdict pending`, `/dhpk:git-smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:ui-ux-verify`, etc. |
 | Canonical skills | Inventory-owned packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract; portable families provide consolidated interfaces. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 3 events | PreToolUse (Edit guard and combined Bash safety/Git branch-safety gate), SessionStart (module activation), SubagentStop (fast-worker liveness cleanup) |
@@ -137,11 +137,11 @@ After installation, daily development follows this 5-step standard workflow (usi
 4. **Pre-Commit Verification**: Run pre-commit quality gates (lint, typecheck, tests):
    ```text
    /dhpk:precommit                                   # run fast or full local verification pipeline
-   /dhpk:verify                                      # run cross-project verification
+   /dhpk:repo-verify                                      # run cross-project verification
    ```
 5. **Commit and PR**: Deliver safely once all gates pass green:
    ```text
-   /dhpk:smart-commit                                # cleanly staged atomic commit
+   /dhpk:git-smart-commit                                # cleanly staged atomic commit
    /dhpk:create-pr                                   # create PR targeting develop branch
    ```
 
@@ -169,7 +169,7 @@ for the full inspect → route → implement → review → verify → handoff f
 
 ## userConfig
 
-75 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
+75 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:harness-setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ```bash
 claude plugin install dhpk@dhpk \
@@ -273,7 +273,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`react-19`** — React 19 (December 2024). Actions + async transitions, new hooks (`useActionState`/`useOptimistic`/`useFormStatus`, `use()`), `ref` as a prop (no `forwardRef`), `<Context>` as provider, document metadata hoisting, resource preloading (`preload`/`preinit`), stable Server Components. Removes `ReactDOM.render`/`hydrate`, `propTypes`/`defaultProps` on function components, legacy Context, and string refs. Recommended (not required) for Next.js 16.
 
 **Cross-cutting**:
-- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (recommended by the reviewer trigger table), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-selects the reviewer on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
+- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (recommended by the reviewer trigger table), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:library-author cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-selects the reviewer on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
 
 **iOS / Swift** (dependency-chained — each `requires: swift`; enable the whole set via the `ios-app` install profile):
 - **`swift`** — Swift 6 strict-concurrency baseline + Swift 5.10 / iOS 17 compatibility + Swift 6.2 approachable-concurrency. The foundation the rest of the suite requires.

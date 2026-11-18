@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./docker-setup.zh-TW.md)
 
-Reference for a consumer-registered Docker workflow. The installer and `/dhpk:setup` do not add a
+Reference for a consumer-registered Docker workflow. The installer and `/dhpk:harness-setup` do not add a
 Docker hook by default.
 
 > **TL;DR** — If your project does not use Docker, skip this doc. No default dhpk hook probes Docker.
@@ -122,4 +122,4 @@ Remove its consumer hook registration.
 ## Related
 
 - `manifests/module-catalog.json` — declares the positional container-role order
-- `scripts/install.sh` / `/dhpk:setup` — installation and configuration entry points
+- `scripts/install.sh` / `/dhpk:harness-setup` — installation and configuration entry points

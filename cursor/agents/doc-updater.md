@@ -22,7 +22,7 @@ review (`doc-reviewer`, `$change-verdict`), external library research
 (`docs-writer`) are other roles' work; hand back rather than doing them. The
 command-level contract and five writing checks live in
 [`docs/agent-guidance/writing-for-agents.md`](https://github.com/hmj1026/dhpk/blob/main/docs/agent-guidance/writing-for-agents.md)
-and [`commands/update-docs.md`](https://github.com/hmj1026/dhpk/blob/main/commands/update-docs.md).
+and [`skills/doc-maintain/SKILL.md`](https://github.com/hmj1026/dhpk/blob/main/skills/doc-maintain/SKILL.md).
 
 ## Authority map
 

@@ -152,7 +152,7 @@ test('a whitelisted @rules ref is not flagged by the CLI', () => {
     const text = [
       'rule @rules/execution-policy.md',                       // resolves to rules/
       'consumer override @rules/dev-workflow-project.md',      // *-project.md convention
-      'command /dhpk:setup',                           // resolves to commands/
+      'command /dhpk:harness-setup',                           // resolves to skills/
       'path ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md',  // resolves
       'placeholder ${CLAUDE_PLUGIN_ROOT}/rules/<file>.md',     // placeholder, skipped
     ].join('\n');
@@ -169,7 +169,7 @@ test('a whitelisted @rules ref is not flagged by the CLI', () => {
 
   test('bare dhpk:<name> ignores resolvable, namespaced, URL and identifier-embedded forms', () => {
     const text = [
-      'use `dhpk:setup` here',
+      'use `dhpk:harness-setup` here',
       'ns dhpk:opsx:<name> skip',
       'url https://example.com?q=dhpk:gone-skill-xyz',
       'ident my-dhpk:gone-skill-xyz and xdhpk:gone-skill-xyz',

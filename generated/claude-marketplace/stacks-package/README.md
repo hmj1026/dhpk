@@ -21,7 +21,7 @@ Stack modules used to ship inside the core plugin and the `modules` setting live
 2. Copy your old `modules` value to the dhpk-stacks plugin settings. In a project override, move `pluginConfigs["dhpk@dhpk"].options.modules` to `pluginConfigs["dhpk-stacks@dhpk"].options.modules`. A leftover `dhpk@dhpk` value is still read as a fallback, so nothing breaks while you move it.
 3. Move the module tool settings too: `js_lint_script`, `js_typecheck_script`, `js_check_path`, `js_frontend_roots`, `js_core_files`, `js_vendor_globs`, `python_project_roots`, `python_runner`, `ruff_bin`, `python_typechecker`, `pyright_bin`, `mypy_bin`, `xcode_scheme`, `xcode_destination`, `swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, and `psalm_bin`.
 
-Run `/dhpk:setup` in your project. It detects your stack and tells you when dhpk-stacks is missing.
+Run `/dhpk:harness-setup` in your project. It detects your stack and tells you when dhpk-stacks is missing.
 
 ## What this plugin installs
 
@@ -33,7 +33,7 @@ Run `/dhpk:setup` in your project. It detects your stack and tells you when dhpk
 | PreToolUse | Bash | `stacks-pre-bash-dispatch.sh` | Runs the pre-commit lint, type-check, and build gates of the enabled modules before a `git commit`. Does nothing when no module is enabled. |
 | SessionStart | all | `stacks-session-start.sh` | Checks that each enabled module exists and prints one line per enabled module. Takes no snapshots and inspects no project files. |
 
-- The `polyfill-reviewer` agent and the `/ts-check-status` command.
+- The `polyfill-reviewer` agent and the `/dhpk:js-static-checks status` command.
 
 ## External tools
 
