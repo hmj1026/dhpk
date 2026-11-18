@@ -7,8 +7,8 @@
 // checkout contract of dhpk 0.73.0, where the shells already ran the JS
 // installer, so the reduction cannot change it. A packaged harness-setup copy
 // ran the embedded Python before this stage; the `codex-packaged` rows pin the
-// contract it has since, which is the same JS installer through the generated
-// bundle. Regenerate the file only on purpose:
+// contract it has since, which is the same JS installer through its shipped
+// source modules. Regenerate the file only on purpose:
 //   UPDATE_GOLDEN=1 node tests/install-shell-entry-parity.test.js
 
 const { test, run, assert } = require('./_lib/tinytest');
@@ -18,7 +18,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { fakePlugin, write } = require('./_lib/shared-projection-plugin');
 const { CODEX_STUB_BIN } = require('./_lib/install-codex-skills-fixtures');
-const { buildInstallerBundle } = require('../scripts/lib/installer-bundle');
+const { installerModuleIds, REPO_ROOT } = require('../scripts/lib/installer-modules');
 
 const REPO = path.join(__dirname, '..');
 const GOLDEN = path.join(__dirname, 'fixtures', 'install-shell-entry-golden.json');
@@ -92,7 +92,7 @@ function pathWithTools(names) {
 }
 
 // Rows run against the checkout shells of both Hosts and against the packaged
-// Codex layout (shell and generated bundle side by side in scripts/lib/).
+// Codex layout (shell and installer modules side by side in scripts/lib/).
 const PACKAGED_CASES = [
   ['install-copy', ['--copy'], 'project'],
   ['help-long', ['--help'], 'project'],
@@ -113,7 +113,10 @@ function packagedShell() {
   const lib = path.join(root, 'scripts', 'lib');
   fs.mkdirSync(lib, { recursive: true });
   fs.copyFileSync(HOOKS.codex, path.join(lib, 'install-codex-skills.sh'));
-  fs.writeFileSync(path.join(lib, 'dhpk-installer.cjs'), buildInstallerBundle());
+  for (const id of installerModuleIds()) {
+    fs.mkdirSync(path.dirname(path.join(root, id)), { recursive: true });
+    fs.copyFileSync(path.join(REPO_ROOT, id), path.join(root, id));
+  }
   return { root, script: path.join(lib, 'install-codex-skills.sh') };
 }
 

@@ -62,8 +62,8 @@ const {
 const { addCursorCacheDriftWarnings } = require('./cursor-plan');
 
 // The installer's own code. These are static requires on purpose: they resolve
-// against this file, so a checkout runs the checkout's modules and the
-// generated bundle (scripts/lib/installer-bundle.js) can see every one of them.
+// against this file, so a checkout runs the checkout's modules and
+// scripts/lib/installer-modules.js can see every module the packaged Skill must ship.
 // None is ever looked up under the artifact being installed (DHPK_PLUGIN_ROOT /
 // DHPK_INSTALLER_ROOT), which is data and may be user supplied.
 const journalCore = require('../projection-journal');
