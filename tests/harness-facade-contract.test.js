@@ -652,6 +652,10 @@ test('CLI exposes the harness help contract', () => {
     assert.match(workflow, /generatedChecks/);
     assert.match(workflow, /claude-marketplace\) node scripts\/ci\/gen-claude-marketplace-package\.js --check/);
     assert.doesNotMatch(workflow, /claude-profile:|gen-claude-profile-bundles/);
+    for (const script of ['gen-installer-bundle', 'gen-claude-manifest', 'gen-claude-marketplace-package']) {
+      const step = new RegExp('      - name: [^\\n]*\\n(?!        if:)        run: node scripts/ci/' + script + '\\.js --check\\n');
+      assert.match(workflow, step, script + ' --check must run in every CI mode (no if: gate)');
+    }
     const packageScripts = JSON.parse(read('package.json')).scripts;
     assert.strictEqual(packageScripts['check:profiles'], undefined);
     assert.match(packageScripts['check:generated'], /check:marketplace/);
