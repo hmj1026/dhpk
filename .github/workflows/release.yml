@@ -277,7 +277,7 @@ jobs:
   # After a successful release, align develop only when the release PR head is
   # still current and both branches have identical trees.
   sync-develop:
-    needs: [release, publish]
+    needs: [release, publish, release-check]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
@@ -296,3 +296,28 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           bash scripts/release/sync-develop.sh
+
+  # The develop ruleset requires "Validate harness assets" on every commit
+  # pushed to develop. CI runs only on pull requests, so the release merge
+  # commit never carries that check. This job reports it on the tag commit,
+  # passing only when this run's release verification and publication both
+  # succeeded; always() keeps a failed release from reporting a skipped check.
+  release-check:
+    name: Validate harness assets
+    needs: [release, publish]
+    if: always()
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Require successful release verification and publication
+        env:
+          RELEASE_RESULT: ${{ needs.release.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        run: |
+          if [ "$RELEASE_RESULT" != "success" ] || [ "$PUBLISH_RESULT" != "success" ]; then
+            echo "::error::release=$RELEASE_RESULT publish=$PUBLISH_RESULT; the release commit is not validated"
+            exit 1
+          fi
+          echo "release and publish succeeded for this commit"

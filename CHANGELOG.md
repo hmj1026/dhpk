@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.77.4 — 2026-11-18 — Fix sync-develop required check reporting and credential-read-policy timeout
+
+No user-visible changes in this release.
+
 ## 0.77.3 — 2026-11-18 — Release workflow timeout fix and guidance cleanup
 
 - **fix(release)** — 發佈 job timeout 提高至 20 分鐘；v0.77.2 tag 因逾時未完成發佈，其變更（見 0.77.2 段落）隨本版一併發佈；另清理 agents 與 skills 指引中的過時事實、事故敘事與退役敘述 (#1477, #1478, #1479)。
