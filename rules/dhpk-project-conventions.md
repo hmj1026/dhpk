@@ -25,9 +25,11 @@ branch does not receive orphaned work.
 Hand PR merge to a human by default. When the user explicitly authorizes an
 agent to merge, open a ready pull request and use the
 [maintainer delivery gate](../docs/agent-guidance/maintainer-delivery.md#delivery-gate)
-after its required checks pass. The `develop` ruleset stays disabled so the
-release `sync-develop` push can land (#1275); the gate then enforces
-`Validate harness assets` and an up-to-date base itself. The gate merges with `gh pr merge --merge` for that
+after its required checks pass. The `develop` ruleset requires
+`Validate harness assets`; the Release workflow's `release-check` job reports
+that check on the release commit so the `sync-develop` push can land (#1275).
+With the ruleset disabled, the gate enforces `Validate harness assets` and an
+up-to-date base itself. The gate merges with `gh pr merge --merge` for that
 exact head. It does not use `--auto`, `--admin`, or remote branch deletion.
 A classifier block on the merge command hands the PR URL to a human.
 

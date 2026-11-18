@@ -348,6 +348,12 @@ A release is complete only when all of these states hold:
    release PR head, confirms identical trees, and aligns `develop` with
    released `main` using `--force-with-lease`.
 
+The `develop` ruleset requires the `Validate harness assets` check on every
+pushed commit. Pull-request CI never runs on the release merge commit, so the
+Release workflow's `release-check` job reports that check on the tag commit,
+passing only when the same run's `release` and `publish` jobs succeeded.
+`sync-develop` waits for it before pushing.
+
 Idle-align requires `DHPK_RELEASE_EXPECTED_DEVELOP_SHA`, supplied by the release
 workflow from the merged release PR head. It first verifies that the fetched
 `develop` SHA is unchanged, then verifies tree equality, and pins
