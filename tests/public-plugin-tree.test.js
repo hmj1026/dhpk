@@ -89,4 +89,4 @@ test('Codex native manifest is derived from the OpenAI manifest', () => {
   assert.strictEqual(codex.skills, './skills/');
 });
 
-run('public-plugin-single-tree');
+run('public-plugin-tree');

@@ -54,6 +54,7 @@ const GENERATORS = Object.freeze([
     command: 'bin/dhpk distribution codex-native generate',
     outputs: [
       { path: 'plugins/dhpk/.codex-plugin/plugin.json', read: 'version' },
+      { path: 'plugins/dhpk/plugin.json', read: 'version' },
       { path: 'plugins/dhpk/provenance.json', read: 'sourceVersion' },
     ],
   },
