@@ -653,7 +653,6 @@ function main() {
     const stagedClaude = path.join(stagingRoot, 'claude-marketplace-package');
     materialize({ root: args.root, out: stagedClaude });
     writeManifestVersion(stagedClaude, '.claude-plugin/plugin.json', args.version);
-    writeAgyGeneratorDocPins(stagedClaude, args.version);
     const stagedStacks = path.join(stagingRoot, 'claude-stacks-package');
     materialize({ root: args.root, out: stagedStacks, kind: 'stacks' });
     writeManifestVersion(stagedStacks, '.claude-plugin/plugin.json', args.version);

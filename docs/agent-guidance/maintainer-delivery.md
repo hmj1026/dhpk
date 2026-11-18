@@ -15,9 +15,8 @@ node scripts/maintainer/verification-run.js preflight --root PATH --base FULL_SH
 ```
 
 Use the full commit SHA of the reviewed base. The preflight reuses the existing
-changelog validator, Codex skill metadata suite, and catalog check with that
-diff base. It stops at the first failure. Catalog admission checks whether a
-new test suite has a registered source owner; missing owners remain warnings. Coverage is evaluated against committed changes; run
+changelog validator (with that diff base), Codex skill metadata suite, and
+catalog check. It stops at the first failure. Coverage is evaluated against committed changes; run
 this after the canonical commit and before generating its outputs.
 
 ## Issue snapshot

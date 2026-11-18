@@ -1,6 +1,0 @@
-interface:
-  display_name: "Flow Drive"
-  short_description: "Complete one bounded task with observed verification evidence"
-  default_prompt: "Use $flow-drive with one bounded task, task-file path, or confirmed specification/change ID. Use --help for the current entry."
-policy:
-  allow_implicit_invocation: false

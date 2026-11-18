@@ -3,7 +3,8 @@
 // (#1454) #1431 之外仍會執行指令字串的 Git 入口：ssh ProxyCommand（含 GIT_SSH_COMMAND、core.sshCommand 內）、
 // GIT_SSH、core.pager／GIT_PAGER／PAGER、mergetool／difftool 的 cmd 設定。字串裡可見的 Protected Path 讀取
 // 與直接寫出相同判定；外部腳本內容不讀取（ADR 0037）。
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { mkRepo, rmRepo, runHook } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

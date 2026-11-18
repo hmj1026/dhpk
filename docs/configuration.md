@@ -270,7 +270,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 ## Stack modules
 
-Stack modules ship in the `dhpk-stacks` plugin, which requires the core `dhpk` plugin (Claude Code installs core for you). `dhpk-stacks` owns `modules` and every module tool setting in this section and the language sections below (`js_*`, `python_*`, `ruff_bin`, `pyright_bin`, `mypy_bin`, `xcode_*`, `swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, `psalm_bin`); set them under `pluginConfigs["dhpk-stacks@dhpk"].options`.
+Stack modules and the stack skills (`swift`, `php`, `laravel`, `yii1`, `js-static-checks`, `python`, `react`, `nextjs`) ship in the `dhpk-stacks` plugin, which requires the core `dhpk` plugin (Claude Code installs core for you). Core works without `dhpk-stacks`; install it to get the stack skills. `dhpk-stacks` owns `modules` and every module tool setting in this section and the language sections below (`js_*`, `python_*`, `ruff_bin`, `pyright_bin`, `mypy_bin`, `xcode_*`, `swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, `psalm_bin`); set them under `pluginConfigs["dhpk-stacks@dhpk"].options`.
 
 **Migrating from dhpk 0.78 or earlier:** run `/plugin install dhpk-stacks@dhpk`, then move your `modules` value (and module tool settings) from the `dhpk` plugin config to `dhpk-stacks`. A leftover `pluginConfigs["dhpk@dhpk"].options.modules` in a project is still read as a fallback, and the `dhpk-stacks` value wins when both exist. `/dhpk:harness-setup` detects your stack and tells you when `dhpk-stacks` is missing.
 

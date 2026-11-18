@@ -1,6 +1,7 @@
 'use strict';
 
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { runHook: runHookAt, ROOT } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

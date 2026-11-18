@@ -14,7 +14,7 @@ const { createDistributionPlan } = require('../lib/distribution-projection-contr
 const { ProjectionArtifactStore } = require('../lib/projection-artifact-store');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
 const { compileMarketplaceSkillContent } = require('../lib/marketplace-skill-content');
-const { selectRuntimeFiles } = require('../lib/directory-plugin-runtime');
+const { selectRuntimeFiles, stackSkillDestination } = require('../lib/directory-plugin-runtime');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
@@ -182,8 +182,7 @@ function planOutputs(outputs) {
 
 // Compile the package into planned outputs: every rewrite is applied before
 // the output is handed to the store, and provenance.json is a planned output.
-function planCanonicalTree(root) {
-  const sourceRoot = fs.realpathSync(root);
+function compileSkillContent(sourceRoot) {
   const inventoryPath = path.join(sourceRoot, 'manifests/distribution-inventory.json');
   const inventory = fs.existsSync(inventoryPath) ? JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) : null;
   const publicationView = inventory
@@ -193,6 +192,12 @@ function planCanonicalTree(root) {
   const content = publicationView
     ? compileMarketplaceSkillContent({ root: sourceRoot, inventory, publicationView, retainedHostResourcePaths }) : null;
   if (content && !content.ok) throw new Error(content.errors.join('; '));
+  return { publicationView, content };
+}
+
+function planCanonicalTree(root) {
+  const sourceRoot = fs.realpathSync(root);
+  const { publicationView, content } = compileSkillContent(sourceRoot);
   const files = new Map();
   for (const relative of PACKAGE_PATHS) {
     const source = path.join(sourceRoot, relative);
@@ -221,6 +226,18 @@ function stacksProvenanceDocument(runtime) {
   }, null, 2)}\n`;
 }
 
+// The stack skills ($swift, $php, ...) are compiled with the core skills, then
+// taken out of flow-drive's reference tree and placed as top-level skills so
+// Claude discovers them in dhpk-stacks.
+function addStackSkills(files, sourceRoot) {
+  const { content } = compileSkillContent(sourceRoot);
+  if (!content) throw new Error('dhpk-stacks needs the distribution inventory to compile its stack skills');
+  for (const file of content.files) {
+    const destination = stackSkillDestination(file.path);
+    if (destination) addFile(files, destination, Buffer.from(file.bytes), (file.mode & 0o111) !== 0);
+  }
+}
+
 // The dhpk-stacks package: stack modules, its own manifest and hooks, and the
 // core hook libraries those modules source.  Plans like the core package.
 function planStacksTree(root) {
@@ -231,6 +248,7 @@ function planStacksTree(root) {
     if (!fs.existsSync(source)) throw new Error(`canonical dhpk-stacks package source is missing: ${relative}`);
     collectPhysicalEntry(source, relative, sourceRoot, files);
   }
+  addStackSkills(files, sourceRoot);
   for (const [destination, source] of STACKS_ROOT_FILES) {
     const absolute = path.join(sourceRoot, source);
     if (!fs.existsSync(absolute)) throw new Error(`canonical dhpk-stacks package source is missing: ${source}`);

@@ -1,13 +1,13 @@
 # dhpk
 
-dhpk is a development harness for Claude Code. It adds role-based agents, workflow skills, and slash commands that route software-delivery work through planning, implementation, review, and verification. Stack modules (PHP, Yii, Laravel, JavaScript, Python, React, Next.js, iOS/Swift) ship in the separate dhpk-stacks plugin, which requires this one.
+dhpk is a development harness for Claude Code. It adds role-based agents, and workflow skills (invoked as `/dhpk:<skill-name>`) that route software-delivery work through planning, implementation, review, and verification. Stack modules (PHP, Yii, Laravel, JavaScript, Python, React, Next.js, iOS/Swift) ship in the separate dhpk-stacks plugin, which requires this one.
 
 Requires Claude Code 2.1.295 or newer. The edit guard blocks on failure only from that version.
 
 ## What this plugin installs
 
-- Skills, agents, and commands under `skills/`, `agents/`, and `commands/`.
-- No stack modules. Install `dhpk-stacks` (`/plugin install dhpk-stacks@dhpk`) to add them; it owns the `modules` setting. `/dhpk:harness-setup` detects your stack and tells you when `dhpk-stacks` is missing.
+- Skills and agents under `skills/` and `agents/`. The plugin ships no `commands/` directory.
+- No stack modules and no stack skills ($swift, $php, $laravel, $yii1, $js-static-checks, $python, $react, $nextjs). Install `dhpk-stacks` (`/plugin install dhpk-stacks@dhpk`) to add them; it owns the `modules` setting and ships the stack skills. Core works without it. `/dhpk:harness-setup` detects your stack and tells you when `dhpk-stacks` is missing.
 - Hook scripts under `scripts/hooks/`, and rules under `rules/`.
 
 ## Hooks

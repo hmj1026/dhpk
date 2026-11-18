@@ -17,7 +17,9 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { test, run, assert } = require('./_lib/tinytest');
+const { rmRepo } = require('./_lib/hookharness');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const {
   BLOCK,
   ALLOW,
@@ -25,6 +27,7 @@ const {
   ALL_BASH_HOOKS,
   GUARD_AND_DISPATCH,
   withRepos,
+  mkBranchRepo,
   bashHook,
   expectStatus,
 } = require('./_lib/hookbypass');
@@ -237,34 +240,32 @@ test('#1449 judges a heredoc fed to BASH_ENV=/dev/stdin as a script on main', ()
   });
 });
 
-function seedStartupFixtures(repo) {
+// The startup-file fixtures are written once, at load, so the rows that read
+// them stay recordable for the batch (#1506); the rows only read them.
+const SEEDED_REPOS = { protectedRepo: mkBranchRepo('main'), featureRepo: mkBranchRepo('feature/x') };
+for (const repo of Object.values(SEEDED_REPOS)) {
   fs.writeFileSync(path.join(repo, 'hook.sh'), 'git commit -m x\n');
   fs.writeFileSync(path.join(repo, 'ordinary'), 'echo ordinary\n');
 }
+process.on('exit', () => Object.values(SEEDED_REPOS).forEach(rmRepo));
 
 for (const [label, command] of STARTUP_FILE_BLOCKED_1449) {
   test(`#1449 blocks a startup-file shell input on main and a feature branch: ${label}`, () => {
-    withRepos(({ protectedRepo, featureRepo }) => {
-      for (const cwd of [protectedRepo, featureRepo]) {
-        seedStartupFixtures(cwd);
-        for (const hook of ALL_BASH_HOOKS) {
-          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
-        }
+    for (const cwd of Object.values(SEEDED_REPOS)) {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
       }
-    });
+    }
   });
 }
 
 for (const [label, command] of STARTUP_FILE_ALLOWED_1449) {
   test(`#1449 allows a startup file that carries no visible git text: ${label}`, () => {
-    withRepos(({ protectedRepo, featureRepo }) => {
-      for (const cwd of [protectedRepo, featureRepo]) {
-        seedStartupFixtures(cwd);
-        for (const hook of ALL_BASH_HOOKS) {
-          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
-        }
+    for (const cwd of Object.values(SEEDED_REPOS)) {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
       }
-    });
+    }
   });
 }
 

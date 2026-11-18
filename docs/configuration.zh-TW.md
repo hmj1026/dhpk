@@ -219,7 +219,7 @@ opt-in 請求第二意見。
 
 ## 技術棧模組
 
-技術棧模組隨 `dhpk-stacks` plugin 發佈，它需要核心 `dhpk` plugin（Claude Code 會替你一併安裝核心）。`dhpk-stacks` 擁有 `modules` 與本節及後續語言章節中的所有模組工具設定（`js_*`、`python_*`、`ruff_bin`、`pyright_bin`、`mypy_bin`、`xcode_*`、`swift_build_skip_tests`、`php_cs_fixer_bin`、`phpstan_bin`、`psalm_bin`），請設定在 `pluginConfigs["dhpk-stacks@dhpk"].options` 之下。
+技術棧模組與技術棧 skill（`swift`、`php`、`laravel`、`yii1`、`js-static-checks`、`python`、`react`、`nextjs`）隨 `dhpk-stacks` plugin 發佈；沒有 `dhpk-stacks` 時核心仍可運作，安裝它才會有這些技術棧 skill。它需要核心 `dhpk` plugin（Claude Code 會替你一併安裝核心）。`dhpk-stacks` 擁有 `modules` 與本節及後續語言章節中的所有模組工具設定（`js_*`、`python_*`、`ruff_bin`、`pyright_bin`、`mypy_bin`、`xcode_*`、`swift_build_skip_tests`、`php_cs_fixer_bin`、`phpstan_bin`、`psalm_bin`），請設定在 `pluginConfigs["dhpk-stacks@dhpk"].options` 之下。
 
 **從 dhpk 0.78 或更早版本遷移：** 執行 `/plugin install dhpk-stacks@dhpk`，再把 `modules`（與模組工具設定）從 `dhpk` 的 plugin 設定搬到 `dhpk-stacks`。專案內殘留的 `pluginConfigs["dhpk@dhpk"].options.modules` 仍會被讀取作為後備，兩者並存時以 `dhpk-stacks` 的值為準。`/dhpk:harness-setup` 會偵測你的技術棧，並在缺少 `dhpk-stacks` 時提示。
 

@@ -142,7 +142,24 @@ const DIRECTORY_MIN_README_WORDS = 40;
 const DIRECTORY_FORBIDDEN_PREFIXES = Object.freeze(['docs/', '.github/', 'scripts/ci/', 'scripts/release/']);
 // Shared library that runtime scripts require, so it ships although it sits under scripts/ci/.
 const DIRECTORY_RUNTIME_LIBRARY = 'scripts/ci/_lib/';
+// Claude holds a package over 512 files, or with a non-image file over 256 KiB, for manual review.
+const DIRECTORY_MAX_FILES = 512;
+const DIRECTORY_MAX_FILE_BYTES = 256 * 1024;
+const IMAGE_FILE = /\.(?:png|jpe?g|gif|webp|svg|ico|bmp)$/i;
 const DIRECTORY_URL_FIELDS = Object.freeze(['homepage', 'repository']);
+
+function sizeErrors(files) {
+  const errors = [];
+  if (files.size > DIRECTORY_MAX_FILES) {
+    errors.push(`Directory Plugin has ${files.size} files; Claude holds packages over ${DIRECTORY_MAX_FILES} files for review`);
+  }
+  for (const [file, bytes] of files) {
+    if (!IMAGE_FILE.test(file) && bytes.length > DIRECTORY_MAX_FILE_BYTES) {
+      errors.push(`Directory Plugin non-image file ${file} is ${bytes.length} bytes; Claude holds files over 256 KiB for review`);
+    }
+  }
+  return errors;
+}
 
 const isHttpsUrl = (value) => typeof value === 'string' && /^https:\/\/\S+$/.test(value);
 const wordCount = (buffer) => buffer.toString('utf8').split(/\s+/).filter(Boolean).length;
@@ -163,11 +180,11 @@ function checkDirectoryManifest(manifest, files, version, errors) {
 }
 
 // Directory Plugin: Claude package. Runtime files only, README and LICENSE
-// present, manifest carries icon, repository, and URL fields.  File-count and
-// file-size limits belong to a separate rule.
+// present, manifest carries icon, repository, and URL fields, and the package
+// stays within Claude's file-count and file-size review thresholds.
 function checkDirectoryPlugin(files, { version } = {}) {
   if (!(files instanceof Map)) return ['Directory Plugin files must be a Map of path to Buffer'];
-  const errors = [];
+  const errors = sizeErrors(files);
 
   for (const file of files.keys()) {
     if (file.startsWith(DIRECTORY_RUNTIME_LIBRARY)) continue;

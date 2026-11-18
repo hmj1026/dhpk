@@ -20,7 +20,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { rmRepo, runHook } = require('./_lib/hookharness');
 const {
   BLOCK,

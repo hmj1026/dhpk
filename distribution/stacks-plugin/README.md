@@ -15,7 +15,7 @@ Then pick the stacks your project uses in the `modules` setting of dhpk-stacks, 
 
 ## Coming from dhpk 0.78 or earlier
 
-Stack modules used to ship inside the core plugin and the `modules` setting lived in the core plugin. Both moved here.
+Stack modules used to ship inside the core plugin and the `modules` setting lived in the core plugin. Both moved here, together with the stack skills that used to sit under the core `flow-drive` skill.
 
 1. Install dhpk-stacks as shown above.
 2. Copy your old `modules` value to the dhpk-stacks plugin settings. In a project override, move `pluginConfigs["dhpk@dhpk"].options.modules` to `pluginConfigs["dhpk-stacks@dhpk"].options.modules`. A leftover `dhpk@dhpk` value is still read as a fallback, so nothing breaks while you move it.
@@ -26,6 +26,7 @@ Run `/dhpk:harness-setup` in your project. It detects your stack and tells you w
 ## What this plugin installs
 
 - Stack modules under `modules/`. They are inactive until the `modules` setting selects them.
+- The stack skills under `skills/`: `swift`, `php`, `laravel`, `yii1`, `js-static-checks`, `python`, `react`, and `nextjs`. They moved here from the core plugin and are available once dhpk-stacks is installed; the `modules` setting does not gate them.
 - Two hooks in `hooks/hooks.json`, both local shell scripts that send nothing over the network.
 
 | Event | Matcher | Script | Purpose |

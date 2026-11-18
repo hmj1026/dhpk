@@ -71,6 +71,28 @@ test('the core manifest no longer owns modules or module tool settings', () => {
   assert.ok(!(core.agents || []).some((entry) => entry.includes('modules/')));
 });
 
+const STACK_SKILLS = ['swift', 'php', 'laravel', 'yii1', 'js-static-checks', 'python', 'react', 'nextjs'];
+
+test('the eight stack skills ship in dhpk-stacks as top-level skills and not in core', () => {
+  const stacks = readTree(COMMITTED_STACKS);
+  const core = readTree(COMMITTED_CORE);
+  for (const id of STACK_SKILLS) {
+    const entry = stacks.get(`skills/${id}/SKILL.md`);
+    assert.ok(entry, `${id} must be a top-level skill in dhpk-stacks`);
+    assert.ok(new RegExp(`^name: ${id}$`, 'm').test(entry.toString('utf8')), `${id} frontmatter name`);
+    assert.ok(![...core.keys()].some((file) => file.startsWith(`skills/flow-drive/references/${id}/`)), `${id} must not ship in core`);
+  }
+  assert.ok(core.has('skills/flow-drive/SKILL.md'), 'flow-drive itself stays in core');
+  assert.ok(core.has('skills/flow-drive/references/vue-2-notes/SKILL.md'), 'other flow-drive branches stay in core');
+});
+
+test('core skills never link a stack skill path, so core works without dhpk-stacks', () => {
+  const core = readTree(COMMITTED_CORE);
+  const linked = [...core].filter(([file, bytes]) => file.startsWith('skills/') && file.endsWith('.md')
+    && STACK_SKILLS.some((id) => bytes.toString('utf8').includes(`flow-drive/references/${id}/`)));
+  assert.deepStrictEqual(linked.map(([file]) => file), []);
+});
+
 test('the core Directory Plugin carries no stack modules and the stacks package carries them', () => {
   assert.ok(!fs.existsSync(path.join(COMMITTED_CORE, 'modules')), 'core package must not contain modules/');
   const files = readTree(stacksPackage());

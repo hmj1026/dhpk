@@ -68,7 +68,7 @@ function sessionsDir(repo) {
 //   projectDir — CLAUDE_PROJECT_DIR (default: DELETED; pass a path to pin)
 //   profile    — CLAUDE_PLUGIN_OPTION_HOOK_PROFILE (default 'standard';
 //                null to leave whatever the inherited env carries)
-function runHook(
+function runHookDirect(
   hook,
   {
     payload = {},
@@ -99,4 +99,19 @@ function runHook(
   });
 }
 
-module.exports = { ROOT, hookPath, mkRepo, rmRepo, withRepo, sessionsDir, runHook };
+// Suites that batch their hook table (tests/_lib/hookreplay.js) install an
+// interceptor so every runHook call site, unchanged, can be recorded and later
+// answered from one batch process. With no interceptor runHook runs directly.
+let interceptor = null;
+function setRunHookInterceptor(fn) {
+  const previous = interceptor;
+  interceptor = fn;
+  return previous;
+}
+
+function runHook(hook, options = {}) {
+  if (interceptor) return interceptor(hook, options, runHookDirect);
+  return runHookDirect(hook, options);
+}
+
+module.exports = { ROOT, hookPath, mkRepo, rmRepo, withRepo, sessionsDir, runHook, setRunHookInterceptor };

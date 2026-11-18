@@ -2485,7 +2485,7 @@
       "sourcePath": "skills/harness-setup/data/module-catalog.json",
       "destination": "skills/harness-setup/data/module-catalog.json",
       "kind": "entry",
-      "sha256": "9bceb7f9ab10d4692af8e01ed2eaf5722532f9fc040d0d66d683c245f484d93a"
+      "sha256": "365131a380dfb9d9ed300cafa530949d879e7fce0fb68ecf14660969a06e0a24"
     },
     {
       "skillId": "harness-setup",
