@@ -137,9 +137,13 @@ subagent 實際啟動了 hook。
 
 ## Bash 外層上限
 
-Bash `PreToolUse` command 宣告 `timeout: 2100` 與 `onFailure: "block"`。
+Bash `PreToolUse` command 宣告 `timeout: 1800` 與 `onFailure: "block"`。
 Claude Code 2.1.295 與更新版本可以在這個 hook 逾時或無法執行時阻擋觸發的命令。
-更舊版本不被宣稱具有相同的 fail-closed 行為。這份宣告不是已量測的 2100 秒等待。
+更舊版本不被宣稱具有相同的 fail-closed 行為。這份宣告不是已量測的 1800 秒等待。
+
+這個值已從 2100 秒降到 1800 秒（#1501），hook 卡住時 Bash 工具最多凍結 30
+分鐘而不是 35 分鐘。1800 是仍能涵蓋下方 1732 秒支持範圍並保留餘裕的最小整數
+分鐘值；再調低會中斷合法的四 stack commit gate。要再調低，必須同時縮小該範圍。
 
 `Edit|Write|MultiEdit` guard 同樣宣告 `onFailure: "block"`，`timeout` 為 5。
 Claude Code 2.1.295 與更新版本會對這個 guard fail-close：hook 失敗或逾時就阻擋編輯。
@@ -148,7 +152,7 @@ Claude Code 2.1.295 與更新版本會對這個 guard fail-close：hook 失敗�
 支持的預設範圍是 JS、Python、Swift、PHP 各一個 commit root，該 root 上一個
 Python project group，以及 Swift build/test 設定不高於 360/480 秒。內層
 deadline 加每次 1 秒 grace 是 JS 212、Python 255、Swift 842、PHP 423，合計
-1732 秒。剩下的 368 秒留給準備與清理。沒有內層 deadline 的步驟不在這個合計裡。
+1732 秒。剩下的 68 秒留給準備與清理。沒有內層 deadline 的步驟不在這個合計裡。
 更多 root、更多 group、更大的 Swift override，或任何到達上限的執行都可能被
 中斷。被中斷或未完成的檢查不是 PASS，觸發的 Bash 命令也不會越過這個上限被放行。
 內層 deadline 維持不變。`SubagentStop` 不在這個上限內。

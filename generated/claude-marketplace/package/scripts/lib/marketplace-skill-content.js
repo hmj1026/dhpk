@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { buildInstallerBundle } = require('./installer-bundle');
+const { installerModuleIds } = require('./installer-modules');
 const { isInside } = require('./bounded-filesystem');
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
@@ -14,24 +14,25 @@ const MAX_DIRECTORY_ENTRIES = 40000;
 const MAX_DEPTH = 64;
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const RETAINED_HOST_ROOTS = new Set(['docs', 'rules']);
-const PACKAGING_ONLY_SKILL_RESOURCES = Object.freeze([
+const HELPER_RESOURCES = Object.freeze([
   {
     skillId: 'harness-setup',
     source: 'scripts/hooks/install-codex-skills.sh',
     destination: 'scripts/lib/install-codex-skills.sh',
   },
-  // The JS installer the helper above execs. A packaged Skill has no scripts/lib/
-  // beside it, so the closure of the installer entry is embedded in one generated
-  // file (scripts/lib/installer-bundle.js); `source` names the entry it is built
-  // from and is what provenance records.
-  {
-    skillId: 'harness-setup',
-    kind: 'generated',
-    source: 'scripts/lib/install-adapters/codex-cli.js',
-    destination: 'scripts/lib/dhpk-installer.cjs',
-    generate: (root) => buildInstallerBundle({ root }),
-  },
 ]);
+
+// The helper above execs the JS installer. A packaged Skill has no scripts/lib/
+// beside it, so the installer entry and its module closure are copied as readable
+// source at the same scripts/lib/ paths; the helper finds the entry there.
+function packagingOnlySkillResources(root) {
+  const modules = installerModuleIds({ root }).map((id) => ({
+    skillId: 'harness-setup',
+    source: id,
+    destination: id,
+  }));
+  return [...HELPER_RESOURCES, ...modules];
+}
 
 function resolveSourceFileAllowlist(physicalRoot, supplied, errors) {
   if (supplied !== undefined) {
@@ -435,7 +436,7 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
   let directoryEntryCount = 0;
   let directoryBudgetExceeded = false;
 
-  const addFile = ({ sourceRelative, destination, owner, skill, kind, sourcePath, generatedBytes }) => {
+  const addFile = ({ sourceRelative, destination, owner, skill, kind, sourcePath }) => {
     if (allowedSourcePaths && !allowedSourcePaths.has(sourceRelative)) {
       errors.push(`${sourceRelative} is not included in the source file allowlist`);
       return;
@@ -472,8 +473,6 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
       errors.push(`${skill.id} source is unreadable: ${sourceRelative}: ${error.message}`);
       return;
     }
-    // A generated file is built from the checked source, not read from it.
-    if (generatedBytes) bytes = generatedBytes;
     if (!decodeUtf8(bytes, sourceRelative, errors)) return;
     const safeDestination = normalizeRelative(destination, `${skill.id} destination`, errors);
     if (!safeDestination) return;
@@ -663,7 +662,15 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
     collectDependencies(skill, skill);
   }
 
-  for (const resource of PACKAGING_ONLY_SKILL_RESOURCES) {
+  let packagingResources = HELPER_RESOURCES;
+  try {
+    packagingResources = packagingOnlySkillResources(physicalRoot);
+  } catch (error) {
+    if (publicEntries.some((candidate) => candidate.id === 'harness-setup')) {
+      errors.push(`harness-setup installer modules could not be resolved: ${error.message}`);
+    }
+  }
+  for (const resource of packagingResources) {
     const entry = publicEntries.find((candidate) => candidate.id === resource.skillId);
     if (!entry) continue;
     const skill = inventoryById.get(resource.skillId);
@@ -671,23 +678,13 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
       errors.push(`packaging-only resource owner is not in inventory: ${resource.skillId}`);
       continue;
     }
-    let generatedBytes;
-    if (resource.kind === 'generated') {
-      try {
-        generatedBytes = Buffer.from(resource.generate(physicalRoot), 'utf8');
-      } catch (error) {
-        errors.push(`${resource.skillId} generated resource ${resource.destination} could not be built: ${error.message}`);
-        continue;
-      }
-    }
     addFile({
       sourceRelative: resource.source,
       sourcePath: resource.source,
       destination: path.posix.join('skills', skill.name || skill.id, resource.destination),
       owner: skill,
       skill,
-      kind: resource.kind === 'generated' ? 'generated' : 'packaging-resource',
-      generatedBytes,
+      kind: 'packaging-resource',
     });
   }
 

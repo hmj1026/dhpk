@@ -696,7 +696,7 @@ installer 把 native 與 shared projection 的步驟記錄在同一個 Projectio
   <host> transaction ...: rolled back|finished`，撤銷後需重新執行該 Host 的
   installer 才會套用。
 - 打包的 `harness-setup` 副本與 checkout、plugin cache 執行同一個 JS installer
-  （shell 入口旁邊有一個產生的 `dhpk-installer.cjs`），因此取得相同的 project
+  （installer 的可讀原始碼模組放在 skill 自己的 `scripts/lib/`），因此取得相同的 project
   lock 與 Projection Journal。兩個 installer 都不再需要 `python3`，但必須有
   Node.js。`TRANSACTION_HELD` 不再產生；自 0.75.0 起，0.72 或 0.73 留下未完成的
   transaction（`active` 或 `rollback_incomplete` 的 Python Host journal，或帶有

@@ -769,7 +769,7 @@ interrupted transaction automatically.
   transaction ...: rolled back|finished`, and after a rollback you rerun that
   Host's installer to apply it.
 - The packaged `harness-setup` copy runs the same JS installer as a checkout
-  or plugin cache (one generated `dhpk-installer.cjs` beside its shell entry), so
+  or plugin cache (its readable installer source modules sit in the skill's `scripts/lib/`), so
   it takes the same project lock and Projection Journal. No installer needs
   `python3`; Node.js is required. `TRANSACTION_HELD` is no longer produced, and
   from 0.75.0 a transaction left unfinished by 0.72 or 0.73 (an `active` or

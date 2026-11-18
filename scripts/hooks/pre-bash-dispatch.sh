@@ -80,12 +80,12 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     _is_commit=0
     [ -n "$_cmd" ] && dhpk_command_has_commit && _is_commit=1
 
-    # Claude Code 2.1.295+ reads timeout 2100 and onFailure block from the
+    # Claude Code 2.1.295+ reads timeout 1800 and onFailure block from the
     # Bash PreToolUse entry in hooks.json. That ceiling covers one commit
     # root each for JS, Python, Swift, and PHP, one Python group, and Swift
     # build/test settings no higher than 360/480 seconds. Inner deadlines
     # plus one second of grace are JS 212, Python 255, Swift 842, and PHP
-    # 423 (1732 seconds); 368 seconds remain for preparation and cleanup.
+    # 423 (1732 seconds); 68 seconds remain for preparation and cleanup.
     # Extra roots, groups, a larger Swift override, or any run that reaches
     # the ceiling can be interrupted. An interrupted check is not PASS.
     # Do not raise the inner deadlines. An unobserved host is not evidence

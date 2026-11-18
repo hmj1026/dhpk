@@ -15,8 +15,9 @@
 #   install-codex-skills.sh --force          bypass project-root heuristic
 #
 # This script only parses options and execs the JS installer under node:
-# scripts/lib/install-adapters/codex-cli.js in a checkout, or the generated
-# single-file bundle dhpk-installer.cjs beside this script in a packaged copy.
+# scripts/lib/install-adapters/codex-cli.js, found at ../lib/install-adapters/
+# from this script: in a checkout (scripts/hooks/) and in a packaged copy, where
+# the readable installer modules sit beside this script in the skill's scripts/lib/.
 # The installer owns the project lock, the Projection Journal and the schema-v3
 # receipt. Node.js is required. Exit status: 0 done, 1 reconciliation
 # incomplete, 2 refused or failed, 64 retired option.
@@ -94,11 +95,10 @@ if [ "${DHPK_HARNESS_KIND:-codex}" = "codex" ] && ! command -v codex >/dev/null 
     echo "[$NAME] note: 'codex' CLI not found on PATH; files can still be synced." >&2
 fi
 
-# A packaged copy runs the bundle beside it; a checkout runs the adapter.
-if [ -L "$HERE/dhpk-installer.cjs" ]; then die "ERROR: the packaged JS installer $HERE/dhpk-installer.cjs is a symlink; refusing to run it"
-elif [ -f "$HERE/dhpk-installer.cjs" ]; then ENTRY="$HERE/dhpk-installer.cjs"
-elif [ -f "$HERE/../lib/install-adapters/codex-cli.js" ]; then ENTRY="$HERE/../lib/install-adapters/codex-cli.js"
-else die "ERROR: the JS installer is neither beside this script nor under scripts/lib/install-adapters"; fi
+# The installer entry sits under ../lib/install-adapters/ in a checkout and in a packaged copy.
+ENTRY="$HERE/../lib/install-adapters/codex-cli.js"
+if [ -L "$ENTRY" ]; then die "ERROR: the JS installer $ENTRY is a symlink; refusing to run it"
+elif [ ! -f "$ENTRY" ]; then die "ERROR: the JS installer is not under scripts/lib/install-adapters"; fi
 if ! command -v node >/dev/null 2>&1; then die "ERROR: node is required for the installer"; fi
 
 export DHPK_HARNESS_KIND="${DHPK_HARNESS_KIND:-codex}" DHPK_SRC_REL="$SRC_REL"
