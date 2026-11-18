@@ -23,6 +23,18 @@ const RUNTIME_EXCEPTIONS = Object.freeze(['scripts/ci/_lib/']);
 const SKILL_BUILD_FILE = /^skills\/(?:.+\/)?(?:distribution\.yaml|agents\/openai\.yaml)$/;
 const SKILL_EVAL_FILE = /^skills\/(?:.+\/)?(?:evals\/|scripts\/check-golden\.sh$)/;
 
+// Stack skills compile into flow-drive's reference tree.  They ship in
+// dhpk-stacks as top-level skills, so the Directory Plugin does not carry them.
+const STACK_SKILL_IDS = Object.freeze(['swift', 'php', 'laravel', 'yii1', 'js-static-checks', 'python', 'react', 'nextjs']);
+const STACK_SKILL_FILE = new RegExp(`^skills/flow-drive/references/(${STACK_SKILL_IDS.join('|')})/`);
+
+// Maps a compiled core path of a stack skill to its dhpk-stacks path, or null.
+function stackSkillDestination(destination) {
+  const match = STACK_SKILL_FILE.exec(destination);
+  if (!match || isBuildOnly(destination)) return null;
+  return `skills/${match[1]}/${destination.slice(match[0].length)}`;
+}
+
 // Build-only modules: nothing a hook, command, agent, or skill runs requires
 // them.  tests/directory-plugin-runtime.test.js proves the shipped tree never
 // requires one of these.
@@ -71,7 +83,7 @@ const isBuildOnly = (destination) => BUILD_ONLY_FILES.includes(destination)
   || SKILL_BUILD_FILE.test(destination) || SKILL_EVAL_FILE.test(destination);
 
 const isRuntimeFile = (destination) => {
-  if (isBuildOnly(destination)) return false;
+  if (isBuildOnly(destination) || STACK_SKILL_FILE.test(destination)) return false;
   return RUNTIME_EXCEPTIONS.some((prefix) => destination.startsWith(prefix))
     || !NEVER_SHIPPED.some((prefix) => destination.startsWith(prefix));
 };
@@ -80,4 +92,4 @@ function selectRuntimeFiles(files) {
   return new Map([...files].filter(([destination]) => isRuntimeFile(destination)));
 }
 
-module.exports = { selectRuntimeFiles, isRuntimeFile, NEVER_SHIPPED, BUILD_ONLY_FILES };
+module.exports = { selectRuntimeFiles, isRuntimeFile, stackSkillDestination, NEVER_SHIPPED, BUILD_ONLY_FILES, STACK_SKILL_IDS };

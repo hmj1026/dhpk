@@ -37,6 +37,16 @@ test('build-only libraries and manifests are dropped while runtime ones are kept
   assert.deepStrictEqual(selected([...dropped, ...kept]), [...kept].sort());
 });
 
+test('stack skills leave the core selection and map to top-level dhpk-stacks skills', () => {
+  const { stackSkillDestination } = require('../scripts/lib/directory-plugin-runtime');
+  const stack = ['skills/flow-drive/references/swift/SKILL.md', 'skills/flow-drive/references/js-static-checks/scripts/a.js'];
+  const kept = ['skills/flow-drive/SKILL.md', 'skills/flow-drive/references/vue-2-notes/SKILL.md'];
+  assert.deepStrictEqual(selected([...stack, ...kept]), [...kept].sort());
+  assert.deepStrictEqual(stack.map(stackSkillDestination), ['skills/swift/SKILL.md', 'skills/js-static-checks/scripts/a.js']);
+  assert.deepStrictEqual(kept.map(stackSkillDestination), [null, null]);
+  assert.strictEqual(stackSkillDestination('skills/flow-drive/references/swift/distribution.yaml'), null);
+});
+
 // A dropped module that a shipped script still requires would crash at runtime.
 test('every relative require in the committed Directory Plugin resolves inside the package', () => {
   const root = path.join(__dirname, '..', 'generated', 'claude-marketplace', 'package');
