@@ -55,7 +55,8 @@ const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
-const { normalizePublicSkillFile, publicPluginManifestFiles } = require('./public-plugin-tree');
+const { REFERENCE_ENTRY } = require('./public-plugin-layout');
+const { preparePublicPlugin, publicPluginManifestFiles } = require('./public-plugin-tree');
 const { renderOpenaiSubmissionManifest } = require('./host-manifests');
 const {
   serializePortableSkillMetadata,
@@ -113,13 +114,6 @@ function serializeNativeSkillMarkdown(content, label) {
   const result = serializePortableSkillMetadata(Buffer.from(content).toString('utf8'));
   if (!result.ok) throw new Error(`${label} has invalid metadata: ${result.errors.join('; ')}`);
   return Buffer.from(result.output);
-}
-
-// Public Plugin SKILL.md bytes (shared with the OpenAI ZIP); other files as-is.
-function publicSkillBytes(file, { inventoryById }) {
-  const normalized = normalizePublicSkillFile({ ...file, skillId: file.skillId }, inventoryById);
-  if (!normalized.ok) throw new Error(`Codex marketplace ${file.path} is invalid: ${normalized.errors.join('; ')}`);
-  return normalized.bytes;
 }
 
 function resolvesInsidePackage(manifestSkillsField, packageRoot) {
@@ -197,7 +191,7 @@ function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsFie
         if (!childSkill) continue;
         expectedFiles.push({
           name: childSkill.name || childSkill.id,
-          relative: path.posix.join(ownerName, 'references', childSkill.name || childSkill.id, 'SKILL.md'),
+          relative: path.posix.join(ownerName, 'references', childSkill.name || childSkill.id, REFERENCE_ENTRY),
         });
       }
     }
@@ -210,7 +204,7 @@ function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsFie
   for (const expected of expectedFiles) {
     const skillFile = path.join(skillsRoot, ...expected.relative.split('/'));
     if (!fs.existsSync(skillFile)) {
-      if (publicationView) errors.push(`native published skill SKILL.md is missing: '${expected.relative}'`);
+      if (publicationView) errors.push(`native published skill entry file is missing: '${expected.relative}'`);
       continue;
     }
     const actualName = readSkillFrontmatterName(skillFile);
@@ -495,7 +489,19 @@ function compileNativePackage({
   if (catalogContent && !catalogContent.ok) {
     throw new Error(`Codex marketplace content is invalid: ${catalogContent.errors.join('; ')}`);
   }
-  const publicSkillContext = { inventoryById: new Map((inventory.skills || []).map((entry) => [entry.id, entry])) };
+  // The Public Plugin layout (normalized skills, renamed references, listing
+  // assets, filled listing counts) is the same one the OpenAI ZIP carries.
+  const publicLayout = catalogContent
+    ? preparePublicPlugin({
+      content: catalogContent,
+      inventory,
+      publicationView: hostPublication,
+      manifest: renderOpenaiSubmissionManifest(resolvedRoot, version),
+    })
+    : null;
+  if (publicLayout && !publicLayout.ok) {
+    throw new Error(`Codex marketplace ${publicLayout.errors.join('; ')}`);
+  }
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -503,7 +509,7 @@ function compileNativePackage({
     const publicName = skill.name || skill.id;
     const sourcePath = skill.path;
     if (catalogContent) {
-      const ownerFiles = catalogContent.files.filter((file) => file.ownerId === skill.id);
+      const ownerFiles = publicLayout.files.filter((file) => file.ownerId === skill.id);
       for (const file of ownerFiles) {
         const fileSkill = (inventory.skills || []).find((entry) => entry.id === file.skillId);
         if (!fileSkill) throw new Error(`Codex marketplace content references unknown skill '${file.skillId}'`);
@@ -517,7 +523,7 @@ function compileNativePackage({
           inventoryRevision,
           ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
         });
-        const content = publicSkillBytes(file, publicSkillContext);
+        const content = file.bytes;
         files.push(nativeOutputRecord(
           `skill:${file.ownerId}:${file.skillId}:${file.path}`,
           file.sourcePath,
@@ -530,7 +536,7 @@ function compileNativePackage({
       }
       const ownerFingerprintFiles = ownerFiles.map((file) => ({
         destination: path.posix.relative(path.posix.join('skills', publicName), file.path),
-        content: publicSkillBytes(file, publicSkillContext),
+        content: file.bytes,
       }));
       fingerprints[publicName] = nativeSkillFingerprint(ownerFingerprintFiles);
       selectedEntries.push(skill);
@@ -573,6 +579,17 @@ function compileNativePackage({
     selectedEntries.push(skill);
   }
 
+  for (const asset of publicLayout ? publicLayout.assetFiles : []) {
+    files.push(nativeOutputRecord(
+      `asset:${asset.path}`,
+      asset.sourcePath,
+      asset.path,
+      asset.bytes,
+      { id: 'codex-native-listing-asset', version: generatorVersion },
+      asset.mode,
+    ));
+  }
+
   const standaloneAssets = collectStandalonePackageAssets({ root: resolvedRoot, inventory, profileSelection });
   const existingDestinations = new Set(files.map((file) => file.destination));
   for (const asset of standaloneAssets) {
@@ -590,10 +607,10 @@ function compileNativePackage({
     ));
   }
 
-  const publicManifestFiles = hostPublication
+  const publicManifestFiles = publicLayout
     // Public Plugin tree: both manifests come from the shared renderer so the
     // OpenAI ZIP and this package carry identical bytes.
-    ? publicPluginManifestFiles(renderOpenaiSubmissionManifest(resolvedRoot, version))
+    ? publicPluginManifestFiles(publicLayout.manifest)
     : null;
   const manifest = publicManifestFiles
     ? JSON.parse(publicManifestFiles.find((file) => file.path === '.codex-plugin/plugin.json').bytes.toString('utf8'))
@@ -652,7 +669,7 @@ function compileNativePackage({
       },
       bundledContentProvenance: {
         ...catalogContent.bundleProvenance,
-        files: catalogContent.files.map((file) => ({
+        files: [...publicLayout.files, ...publicLayout.assetFiles].map((file) => ({
           ownerId: file.ownerId,
           skillId: file.skillId,
           sourcePath: file.sourcePath,
