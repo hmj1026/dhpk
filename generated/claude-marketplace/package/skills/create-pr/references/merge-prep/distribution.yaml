@@ -49,26 +49,5 @@
         "summary": "Use merge prep with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "merge-prep",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:merge-prep",
-      "argument_contract": "<source-branch> [--target <branch>]",
-      "authority": "read-only",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $merge-prep Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/merge-prep.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/merge-prep.md"
-      ]
-    }
-  ]
+  }
 }

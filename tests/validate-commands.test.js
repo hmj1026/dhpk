@@ -10,7 +10,6 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { commandToolSubsetFindings } = require('../scripts/ci/validate-commands');
 
 const ROOT = path.join(__dirname, '..');
-const NO_GRANT = ['flow-drive', 'opsx-apply-resume', 'create-pr', 'git-worktree', 'precommit', 'ui-ux-verify', 'merge-prep', 'pr-summary'];
 
 function withFixture(files, fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-validate-commands-'));
@@ -161,23 +160,11 @@ test('INDEX.md is not checked even when a skill directory shares that name', () 
   });
 });
 
-test('the real repo same-name and alias command grants satisfy validation', () => {
-  const flowGuide = fs.readFileSync(path.join(ROOT, 'commands/flow-guide.md'), 'utf8');
-  assert.match(flowGuide, /^allowed-tools: 'Read, Grep, Glob, Skill, Agent'$/m);
-  const skillLine = fs.readFileSync(path.join(ROOT, 'skills/flow-guide/SKILL.md'), 'utf8')
-    .split('\n')
-    .find((line) => line.startsWith('allowed-tools:'));
-  for (const token of ['Read', 'Grep', 'Glob', 'Skill', 'Agent']) {
-    assert.ok(skillLine && skillLine.includes(token), token);
-  }
-  for (const id of NO_GRANT) {
-    const text = fs.readFileSync(path.join(ROOT, 'commands', `${id}.md`), 'utf8');
-    assert.equal(text.split('\n').some((line) => line.startsWith('allowed-tools:')), false, id);
-  }
-  assert.match(
-    fs.readFileSync(path.join(ROOT, 'commands/project-brief.md'), 'utf8'),
-    /^allowed-tools: 'Read, Grep, Glob, Write'$/m
-  );
+test('the real repo has no same-name command forwarders and passes validation', () => {
+  const skillNames = new Set(fs.readdirSync(path.join(ROOT, 'skills')));
+  const sameName = fs.readdirSync(path.join(ROOT, 'commands'))
+    .filter((file) => file.endsWith('.md') && skillNames.has(file.slice(0, -3)));
+  assert.deepStrictEqual(sameName, []);
   assert.deepStrictEqual(commandToolSubsetFindings(ROOT), []);
 });
 

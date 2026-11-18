@@ -48,26 +48,5 @@
         "summary": "Use pr summary with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "pr-summary",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:pr-summary",
-      "argument_contract": "[--author <user>] [--label <label>]",
-      "authority": "read-only",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $pr-summary Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/pr-summary.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/pr-summary.md"
-      ]
-    }
-  ]
+  }
 }

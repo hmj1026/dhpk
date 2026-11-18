@@ -3,28 +3,6 @@
   "source_revision": "sha256:9d066a08acac94dbd84c25b45c539df711594bcba1a573e6ad1d0a114e4e4aa6",
   "commands": [
     {
-      "id": "create-pr",
-      "path": "commands/create-pr.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:create-pr",
-      "argument_contract": "[--head <branch>] [--base <branch>] [--title <text>] [--execute] [--dry-run]",
-      "authority": "external-write",
-      "skill_owner": "create-pr",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $create-pr Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/create-pr.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/create-pr.md"
-      ],
-      "resource": "skills/create-pr/SKILL.md"
-    },
-    {
       "id": "create-release",
       "path": "commands/create-release.md",
       "host_surface": "claude-command",
@@ -92,72 +70,6 @@
       "mode": "refactor"
     },
     {
-      "id": "flow-drive",
-      "path": "commands/flow-drive.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:flow-drive",
-      "argument_contract": "<task-text|task-file|confirmed-spec-or-change-id> | --help",
-      "authority": "workspace-write",
-      "skill_owner": "flow-drive",
-      "disposition": "thin-front-door",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/flow-drive.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/flow-drive.md"
-      ],
-      "resource": "skills/flow-drive/SKILL.md",
-      "reason": "Canonical Flow Drive Skill owns the task-only native workflow and its evidence boundary."
-    },
-    {
-      "id": "flow-guide",
-      "path": "commands/flow-guide.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:flow-guide",
-      "argument_contract": "<help|route|rules|next|close> [--go] [<query>]",
-      "authority": "delegate",
-      "skill_owner": "flow-guide",
-      "disposition": "thin-front-door",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/flow-guide.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/flow-guide.md"
-      ],
-      "resource": "skills/flow-guide/SKILL.md",
-      "reason": "Canonical $flow-guide Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
-    },
-    {
-      "id": "git-worktree",
-      "path": "commands/git-worktree.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:git-worktree",
-      "argument_contract": "[add|list|remove|prune] [--branch <name>] [--base <ref>]",
-      "authority": "git-write",
-      "skill_owner": "git-worktree",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $git-worktree Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/git-worktree.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/git-worktree.md"
-      ],
-      "resource": "skills/git-worktree/SKILL.md"
-    },
-    {
       "id": "matrix-cell-onboard",
       "path": "commands/matrix-cell-onboard.md",
       "host_surface": "claude-command",
@@ -179,116 +91,6 @@
       "resource": "skills/library-author/SKILL.md",
       "reason": "Stable Claude front door forwards normalized arguments to library-author mode cell-onboard.",
       "mode": "cell-onboard"
-    },
-    {
-      "id": "merge-prep",
-      "path": "commands/merge-prep.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:merge-prep",
-      "argument_contract": "<source-branch> [--target <branch>]",
-      "authority": "read-only",
-      "skill_owner": "merge-prep",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $merge-prep Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/merge-prep.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/merge-prep.md"
-      ],
-      "resource": "skills/merge-prep/SKILL.md"
-    },
-    {
-      "id": "opsx-apply-resume",
-      "path": "commands/opsx-apply-resume.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:opsx-apply-resume",
-      "argument_contract": "[change-id]",
-      "authority": "workspace-write",
-      "skill_owner": "opsx-apply-resume",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $opsx-apply-resume Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/opsx-apply-resume.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/opsx-apply-resume.md"
-      ],
-      "resource": "skills/opsx-apply-resume/SKILL.md"
-    },
-    {
-      "id": "pr-summary",
-      "path": "commands/pr-summary.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:pr-summary",
-      "argument_contract": "[--author <user>] [--label <label>]",
-      "authority": "read-only",
-      "skill_owner": "pr-summary",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $pr-summary Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/pr-summary.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/pr-summary.md"
-      ],
-      "resource": "skills/pr-summary/SKILL.md"
-    },
-    {
-      "id": "precommit",
-      "path": "commands/precommit.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:precommit",
-      "argument_contract": "[--fast] [--dry-run]",
-      "authority": "workspace-write",
-      "skill_owner": "precommit",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $precommit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/precommit.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/precommit.md"
-      ],
-      "resource": "skills/precommit/SKILL.md"
-    },
-    {
-      "id": "project-brief",
-      "path": "commands/project-brief.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:project-brief",
-      "argument_contract": "<tech spec path> [--output <output path>]",
-      "authority": "workspace-write",
-      "skill_owner": "project-brief",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $project-brief Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/project-brief.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/project-brief.md"
-      ],
-      "resource": "skills/project-brief/SKILL.md"
     },
     {
       "id": "setup",
@@ -355,28 +157,6 @@
       ],
       "resource": "skills/git-smart-commit/SKILL.md",
       "reason": "Canonical $git-smart-commit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
-    },
-    {
-      "id": "ui-ux-verify",
-      "path": "commands/ui-ux-verify.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:ui-ux-verify",
-      "argument_contract": "[<url>] [spec:<path>]",
-      "authority": "workspace-write",
-      "skill_owner": "ui-ux-verify",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $ui-ux-verify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/ui-ux-verify.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/ui-ux-verify.md"
-      ],
-      "resource": "skills/ui-ux-verify/SKILL.md"
     },
     {
       "id": "update-codemaps",

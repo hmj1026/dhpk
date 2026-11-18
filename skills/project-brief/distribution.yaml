@@ -48,27 +48,5 @@
         "summary": "Use project brief with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "project-brief",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:project-brief",
-      "argument_contract": "<tech spec path> [--output <output path>]",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $project-brief Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/project-brief.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/project-brief.md"
-      ],
-      "allowed_tools": "Read, Grep, Glob, Write"
-    }
-  ]
+  }
 }

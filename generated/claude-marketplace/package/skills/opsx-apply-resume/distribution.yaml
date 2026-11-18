@@ -116,26 +116,5 @@
         "summary": "Use opsx apply resume with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "opsx-apply-resume",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:opsx-apply-resume",
-      "argument_contract": "[change-id]",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $opsx-apply-resume Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/opsx-apply-resume.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/opsx-apply-resume.md"
-      ]
-    }
-  ]
+  }
 }
