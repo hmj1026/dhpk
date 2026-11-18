@@ -446,27 +446,5 @@
         "summary": "Resolve declared next steps using Codex invocation formatting"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "flow-guide",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:flow-guide",
-      "argument_contract": "<help|route|rules|next|close> [--go] [<query>]",
-      "authority": "delegate",
-      "disposition": "thin-front-door",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/flow-guide.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/flow-guide.md"
-      ],
-      "reason": "Canonical $flow-guide Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "allowed_tools": "Read, Grep, Glob, Skill, Agent"
-    }
-  ]
+  }
 }

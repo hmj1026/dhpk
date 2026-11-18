@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.78.0",
-  "sourceCommit": "c7c165b0fd2bacc1633353414fc796f5060acbef",
-  "generatedFromCommit": "c7c165b0fd2bacc1633353414fc796f5060acbef",
-  "generatedFromTree": "c33c6751f0193a15541e8e4107c1d2d80b85ea8e",
+  "sourceCommit": "8f884c8abb99287b53a6a1ba4484bd61a660de7f",
+  "generatedFromCommit": "8f884c8abb99287b53a6a1ba4484bd61a660de7f",
+  "generatedFromTree": "addca34352de9e910c80747bd19ad7328a7c5f41",
   "inventoryDigest": "10c30cc3c29fdec5aa71a8a2234465f0e22e8747498fb9641b39d47e138afa86",
   "inventoryRevision": "sha256:60b5cf1783f429ff4deffb4043ea46cc1c097aa4ed66760af1ec01081d4d71a7",
   "generatorVersion": "1.1.0",
@@ -547,7 +547,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/distribution.yaml",
         "destination": "skills/create-pr/distribution.yaml",
-        "originalGitBlobDigest": "ffc36cee3a40a0fd4382150b5959da2146e9c149"
+        "originalGitBlobDigest": "3febd58dae67dce27ab6379654e7e4fac31319a9"
       },
       {
         "ownerId": "create-pr",
@@ -565,7 +565,7 @@
         "ownerId": "create-pr",
         "source": "skills/merge-prep/distribution.yaml",
         "destination": "skills/create-pr/references/merge-prep/distribution.yaml",
-        "originalGitBlobDigest": "f94906cab2939ef688c862b7f45da50a9f521869"
+        "originalGitBlobDigest": "df8053ca6f55c851ebe88e62ff209744fda4ff5c"
       },
       {
         "ownerId": "create-pr",
@@ -589,7 +589,7 @@
         "ownerId": "create-pr",
         "source": "skills/pr-summary/distribution.yaml",
         "destination": "skills/create-pr/references/pr-summary/distribution.yaml",
-        "originalGitBlobDigest": "3a0e894a6e95046204ba93ffde594a686670203e"
+        "originalGitBlobDigest": "8b05e592d72608726fed0023181a3477e4b1206a"
       },
       {
         "ownerId": "create-pr",
@@ -655,7 +655,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/distribution.yaml",
         "destination": "skills/flow-drive/distribution.yaml",
-        "originalGitBlobDigest": "bfaf6592f36775a833a48cf7f6135c4011e301ea"
+        "originalGitBlobDigest": "d1471bd7e515ed6fddbd7f7c5d8b0ba112336121"
       },
       {
         "ownerId": "flow-drive",
@@ -1447,7 +1447,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/distribution.yaml",
         "destination": "skills/flow-guide/distribution.yaml",
-        "originalGitBlobDigest": "ebd1a7a8c7014d650270e9b9b9210e3e591fd28d"
+        "originalGitBlobDigest": "ad713441445f4d6e05bb6a19a5e8625b7cca32de"
       },
       {
         "ownerId": "flow-guide",
@@ -1945,7 +1945,7 @@
         "ownerId": "git-worktree",
         "source": "skills/git-worktree/distribution.yaml",
         "destination": "skills/git-worktree/distribution.yaml",
-        "originalGitBlobDigest": "0a8769229f869a2c31653d5275c112dbf299326f"
+        "originalGitBlobDigest": "693ed1afdd5d8aa0ff7e2c96e6d290e818bfc654"
       },
       {
         "ownerId": "git-worktree",
@@ -1969,7 +1969,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/distribution.yaml",
         "destination": "skills/precommit/distribution.yaml",
-        "originalGitBlobDigest": "323a138aa862464766db4846972fe1b723446921"
+        "originalGitBlobDigest": "67da7cc295adc9f83f68381863e32a1f3b9f45c6"
       },
       {
         "ownerId": "precommit",
@@ -2077,7 +2077,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/project-brief/distribution.yaml",
         "destination": "skills/proposal-analyze/references/project-brief/distribution.yaml",
-        "originalGitBlobDigest": "9d9b1f471358cf806ce5090551e0cb61a09a15ea"
+        "originalGitBlobDigest": "f6ba7ff2c0f774f6f8888f999b90263e2e2ec97d"
       },
       {
         "ownerId": "release-creator",
@@ -2503,7 +2503,7 @@
         "ownerId": "ui-ux-verify",
         "source": "skills/ui-ux-verify/distribution.yaml",
         "destination": "skills/ui-ux-verify/distribution.yaml",
-        "originalGitBlobDigest": "f6fa0cf38f5a8fa376f9b5b0f0f94e620f04810e"
+        "originalGitBlobDigest": "7536c194cd4cdcb9d76a7dcef4903510a67257f8"
       },
       {
         "ownerId": "ui-ux-verify",
@@ -5306,18 +5306,18 @@
   "fingerprints": {
     "change-verdict": "81a399a568428b471acc40abf4e3a36d3772a6830e2ae4c20bca0519011ebe4d",
     "code-trace": "e8f4978283ce6b3b8f8af37432de80e9b4b1a291175e537732bf01002b11d510",
-    "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
+    "create-pr": "d1c36f359efa048370bae70268985f765527fa32795ae579478ac797111a9acc",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
-    "flow-drive": "c0c10efe73de32c5e59021111858192372ac3135ee7c9729842195d996476136",
-    "flow-guide": "ad28abe4421f166e5e6b8d1a3979e4a4153171ae8f35b245005a33205e3e17fb",
+    "flow-drive": "7576e5d1505873b385f153ce19ebc1252b62135cdd31ff5e1e9e8c50d0cbc9ae",
+    "flow-guide": "b32c2ad064936cffce8134ac57318a0283f48300edaf42e89a4b6f5967f67872",
     "git-smart-commit": "0902a57349a495fdeaffde7d653b1760c065ef6019e1278d62280e67d77b9189",
-    "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
-    "precommit": "f53a31490a6a5001ecb13c4a2e772a6aa98d87532304abc15b79aaccb2f53640",
-    "proposal-analyze": "7cbc5c6b5d5faed62e67ddb7e1f3f921c1b8faa8123ae8f36c661837f7aa4d00",
+    "git-worktree": "5ec324df73e58332e94ee54e63dad4db3f58cf4f521d3c5893613a3b75633c95",
+    "precommit": "eb8c8107e813757cd94cee6b47a05a023ba837fe565175ad0e60d1597b45fecf",
+    "proposal-analyze": "2ebabee472d1a68152fc03b8b6762d8a57d3ec87f9cb9cce9785ef81aa132093",
     "release-creator": "2afe070b018bea14caf638424c615c22a8c80963ca6cbebb6a9169ba292f64ff",
     "repo-verify": "a384a5d193c27e3fb3e670d3e8b89b386a0c0f5d3d68a20e3db67e86cd68d7b0",
     "tdd-workflow": "6b9190911a8b56245c5c0f51882ae4aad52fde24615dc723e5b4a8f74537dc1d",
-    "ui-ux-verify": "e3595020b7382995d4335fb288b2e324c837151faa75fc5d61604fafd0ce9746"
+    "ui-ux-verify": "65193a8ccd7b7170c9f3d46986d241b7dc07311687cff27534886dcf8680d533"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",

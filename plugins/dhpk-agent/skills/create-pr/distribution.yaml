@@ -71,26 +71,5 @@
         "summary": "Use create pr with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "create-pr",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:create-pr",
-      "argument_contract": "[--head <branch>] [--base <branch>] [--title <text>] [--execute] [--dry-run]",
-      "authority": "external-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $create-pr Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/create-pr.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/create-pr.md"
-      ]
-    }
-  ]
+  }
 }
