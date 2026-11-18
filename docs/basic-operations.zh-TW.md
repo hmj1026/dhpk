@@ -110,7 +110,6 @@ claude plugin install dhpk@dhpk
 ```bash
 claude plugin install dhpk@dhpk \
   --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-  --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 

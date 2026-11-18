@@ -487,7 +487,7 @@ test('malformed shard timing JSON is rejected', () => {
     assert.deepStrictEqual(parseOptions([], {}), {
       shardIndex: 0,
       shardCount: 1,
-      jobs: 1,
+      jobs: Math.max(1, Math.min(typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length, 4)),
       worker: false,
       files: [],
     });

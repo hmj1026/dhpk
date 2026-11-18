@@ -2,16 +2,15 @@
 
 > **語言**：[English](./docker-setup.md) · **繁體中文**
 
-本文件說明 consumer 明確註冊 Docker workflow 時使用的 `docker_containers`
-plugin option。Installer 與 `/dhpk:setup` 預設都不會加入 Docker hook。若專案不用
-Docker，將 `docker_containers` 留空即可；dhpk 的預設 hook 不會探測 Docker。
+本文件說明 consumer 明確註冊 Docker workflow 時使用的 Docker 設定。Installer 與 `/dhpk:setup` 預設都不會加入 Docker hook。若專案不用
+Docker，可略過本文件；dhpk 的預設 hook 不會探測 Docker。
 
 ## dhpk 如何使用 Docker
 
-`userConfig.docker_containers` 非空時，它只是 consumer 自行註冊 Docker workflow
-的設定；dhpk 不會自動執行 SessionStart check 或 export container variable。
+dhpk 沒有 `docker_containers` plugin option。Consumer 自行註冊 Docker workflow
+時自行管理設定；dhpk 不會自動執行 SessionStart check 或 export container variable。
 Consumer script 可以執行 `docker ps --format '{{.Names}}'`，並採用「第一個名稱為
-PHP、第二個為 MySQL」的 positional convention。空清單代表未設定。
+PHP、第二個為 MySQL」的 positional convention。未註冊 consumer workflow 時，dhpk 不處理 Docker。
 
 ## 前置需求
 
@@ -61,7 +60,7 @@ docker compose up -d
 docker ps
 bash ~/projects/dhpk/scripts/install.sh
 # 在 consumer 明確註冊的 Docker workflow 使用：
-# docker_containers=php-fpm,mysql
+# php-fpm,mysql（由 consumer script 自行定義）
 ```
 
 ## 疑難排解
@@ -69,7 +68,7 @@ bash ~/projects/dhpk/scripts/install.sh
 - **Container 存在但 workflow 仍警告**：確認名稱完全一致。未設定
   `container_name` 時，Compose 會產生含 project/service 的名稱。
 - **WSL 內找不到 docker**：在 PowerShell 執行 `wsl --shutdown` 後重新開啟。
-- **Workflow 沒觸發**：設定 `docker_containers` 後，仍須明確註冊 consumer script。
-- **暫時停用**：移除 consumer hook registration，或清空 `docker_containers`。
+- **Workflow 沒觸發**：dhpk 不預設註冊 Docker script，須明確註冊 consumer script。
+- **暫時停用**：移除 consumer hook registration。
 
 相關 SSOT：`manifests/module-catalog.json`、`scripts/install.sh`、`/dhpk:setup`。

@@ -30,6 +30,9 @@ jobs:
 
       - uses: ./.github/actions/setup-dhpk-test-env
 
+      - name: Install pinned Claude CLI for package verification
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
+
       # One implementation shared with the release-PR `release-rehearsal` CI
       # job (dry-run mode), so these stages have already run on this tree
       # before the tag existed. Tag mode first proves the tag is vX.Y.Z and

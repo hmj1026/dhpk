@@ -19,8 +19,8 @@ const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'))
 const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
-const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 51;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = 'd9c59745093211ac496dd01ad60e34144791bfef823c48b68075e25068ac2c17';
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 37;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '627a153405f72611bc6be08fc390ecc187c2561670e336925b4b17be4de571b6';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'cross_provider',
   'worker_target',
@@ -125,7 +125,7 @@ test('legacy userConfig fixture contains exactly 60 options and preserves the le
   }
 });
 
-test('active userConfig preserves the canonical 51-key contract and metadata coverage', () => {
+test('active userConfig preserves the canonical 37-key contract and metadata coverage', () => {
   const activeEntries = contractEntries(activeManifest);
   const legacyKeys = Object.keys(legacyManifest.userConfig || {});
   const activeKeys = Object.keys(activeManifest.userConfig || {});
@@ -152,6 +152,20 @@ test('active userConfig preserves the canonical 51-key contract and metadata cov
   const value = valueOf(result);
   assert.strictEqual(value.entries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
   assert.deepStrictEqual(value.entries.map((entry) => entry.key), activeKeys);
+});
+
+test('active userConfig and metadata omit unwired, retired, and hook-registration options', () => {
+  const REMOVED_UNWIRED_KEYS = [
+    'subagent_quality_gate', 'docker_containers', 'swiftlint_bin', 'reap_stale_mcp_processes',
+    'skill_hint_enabled', 'learning_db_enabled', 'graduation_scan_enabled', 'lockfile_sync_commands',
+    'php_bin', 'completion_evidence_enabled', 'agent_warmstart_enabled', 'harness_restore_hint',
+    'sentinel_commit_gate', 'hot_tables',
+  ];
+  const offered = new Set([...Object.keys(activeManifest.userConfig), ...canonicalMetadataDocument.entries.map((entry) => entry.key)]);
+  assert.deepStrictEqual(REMOVED_UNWIRED_KEYS.filter((key) => offered.has(key)), []);
+  for (const [key, entry] of Object.entries(activeManifest.userConfig)) {
+    assert.ok(!/Requires explicit consumer hook registration/.test(entry.description), `${key} must not describe an inert option`);
+  }
 });
 
 test('active userConfig exposes cross_provider as a disabled-by-default opt-in', () => {

@@ -24,7 +24,7 @@ If you are not sure which skill or command to start with, use the **[Skill & Sla
 | `git` | Required | Artifact path resolution; `git rev-parse --show-toplevel` |
 | `python3` | Required for the Claude Bash gate | Inspects credential reads and parses `module.yaml` for opt-in module activation and routing |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
-| `docker` | Optional | Used only by an explicitly registered Docker workflow with `userConfig.docker_containers` |
+| `docker` | Optional | Used only by an explicitly registered consumer Docker workflow (see `docs/docker-setup.md`) |
 | Codex CLI binary | Optional | Required only for CLI-backed roles/reviews, `codex exec` second opinions, or `install-codex-skills.sh` when Codex should load the synced content |
 | Cursor | Optional | Required ONLY if you run `install-cursor-harness.sh` and want Cursor to load the project-local `.cursor/` harness |
 | `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `code-trace` family. Missing → falls back to `Grep` / `Read`. |
@@ -174,7 +174,6 @@ for the full inspect → route → implement → review → verify → handoff f
 ```bash
 claude plugin install dhpk@dhpk \
   --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author \
-  --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 

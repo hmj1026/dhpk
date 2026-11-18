@@ -69,6 +69,8 @@ function fixture() {
   write(path.join(root, 'manifests/listing-metadata.json'), `${JSON.stringify(readJson('manifests/listing-metadata.json'), null, 2)}\n`);
   write(path.join(root, '.claude-plugin/plugin.json'), fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json')));
   fs.copyFileSync(path.join(ROOT, '.claude-plugin/icon.png'), path.join(root, '.claude-plugin/icon.png'));
+  write(path.join(root, 'distribution/directory-plugin/README.md'), 'fixture readme\n');
+  write(path.join(root, 'LICENSE'), 'MIT\n');
   write(path.join(root, 'skills/flow-guide/references/codex-usage-catalog.json'), fs.readFileSync(path.join(ROOT, 'skills/flow-guide/references/codex-usage-catalog.json')));
   write(path.join(root, 'skills/flow-guide/assets/dhpk-icon.svg'), fs.readFileSync(path.join(ROOT, 'skills/flow-guide/assets/dhpk-icon.svg')));
   const executionPolicy = 'skills/flow-guide/references/execution-bundle/rules/execution-policy.md';

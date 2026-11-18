@@ -218,11 +218,35 @@ health checks, Docker probes, completion or graduation scans, SessionEnd and
 compaction work, learning observation, post-edit formatting/linting, and Stop
 reminders.
 
-The userConfig keys read only by these optional scripts (for example
+These optional scripts have no `plugin.json` userConfig options, so the Claude
+Code configuration UI does not offer them. Their switches (for example
 `agent_warmstart_enabled`, `completion_evidence_enabled`,
-`graduation_scan_enabled`, `skill_hint_enabled`) therefore do nothing until the
-matching hook is registered; their descriptions in `plugin.json` start with
-"Requires explicit consumer hook registration".
+`graduation_scan_enabled`, `skill_hint_enabled`) are read only from the
+project overlay or the `DHPK_*` env overrides once the matching hook is
+registered.
+
+### Removed userConfig keys
+
+These keys are no longer `plugin.json` userConfig options. The hook scripts below
+still read them as an env fallback, so a consumer that registers the hook
+manually sets the env var itself.
+
+| Former key | Env var the consumer sets | Reader |
+|------------|---------------------------|--------|
+| `subagent_quality_gate` | `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` (via `dhpk_config_get`) | `scripts/hooks/subagent-stop-quality.sh` |
+| `docker_containers` | `CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS` (comma-separated) | `scripts/statusline/statusline.sh` |
+| `swiftlint_bin` | `CLAUDE_PLUGIN_OPTION_SWIFTLINT_BIN` | `modules/xcode-tooling/hooks/post-edit-swiftlint.sh` |
+| `reap_stale_mcp_processes` | `CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES=true` | `scripts/hooks/session-end.sh` |
+| `skill_hint_enabled` | `CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED` (via `dhpk_config_bool`; `DHPK_DISABLE_SKILL_HINT=1` also disables) | `scripts/hooks/userpromptsubmit-skill-hint.sh` |
+| `learning_db_enabled` | `CLAUDE_PLUGIN_OPTION_LEARNING_DB_ENABLED` or `DHPK_LEARNING_DB=1` (via `dhpk_config_bool`) | `scripts/hooks/_lib/learning-db.sh` |
+| `graduation_scan_enabled` | `CLAUDE_PLUGIN_OPTION_GRADUATION_SCAN_ENABLED` or `DHPK_GRADUATION_SCAN=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `completion_evidence_enabled` | `CLAUDE_PLUGIN_OPTION_COMPLETION_EVIDENCE_ENABLED` or `DHPK_COMPLETION_EVIDENCE=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `agent_warmstart_enabled` | `CLAUDE_PLUGIN_OPTION_AGENT_WARMSTART_ENABLED` or `DHPK_AGENT_WARMSTART=1` (via `dhpk_config_bool`) | `scripts/hooks/pre-agent-warmstart.sh` |
+| `lockfile_sync_commands` | `CLAUDE_PLUGIN_OPTION_LOCKFILE_SYNC_COMMANDS` (comma-separated `<manifest>:<command>`) | `scripts/hooks/post-edit-advisory.sh` |
+| `php_bin` | `CLAUDE_PLUGIN_OPTION_PHP_BIN` | `modules/php-5.6/hooks/post-edit-php-syntax.sh` |
+| `harness_restore_hint` | none (no shipped script reads it) | none |
+| `sentinel_commit_gate` | none (retired; `DHPK_SENTINEL_COMMIT_GATE` is not read) | none |
+| `hot_tables` | none (prose-only; declare hot tables in CLAUDE.md) | none |
 
 ### Registration example
 
@@ -262,7 +286,7 @@ project's `.claude/settings.json` (or `settings.local.json`):
 }
 ```
 
-Then enable the behavior through `pluginConfigs."dhpk@dhpk".options`
+Then enable the behavior through the project overlay `pluginConfigs."dhpk@dhpk".options`
 (`agent_warmstart_enabled`, `completion_evidence_enabled`,
 `graduation_scan_enabled`) or the one-shot env override such as
 `DHPK_AGENT_WARMSTART=1`. The copy is a snapshot: re-run the installer
