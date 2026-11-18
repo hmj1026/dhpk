@@ -186,6 +186,26 @@ test('Directory Plugin without a manifest fails', () => {
   assert.ok(directoryErrors({ '.claude-plugin/plugin.json': null }).some((error) => /plugin\.json/.test(error)));
 });
 
+const filler = (count) => Object.fromEntries(Array.from({ length: count }, (_, index) => [`skills/a/references/f${index}.md`, Buffer.from('x')]));
+// directoryTree already holds 5 files.
+const BASE_FILES = 5;
+
+test('Directory Plugin at 512 files passes and 513 files fails', () => {
+  assert.deepStrictEqual(directoryErrors(filler(512 - BASE_FILES)), []);
+  const errors = directoryErrors(filler(513 - BASE_FILES));
+  assert.ok(errors.some((error) => /513 files/.test(error) && /512/.test(error)), errors.join('; '));
+});
+
+test('Directory Plugin non-image file over 256 KiB fails and 256 KiB passes', () => {
+  assert.deepStrictEqual(directoryErrors({ 'scripts/a.js': Buffer.alloc(256 * 1024) }), []);
+  const errors = directoryErrors({ 'scripts/big.js': Buffer.alloc(256 * 1024 + 1) });
+  assert.ok(errors.some((error) => error.includes('scripts/big.js') && /256 KiB/.test(error)), errors.join('; '));
+});
+
+test('Directory Plugin image over 256 KiB is allowed', () => {
+  assert.deepStrictEqual(directoryErrors({ '.claude-plugin/icon.png': Buffer.alloc(300 * 1024) }), []);
+});
+
 test('claude plugin validate passes when the runner exits 0', () => {
   const seen = [];
   assert.deepStrictEqual(runClaudeValidate('/pkg', (directory) => { seen.push(directory); return { status: 0, output: 'ok' }; }), []);
