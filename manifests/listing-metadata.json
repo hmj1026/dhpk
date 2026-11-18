@@ -1,7 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dhpk",
-  "version": "0.64.4",
   "description": "Reusable software-development workflows and specialist references for Codex and ChatGPT Work.",
   "author": {
     "name": "hmj1026",

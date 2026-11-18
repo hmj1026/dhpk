@@ -41,12 +41,14 @@ package from the [accepted marketplace catalog](contracts/marketplace-catalog.md
 It uses root `plugin.json`, the public owners under `skills/`, and their
 contained child resources. Host-only and withdrawn skills are excluded.
 
-Provide a portable manifest containing the intended listing metadata under
-`extensions["com.openai"].interface`. Use a clean source checkout and an output
+The manifest is rendered from `manifests/listing-metadata.json` (listing
+metadata under `extensions["com.openai"].interface`) and the `package.json`
+version; `--manifest` is an optional override that must carry the same
+version. Use a clean source checkout and an output
 directory outside the checkout when comparing repeated builds:
 
 ```bash
-bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission generate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
 ```

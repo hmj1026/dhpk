@@ -130,9 +130,6 @@ function parseRequest(argv) {
     if (options.skillIds.length || options.standaloneSkillIds.length) {
       return { ok: false, status: 64, error: 'OpenAI submission requires the complete public catalog; partial selectors are forbidden' };
     }
-    if (operation === 'generate' && !options.manifest) {
-      return { ok: false, status: 64, error: 'OpenAI submission generation requires --manifest <portable-plugin.json>' };
-    }
   } else if (options.manifest) {
     return { ok: false, status: 64, error: '--manifest is only supported for openai-submission' };
   }

@@ -171,6 +171,7 @@ testWithRepo('allows read-only parity checks on the merged publish target', (rep
     ['plugins/dhpk-agy/plugin.json', { version: '1.0.0' }],
     ['plugins/dhpk-agy/provenance.json', { sourceVersion: '1.0.0' }],
     ['plugins/dhpk-cursor/.cursor-plugin/plugin.json', { version: '1.0.0' }],
+    ['plugins/dhpk-cursor/.cursor-plugin/marketplace.json', { metadata: { version: '1.0.0' } }],
     ['plugins/dhpk-cursor/provenance.json', { sourceVersion: '1.0.0' }],
   ]) {
     const target = path.join(repo, relative);
