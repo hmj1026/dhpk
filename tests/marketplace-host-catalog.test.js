@@ -14,6 +14,7 @@ const { materializeAgyPluginPackage } = require('../scripts/lib/agy-plugin-packa
 const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
 const { NATIVE_AGENT_SUPPORT_FILES } = require('../scripts/lib/native-agent-support');
 const claude = require('../scripts/ci/gen-claude-marketplace-package');
+const { STACK_SKILL_IDS } = require('../scripts/lib/directory-plugin-runtime');
 const { loadMarketplaceHostPublication } = require('../scripts/lib/marketplace-host-publication');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -37,6 +38,9 @@ const HOSTS = [
 ];
 const inventoryById = new Map(INVENTORY.skills.map((skill) => [skill.id, skill]));
 const CHILDREN = SELECTION.skills.filter((row) => row.selection === 'common' && row.kind !== 'entry');
+// The Claude Directory Plugin leaves the stack skills to dhpk-stacks, which ships them as top-level skills.
+const isStackChild = (child) => STACK_SKILL_IDS.includes(inventoryById.get(child.id).name);
+const childrenOwnedBy = (host) => (host.name === 'Claude' ? CHILDREN.filter((child) => !isStackChild(child)) : CHILDREN);
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -208,15 +212,22 @@ for (const host of HOSTS) {
     }
   }));
 
-  test(`${host.name} preserves all 22 owned child trees, contained references and resource provenance`, () => withFixture((state) => {
+  test(`${host.name} preserves its owned child trees, contained references and resource provenance`, () => withFixture((state) => {
     generate(host, state);
     // Cursor's common content is physically owned by its Agent Plugin dependency.
     const commonRoot = host.name === 'Cursor' ? path.join(state.temp, 'shared-agent') : state.outDir;
     if (host.name === 'Cursor') generate(HOSTS[0], { ...state, outDir: commonRoot });
     const children = filesUnder(commonRoot).filter((relative) => new RegExp(`^skills/[^/]+/references/[^/]+/${referenceEntry(host)}$`).test(relative));
-    assert.strictEqual(children.length, 22);
+    assert.strictEqual(children.length, childrenOwnedBy(host).length);
+    assert.strictEqual(children.length, host.name === 'Claude' ? 14 : 22);
+    if (host.name === 'Claude') {
+      for (const child of CHILDREN.filter(isStackChild)) {
+        const name = inventoryById.get(child.id).name;
+        assert.ok(!filesUnder(commonRoot).some((relative) => relative.startsWith(`skills/flow-drive/references/${name}/`)), `${name} ships in dhpk-stacks, not Claude core`);
+      }
+    }
     const provenance = provenanceRecords(readReceipt(commonRoot));
-    for (const child of CHILDREN) {
+    for (const child of childrenOwnedBy(host)) {
       const owner = inventoryById.get(child.owner);
       const source = inventoryById.get(child.id);
       const destination = `skills/${owner.name}/references/${source.name}`;

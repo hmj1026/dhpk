@@ -232,7 +232,10 @@ function stacksProvenanceDocument(runtime) {
 // Claude discovers them in dhpk-stacks.
 function addStackSkills(files, sourceRoot) {
   const { content } = compileSkillContent(sourceRoot);
-  if (!content) throw new Error('dhpk-stacks needs the distribution inventory to compile its stack skills');
+  // Without a marketplace selection there is no compiled skill tree and so no stack skills,
+  // the same way the core package falls back to a plain copy.  The committed-package tests
+  // (tests/stacks-plugin-package.test.js) fail if the real checkout ever lands here.
+  if (!content) return;
   for (const file of content.files) {
     const destination = stackSkillDestination(file.path);
     if (destination) addFile(files, destination, Buffer.from(file.bytes), (file.mode & 0o111) !== 0);
