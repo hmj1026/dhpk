@@ -146,11 +146,17 @@ function parseNonNegativeInteger(value, label, { maximum = Number.MAX_SAFE_INTEG
   return parsed;
 }
 
+// Local default: parallel up to four workers. CI pins DHPK_TEST_JOBS explicitly.
+function defaultJobs() {
+  const cpus = typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
+  return Math.max(1, Math.min(cpus, 4));
+}
+
 function parseOptions(argv = process.argv.slice(2), sourceEnv = process.env) {
   const options = {
     shardIndex: 0,
     shardCount: 1,
-    jobs: parsePositiveInteger(sourceEnv.DHPK_TEST_JOBS || '1', 'jobs', { maximum: MAX_JOBS }),
+    jobs: parsePositiveInteger(sourceEnv.DHPK_TEST_JOBS || String(defaultJobs()), 'jobs', { maximum: MAX_JOBS }),
     worker: false,
     files: [],
   };
@@ -199,6 +205,37 @@ function parseOptions(argv = process.argv.slice(2), sourceEnv = process.env) {
     options.jobs = 1;
   }
   return options;
+}
+
+// Scratch dirs that tests create inside the checkout (non-relocatable mode).
+// Sessions and worktrees can share one checkout, so a sweep must never delete a
+// dir a live run owns. The longest per-file timeout is 480 s, so a live run
+// touches its scratch dir well inside this window; anything older is stale.
+const SCRATCH_PREFIX = '.dhpk-test-scratch-';
+const SCRATCH_MAX_AGE_MS = 60 * 60 * 1000;
+
+function sweepStaleScratch(root, { now = Date.now(), maxAgeMs = SCRATCH_MAX_AGE_MS } = {}) {
+  let entries;
+  try {
+    entries = fs.readdirSync(root);
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+  const removed = [];
+  for (const name of entries) {
+    if (!name.startsWith(SCRATCH_PREFIX)) continue;
+    const target = path.join(root, name);
+    try {
+      const stat = fs.lstatSync(target);
+      if (!stat.isDirectory() || now - stat.mtimeMs < maxAgeMs) continue;
+      fs.rmSync(target, { recursive: true, force: true });
+      removed.push(name);
+    } catch {
+      // Best effort: a concurrent run may remove or reuse the entry.
+    }
+  }
+  return removed;
 }
 
 function assignShard(file, shardCount) {
@@ -643,6 +680,7 @@ async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
   const options = parseOptions(argv, sourceEnv);
   const env = prepareEnv(sourceEnv);
   const timeoutMs = readTimeoutMs(env);
+  if (!options.worker) sweepStaleScratch(path.resolve(TESTS_DIR, '..'));
   let ownedTmpRoot = null;
   if (!env.DHPK_TEST_TMP_ROOT) {
     ownedTmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-test-run-'));
@@ -709,6 +747,8 @@ module.exports = {
   assignShard,
   findTests,
   parseOptions,
+  defaultJobs,
+  sweepStaleScratch,
   partitionFiles,
   fileTimeoutMs,
   createTimingReport,
