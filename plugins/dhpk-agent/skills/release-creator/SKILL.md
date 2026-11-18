@@ -9,7 +9,8 @@ metadata:
 
 # Release Creator
 
-Resolve project-specific release judgment first; delegate the fixed mechanics to the tested runner.
+Resolve the project release contract first, then delegate fixed mechanics to the
+tested runner. `RELEASE.md` is the complete route when the consumer provides it.
 
 `$SKILL_DIR` denotes the physical directory containing this `SKILL.md`;
 `$PROJECT_DIR` denotes the consumer project root. These are resolved path
@@ -30,11 +31,17 @@ success from a local edit or an unassociated CI run.
 - Ordinary feature or bug commits: use `$git-smart-commit`.
 - The integration branch or required tests are not ready.
 
-## 1. Resolve release config
+## 1. Resolve the release contract
 
-1. Follow project `RELEASE.md` when present.
-2. Otherwise inspect the relevant manifests and `references/release-presets.md`.
-3. Confirm these values with the user before execution:
+When the project has `RELEASE.md`, follow its release-candidate, merge, publish,
+and recovery sections. Treat its commands and proof boundaries as authoritative
+and stop for any decision that the document leaves unresolved. Continue to the
+common runner flow only when `RELEASE.md` selects this runner. Otherwise its
+documented route is complete.
+
+When `RELEASE.md` is absent, inspect the relevant manifests and
+[release presets](references/release-presets.md). Resolve the following values
+and confirm them with the user before execution:
 
 | Token | Meaning | Typical default |
 |---|---|---|
@@ -46,23 +53,35 @@ success from a local edit or an unassociated CI run.
 | `{CHANGELOG}` | Changelog file | `CHANGELOG.md` |
 | `{RELEASE_WORKFLOW}` | Tag-triggered CI workflow | `release.yml` |
 
-## 2. Author the release content
+## 2. Prepare the release candidate
 
-- Update every `{VERSION_FILES}` entry to `<version>` in lockstep.
-- Add the release notes at the top of `{CHANGELOG}` using the exact heading format required by `RELEASE.md`/CI.
-- Run `{VALIDATE_CMD}` and stop on failure.
-- Confirm the workspace now contains only the intended release edits.
+When `RELEASE.md` selects this runner, perform only its documented preparation
+steps, then continue to the common runner flow below. When it selects another
+route, stop after following that document.
 
-Config resolution, version editing, changelog synthesis, validation interpretation, and any human merge requirement remain judgment steps; the runner does not invent them.
+For dhpk, run `node scripts/release/prepare-release.js check --version <version>`
+after the documented `prepare-release.js write --version <version> ...` command
+and before preparing the PR. This is the single dhpk parity check. Do not run
+the full repository suite as an extra local preparation step. Pull-request CI
+supplies the first release proof and the publish runner supplies the post-merge
+gate.
+
+For a project without `RELEASE.md`, use the generic fallback. Update every
+`{VERSION_FILES}` entry to `<version>` in lockstep, add the release notes at the
+top of `{CHANGELOG}` using the project's required heading format, run
+`{VALIDATE_CMD}`, and confirm that only intended release edits remain.
+
+Config resolution, version editing, changelog synthesis, validation
+interpretation, and any human merge requirement remain judgment steps. The
+runner does not invent them.
 
 ## 3. Run the mechanical sequence
 
-After the release edits and validation are complete, prepare the release PR. Pass every
-intended release file explicitly, unless the project's own release-preparation
-script (dhpk: `prepare-release.js` under the repository's release scripts) has a
-`paths` subcommand that prints its release scope (`file`/`dir`/`deleted` lines). With no file list, the runner then stages only
-the changed paths inside that scope. Either way it rejects unrelated worktree changes
-and does not stage the whole repository implicitly:
+After the release edits and validation pass, prepare the release PR. Use the
+invocation in `RELEASE.md` when provided. The dhpk invocation omits the file
+list so the runner derives its scope from `prepare-release.js paths`. For the
+generic fallback, pass every intended release file explicitly. The runner
+rejects unrelated worktree changes.
 
 ```bash
 bash "$SKILL_DIR/scripts/release-runner.sh" \
@@ -70,39 +89,35 @@ bash "$SKILL_DIR/scripts/release-runner.sh" \
   {VERSION_FILES} {CHANGELOG}
 ```
 
-Stop here for the human merge; never self-merge against policy. The release PR
-must use GitHub's **Create a merge commit** method. Squash and rebase merges can
-drop the generated-input commit ancestry; the publish runner rechecks the
-SOURCE+PACKAGE gate on merged `main` and stops before creating a tag if that
-identity cannot be proven. After GitHub reports the PR merged, publish the tag
-and watch its exact workflow run:
+Stop here for the human merge. Any route using this runner must use GitHub's
+**Create a merge commit** method because the runner requires exactly two merge
+parents before tagging. After GitHub reports the PR merged, continue with the
+project's publish route.
 
-For this dhpk release contract, the publish runner automatically runs the
-SOURCE+PACKAGE gate after the human merge and before creating the tag. You may
-run the same command first for a diagnostic preflight, but publication must
-still go through the runner:
-
-```bash
-node "$PROJECT_DIR/scripts/release/publish-gate.js" --version "<version>"
-```
-
-The runner uses `$PROJECT_DIR/scripts/release/publish-gate.js` when present and refuses the
-tag if SOURCE or PACKAGE fails. A compatible project-specific combined gate may
-be selected with `DHPK_RELEASE_PUBLISH_GATE_SCRIPT`; projects without one retain
-the `DHPK_RELEASE_PACKAGE_GATE_SCRIPT` PACKAGE fallback.
+The runner uses the project publish gate when present and refuses the tag when
+required gates fail. Generic projects retain their configured package-gate
+fallback through `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`, while a combined gate may
+be selected with `DHPK_RELEASE_PUBLISH_GATE_SCRIPT`.
 
 ```bash
 bash "$SKILL_DIR/scripts/release-runner.sh" \
   "publish" "<version>" "{BASE_BRANCH}" "{RELEASE_BRANCH}" "{TAG_PREFIX}" "{RELEASE_WORKFLOW}"
 ```
 
+For dhpk, the publish runner automatically runs the SOURCE+PACKAGE gate after
+the human merge and before creating the tag. Invoke the publish runner once for
+the actual publication. If that gate fails, use the troubleshooting and recovery
+route in `RELEASE.md`; the standalone `publish-gate.js` command is a diagnostic
+probe for that route.
+
 The publish phase independently verifies the merged `{BASE_BRANCH}` →
 `{RELEASE_BRANCH}` PR before tagging: its GitHub `mergeCommit.oid` must equal the
-fetched release-branch `HEAD`, and that commit must have two parents. It then
-runs the combined gate (including the PACKAGE provenance check), creates an
-annotated immutable tag, polls for a workflow run associated with the new tag,
-fails if no matching run appears, and returns to `{BASE_BRANCH}` only after
-that run completes. The tag workflow resolves the merged release PR head SHA
+fetched release-branch `HEAD`, and that commit must have two parents. After any
+required gate passes, the runner creates an annotated immutable tag, waits for
+the associated workflow, and returns to `{BASE_BRANCH}` only after the run
+passes. A missing run blocks completion.
+
+In dhpk, the tag workflow resolves the merged release PR head SHA
 and passes it to `sync-develop`. That job succeeds only when release completed,
 `origin/develop` is still exactly that SHA, and its tree matches `origin/main`;
 only then does it align the ref with `--force-with-lease`. A moved develop,
@@ -118,6 +133,13 @@ tree difference, or rejected lease is blocking and requires recovery in
 - [ ] Validation passed.
 - [ ] Release PR followed the project merge policy.
 - [ ] Tag exists remotely and release CI passed.
-- [ ] Release workflow confirmed that `origin/develop` did not advance after the release PR.
-- [ ] `sync-develop` aligned `origin/develop` to `origin/main` with `--force-with-lease`.
 - [ ] Consumer update status is reported separately from publication status.
+
+For dhpk also verify that the Release workflow confirmed
+`origin/develop` did not advance after the release PR and that `sync-develop`
+aligned `origin/develop` to `origin/main` with `--force-with-lease`.
+
+For projects without `RELEASE.md`, record the resolved configuration, validation
+result, runner phase, and the same merge/tag/CI evidence. Preserve all three
+release proofs when the project defines them, and keep consumer evidence
+separate from publication evidence.
