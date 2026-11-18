@@ -163,9 +163,8 @@ If a validator reads or updates shared ratchet/configuration state, the worker u
 ## Dispatch size and fresh context
 
 Detail for the execution policy's §Dispatch rounds; it applies to native and
-CLI-backed implementation dispatches. Evidence: the 2026-11-13 two-host
-telemetry for #1336 showed one `tdd-guide` dispatch at 319 turns and a 512k
-peak prompt; the issue's cost shares are estimates.
+CLI-backed implementation dispatches. One unbounded dispatch can run for
+hundreds of turns with a very large prompt; rounds keep each dispatch bounded.
 
 - **Round.** A round is work that is verifiable on its own: an exact scope,
   its scoped verification, and the owner of its handoff. A resume after a
@@ -320,21 +319,17 @@ acceptance, and applicable verification continue under their owning contracts.
 
 ## No block-polling a running worker
 
-While a dispatched `local_agent`/background worker is still running, the orchestrator MUST NOT block-poll it with a short-timeout monitor/output call (a repeated or single long-timeout `TaskOutput`-style wait) to check progress, and MUST NOT Read or grep the running agent's `output_file`/raw JSONL transcript for the same purpose. A blocking poll against a still-running agent risks dumping the subagent's raw JSONL transcript into the main conversation, burning tokens with no decision-useful information — this happened in the `fe13512c` session where a 300s blocking poll dumped a subagent's raw JSONL into main context, and the same session later grepped a running reviewer's `output_file` mid-run, the very anti-pattern it had just shipped. Instead, wait for the task's completion notification event, then fetch the agent's final result.
+While a dispatched `local_agent`/background worker is still running, the orchestrator does not block-poll it with a monitor/output call (a repeated or single long-timeout `TaskOutput`-style wait) to check progress, and does not Read or grep the running agent's `output_file`/raw JSONL transcript for the same purpose. Either can dump the subagent's raw JSONL transcript into the main conversation, spending tokens on nothing decision-useful. Instead, wait for the task's completion notification event, then fetch the agent's final result.
 
-**Silence is not a hang; peek before you kill.** A long Playwright step or a single mega-action (a full checkout / clear-settlement / batch write) is slow by nature, so output/mtime silence alone is NOT a hang signal. Before issuing a `TaskStop` against a quiet background agent, peek its last action (most recent tool_use) — a killed agent's completion `<result>` is a *mid-flight* message, not a final verdict, so a premature kill both loses the verdict and costs a resume cycle. In one session an e2e-runner went silent for ~4 minutes mid-action and was killed as "hung"; the `<result>` then showed it was one dialog-accept away from completing.
+**Silence is not a hang; peek before you kill.** A long Playwright step or a single mega-action (a full checkout / clear-settlement / batch write) is slow by nature, so output/mtime silence alone is NOT a hang signal. Before issuing a `TaskStop` against a quiet background agent, peek its last action (most recent tool_use) — a killed agent's completion `<result>` is a *mid-flight* message, not a final verdict, so a premature kill both loses the verdict and costs a resume cycle.
 
-**Await a mutating agent by a deterministic completion signal.** When waiting on an agent that mutates observable state (inserts a DB row, writes a file), poll that artifact as the done-signal — e.g. `SELECT MAX(id) > baseline` on the row it will write — rather than an mtime heuristic. One deterministic hit both confirms completion and directly yields the observed value; in one session a single `SELECT MAX(settlement_id)` poll replaced four idle mtime-silence loops and returned the observed row in the same step.
+**Await a mutating agent by a deterministic completion signal.** When waiting on an agent that mutates observable state (inserts a DB row, writes a file), poll that artifact as the done-signal — e.g. `SELECT MAX(id) > baseline` on the row it will write — rather than an mtime heuristic. One deterministic hit both confirms completion and directly yields the observed value.
 
 **The Stop hook does not sense in-flight agents.** The Stop hook reads only the goal's own stop conditions and cannot observe a background reviewer or worker's completion. Repeated "still-open" reminders do not mean the session is stuck. Bridge the wait with a heartbeat / `ScheduleWakeup` (or the deterministic-signal poll above) and do NOT treat repeated Stop reminders as evidence of a hang.
 
 ## SendMessage reuse vs. spawn
 
-When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead. After a worker passed the size threshold, the next round follows §Dispatch size and fresh context.
-
-Session evidence: a 7-round reuse of one
-`e2e-runner` via `SendMessage` preserved its env overrides and fixtures across
-rounds and was the best-practice pattern observed in the `fe13512c` run.
+When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead. Reuse keeps the worker's environment overrides and fixtures across rounds. After a worker passed the size threshold, the next round follows §Dispatch size and fresh context.
 
 ## Explicit high-stakes second-opinion path
 
