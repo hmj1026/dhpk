@@ -83,7 +83,7 @@ test('fresh install materializes the current worker and Terra role payload byte-
     }
     for (const role of ['ui-verifier.toml', 'scoped-worker.toml']) {
       const content = fs.readFileSync(path.join(scratch, '.codex', 'agents', role), 'utf8');
-      assert.match(content, /model = "gpt-6\.1-terra"/);
+      assert.doesNotMatch(content, /^model\s*=/m);
       assert.match(content, /model_reasoning_effort =/);
       assert.match(content, /developer_instructions =/);
     }
