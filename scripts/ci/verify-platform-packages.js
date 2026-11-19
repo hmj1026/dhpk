@@ -203,12 +203,10 @@ function verifyAgent({ root, targetCommit, targetTree, inventory, profiles, modu
   const structural = validateAgentPluginPackage(temp);
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'agent-plugin', { root, targetCommit, targetTree });
   const fingerprintMatches = fingerprintDirectory(temp) === fingerprintDirectory(tracked);
-  const conformanceErrors = checkAgyPlugin(readDirectoryTree(tracked), { version });
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
     receipt: receipt.ok ? 'PASS' : 'FAIL',
     deterministic: fingerprintMatches ? 'PASS' : 'FAIL',
-    conformance: conformanceErrors.length === 0 ? 'PASS' : 'FAIL',
     selectedSkills: generated.skillNames.length,
     selectedSkillIds: generated.skillIds,
     errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked Agent Plugin fingerprint drifted'])],
@@ -296,10 +294,12 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, module
     { root, targetCommit, targetTree },
   );
   const fingerprintMatches = fingerprintDirectory(temp) === fingerprintDirectory(tracked);
+  const conformanceErrors = checkAgyPlugin(readDirectoryTree(tracked), { version });
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
     receipt: receipt.ok ? 'PASS' : 'FAIL',
     deterministic: fingerprintMatches ? 'PASS' : 'FAIL',
+    conformance: conformanceErrors.length === 0 ? 'PASS' : 'FAIL',
     selectedSkills: generated.selected.skills.length,
     selectedSkillIds: generated.selected.skills.map((skill) => skill.id),
     errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked AGY package fingerprint drifted']), ...conformanceErrors],
