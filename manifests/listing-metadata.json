@@ -15,6 +15,25 @@
     "debugging",
     "documentation"
   ],
+  "packages": {
+    "claude-core": {
+      "displayName": "DHPK Dev Harness",
+      "description": "Reusable Claude Code harness with role-based agents, skills, hooks, and advisory reviewer dispatch, plus a parallel Codex CLI projection. Stack modules and stack skills ship separately in dhpk-stacks.",
+      "keywords": ["harness", "codex", "code-review", "agents", "skills"]
+    },
+    "claude-stacks": {
+      "displayName": "DHPK Stack Modules",
+      "description": "Stack modules and stack skills for the dhpk harness: PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift hooks, references, reviewers, and skills. Requires the dhpk core plugin.",
+      "keywords": ["harness", "stacks", "php", "yii", "phpunit", "laravel", "vue", "swift", "ios", "swiftui", "python", "javascript"]
+    },
+    "claude-marketplace": {
+      "description": "Reusable Claude Code dev harness.",
+      "plugins": {
+        "dhpk": "Reusable Claude Code harness with role-based agents, skills, hooks, and advisory reviewer dispatch, plus a parallel Codex CLI projection. Stack modules and stack skills ship separately in dhpk-stacks.",
+        "dhpk-stacks": "Stack modules and stack skills for the dhpk harness: PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift hooks, references, reviewers, and skills. Requires the dhpk core plugin; owns the modules setting."
+      }
+    }
+  },
   "extensions": {
     "com.openai": {
       "interface": {

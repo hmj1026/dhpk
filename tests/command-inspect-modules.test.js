@@ -1,5 +1,10 @@
 'use strict';
 
+// Separate file by design (CODING_STANDARDS.md, Tests): the owner suite
+// tests/command-inspect.test.js is already past 1100 lines, over the 800-line
+// ceiling, and these cases inspect file layout and size on disk without
+// running the inspector, so they share none of its setup.
+//
 // command-inspect.sh is split into sourced modules so each source file stays
 // under the 256 KiB directory-review limit (#1501).
 

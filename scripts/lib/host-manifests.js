@@ -3,7 +3,8 @@
 // Single version source and generator-declared Host manifest outputs.
 //
 // `package.json` is the only place a maintainer edits the release version.
-// Listing metadata (including extensions["com.openai"].interface) lives only in
+// Listing metadata (description, keywords, display names, and
+// extensions["com.openai"].interface) lives only in
 // manifests/listing-metadata.json. Every Host manifest is either written by a
 // generator that declares it here or rendered from those two sources.
 // Release parity (scripts/lib/release-parity.js) derives its manifest list from
@@ -11,7 +12,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { isDeepStrictEqual } = require('util');
+const { walkFiles, listTrackedFiles } = require('./file-tree');
 
 const VERSION_SOURCE = 'package.json';
 const LISTING_METADATA = 'manifests/listing-metadata.json';
@@ -23,21 +25,57 @@ const READERS = Object.freeze({
   metadataVersion: (data) => (data.metadata || {}).version,
 });
 
+// Listing projections: how a manifest takes its listing fields from
+// manifests/listing-metadata.json. Each returns the manifest with those fields
+// replaced and every other field (and key order) kept.
+const SHARED_LISTING_FIELDS = ['author', 'homepage', 'license'];
+const PACKAGE_LISTING_FIELDS = ['displayName', 'description', 'keywords'];
+
+function definedFields(source, names) {
+  return Object.fromEntries(names.filter((name) => source[name] !== undefined).map((name) => [name, source[name]]));
+}
+
+function packageListing(listing, id) {
+  const entry = (listing.packages || {})[id];
+  if (!entry) throw new Error(`${LISTING_METADATA}: packages.${id} is missing`);
+  return entry;
+}
+
+const LISTING_PROJECTIONS = Object.freeze({
+  'claude-core': (data, listing) => ({
+    ...data, ...definedFields(listing, SHARED_LISTING_FIELDS), ...definedFields(packageListing(listing, 'claude-core'), PACKAGE_LISTING_FIELDS),
+  }),
+  'claude-stacks': (data, listing) => ({
+    ...data, ...definedFields(listing, SHARED_LISTING_FIELDS), ...definedFields(packageListing(listing, 'claude-stacks'), PACKAGE_LISTING_FIELDS),
+  }),
+  'claude-marketplace': (data, listing) => {
+    const entry = packageListing(listing, 'claude-marketplace');
+    return {
+      ...data,
+      description: entry.description,
+      owner: listing.author,
+      plugins: data.plugins.map((plugin) => (entry.plugins[plugin.name] === undefined
+        ? plugin : { ...plugin, description: entry.plugins[plugin.name] })),
+    };
+  },
+});
+
 // Generators and the manifest files each one writes. `read: null` marks a
-// manifest that carries no version field but is still declared.
+// manifest that carries no version field but is still declared. `listing`
+// names the projection that fills its listing fields from the metadata file.
 const GENERATORS = Object.freeze([
   {
     id: 'version-sync',
     command: 'node scripts/ci/gen-host-manifests.js',
     outputs: [
-      { path: '.claude-plugin/plugin.json', read: 'version' },
-      { path: 'distribution/stacks-plugin/plugin.json', read: 'version' },
+      { path: '.claude-plugin/plugin.json', read: 'version', listing: 'claude-core' },
+      { path: 'distribution/stacks-plugin/plugin.json', read: 'version', listing: 'claude-stacks' },
     ],
   },
   {
     id: 'claude-marketplace-listing',
-    command: 'hand-maintained marketplace descriptor (no version field)',
-    outputs: [{ path: '.claude-plugin/marketplace.json', read: null }],
+    command: 'node scripts/ci/gen-host-manifests.js',
+    outputs: [{ path: '.claude-plugin/marketplace.json', read: null, listing: 'claude-marketplace' }],
   },
   {
     id: 'codex-marketplace-listing',
@@ -89,6 +127,12 @@ function versionSyncOutputs() {
   return declaredOutputs().filter((o) => o.generator === 'version-sync');
 }
 
+// Outputs gen-host-manifests keeps in sync: the version-synced manifests and
+// every manifest that takes listing fields from the metadata file.
+function syncedOutputs() {
+  return declaredOutputs().filter((o) => o.generator === 'version-sync' || o.listing);
+}
+
 // Declared manifests that carry a version, plus the version source itself.
 function versionBearingPaths() {
   return [...declaredOutputs().filter((o) => o.read).map((o) => o.path), VERSION_SOURCE];
@@ -103,15 +147,30 @@ function readDeclaredVersion(root, output) {
   return READERS[output.read](data);
 }
 
-function writeDeclaredVersion(root, output, version) {
-  const abs = path.join(root, output.path);
-  const data = JSON.parse(fs.readFileSync(abs, 'utf8'));
-  if (output.read === 'version') {
-    data.version = version;
-  } else {
-    throw new Error(`${output.path}: version is not patched by version-sync`);
-  }
-  fs.writeFileSync(abs, `${JSON.stringify(data, null, 2)}\n`);
+function readListingMetadata(root) {
+  return JSON.parse(fs.readFileSync(path.join(root, LISTING_METADATA), 'utf8'));
+}
+
+// The manifest as it must be on disk: version from package.json, listing
+// fields from the metadata file, everything else as already written.
+function renderSyncedManifest(root, output, version = readSourceVersion(root)) {
+  const current = JSON.parse(fs.readFileSync(path.join(root, output.path), 'utf8'));
+  if (output.read !== null && output.read !== 'version') throw new Error(`${output.path}: version is not patched by version-sync`);
+  const versioned = output.read === 'version' ? { ...current, version } : current;
+  return output.listing ? LISTING_PROJECTIONS[output.listing](versioned, readListingMetadata(root)) : versioned;
+}
+
+// Names of the top-level fields whose on-disk value differs from the rendered one.
+function syncedManifestDrift(root, output, version = readSourceVersion(root)) {
+  const current = JSON.parse(fs.readFileSync(path.join(root, output.path), 'utf8'));
+  const rendered = renderSyncedManifest(root, output, version);
+  return [...new Set([...Object.keys(current), ...Object.keys(rendered)])]
+    .filter((field) => !isDeepStrictEqual(current[field], rendered[field]));
+}
+
+function writeSyncedManifest(root, output, version = readSourceVersion(root)) {
+  const rendered = renderSyncedManifest(root, output, version);
+  fs.writeFileSync(path.join(root, output.path), `${JSON.stringify(rendered, null, 2)}\n`);
 }
 
 function isSkipped(rel) {
@@ -120,33 +179,12 @@ function isSkipped(rel) {
     || SCAN_SKIP_PREFIXES.some((prefix) => rel.startsWith(prefix));
 }
 
-// Git-tracked files when root is itself a Git checkout, so gitignored local
-// artifacts never count; null when root is not a checkout root.
-function listTrackedFiles(root) {
-  const top = spawnSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
-  if (top.status !== 0 || fs.realpathSync(top.stdout.trim()) !== fs.realpathSync(root)) return null;
-  const res = spawnSync('git', ['-C', root, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (res.status !== 0) return null;
-  return res.stdout.split('\0').filter(Boolean);
-}
-
 // Fallback for a non-Git tree (fixtures): walk the filesystem.
-function walkFiles(root) {
-  const found = [];
-  const visit = (dir, rel) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const childRel = rel ? `${rel}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) {
-        if (entry.name !== '.git' && entry.name !== 'node_modules') visit(path.join(dir, entry.name), childRel);
-      }
-      else if (entry.isFile()) found.push(childRel);
-    }
-  };
-  visit(root, '');
-  return found;
+function walkTree(root) {
+  return walkFiles(root, { skipDirectory: (name) => name === '.git' || name === 'node_modules' });
 }
 
-function listManifestFiles(root, lister = (r) => listTrackedFiles(r) || walkFiles(r)) {
+function listManifestFiles(root, lister = (r) => listTrackedFiles(r) || walkTree(r)) {
   return lister(root)
     .filter((rel) => MANIFEST_BASENAMES.has(path.posix.basename(rel)) && !isSkipped(rel))
     .sort();
@@ -160,8 +198,7 @@ function undeclaredManifests(root) {
 // The OpenAI submission manifest is rendered, never hand-written: listing
 // metadata from its single source file, version from package.json.
 function renderOpenaiSubmissionManifest(root, version = readSourceVersion(root)) {
-  const listing = JSON.parse(fs.readFileSync(path.join(root, LISTING_METADATA), 'utf8'));
-  const { $schema, name, ...rest } = listing;
+  const { $schema, name, packages, ...rest } = readListingMetadata(root);
   return { ...($schema === undefined ? {} : { $schema }), name, version, ...rest };
 }
 
@@ -172,9 +209,12 @@ module.exports = {
   declaredOutputs,
   versionBearingPaths,
   versionSyncOutputs,
+  syncedOutputs,
   readSourceVersion,
   readDeclaredVersion,
-  writeDeclaredVersion,
+  renderSyncedManifest,
+  syncedManifestDrift,
+  writeSyncedManifest,
   undeclaredManifests,
   listManifestFiles,
   renderOpenaiSubmissionManifest,

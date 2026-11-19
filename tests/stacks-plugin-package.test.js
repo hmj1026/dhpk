@@ -198,4 +198,11 @@ test('testStacksSessionStart_noModules_isSilent', () => {
   assert.strictEqual(result.stdout, '');
 });
 
+test('planning dhpk-stacks from a tree without the distribution inventory fails instead of omitting stack skills', () => {
+  const root = makeTempDir('dhpk-stacks-no-inventory-');
+  fs.mkdirSync(path.join(root, 'modules', 'demo'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'modules', 'demo', 'module.yaml'), 'id: demo\n');
+  assert.throws(() => generator.compileStacksPackage({ root }), /distribution-inventory\.json/);
+});
+
 run('stacks-plugin-package');

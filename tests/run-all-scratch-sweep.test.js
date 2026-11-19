@@ -1,5 +1,11 @@
 'use strict';
 
+// Separate file by design (CODING_STANDARDS.md, Tests): the subject is the
+// tests/run-all.js scratch cleanup, not shard verification, and the owner suite
+// tests/verify-test-shards.test.js is already past 1600 lines, twice the
+// 800-line ceiling. Each case builds a throwaway temp root and ages directories
+// with utimes, so it shares no setup with that suite.
+
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');

@@ -1,5 +1,10 @@
 'use strict';
 
+// Separate file by design (CODING_STANDARDS.md, Tests): the owner suite
+// tests/command-inspect.test.js is already past 1100 lines, over the 800-line
+// ceiling, and these cases put fake `tr` executables first on PATH (PATH shims
+// in private temp directories), an environment the owner suite does not use.
+//
 // Case folding in the command inspector (#1491 security review). The fold is
 // pure bash: no `tr`, so a BSD tr that aborts on an illegal byte, a failing or
 // missing tr, or a fork failure can never turn a risky value into "" and allow.
