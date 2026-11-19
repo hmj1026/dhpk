@@ -3,13 +3,13 @@
 // Projection Journal core (ADR-0036, js-projection-journal stage 2).
 //
 // Every filesystem effect of a transaction is a record
-// `{ id, kind, args, inverse, state }`. A record is flushed as `planned`
-// before its effect runs and becomes `done` with the next flush, so only the
-// last record can be ambiguous after a crash. Before the commit point
-// (`published`) recovery applies the inverse of every record that may have
-// run, newest first; after it, recovery finishes the remaining cleanup
-// records. Inverses are idempotent, so an interrupted recovery can run again.
-// Writes inside a journaled transient directory are covered by that
+// `{ id, kind, args, inverse, state }`. Records are flushed as `planned`
+// before their effects run (individually via `effect()` or per phase via
+// `effectBatch()`) and become `done` on completion/next flush. Before the
+// commit point (`published`) recovery applies the inverse of every record that
+// may have run, newest first; after it, recovery finishes the remaining
+// cleanup records. Inverses are idempotent, so an interrupted recovery can run
+// again. Writes inside a journaled transient directory are covered by that
 // directory's record.
 //
 // The core knows nothing about receipts or Hosts: callers own the journal
@@ -128,6 +128,89 @@ function fileDigestOrNull(target) {
   return sha256Hex(fs.readFileSync(target));
 }
 
+// True only when a `planned` `copy-tree` target is an actual truncated prefix
+// of its digest-verified staged source file. Completed copies match the
+// recorded digest directly; user edits or colliding foreign files fail closed
+// with RECOVERY_CONFLICT even when a batched journal leaves multiple records
+// `planned` on disk.
+function isPartialCopyFile(projectRoot, record) {
+  if (record.state !== 'planned' || record.kind !== 'copy-tree') return false;
+  if (!record.args || typeof record.args.from !== 'string' || typeof record.args.to !== 'string') return false;
+  let from;
+  let to;
+  try {
+    from = effectAbsolute(projectRoot, record.args.from);
+    to = effectAbsolute(projectRoot, record.args.to);
+  } catch (_) {
+    return false;
+  }
+  const fromStat = lstatOrNull(from);
+  const toStat = lstatOrNull(to);
+  if (!fromStat || fromStat.isSymbolicLink() || !fromStat.isFile()) return false;
+  if (!toStat || toStat.isSymbolicLink() || !toStat.isFile()) return false;
+  if (toStat.size >= fromStat.size) return false;
+  const sourceBytes = fs.readFileSync(from);
+  if (record.args.digest && sha256Hex(sourceBytes) !== record.args.digest) return false;
+  const targetBytes = fs.readFileSync(to);
+  return targetBytes.length < sourceBytes.length && sourceBytes.subarray(0, targetBytes.length).equals(targetBytes);
+}
+
+// Steps run in journal order, and the `planned` records of a crashed run are
+// the journal's tail. So only the first `planned` file copy whose target is not
+// its complete copy can have been interrupted mid-write; every later planned
+// copy never started, and a file at its target belongs to someone else even
+// when it is a byte prefix of the staged source (an empty file always is).
+// Copies without a recorded file digest cannot be judged and are skipped.
+// Trade-off: if a completed earlier copy was deleted or edited after the crash,
+// that copy is taken as in flight and a genuine later partial copy fails closed
+// with RECOVERY_CONFLICT instead of being cleaned up. No user file is deleted.
+function isJudgeablePlannedCopy(record) {
+  return record.state === 'planned' && record.kind === 'copy-tree' && Boolean(record.args)
+    && typeof record.args.digest === 'string' && typeof record.args.to === 'string';
+}
+
+function isCompleteCopy(projectRoot, record) {
+  try {
+    return fileDigestOrNull(effectAbsolute(projectRoot, record.args.to)) === record.args.digest;
+  } catch (_) {
+    return false;
+  }
+}
+
+function firstIncompletePlannedCopy(projectRoot, effects) {
+  return effects.find((record) => isJudgeablePlannedCopy(record) && !isCompleteCopy(projectRoot, record)) || null;
+}
+
+function pathMatchesOrContains(ancestorOrExact, targetPath) {
+  return ancestorOrExact === targetPath || targetPath.startsWith(`${ancestorOrExact}/`);
+}
+
+// Finds the most recent earlier non-undone file-creating record (`copy-tree` or
+// `write-file`) for `targetPath`, stopping if an intervening rename, remove,
+// or symlink replaced that path or an ancestor directory. Used during rollback
+// so a trailing `chmod` inverse verifies content ownership before touching
+// permissions (and skips partial copies that `copy-tree`'s inverse is about to
+// clean up).
+function findFileCreatorRecord(effects, beforeIndex, targetPath) {
+  for (let index = beforeIndex - 1; index >= 0; index -= 1) {
+    const candidate = effects[index];
+    if (!candidate || candidate.state === 'undone') continue;
+    const { kind, args } = candidate;
+    if (!args) continue;
+    if (kind === 'copy-tree' && args.to === targetPath) return candidate;
+    if (kind === 'write-file' && args.path === targetPath) return candidate;
+    if (kind === 'rename' && (
+      (typeof args.from === 'string' && pathMatchesOrContains(args.from, targetPath))
+      || (typeof args.to === 'string' && pathMatchesOrContains(args.to, targetPath))
+    )) return null;
+    if (kind === 'remove' && Array.isArray(args.paths) && args.paths.some((removed) => (
+      typeof removed === 'string' && (args.mode === 'tree' ? pathMatchesOrContains(removed, targetPath) : removed === targetPath)
+    ))) return null;
+    if (kind === 'symlink' && typeof args.path === 'string' && pathMatchesOrContains(args.path, targetPath)) return null;
+  }
+  return null;
+}
+
 function removeEffect(projectRoot, { paths, mode, digest = null, target = null }) {
   for (const relative of paths) {
     const absolute = effectAbsolute(projectRoot, relative);
@@ -202,6 +285,9 @@ function applyEffect(projectRoot, { kind, args }, { forward = false } = {}) {
       const stat = lstatOrNull(absolute);
       if (!stat) return;
       if (stat.isSymbolicLink() || !stat.isFile()) throw effectConflict(args.path, 'transaction mode target is unsafe');
+      if (args.digest && sha256Hex(fs.readFileSync(absolute)) !== args.digest) {
+        throw effectConflict(args.path, 'transaction mode target changed outside the transaction');
+      }
       fs.chmodSync(absolute, args.mode);
       return;
     }
@@ -249,6 +335,7 @@ class ProjectionJournal {
     this.step = 0;
     this.finished = false;
     this.committed = false;
+    this.unstarted = new WeakSet();
   }
 
   // Starts a journal from its header; refuses to replace an existing one.
@@ -268,15 +355,16 @@ class ProjectionJournal {
     if (this.afterStep) this.afterStep(this.step, record);
   }
 
-  settleLast() {
-    const last = this.journal.effects[this.journal.effects.length - 1];
-    if (last && last.state === 'planned') last.state = 'done';
+  settlePlanned() {
+    for (const record of this.journal.effects) {
+      if (record.state === 'planned') record.state = 'done';
+    }
   }
 
   // Records the effect and its inverse, flushes the journal, then runs it.
   effect(kind, args, inverse, perform = null) {
     if (!EFFECT_KINDS.includes(kind) || (inverse && !EFFECT_KINDS.includes(inverse.kind))) throw fail('UNSAFE_TRANSACTION', `unknown transaction effect kind: ${kind}`);
-    this.settleLast();
+    this.settlePlanned();
     const record = { id: this.journal.effects.length + 1, kind, args, inverse: inverse || null, state: 'planned' };
     this.journal.effects.push(record);
     this.flush();
@@ -287,8 +375,40 @@ class ProjectionJournal {
     return record;
   }
 
+  // Records a batch of planned effects and their inverses in one journal flush,
+  // then executes each step in order. Every effect is durable on disk before
+  // any step runs (REQ-7), and every step still fires midStep/afterStep so
+  // crash sweeps cover every boundary (REQ-8).
+  effectBatch(steps) {
+    if (!Array.isArray(steps) || steps.length === 0) return [];
+    for (const step of steps) {
+      if (!step || !EFFECT_KINDS.includes(step.kind) || (step.inverse && !EFFECT_KINDS.includes(step.inverse.kind))) {
+        throw fail('UNSAFE_TRANSACTION', `unknown transaction effect kind: ${step && step.kind}`);
+      }
+    }
+    this.settlePlanned();
+    const planned = steps.map((step) => {
+      const record = { id: this.journal.effects.length + 1, kind: step.kind, args: step.args, inverse: step.inverse || null, state: 'planned' };
+      this.journal.effects.push(record);
+      this.unstarted.add(record);
+      return { record, step };
+    });
+    this.flush();
+    for (const { record, step } of planned) {
+      if (this.midStep) this.midStep(this.step + 1, record);
+      if (step.before) step.before();
+      this.unstarted.delete(record);
+      if (step.perform) step.perform();
+      else applyEffect(this.projectRoot, record, { forward: true });
+      record.state = 'done';
+      this.tick(record);
+      if (step.after) step.after();
+    }
+    return planned.map(({ record }) => record);
+  }
+
   setPhase(phase) {
-    this.settleLast();
+    this.settlePlanned();
     this.journal.phase = phase;
     this.flush();
   }
@@ -297,7 +417,7 @@ class ProjectionJournal {
   // The in-memory journal changes only after the flush succeeds, so a failed
   // flush still rolls back from the phase before it.
   publish(cleanups) {
-    this.settleLast();
+    this.settlePlanned();
     const effects = this.journal.effects.slice();
     for (const cleanup of cleanups) effects.push({ id: effects.length + 1, ...cleanup, inverse: null, state: 'planned' });
     const next = { ...this.journal, phase: 'published', effects };
@@ -317,29 +437,60 @@ class ProjectionJournal {
     this.close();
   }
 
-  // Undoes every effect that may have run, newest first. Only the last record
-  // can still be `planned` while its effect already ran. Returns the phase the
-  // transaction was in when the rollback started.
+  // Undoes every effect that may have run, newest first. Every recorded
+  // `planned` effect in a recovered journal may have run (both single effects
+  // and pre-flushed batches), and every inverse is idempotent so an effect that
+  // never ran is a safe no-op. In-process, steps still in `this.unstarted`
+  // threw before mutating disk and are flushed as undone before any inverse
+  // runs, so an interrupted rollback preserves that boundary across processes.
   rollBack() {
     // Past the commit point only roll-forward is allowed (REQ-4).
     if (this.committed || this.journal.phase === 'published') throw fail('TRANSACTION_COMMITTED', 'project projection transaction is published and can only be finished, not rolled back');
     // One attempt per process: a failed rollback leaves the journal for recovery.
     this.finished = true;
+    const effects = this.journal.effects;
+    let markedUnstarted = false;
+    for (const record of effects) {
+      if (record.state !== 'undone' && this.unstarted.has(record)) {
+        record.state = 'undone';
+        this.unstarted.delete(record);
+        markedUnstarted = true;
+      }
+    }
     if (this.journal.phase !== 'rolling-back') {
       this.journal.rollingBackFrom = this.journal.phase;
       this.journal.phase = 'rolling-back';
       this.flush();
+    } else if (markedUnstarted) {
+      this.flush();
     }
-    const effects = this.journal.effects;
+    // Judged once, before any inverse changes the disk.
+    const inFlightCopy = firstIncompletePlannedCopy(this.projectRoot, effects);
+    const isInFlightPartialCopy = (candidate) => candidate === inFlightCopy && isPartialCopyFile(this.projectRoot, candidate);
     for (let index = effects.length - 1; index >= 0; index -= 1) {
       const record = effects[index];
-      if (record.state === 'undone' || (record.state === 'planned' && index !== effects.length - 1)) continue;
+      if (record.state === 'undone') continue;
       if (!record.inverse) throw fail('UNSAFE_TRANSACTION', `project projection transaction effect ${record.id} (${record.kind}) cannot be undone`);
-      // An interrupted copy may leave a partial file. Its target was absent
-      // when the record was planned, so the file is this transaction's even
-      // though its digest does not match yet.
-      const partialCopy = record.state === 'planned' && record.kind === 'copy-tree';
-      applyEffect(this.projectRoot, partialCopy ? { ...record.inverse, args: { ...record.inverse.args, digest: null } } : record.inverse);
+      // An interrupted copy may leave a truncated prefix of the staged source
+      // file before its full digest matches. Only the one in-flight copy may
+      // bypass the digest check, and only as a verified prefix, so foreign or
+      // post-crash edited files still fail closed with a conflict.
+      const partialCopy = isInFlightPartialCopy(record);
+      let inverse = partialCopy ? { ...record.inverse, args: { ...record.inverse.args, digest: null } } : record.inverse;
+      let skipInverse = false;
+      if (inverse.kind === 'chmod' && inverse.args && typeof inverse.args.path === 'string') {
+        const creator = findFileCreatorRecord(effects, index, inverse.args.path);
+        if (creator) {
+          if (isInFlightPartialCopy(creator)) {
+            // Skip chmod on an interrupted partial copy so the earlier
+            // copy-tree inverse can remove it without a digest conflict.
+            skipInverse = true;
+          } else if (!inverse.args.digest && creator.args && creator.args.digest) {
+            inverse = { ...inverse, args: { ...inverse.args, digest: creator.args.digest } };
+          }
+        }
+      }
+      if (!skipInverse) applyEffect(this.projectRoot, inverse);
       if (this.midStep) this.midStep(this.step + 1, record);
       record.state = 'undone';
       this.flush();

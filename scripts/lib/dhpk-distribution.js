@@ -36,7 +36,13 @@ const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheck
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { createPreviewSourceSnapshot } = require('./distribution-preview');
 const { lstatOrNull } = require('./bounded-filesystem');
-const { ON_DEMAND_SURFACES, isOnDemandSurface, onDemandRelativeDir, archiveOnDemandPackage } = require('./on-demand-packages');
+const {
+  ON_DEMAND_SURFACES,
+  isOnDemandSurface,
+  onDemandRelativeDir,
+  archiveOnDemandPackage,
+  withOnDemandSurfaceLock,
+} = require('./on-demand-packages');
 
 const OPERATIONS = Object.freeze(['generate', 'preview', 'validate', 'verify']);
 const SURFACES = Object.freeze({
@@ -362,29 +368,31 @@ function runAgy(operation, context) {
 function executeBuild(request, root) {
   try {
     const context = runtime(root, { ...request, operation: 'generate' });
-    assertOwnedGenerationTarget(request.surface, context.output);
-    const surface = SURFACES[request.surface];
-    const result = surface.run('generate', context);
-    const archive = result.ok
-      ? archiveOnDemandPackage({ surface: request.surface, packageDir: context.output, version: context.version })
-      : null;
-    return {
-      ok: result.ok,
-      status: result.ok ? 0 : 1,
-      payload: {
-        surface: request.surface,
-        operation: 'build',
-        verdict: result.ok ? 'PASS' : 'FAIL',
-        output: context.output,
-        ...(archive ? { archive: archive.archivePath, archiveSha256: archive.sha256 } : {}),
-        evidence: {
-          stage: 'structural',
-          runtime: 'NOT_RUN',
-          reason: `This command builds and verifies deterministic package structure; ${surface.runtimeProbe} is a separate evidence-bound probe.`,
+    return withOnDemandSurfaceLock(context.output, () => {
+      assertOwnedGenerationTarget(request.surface, context.output);
+      const surface = SURFACES[request.surface];
+      const result = surface.run('generate', context);
+      const archive = result.ok
+        ? archiveOnDemandPackage({ surface: request.surface, packageDir: context.output, version: context.version })
+        : null;
+      return {
+        ok: result.ok,
+        status: result.ok ? 0 : 1,
+        payload: {
+          surface: request.surface,
+          operation: 'build',
+          verdict: result.ok ? 'PASS' : 'FAIL',
+          output: context.output,
+          ...(archive ? { archive: archive.archivePath, archiveSha256: archive.sha256 } : {}),
+          evidence: {
+            stage: 'structural',
+            runtime: 'NOT_RUN',
+            reason: `This command builds and verifies deterministic package structure; ${surface.runtimeProbe} is a separate evidence-bound probe.`,
+          },
+          ...result.details,
         },
-        ...result.details,
-      },
-    };
+      };
+    });
   } catch (error) {
     return { ok: false, status: 1, error: error.message };
   }
@@ -432,24 +440,45 @@ function execute(argv, root) {
         options: Object.freeze({ ...request.options, output }),
       };
     }
-    const context = runtime(snapshot ? snapshot.root : root, effectiveRequest);
-    if (request.operation === 'generate') assertOwnedGenerationTarget(request.surface, context.output);
-    if (snapshot) {
-      context.allowPreview = true;
-      context.publication = {
-        publicationMode: 'preview',
-        releaseEligible: false,
-        origin: {
-          baseCommit: snapshot.baseCommit,
-          baseTree: snapshot.baseTree,
-          snapshotCommit: snapshot.snapshotCommit,
-          snapshotTree: snapshot.snapshotTree,
-          changeCounts: snapshot.changeCounts,
-        },
-      };
-    }
     const surface = SURFACES[request.surface];
-    const result = surface.run(request.operation === 'preview' ? 'preview' : request.operation, context);
+    const targetOutput = path.resolve(
+      snapshot ? snapshot.root : root,
+      effectiveRequest.options.output || surface.output,
+    );
+    // Readers take the same per-directory lock as `generate` and `build`, for
+    // the default and any custom --output, so they never see a half-published
+    // package. A read-only parent falls back to an unlocked read.
+    const lockBeforeRuntime = isOnDemandSurface(request.surface)
+      && (request.operation === 'validate' || request.operation === 'verify')
+      && fs.existsSync(path.dirname(targetOutput));
+    const runDistribution = () => {
+      const context = runtime(snapshot ? snapshot.root : root, effectiveRequest);
+      if (snapshot) {
+        context.allowPreview = true;
+        context.publication = {
+          publicationMode: 'preview',
+          releaseEligible: false,
+          origin: {
+            baseCommit: snapshot.baseCommit,
+            baseTree: snapshot.baseTree,
+            snapshotCommit: snapshot.snapshotCommit,
+            snapshotTree: snapshot.snapshotTree,
+            changeCounts: snapshot.changeCounts,
+          },
+        };
+      }
+      const runOperation = () => {
+        if (request.operation === 'generate') assertOwnedGenerationTarget(request.surface, context.output);
+        return surface.run(request.operation === 'preview' ? 'preview' : request.operation, context);
+      };
+      const result = isOnDemandSurface(request.surface) && request.operation === 'generate'
+        ? withOnDemandSurfaceLock(context.output, runOperation)
+        : runOperation();
+      return { context, result };
+    };
+    const { context, result } = lockBeforeRuntime
+      ? withOnDemandSurfaceLock(targetOutput, runDistribution, { readOnlyFallback: true })
+      : runDistribution();
     const evidence = {
       stage: 'structural',
       runtime: 'NOT_RUN',

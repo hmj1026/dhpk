@@ -450,4 +450,41 @@ test('testCraftedJournal_outsideOwnedPaths_isRejectedWithoutChanges', () => {
   }
 });
 
+test('testCrashedBatchRecovery_preservesForeignFileContentAndPermissions', () => {
+  const context = fixture();
+  try {
+    let crashed = false;
+    assert.throws(() => {
+      publisher.materializeRelocatableAgentsSkillsProjection({
+        ...context.options,
+        afterStep: {
+          mid: (step, record) => {
+            if (record && record.kind === 'copy-tree') {
+              crashed = true;
+              throw new publisher.__testing.SimulatedCrash(step);
+            }
+          },
+        },
+      });
+    }, (error) => error instanceof publisher.__testing.SimulatedCrash);
+    assert.strictEqual(crashed, true);
+    const journal = JSON.parse(fs.readFileSync(path.join(context.projectRoot, JOURNAL), 'utf8'));
+    const unstartedCopy = journal.effects.find((record) => record.kind === 'copy-tree' && record.state === 'planned');
+    assert.ok(unstartedCopy, 'expected a planned copy-tree effect in the crashed batch journal');
+    const foreignPath = path.join(context.projectRoot, unstartedCopy.args.to);
+    fs.mkdirSync(path.dirname(foreignPath), { recursive: true });
+    fs.writeFileSync(foreignPath, 'foreign-user-secret\n', { mode: 0o600 });
+    fs.chmodSync(foreignPath, 0o600);
+
+    assert.throws(
+      () => publisher.recoverAgentsSkillsProjection({ projectRoot: context.projectRoot }),
+      (error) => error.projectionCode === 'RECOVERY_CONFLICT',
+    );
+    assert.strictEqual(fs.readFileSync(foreignPath, 'utf8'), 'foreign-user-secret\n');
+    assert.strictEqual(fs.statSync(foreignPath).mode & 0o777, 0o600, 'foreign file permissions must stay 0600 on crashed batch recovery');
+  } finally {
+    cleanup(context);
+  }
+});
+
 run('project-agent-projection-journal-crash');

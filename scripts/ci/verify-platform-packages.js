@@ -51,7 +51,12 @@ const {
 } = require('../lib/publication-conformance');
 const { NATIVE_RECEIPT_FILES, publicPluginTreeDrift } = require('../lib/public-plugin-tree');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
-const { isOnDemandSurface, onDemandPackageDir, onDemandRelativeDir } = require('../lib/on-demand-packages');
+const {
+  isOnDemandSurface,
+  onDemandPackageDir,
+  onDemandRelativeDir,
+  withOnDemandLocks,
+} = require('../lib/on-demand-packages');
 const { execute: executeDistribution } = require('../lib/dhpk-distribution');
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
@@ -592,16 +597,22 @@ function main(argv = process.argv.slice(2)) {
   fs.rmSync(tempAgy, { recursive: true, force: true });
   let report;
   try {
-    const surfaces = {
-      ...(selectedSurfaces.includes('agent-plugin') ? { 'agent-plugin': verifyAgent({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'agent-plugin'), temp: tempAgent }) } : {}),
-      ...(selectedSurfaces.includes('cursor-plugin') ? { 'cursor-plugin': verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'cursor-plugin'), temp: tempCursor }) } : {}),
-      ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
-      ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'agy-plugin'), temp: tempAgy }) } : {}),
-      ...(selectedSurfaces.includes('public-plugin') ? { 'public-plugin': verifyPublicPlugin({ root, inventory }) } : {}),
-      ...(selectedSurfaces.includes('directory-plugin') ? { 'directory-plugin': verifyDirectoryPlugin({ root }) } : {}),
-    };
+    const onDemandDirs = selectedSurfaces
+      .filter(isOnDemandSurface)
+      .map((surface) => onDemandPackageDir(root, surface));
+    const { surfaces, policyParity } = withOnDemandLocks(onDemandDirs, () => {
+      const verified = {
+        ...(selectedSurfaces.includes('agent-plugin') ? { 'agent-plugin': verifyAgent({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'agent-plugin'), temp: tempAgent }) } : {}),
+        ...(selectedSurfaces.includes('cursor-plugin') ? { 'cursor-plugin': verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'cursor-plugin'), temp: tempCursor }) } : {}),
+        ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
+        ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'agy-plugin'), temp: tempAgy }) } : {}),
+        ...(selectedSurfaces.includes('public-plugin') ? { 'public-plugin': verifyPublicPlugin({ root, inventory }) } : {}),
+        ...(selectedSurfaces.includes('directory-plugin') ? { 'directory-plugin': verifyDirectoryPlugin({ root }) } : {}),
+      };
+      return { surfaces: verified, policyParity: verifyPolicyParity(root, inventory, selectedSurfaces) };
+    });
     const selection = parsed.explicit ? { requested: parsed.requested, resolved: parsed.resolved } : null;
-    report = reportFromSurfaces(surfaces, verifyPolicyParity(root, inventory, selectedSurfaces), selection);
+    report = reportFromSurfaces(surfaces, policyParity, selection);
   } catch (error) {
     report = { verdict: 'FAIL', surfaces: {}, errors: [error.message] };
   } finally {
