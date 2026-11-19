@@ -32,8 +32,8 @@ A skill or command step whose logic is fully deterministic (fixed command sequen
 
 #### Scenario: precommit prose fallback removed
 
-- **WHEN** `commands/precommit.md` and `commands/precommit-fast.md` are read after this change
-- **THEN** neither contains the ecosystem-detection fallback table; both forward to the canonical `$precommit` Skill, whose package-local `precommit-runner.js` runs with `--mode full` or `--mode fast`
+- **WHEN** `skills/precommit/SKILL.md` is read after this change
+- **THEN** it contains no ecosystem-detection fallback table; it is the canonical `$precommit` Skill, whose package-local `precommit-runner.js` runs with `--mode full` or `--mode fast`
 
 #### Scenario: Release sequence scripted
 

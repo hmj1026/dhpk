@@ -310,7 +310,7 @@ marketplace selection, command-skill dispositions, skill-directory coverage,
 skill-resources and skill-resource-copies, profile-projection-sets, skills
 index, route-table, generated flow-guide usage catalog, generated provenance
 embeddings, and pointers in `polyfill-reviewer`, `version-matrix-impact-reviewer`,
-and `doc-updater`. Regeneration of `generated/` SHALL follow the plugin
+and `doc-updater`. Regeneration of `dist/` SHALL follow the plugin
 development clean-checkout preflight. Unrelated retirement ledgers, external
 packages, receipt-owned conflicts, and keep-separate identities SHALL remain
 intact. Static catalog reduction SHALL NOT be reported as observed runtime

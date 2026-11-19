@@ -220,7 +220,7 @@ requirement stands.
    Each line is `file <path>` (field-patched manifests, the
    `## X.Y.Z — YYYY-MM-DD — summary` heading in `CHANGELOG.md`, and the
    version-pinned installation docs), `dir <prefix>` (the wholesale
-   regenerated `plugins/dhpk*/` and `generated/claude-marketplace/package/`
+   regenerated `plugins/dhpk/`, `dist/claude-marketplace/package/` and `dist/claude-marketplace/stacks-package/`
    packages), or `deleted changelog.d/` (promoted fragments). A standard bump
    touches about two dozen files. Every manifest must contain the same SemVer
    version, and the tag format is exactly `vX.Y.Z`. Unrelated source changes do
@@ -332,6 +332,14 @@ tag version (`scripts/ci/verify-release-parity.js`), rejects missing or
 whitespace-only changelog notes (`scripts/release/extract-notes.sh`), and
 creates a GitHub Release from those notes. If the GitHub Release already
 exists, a rerun preserves it rather than editing its metadata.
+
+The Release workflow also builds the Agent, Cursor and AGY packages on demand
+(`bin/dhpk distribution build <surface>`, run by `release-verify.sh` stage
+`host-packages`) and attaches `dhpk-agent-<version>.tar.gz`,
+`dhpk-cursor-<version>.tar.gz` and `dhpk-agy-<version>.tar.gz` to the GitHub
+Release. Those trees are not committed; an asset that already exists on the
+release is preserved on rerun. The post-publish consumer job downloads the
+published archives and probes them.
 
 If the pre-tag SOURCE+PACKAGE gate fails, no tag is created. Diagnose the
 provenance or merge topology, preserve any existing immutable tag, and use a

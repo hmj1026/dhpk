@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dhpk-stacks",
+  "displayName": "DHPK Stack Modules",
+  "version": "0.79.0",
+  "description": "Stack modules and stack skills for the dhpk harness: PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift hooks, references, reviewers, and skills. Requires the dhpk core plugin.",
+  "author": {
+    "name": "hmj1026",
+    "url": "https://github.com/hmj1026"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/hmj1026/dhpk",
+  "repository": "https://github.com/hmj1026/dhpk",
+  "icon": "./.claude-plugin/icon.png",
+  "bugs": "https://github.com/hmj1026/dhpk/issues",
+  "keywords": [
+    "harness",
+    "stacks",
+    "php",
+    "yii",
+    "phpunit",
+    "laravel",
+    "vue",
+    "swift",
+    "ios",
+    "swiftui",
+    "python",
+    "javascript"
+  ],
+  "dependencies": [
+    "dhpk"
+  ],
+  "agents": [
+    "./modules/library-author/agents/polyfill-reviewer.md"
+  ],
+  "userConfig": {
+    "modules": {
+      "type": "string",
+      "multiple": true,
+      "title": "Stack modules to enable",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-5.4, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, vue-2, laravel-mix, nextjs-15.5, nextjs-16, react-18, react-19, library-author, python, fastapi, pytest, swift, swiftui, ios-platform, swift-testing, xcode-tooling. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'python' wires a post-edit ruff hook (batched at Stop) + a pre-commit ruff-check/ruff-format/type-check (pyright|mypy) gate — project root auto-detected by walking up to pyproject.toml (set python_project_roots=backend for a subdir backend); 'fastapi' / 'pytest' are skills+references only (fastapi adds db/sec path triggers) and each `requires: python`; enabling 'library-author' makes the polyfill-reviewer available for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3. iOS suite: enabling 'xcode-tooling' wires the SwiftLint post-edit hook + pre-commit xcodebuild/SPM build+test gate (both self-skip when swiftlint/xcodebuild are absent); swift / swiftui / ios-platform / swift-testing are skills+references only (no hooks). The iOS suite is dependency-chained — swiftui / ios-platform / swift-testing / xcode-tooling each `requires: swift`. Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
+      "default": []
+    },
+    "js_lint_script": {
+      "type": "string",
+      "title": "JS lint npm script name",
+      "description": "npm script invoked by modules/js/hooks/pre-commit-js-validation.sh. Default 'lint'. Override when the project uses a non-standard script name (e.g. 'lint:strict').",
+      "default": "lint"
+    },
+    "js_typecheck_script": {
+      "type": "string",
+      "title": "JS typecheck npm script name",
+      "description": "npm script invoked by modules/js/hooks/pre-commit-js-validation.sh. Default 'typecheck'.",
+      "default": "typecheck"
+    },
+    "js_check_path": {
+      "type": "string",
+      "title": "JS @ts-check scan path",
+      "description": "Path scanned by the /dhpk:js-static-checks status command. Default 'js/'. Override for projects laying out JS under e.g. 'src/' or 'app/javascript/'.",
+      "default": "js/"
+    },
+    "python_project_roots": {
+      "type": "string",
+      "multiple": true,
+      "title": "Python project roots",
+      "description": "Subdirs holding a pyproject.toml that the python module's hooks should lint (e.g. 'backend'). Default empty — the hooks walk up from the edited file to the nearest pyproject.toml, which already handles monorepo backends. Set this only to RESTRICT linting to specific subtrees (ignore stray top-level scripts). Read by modules/python/hooks/_lib/python-env.sh.",
+      "default": []
+    },
+    "python_runner": {
+      "type": "string",
+      "title": "Python tool runner prefix",
+      "description": "Command prefix used to invoke ruff / pyright / mypy inside the project env (modules/python/hooks/*). Default 'uv run'. Set 'poetry run' for Poetry, or '' to run tools straight off PATH (already-activated venv). When the runner's binary is absent the hooks fall back to bare PATH tools, then self-skip if those are missing too.",
+      "default": "uv run"
+    },
+    "ruff_bin": {
+      "type": "string",
+      "title": "ruff binary name",
+      "description": "ruff executable invoked by modules/python/hooks/{post-edit-python-lint.sh,stop-py-batch-check.sh,pre-commit-python-validation.sh}. Default 'ruff' (via the runner, or bare on PATH).",
+      "default": "ruff"
+    },
+    "python_typechecker": {
+      "type": "string",
+      "title": "Python type checker",
+      "description": "Type checker the python module's pre-commit gate runs on staged .py: 'pyright' (default), 'mypy', or 'none' to skip type-checking. ccas runs pyright strict.",
+      "default": "pyright"
+    },
+    "pyright_bin": {
+      "type": "string",
+      "title": "pyright binary name",
+      "description": "pyright executable used when python_typechecker=pyright. Default 'pyright' (via the runner, or bare on PATH).",
+      "default": "pyright"
+    },
+    "mypy_bin": {
+      "type": "string",
+      "title": "mypy binary name",
+      "description": "mypy executable used when python_typechecker=mypy. Default 'mypy' (via the runner, or bare on PATH).",
+      "default": "mypy"
+    },
+    "xcode_scheme": {
+      "type": "string",
+      "title": "Xcode scheme",
+      "description": "Scheme used by modules/xcode-tooling/hooks/pre-commit-swift-build.sh for `xcodebuild build`/`test`. Default empty — when empty and an Xcode project is present, the build gate is skipped (no scheme guessing). Set to the app scheme (e.g. 'babylon') to enable the gate.",
+      "default": ""
+    },
+    "xcode_destination": {
+      "type": "string",
+      "title": "Xcode test destination",
+      "description": "`-destination` for the *test* step of the pre-commit gate (modules/xcode-tooling/hooks/pre-commit-swift-build.sh). The *build* step always uses a device-name-free `generic/platform=iOS Simulator`, so it never goes stale. Default empty — the test step then auto-picks the first available iOS simulator, so a stale named default never breaks the gate. Set e.g. 'platform=iOS Simulator,name=iPhone 17' to pin a specific simulator (must be installed — see `xcrun simctl list devices available`).",
+      "default": ""
+    },
+    "swift_build_skip_tests": {
+      "type": "boolean",
+      "title": "Skip tests in the Swift pre-commit gate",
+      "description": "When true, modules/xcode-tooling/hooks/pre-commit-swift-build.sh runs build only (no `xcodebuild test` / `swift test`). Default false (build + test).",
+      "default": false
+    },
+    "php_cs_fixer_bin": {
+      "type": "string",
+      "title": "php-cs-fixer binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh. Default 'vendor/bin/php-cs-fixer'. Override for non-standard locations (global install, docker exec wrapper, monorepo shared bin).",
+      "default": "vendor/bin/php-cs-fixer"
+    },
+    "phpstan_bin": {
+      "type": "string",
+      "title": "phpstan binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh when phpstan.neon[.dist] is present. Default 'vendor/bin/phpstan'.",
+      "default": "vendor/bin/phpstan"
+    },
+    "psalm_bin": {
+      "type": "string",
+      "title": "psalm binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh when psalm.xml[.dist] is present. Default 'vendor/bin/psalm'.",
+      "default": "vendor/bin/psalm"
+    },
+    "js_frontend_roots": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS frontend root directories",
+      "description": "Project override for the js module's tier detection: root directories scanned for first-party JS/TS. Empty falls back to modules/js/module.yaml (default [js, src]).",
+      "default": []
+    },
+    "js_core_files": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS core files",
+      "description": "Project override for the js module's tier detection: basenames at the top of a frontend root that are first-party entry bundles (linted/reviewed) rather than vendor. Example: [\"app.js\", \"main.js\"]. Empty falls back to module.yaml.",
+      "default": []
+    },
+    "js_vendor_globs": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS vendor globs",
+      "description": "Project override for the js module's tier detection: glob path prefixes treated as vendored (lint-skipped at any depth), e.g. [\"js/ckeditor/\", \"js/jquery-*\"]. Globs must not contain commas. Empty falls back to module.yaml.",
+      "default": []
+    }
+  }
+}

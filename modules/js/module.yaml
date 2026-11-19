@@ -12,7 +12,6 @@ triggers:
     paths: [js/, src/, app/, public/]
 provides:
   skills: [js-static-checks]
-  commands: [ts-check-status]
   references: [static-checks.md, frontend-review-patterns.md]
 # ---- JS-specific tier configuration (read by hooks/_lib/js-tier-detect.sh) ----
 # All keys are optional. Defaults preserve safe behaviour for projects that

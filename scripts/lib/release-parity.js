@@ -13,30 +13,25 @@
 const fs = require('fs');
 const path = require('path');
 
+const {
+  declaredOutputs,
+  readDeclaredVersion,
+  readSourceVersion,
+  renderOpenaiSubmissionManifest,
+  undeclaredManifests,
+  versionBearingPaths,
+} = require('./host-manifests');
+
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+$/;
 
-const MANIFEST_PATHS = [
-  '.claude-plugin/plugin.json',
-  '.codex-plugin/plugin.json',
-  'plugins/dhpk/.codex-plugin/plugin.json',
-  '.agents/plugins/marketplace.json',
-  'plugins/dhpk/provenance.json',
-  'plugins/dhpk-agent/plugin.json',
-  'plugins/dhpk-agent/provenance.json',
-  'plugins/dhpk-agy/plugin.json',
-  'plugins/dhpk-agy/provenance.json',
-  'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
-  'plugins/dhpk-cursor/provenance.json',
-  'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-  'package.json',
-];
+const MANIFEST_PATHS = versionBearingPaths();
 
 const AGY_GENERATOR_DOC_PATHS = [
   'docs/platform-installation.md',
   'docs/platform-installation.zh-TW.md',
 ];
 
-const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution agy-plugin generate --output plugins\/dhpk-agy --version=(\d+\.\d+\.\d+) --json/g;
+const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution build agy-plugin --version=(\d+\.\d+\.\d+) --json/g;
 
 // Directories that `prepare-release.js write` regenerates wholesale, and the
 // fragment directory whose promoted entries it deletes. Together with the
@@ -44,10 +39,8 @@ const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution agy-plugin generate --outpu
 // set of paths a release-preparation commit may touch.
 const REGENERATED_RELEASE_DIRS = [
   'plugins/dhpk/',
-  'plugins/dhpk-agent/',
-  'plugins/dhpk-cursor/',
-  'plugins/dhpk-agy/',
-  'generated/claude-marketplace/package/',
+  'dist/claude-marketplace/package/',
+  'dist/claude-marketplace/stacks-package/',
 ];
 
 const CHANGELOG_FRAGMENT_DIR = 'changelog.d/';
@@ -66,7 +59,7 @@ function releaseScope() {
 }
 
 function agyGeneratorCommand(version) {
-  return `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json`;
+  return `bin/dhpk distribution build agy-plugin --version=${version} --json`;
 }
 
 function findAgyGeneratorPins(text) {
@@ -118,22 +111,32 @@ function writeAgyGeneratorDocPins(root, version) {
 }
 
 function readManifestVersion(root, relPath) {
-  const abs = path.join(root, relPath);
-  const data = JSON.parse(fs.readFileSync(abs, 'utf8'));
-  if (relPath.endsWith('marketplace.json')) {
-    const entry = (data.plugins || []).find((p) => p.name === 'dhpk');
-    return entry ? entry.version : undefined;
-  }
-  if (relPath.endsWith('provenance.json')) {
-    return data.sourceVersion;
-  }
-  return data.version;
+  if (relPath === 'package.json') return readSourceVersion(root);
+  const output = declaredOutputs().find((o) => o.path === relPath);
+  return readDeclaredVersion(root, output);
 }
 
 function readChangelogHeadingVersion(root, targetVersion) {
   const changelog = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8');
   const pattern = new RegExp(`^## ${targetVersion.replace(/\./g, '\\.')} `, 'm');
   return pattern.test(changelog);
+}
+
+// The OpenAI submission manifest has no committed file: it is rendered from the
+// listing metadata source and package.json, so its version is the source's.
+function checkOpenaiSubmissionManifest(root, targetVersion) {
+  try {
+    const rendered = renderOpenaiSubmissionManifest(root);
+    return rendered.version === targetVersion
+      ? []
+      : [`openai-submission manifest (rendered): version '${rendered.version}' does not match target '${targetVersion}'`];
+  } catch (error) {
+    return [`openai-submission manifest (rendered): could not render (${error.message})`];
+  }
+}
+
+function checkUndeclaredManifests(root) {
+  return undeclaredManifests(root).map((rel) => `${rel}: manifest is not declared by any generator (add it to scripts/lib/host-manifests.js)`);
 }
 
 function checkParity(root, targetVersion) {
@@ -155,6 +158,9 @@ function checkParity(root, targetVersion) {
       errors.push(`${relPath}: version '${observed}' does not match target '${targetVersion}'`);
     }
   }
+
+  errors.push(...checkOpenaiSubmissionManifest(root, targetVersion));
+  errors.push(...checkUndeclaredManifests(root));
 
   if (!readChangelogHeadingVersion(root, targetVersion)) {
     errors.push(`CHANGELOG.md: no '## ${targetVersion} ' release heading found`);

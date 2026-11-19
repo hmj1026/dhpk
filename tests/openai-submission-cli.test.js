@@ -13,10 +13,9 @@ function fixture() {
   const root = path.join(directory, 'source');
   const output = path.join(directory, 'artifact');
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
-  fs.mkdirSync(path.join(root, '.claude-plugin'));
   fs.mkdirSync(path.join(root, 'skills/alpha'), { recursive: true });
   const write = (file, value) => fs.writeFileSync(path.join(root, file), JSON.stringify(value));
-  write('.claude-plugin/plugin.json', { name: 'dhpk', version: '1.2.3' });
+  write('package.json', { name: 'dhpk', version: '1.2.3' });
   write('manifests/distribution-inventory.json', {
     skills: [{ id: 'alpha', name: 'alpha', path: 'skills/alpha', surfaces: [], profiles: ['core'] }],
   });
@@ -24,15 +23,17 @@ function fixture() {
     skills: [{ id: 'alpha', kind: 'entry', owner: null, selection: 'common', authority: 'read-only' }],
   });
   fs.writeFileSync(path.join(root, 'skills/alpha/SKILL.md'), '---\nname: alpha\ndescription: Test skill.\n---\nInstructions.\n');
-  const manifest = path.join(directory, 'listing.json');
-  fs.writeFileSync(manifest, JSON.stringify({
+  const listing = {
     $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
-    name: 'dhpk', version: '1.2.3', description: 'A fixture workflow package.',
+    name: 'dhpk', description: 'A fixture workflow package.',
     extensions: { 'com.openai': { interface: {
       displayName: 'Fixture', shortDescription: 'Test workflow',
       longDescription: 'A test workflow package.', developerName: 'Fixture', category: 'Developer Tools',
     } } },
-  }));
+  };
+  write('manifests/listing-metadata.json', listing);
+  const manifest = path.join(directory, 'listing.json');
+  fs.writeFileSync(manifest, JSON.stringify({ ...listing, version: '1.2.3' }));
   const git = (args) => {
     const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
@@ -44,12 +45,25 @@ function fixture() {
   return { directory, root, output, manifest, generate, git };
 }
 
-test('official submission generation requires a manifest and rejects partial catalog selectors', () => {
-  assert.strictEqual(parseRequest(['openai-submission', 'generate']).ok, false);
+test('official submission generation rejects partial catalog selectors', () => {
+  assert.strictEqual(parseRequest(['openai-submission', 'generate']).ok, true);
   const valid = parseRequest(['openai-submission', 'generate', '--manifest', 'listing.json']);
   assert.strictEqual(valid.ok, true, valid.error);
   for (const selector of [['--skill', 'alpha'], ['--profile', 'minimal'], ['--standalone', 'alpha']]) {
     assert.strictEqual(parseRequest(['openai-submission', 'generate', '--manifest', 'listing.json', ...selector]).ok, false);
+  }
+});
+
+test('generation without --manifest renders the listing from the single metadata source at the package.json version', () => {
+  const f = fixture();
+  try {
+    const result = execute(['openai-submission', 'generate', '--output', f.output], f.root);
+    assert.strictEqual(result.ok, true, result.error || JSON.stringify(result.payload));
+    const verified = execute(['openai-submission', 'verify', '--output', f.output], f.root);
+    assert.strictEqual(verified.ok, true, verified.error || JSON.stringify(verified.payload));
+    assert.strictEqual(result.payload.provenance.provenance.version, '1.2.3');
+  } finally {
+    fs.rmSync(f.directory, { recursive: true, force: true });
   }
 });
 
@@ -95,7 +109,7 @@ test('tracked listing SVGs generate a reproducible artifact with matching finger
     const zip = fs.readFileSync(path.join(f.output, 'package.zip'));
     const receipt = JSON.parse(fs.readFileSync(path.join(f.output, 'provenance.json'), 'utf8'));
     assert.strictEqual(
-      receipt.provenance.fileFingerprints[iconPath],
+      receipt.provenance.fileFingerprints['assets/dhpk-icon.svg'],
       crypto.createHash('sha256').update(iconBytes).digest('hex'),
     );
 
@@ -169,7 +183,8 @@ test('the actual distribution CLI flushes complete large provenance JSON before 
     assert.ok(payload.provenance.provenance.sourceIdentity.commit);
     assert.ok(payload.provenance.provenance.sourceIdentity.tree);
     const fingerprints = payload.provenance.provenance.fileFingerprints;
-    assert.strictEqual(Object.keys(fingerprints).length, resourceCount + 2);
+    // SKILL.md, plugin.json, and .codex-plugin/plugin.json beside the references.
+    assert.strictEqual(Object.keys(fingerprints).length, resourceCount + 3);
     assert.strictEqual(
       fingerprints['skills/alpha/references/reference-0599.txt'],
       crypto.createHash('sha256').update('Reference fixture 0599.\n').digest('hex'),

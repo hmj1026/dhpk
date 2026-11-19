@@ -487,7 +487,7 @@ test('malformed shard timing JSON is rejected', () => {
     assert.deepStrictEqual(parseOptions([], {}), {
       shardIndex: 0,
       shardCount: 1,
-      jobs: 1,
+      jobs: Math.max(1, Math.min(typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length, 4)),
       worker: false,
       files: [],
     });
@@ -1255,7 +1255,7 @@ test('CI plan CLI writes full plans to artifacts and keeps routing outputs bound
     git('config', 'user.name', 'Test');
     git('config', 'commit.gpgsign', 'false');
 
-    const retiredOutput = path.join(root, 'generated', 'claude-marketplace', 'package', 'modules', 'retired-output');
+    const retiredOutput = path.join(root, 'dist', 'claude-marketplace', 'package', 'modules', 'retired-output');
     fs.mkdirSync(retiredOutput, { recursive: true });
     for (let index = 0; index < 3000; index += 1) {
       const name = `retired-${String(index).padStart(4, '0')}.json`;
@@ -1400,7 +1400,7 @@ test('shard verification reloads the pull request classification before trusting
     'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js',
     'install-codex-adapter-journal.test.js',
     'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js',
-    'installer-bundle.test.js', 'install-code-data-root.test.js', 'install-shell-entry-parity.test.js', 'install-shell-entry-thin.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js',
+    'installer-modules.test.js', 'install-code-data-root.test.js', 'install-shell-entry-parity.test.js', 'install-shell-entry-thin.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js',
     'macos-installer-files.test.js', 'native-shared-skill-install.test.js',
   ];
   const fixture = gitFixture((root) => {
@@ -1436,8 +1436,8 @@ test('shard verification reloads the pull request classification before trusting
 });
 
 test('selected package changes carry only their affected platform surfaces', () => {
-  assert.deepStrictEqual(packageSurfacesForFiles(['plugins/dhpk-agent/skills/demo/SKILL.md']), ['agent-plugin']);
-  assert.deepStrictEqual(packageSurfacesForFiles(['plugins/dhpk-cursor/marketplace.json']), ['cursor-plugin']);
+  assert.deepStrictEqual(packageSurfacesForFiles(['scripts/lib/agent-plugin-package.js']), ['agent-plugin']);
+  assert.deepStrictEqual(packageSurfacesForFiles(['scripts/lib/cursor-plugin-package.js']), ['cursor-plugin']);
   assert.deepStrictEqual(packageSurfacesForFiles(['scripts/lib/verify-platform-packages.js']), []);
   assert.deepStrictEqual(packageSurfacesForFiles(['scripts/ci/verify-platform-packages.js']), ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 });
@@ -1471,9 +1471,9 @@ test('canonical content with owned evidence companions stays light and carries e
   const cases = [
     ['plugins/dhpk-agent/skills/demo/SKILL.md', ['agent-plugin']],
     ['plugins/dhpk-agent/provenance.json', ['agent-plugin']],
-    ['generated/claude-marketplace/package/docs/README.md', []],
+    ['dist/claude-marketplace/package/docs/README.md', []],
     ['manifests/skill-resource-copies.json', []],
-    ['generated/claude-marketplace/package/manifests/skill-resource-copies.json', []],
+    ['dist/claude-marketplace/package/manifests/skill-resource-copies.json', []],
   ];
   const generatedChecks = ['claude-marketplace'];
   for (const [companion, packageSurfaces] of cases) {
@@ -1502,7 +1502,7 @@ test('canonical content with owned evidence companions stays light and carries e
 });
 
 test('retired profile output changes fail closed to full CI', () => {
-  const companion = 'generated/claude-profiles/minimal/package/bundle-receipt.json';
+  const companion = 'dist/claude-profiles/minimal/package/bundle-receipt.json';
   const fixture = gitFixture((root) => {
     fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
@@ -1522,7 +1522,7 @@ test('retired profile output changes fail closed to full CI', () => {
 });
 
 test('unknown or generated-only companions fail closed to full CI', () => {
-  for (const companion of ['plugins/dhpk-agent/plugin.json', 'generated/claude-marketplace/package/hooks/hooks.json']) {
+  for (const companion of ['plugins/dhpk-agent/plugin.json', 'dist/claude-marketplace/package/hooks/hooks.json']) {
     const fixture = gitFixture((root) => {
       fs.mkdirSync(path.dirname(path.join(root, companion)), { recursive: true });
       fs.writeFileSync(path.join(root, companion), 'old\n');
@@ -1554,7 +1554,7 @@ test('generated-only Agent receipt stays full even when every adapter owner suit
 
 test('canonical content plus arbitrary generated JSON or executable stays full with owners present', () => {
   const owners = ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js'];
-  for (const generated of ['generated/claude-marketplace/package/hooks/hooks.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agent/scripts/runtime.js']) {
+  for (const generated of ['dist/claude-marketplace/package/hooks/hooks.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agent/scripts/runtime.js']) {
     const fixture = gitFixture((root) => {
       fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
       fs.mkdirSync(path.dirname(path.join(root, generated)), { recursive: true });

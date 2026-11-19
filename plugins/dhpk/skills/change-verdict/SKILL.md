@@ -1,13 +1,6 @@
 ---
 name: change-verdict
-description: 'Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts are read-only; explicit dependency fixes go to an authorized writer. Not for source repair or architecture-only design. Output: evidence-backed findings and review status.'
-allowed-tools: 'Bash(git diff:*), Bash(git status:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git show:*), Bash(git log:*), Bash(git ls-files:*), Bash(git hash-object:*), Bash(gh pr view:*), Bash(node ${CLAUDE_SKILL_DIR}/scripts/risk-analyze.js:*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/check-unrelated-changes.sh:*), Read, Grep, Glob, Agent'
-metadata:
-  dhpk-capability-id: dhpk.skill.change-verdict
-  dhpk-name-style: portable-family
-  dhpk-invocation-class: implicit-eligible
-  dhpk-modes: "[\"code\",\"pr\",\"security\",\"tests\",\"docs\",\"risk\"]"
-  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\",\"code:PASS\":\"precommit\",\"docs:PASS\":\"git-smart-commit\"}"
+description: "Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts are read-only; explicit dependency fixes go to an authorized writer. Not for source repair or architecture-only design. Output: evidence-backed findings and review status."
 ---
 
 # Change Verdict

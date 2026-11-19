@@ -59,12 +59,13 @@ test('testPackageJson_dependencies_remainZero', () => {
   assert.strictEqual(pkg.devDependencies, undefined);
 });
 
-test('generated entry and command validation include directory-owned drift gates', () => {
+test('generated entry validation includes directory-owned drift gates', () => {
   assert.ok(pkg.scripts['check:generated'].includes('check:skill-distribution'));
-  for (const target of ['gen-distribution-inventory.js', 'gen-skill-directory-coverage.js', 'gen-skill-resources.js', 'gen-command-skill-dispositions.js', 'gen-command-forwarders.js']) {
+  for (const target of ['gen-distribution-inventory.js', 'gen-skill-directory-coverage.js', 'gen-skill-resources.js', 'gen-command-skill-dispositions.js']) {
     assert.ok(pkg.scripts['check:skill-distribution'].includes(`${target} --check`), target);
   }
-  assert.ok(pkg.scripts['validate:commands'].includes('gen-command-forwarders.js --check'));
+  assert.strictEqual(pkg.scripts['validate:commands'], undefined);
+  assert.ok(!pkg.files.includes('commands/'));
 });
 
 run('package-json-scripts');

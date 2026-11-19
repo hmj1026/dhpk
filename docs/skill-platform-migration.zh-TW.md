@@ -84,10 +84,9 @@ metadata 檔案推論可用。
 
 | Surface | 語法 | 範例 |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
-| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
+| Claude plugin skill（沒有 `commands/` 目錄） | `/dhpk:<public-skill-name>` | `/dhpk:precommit`、`/dhpk:change-verdict` |
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
-| Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
+| Cursor synced skill | `install-cursor-harness.sh` 之後的 `.cursor/skills/<public-skill-name>/` | `change-verdict` |
 | Codex guidance entry | discovery 後使用 `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` | `$flow-guide help flow-drive` |
 | Codex implementation entry | discovery 後使用 `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` | `$flow-drive "修正收據總額並驗證。"` |
 
@@ -298,7 +297,7 @@ Formatting、lint、Docker probe、prompt hint、session snapshot
 與其他 advisory 工作都改為 consumer 明確啟用的 extension，而非預設 hook。見
 [Hook extension model](./hook-extension.zh-TW.md)。
 
-Command 一律保留 `/dhpk:<name>` namespace（Claude）。Cursor 使用產生的 command。
+Skill 一律保留 `/dhpk:<name>` namespace（Claude）。Cursor 使用同步的 skill。
 Codex 使用 `$flow-guide` 做 discovery 與 guidance、使用 `$flow-drive` 做已確認變更的
 implementation，沒有 `/dhpk:do`。主要入口為：
 
@@ -308,7 +307,7 @@ implementation，沒有 `/dhpk:do`。主要入口為：
 - `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>`：Claude 明確呼叫 task；`--help` 唯讀。
 - `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>`：唯讀 review variants。
 - `/dhpk:precommit`，需要時搭配 `--fast`。
-- `/dhpk:setup --install hooks|rules|scripts|all`：設定與 asset 安裝。
+- `/dhpk:harness-setup --install hooks|rules|scripts|all`：設定與 asset 安裝。
 
 上述五個 `0.47.0` retirement 與九個 `0.52.0` Codex MCP capability retirement 都不發布
 discovery 或 compatibility alias。若另有文件化的相容期限而保留無關 command alias，它
@@ -326,7 +325,7 @@ claude plugin update --scope project -y dhpk@dhpk
 請使用與 plugin 安裝時相同 scope 的指令。CLI 預設使用 user scope；在沒有
 TTY 的環境（例如 CI）執行更新時，請加上 `-y`／`--yes`。
 
-啟動新的 Claude session 或執行 `/reload-plugins`。確認 `/dhpk:setup`、
+啟動新的 Claude session 或執行 `/reload-plugins`。確認 `/dhpk:harness-setup`、
 `/dhpk:flow-guide`、`/dhpk:flow-drive` 與 `/dhpk:change-verdict` 都能解析。Marketplace 不會更新專案本地複製的
 舊 dhpk skill；只有在確認它們已重複且有版控或其他可恢復方式後才移除。
 

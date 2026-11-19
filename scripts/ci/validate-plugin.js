@@ -14,6 +14,8 @@ const { listAgentFiles, relativePosix } = require('../lib/asset-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const PLUGIN_JSON = path.join(ROOT, '.claude-plugin', 'plugin.json');
+// dhpk-stacks registers the module agents and commands the core manifest does not.
+const STACKS_PLUGIN_JSON = path.join(ROOT, 'distribution', 'stacks-plugin', 'plugin.json');
 
 const r = createReporter('plugin');
 
@@ -31,6 +33,29 @@ try {
 }
 
 const resolve = (p) => path.join(ROOT, p.replace(/^\.\//, ''));
+
+// A checkout without the dhpk-stacks source (a minimal fixture) has no second
+// manifest to validate; the repository's own marketplace entry pins its presence.
+let stacksPlugin = {};
+if (fs.existsSync(STACKS_PLUGIN_JSON)) {
+  try {
+    stacksPlugin = JSON.parse(fs.readFileSync(STACKS_PLUGIN_JSON, 'utf8'));
+  } catch (e) {
+    r.err(`distribution/stacks-plugin/plugin.json — invalid JSON: ${e.message}`);
+  }
+  if (stacksPlugin.name !== 'dhpk-stacks') r.err("distribution/stacks-plugin/plugin.json — name must be 'dhpk-stacks'");
+  if (!(stacksPlugin.dependencies || []).some((dep) => (typeof dep === 'string' ? dep : dep && dep.name) === plugin.name)) {
+    r.err(`distribution/stacks-plugin/plugin.json — dependencies must require the core plugin '${plugin.name}'`);
+  }
+  for (const key of Object.keys(stacksPlugin.userConfig || {})) {
+    if (Object.prototype.hasOwnProperty.call(plugin.userConfig || {}, key)) {
+      r.err(`userConfig '${key}' is declared by both dhpk and dhpk-stacks`);
+    }
+  }
+  for (const entry of [...(stacksPlugin.agents || []), ...(stacksPlugin.commands || [])]) {
+    if (!fs.existsSync(resolve(entry))) r.err(`distribution/stacks-plugin/plugin.json — missing path: ${entry}`);
+  }
+}
 
 if (!/^\d+\.\d+\.\d+/.test(plugin.version || '')) {
   r.warn(`plugin.json — version '${plugin.version}' is not semver`);
@@ -55,7 +80,7 @@ for (const c of plugin.commands || []) {
 // no module INDEX.md to exclude today — this stays correct if one is added).
 const onDiskAgents = listAgentFiles(ROOT);
 const registeredAgents = new Set(
-  (plugin.agents || []).map((a) => a.replace(/^\.\//, '').split(path.sep).join('/'))
+  [...(plugin.agents || []), ...(stacksPlugin.agents || [])].map((a) => a.replace(/^\.\//, '').split(path.sep).join('/'))
 );
 const agentIndex = path.join(ROOT, 'agents', 'INDEX.md');
 if (fs.existsSync(agentIndex)) {

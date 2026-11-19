@@ -85,7 +85,7 @@ test('does not scan markdown, tests, generated, or out-of-scope paths', () => {
     'scripts/hooks/README.md',
     'tests/hook.sh',
     'scripts/hooks/tests/x.sh',
-    'generated/claude-marketplace/package/scripts/hooks/a.sh',
+    'dist/claude-marketplace/package/scripts/hooks/a.sh',
     'commands/foo.sh',
     'docs/tool.sh',
   ]) {

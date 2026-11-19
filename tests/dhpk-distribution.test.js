@@ -21,6 +21,7 @@ const { createPreviewSourceSnapshot } = require('../scripts/lib/distribution-pre
 
 const ROOT = path.join(__dirname, '..');
 const SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
+const ON_DEMAND = ['agent-plugin', 'cursor-plugin', 'agy-plugin'];
 // A preview snapshots the checkout (git archive + untracked copy); under the
 // four-way local publish gate for 0.73.0 that overran 30s and the child was
 // killed (status null).
@@ -201,7 +202,7 @@ test('Codex native previews use the exact named package selection by default', (
   assert.strictEqual(result.status, 0, result.stderr);
   const payload = report(result);
   assert.strictEqual(payload.verdict, 'PASS');
-  assert.strictEqual(payload.skillCount, 16);
+  assert.strictEqual(payload.skillCount, 14);
   const output = payload.output;
   try {
     const receipt = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
@@ -441,6 +442,9 @@ test('validate and verify still run on a dirty checkout because they do not writ
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     worktreeAdded = true;
+    // Agent Plugin is built on demand: there is no committed tree to validate.
+    const built = invoke(['build', 'agent-plugin', '--json'], worktreeRoot);
+    assert.strictEqual(built.status, 0, built.stderr);
     fs.writeFileSync(marker, 'uncommitted source input\n');
     for (const operation of ['validate', 'verify']) {
       const result = spawnSync('bash', [
@@ -540,6 +544,10 @@ test('standalone flow-guide materializes its declared dependency closure on ever
 test('keeps structural validation separate from evidence-bound verification', () => {
   withCleanWorktree((worktreeRoot) => {
     for (const surface of SURFACES) {
+      if (ON_DEMAND.includes(surface)) {
+        const built = invoke(['build', surface, '--json'], worktreeRoot);
+        assert.strictEqual(built.status, 0, `${surface}: ${built.stderr}`);
+      }
       const result = invoke([surface, 'verify', '--json'], worktreeRoot);
       assert.strictEqual(result.status, 0, `${surface}: ${result.stderr}`);
       const payload = report(result);
@@ -549,6 +557,31 @@ test('keeps structural validation separate from evidence-bound verification', ()
       if (surface === 'codex-native') assert.strictEqual(payload.deterministic, 'PASS', JSON.stringify(payload));
     }
   });
+});
+
+test('build writes the package and its archive into the ignored on-demand directory', () => {
+  withCleanWorktree((worktreeRoot) => {
+    for (const surface of ON_DEMAND) {
+      const result = invoke(['build', surface, '--json'], worktreeRoot);
+      assert.strictEqual(result.status, 0, `${surface}: ${result.stderr}`);
+      const payload = report(result);
+      assert.strictEqual(payload.operation, 'build');
+      assert.strictEqual(payload.verdict, 'PASS', JSON.stringify(payload));
+      assert.ok(payload.output.endsWith(`dist/on-demand/${{ 'agent-plugin': 'dhpk-agent', 'cursor-plugin': 'dhpk-cursor', 'agy-plugin': 'dhpk-agy' }[surface]}`), payload.output);
+      assert.ok(fs.existsSync(path.join(payload.output, 'provenance.json')));
+      assert.match(payload.archive, /dhpk-(agent|cursor|agy)-\d+\.\d+\.\d+\.tar\.gz$/);
+      assert.ok(fs.statSync(payload.archive).size > 0);
+      assert.match(payload.archiveSha256, /^[0-9a-f]{64}$/);
+    }
+    const status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: worktreeRoot, encoding: 'utf8' });
+    assert.strictEqual(status.trim(), '', 'on-demand builds must not dirty the checkout');
+  });
+});
+
+test('build refuses surfaces that are committed Published Packages', () => {
+  const result = invoke(['build', 'codex-native', '--json']);
+  assert.strictEqual(result.status, 64, result.stderr);
+  assert.match(result.stderr, /build is supported only for/);
 });
 
 // v1 GREEN contract (tests above): distribution CLI validate/generate/verify

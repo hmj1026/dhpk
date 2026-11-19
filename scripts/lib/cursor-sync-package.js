@@ -416,7 +416,8 @@ function validateCursorSyncTree({ root, outDir, inventory }) {
   for (const kind of ['agents', 'rules', 'commands']) {
     const directory = path.join(outDir, kind);
     if (!fs.existsSync(directory)) {
-      errors.push('cursor/' + kind + ' is missing');
+      // The plugin ships no commands, so git tracks no empty cursor/commands.
+      if (kind !== 'commands') errors.push('cursor/' + kind + ' is missing');
       continue;
     }
     for (const name of fs.readdirSync(directory)) {

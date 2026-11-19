@@ -1,12 +1,6 @@
 ---
 name: repo-verify
-description: 'Run a repository verification loop with runner-first execution, deterministic stages, and explicit PASS/FAIL/SKIP output. Use for fast or full validation of a consumer repository. Not for: mutation, fixing failures, dependency remediation, or merge approval. Output: runner summary or a complete fallback stage table.'
-argument-hint: '[<mode>] [--integration=<path>] [--e2e=<path>]'
-metadata:
-  dhpk-capability-id: dhpk.skill.repo-verify
-  dhpk-name-style: portable-skill
-  dhpk-invocation-class: implicit-eligible
-  dhpk-next: "{\"PASS\":\"change-verdict:code\",\"FAIL\":\"tdd-workflow\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"repo-verify\",\"UNAVAILABLE\":\"none\"}"
+description: "Run a repository verification loop with runner-first execution, deterministic stages, and explicit PASS/FAIL/SKIP output. Use for fast or full validation of a consumer repository. Not for: mutation, fixing failures, dependency remediation, or merge approval. Output: runner summary or a complete fallback stage table."
 ---
 
 # Repository Verify

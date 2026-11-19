@@ -1,14 +1,6 @@
 ---
 name: doc-maintain
-description: 'Maintain documentation through stale-doc refresh, architecture codemap generation, or a bounded Markdown refactor. Selects update, codemap, or refactor while preserving each output and evidence contract. Not for application source, tests, manifests, route tables, generated projections, or broad policy review.'
-argument-hint: '<task | mode> <target>'
-allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash'
-metadata:
-  dhpk-capability-id: dhpk.skill.doc-maintain
-  dhpk-name-style: portable-family
-  dhpk-invocation-class: implicit-eligible
-  dhpk-modes: "[\"update\",\"codemap\",\"refactor\"]"
-  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\",\"update:PASS\":\"git-smart-commit\"}"
+description: "Maintain documentation through stale-doc refresh, architecture codemap generation, or a bounded Markdown refactor. Selects update, codemap, or refactor while preserving each output and evidence contract. Not for application source, tests, manifests, route tables, generated projections, or broad policy review."
 ---
 
 # Documentation maintenance

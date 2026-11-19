@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const {
   RECEIPT_SCHEMA,
   SURFACE_OWNERS,
@@ -165,12 +166,12 @@ test('installation receipt identity rejects cross-owner cleanup roots and mismat
 test('tracked native package receipts emit the shared installation identity', () => {
   const root = path.join(__dirname, '..');
   for (const relative of [
-    'plugins/dhpk-agent/provenance.json',
-    'plugins/dhpk-cursor/provenance.json',
+    path.join(builtPackage('agent-plugin'), 'provenance.json'),
+    path.join(builtPackage('cursor-plugin'), 'provenance.json'),
     'plugins/dhpk/provenance.json',
-    'plugins/dhpk-agy/provenance.json',
+    path.join(builtPackage('agy-plugin'), 'provenance.json'),
   ]) {
-    const receipt = JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'));
+    const receipt = JSON.parse(fs.readFileSync(path.resolve(root, relative), 'utf8'));
     assert.strictEqual(receipt.installation.schema, 'dhpk.installation-receipt.v1', relative);
     assert.ok(receipt.installation.selectedStableIds.length > 0, relative);
     assert.strictEqual(receipt.installation.fingerprints.plan, receipt.installation.planId, relative);
@@ -311,20 +312,20 @@ test('rollback guard refuses to mutate a different surface owner', () => {
     const ROOT = path.join(__dirname, '..');
     const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
 
-    test('legacy Codex package is not counted as standard Agent Plugin conformance', () => {
+    test('Codex native package is not counted as standard Agent Plugin conformance', () => {
       const result = validateAgentPluginPackage(path.join(ROOT, 'plugins/dhpk'));
       assert.strictEqual(result.ok, false);
-      assert.ok(result.errors.some((error) => /plugin\.json/i.test(error)));
+      assert.ok(result.errors.some((error) => /plugin\.json|provenance surface/i.test(error)));
       const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
       assert.ok(!inventory.surfaces.includes('legacy-agent-plugin'));
       assert.ok(inventory.surfaces.includes('codex-native'));
     });
 
     test('Cursor native package is not accepted as a portable Agent Plugin package', () => {
-      const result = validateAgentPluginPackage(path.join(ROOT, 'plugins/dhpk-cursor'));
+      const result = validateAgentPluginPackage(builtPackage('cursor-plugin'));
       assert.strictEqual(result.ok, false);
       assert.ok(result.errors.some((error) => /plugin\.json|skills/i.test(error)));
-      const cursor = validateCursorPackage({ packageRoot: path.join(ROOT, 'plugins/dhpk-cursor'), inventory: INVENTORY });
+      const cursor = validateCursorPackage({ packageRoot: builtPackage('cursor-plugin'), inventory: INVENTORY });
       assert.strictEqual(cursor.ok, true, cursor.errors.join('\n'));
     });
   }
@@ -340,9 +341,13 @@ test('rollback guard refuses to mutate a different surface owner', () => {
     const { createHostProjectionConformance } = require('./_lib/host-projection-conformance');
 
     const ROOT = path.join(__dirname, '..');
-    const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+    const read = (relative) => fs.readFileSync(path.resolve(ROOT, relative), 'utf8');
     const manifest = (relative) => JSON.parse(read(relative));
-    const PLATFORM_CONFORMANCE = createHostProjectionConformance({ root: ROOT, assert });
+    const PLATFORM_CONFORMANCE = createHostProjectionConformance({
+      root: ROOT,
+      assert,
+      packageRoots: { agent: builtPackage('agent-plugin'), agy: builtPackage('agy-plugin'), cursor: builtPackage('cursor-plugin') },
+    });
 
     test('four platforms retain their projected manifest format contracts', () => {
       assert.deepStrictEqual(PLATFORM_CONFORMANCE.map((entry) => entry.platform), ['claude', 'codex', 'agy', 'cursor']);

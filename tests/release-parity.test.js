@@ -9,6 +9,7 @@
 
 const fs = require('node:fs');
 const os = require('node:os');
+const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { MANIFEST_PATHS, checkParity } = require('../scripts/lib/release-parity');
@@ -16,7 +17,7 @@ const { writeVersionManifests } = require('./_lib/release-manifest-fixtures');
 
 function writeAgyInstallDocs(root, version) {
   fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
-  const line = `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json\n`;
+  const line = `bin/dhpk distribution build agy-plugin --version=${version} --json\n`;
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), line);
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), line);
 }
@@ -26,7 +27,7 @@ function mkRepo({ versions, changelogHeading, agyDocVersion = '1.0.0' } = {}) {
   const overrides = versions || {};
   const claudeVersion = overrides['.claude-plugin/plugin.json'];
   const mirrored = claudeVersion === undefined ? {} : Object.fromEntries(MANIFEST_PATHS
-    .filter((rel) => rel.startsWith('generated/') || rel === 'package.json')
+    .filter((rel) => rel.startsWith('dist/') || rel === 'package.json')
     .map((rel) => [rel, claudeVersion]));
   writeVersionManifests(root, '1.0.0', { versions: { ...mirrored, ...overrides } });
   fs.writeFileSync(
@@ -49,23 +50,18 @@ function withRepo(options, callback) {
 function allAtVersion(version) {
   return {
     '.claude-plugin/plugin.json': version,
-    '.codex-plugin/plugin.json': version,
     'plugins/dhpk/.codex-plugin/plugin.json': version,
-    '.agents/plugins/marketplace.json': version,
+    'plugins/dhpk/plugin.json': version,
     'plugins/dhpk/provenance.json': version,
-    'plugins/dhpk-agent/plugin.json': version,
-    'plugins/dhpk-agent/provenance.json': version,
-    'plugins/dhpk-agy/plugin.json': version,
-    'plugins/dhpk-agy/provenance.json': version,
-    'plugins/dhpk-cursor/.cursor-plugin/plugin.json': version,
-    'plugins/dhpk-cursor/provenance.json': version,
-    'generated/claude-marketplace/package/.claude-plugin/plugin.json': version,
+    'dist/claude-marketplace/package/.claude-plugin/plugin.json': version,
+    'distribution/stacks-plugin/plugin.json': version,
+    'dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json': version,
   };
 }
 
 test('checkParity fails when a tracked Claude package manifest lags the target', () => {
   for (const rel of [
-    'generated/claude-marketplace/package/.claude-plugin/plugin.json',
+    'dist/claude-marketplace/package/.claude-plugin/plugin.json',
   ]) {
     withRepo({
       versions: { ...allAtVersion('1.2.3'), [rel]: '1.2.2' },
@@ -86,7 +82,7 @@ test('checkParity ignores leftover manifests from retired Claude profile outputs
     agyDocVersion: '1.2.3',
   }, (root) => {
     for (const profile of ['minimal', 'full', 'compat-v1']) {
-      const rel = `generated/claude-profiles/${profile}/package/plugin.json`;
+      const rel = `dist/claude-profiles/${profile}/package/plugin.json`;
       const target = path.join(root, rel);
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, JSON.stringify({ version: '0.9.0' }));
@@ -96,21 +92,63 @@ test('checkParity ignores leftover manifests from retired Claude profile outputs
   });
 });
 
+test('checkParity fails when a manifest exists that no generator declares', () => {
+  withRepo({
+    versions: allAtVersion('1.2.3'),
+    changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+    agyDocVersion: '1.2.3',
+  }, (root) => {
+    const rel = 'plugins/new-host/plugin.json';
+    fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), JSON.stringify({ version: '1.2.3' }));
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes(rel) && /not declared/.test(e)));
+  });
+});
+
+test('checkParity ignores untracked and gitignored provenance files in a Git checkout', () => {
+  withRepo({
+    versions: allAtVersion('1.2.3'),
+    changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+    agyDocVersion: '1.2.3',
+  }, (root) => {
+    const run = (args) => assert.strictEqual(spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' }).status, 0);
+    fs.writeFileSync(path.join(root, '.gitignore'), '.codex/artifacts/\n');
+    run(['init', '-q']);
+    run(['add', '.']);
+    run(['-c', 'user.name=T', '-c', 'user.email=t@example.invalid', 'commit', '-qm', 'fixture']);
+    for (const rel of ['.codex/artifacts/run1/provenance.json', 'scratch/untracked/provenance.json']) {
+      fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
+      fs.writeFileSync(path.join(root, rel), JSON.stringify({ sourceVersion: '0.0.1' }));
+    }
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, true, JSON.stringify(result.errors));
+  });
+});
+
+test('checkParity fails when the rendered OpenAI manifest version differs from the target', () => {
+  withRepo({
+    versions: { ...allAtVersion('1.2.3'), 'package.json': '1.2.2' },
+    changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+    agyDocVersion: '1.2.3',
+  }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes('openai-submission manifest') && e.includes('1.2.2')));
+  });
+});
+
 test('MANIFEST_PATHS lists retained version-bearing manifests, including native package provenance', () => {
   const originalPaths = [...MANIFEST_PATHS];
   const expectedPaths = [
-    '.agents/plugins/marketplace.json',
     '.claude-plugin/plugin.json',
-    '.codex-plugin/plugin.json',
     'plugins/dhpk/.codex-plugin/plugin.json',
+    'plugins/dhpk/plugin.json',
     'plugins/dhpk/provenance.json',
-    'plugins/dhpk-agent/plugin.json',
-    'plugins/dhpk-agent/provenance.json',
-    'plugins/dhpk-agy/plugin.json',
-    'plugins/dhpk-agy/provenance.json',
-    'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
-    'plugins/dhpk-cursor/provenance.json',
-    'generated/claude-marketplace/package/.claude-plugin/plugin.json',
+    'dist/claude-marketplace/package/.claude-plugin/plugin.json',
+    'distribution/stacks-plugin/plugin.json',
+    'dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json',
     'package.json',
   ];
   assert.deepStrictEqual([...MANIFEST_PATHS].sort(), [...expectedPaths].sort());
@@ -133,26 +171,26 @@ test('checkParity passes when every manifest, native package provenance, and the
 });
 
 test('checkParity fails when native package provenance drifts from the target', () => {
-  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
     assert.ok(result.errors.some((e) => e.includes('plugins/dhpk/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
   });
 });
 
-test('checkParity fails when native AGY package provenance drifts from the target', () => {
-  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.2', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+test('checkParity fails when the dhpk-stacks package manifest drifts from the target', () => {
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/plugin.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
-    assert.ok(result.errors.some((e) => e.includes('plugins/dhpk-agy/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
+    assert.ok(result.errors.some((e) => e.includes('dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json') && e.includes('1.2.2') && e.includes('1.2.3')));
   });
 });
 
 test('checkParity reports every manifest that drifts from the target, with observed values', () => {
-  withRepo({ versions: { '.codex-plugin/plugin.json': '1.2.4' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: { 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.4' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, false);
-    assert.ok(result.errors.some((e) => e.includes('.codex-plugin/plugin.json') && e.includes('1.2.4') && e.includes('1.2.3')));
+    assert.ok(result.errors.some((e) => e.includes('plugins/dhpk/.codex-plugin/plugin.json') && e.includes('1.2.4') && e.includes('1.2.3')));
   });
 });
 
@@ -160,16 +198,9 @@ test('checkParity fails when the bilingual AGY generator pin lags the target', (
   withRepo({
     versions: {
       '.claude-plugin/plugin.json': '1.2.3',
-      '.codex-plugin/plugin.json': '1.2.3',
       'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3',
-      '.agents/plugins/marketplace.json': '1.2.3',
+      'plugins/dhpk/plugin.json': '1.2.3',
       'plugins/dhpk/provenance.json': '1.2.3',
-      'plugins/dhpk-agent/plugin.json': '1.2.3',
-      'plugins/dhpk-agent/provenance.json': '1.2.3',
-      'plugins/dhpk-agy/plugin.json': '1.2.3',
-      'plugins/dhpk-agy/provenance.json': '1.2.3',
-      'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3',
-      'plugins/dhpk-cursor/provenance.json': '1.2.3',
     },
     changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
     agyDocVersion: '1.2.2',
@@ -211,7 +242,7 @@ test('checkParity fails when the changelog heading for the target version is mis
       writeVersionManifests(root, version);
       fs.writeFileSync(path.join(root, 'CHANGELOG.md'), `# Changelog\n\n## [Unreleased]\n\n## ${version} — 2026-07-27 — Summary\n\nNotes.\n`);
       fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
-      const agyPin = `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json\n`;
+      const agyPin = `bin/dhpk distribution build agy-plugin --version=${version} --json\n`;
       fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
       fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
       return root;
@@ -230,22 +261,22 @@ test('checkParity fails when the changelog heading for the target version is mis
     test('fails and lists every mismatched surface when a manifest drifts from the tag', () => {
       const repo = mkRepo('1.2.3');
       try {
-        fs.writeFileSync(path.join(repo, '.codex-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.2.4' }));
+        fs.writeFileSync(path.join(repo, 'plugins/dhpk/.codex-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.2.4' }));
         const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
         assert.notStrictEqual(res.status, 0);
-        assert.match(res.stderr, /\.codex-plugin\/plugin\.json/);
+        assert.match(res.stderr, /plugins\/dhpk\/\.codex-plugin\/plugin\.json/);
       } finally {
         fs.rmSync(repo, { recursive: true, force: true });
       }
     });
 
-    test('fails and lists the AGY package when its provenance drifts from the tag', () => {
+    test('fails and lists the dhpk-stacks package when its manifest drifts from the tag', () => {
       const repo = mkRepo('1.2.3');
       try {
-        fs.writeFileSync(path.join(repo, 'plugins/dhpk-agy/provenance.json'), JSON.stringify({ sourceVersion: '1.2.2' }));
+        fs.writeFileSync(path.join(repo, 'dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json'), JSON.stringify({ name: 'dhpk-stacks', version: '1.2.2' }));
         const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
         assert.notStrictEqual(res.status, 0);
-        assert.match(res.stderr, /plugins\/dhpk-agy\/provenance\.json/);
+        assert.match(res.stderr, /stacks-package\/\.claude-plugin\/plugin\.json/);
       } finally {
         fs.rmSync(repo, { recursive: true, force: true });
       }
@@ -256,7 +287,7 @@ test('checkParity fails when the changelog heading for the target version is mis
       try {
         fs.writeFileSync(
           path.join(repo, 'docs', 'platform-installation.md'),
-          'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.2.2 --json\n',
+          'bin/dhpk distribution build agy-plugin --version=1.2.2 --json\n',
         );
         const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
         assert.notStrictEqual(res.status, 0);

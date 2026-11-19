@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.zh-TW.md#codex-project-local-syncsupported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.zh-TW.md#cursor-project-local-syncsupported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.zh-TW.md#surface-matrix)
 
-通用、安裝即用的 Claude Code harness。內含 **33 個角色導向 agent**（32 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、六個 task-shaped capability family、跨 session 學習 DB（預設關閉）、建議性的 reviewer 派工（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **33 個角色導向 agent**（32 個 root-level agent 加 1 個模組範圍 reviewer）、以 `/dhpk:<skill-name>` 呼叫的 skill、六個 task-shaped capability family、跨 session 學習 DB（預設關閉）、建議性的 reviewer 派工（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
 
 > **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、reviewer 派工、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
 
@@ -24,7 +24,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `git` | 必要 | Artifact 路徑解析；`git rev-parse --show-toplevel` |
 | `python3` | 啟用 `modules` 時為必要 | 為選用模組啟用與路由解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
-| `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
+| `docker` | 選用 | 僅由 consumer 明確註冊的 Docker workflow 使用（見 `docs/docker-setup.md`） |
 | Codex CLI 執行檔 | 選用 | 只有使用 CLI-backed role/review、`codex exec` 第二意見，或執行 `install-codex-skills.sh` 且希望 Codex 載入同步內容時才需要 |
 | Cursor | 選用 | 僅在執行 `install-cursor-harness.sh` 且希望 Cursor 載入專案本地 `.cursor/` harness 時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `code-trace` family 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
@@ -43,12 +43,13 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 
 | Host | 推薦路徑 | 第一個驗證 | 證據邊界 |
 |---|---|---|---|
-| Claude Code | 先執行 `bash scripts/install.sh --dry-run`，再執行安裝 | 重開 session 後執行 `/dhpk:flow-guide help` | 預設選擇以 install-profile SSOT 為準；詳細路徑與 receipt 行為見[平台安裝指南](./docs/platform-installation.zh-TW.md) |
+| Claude Code | `/plugin marketplace add hmj1026/dhpk`，再 `/plugin install dhpk@dhpk`；需要技術棧模組時另執行 `/plugin install dhpk-stacks@dhpk` | 重開 session 後執行 `/dhpk:flow-guide help` | 預設選擇以 install-profile SSOT 為準；詳細路徑與 receipt 行為見[平台安裝指南](./docs/platform-installation.zh-TW.md) |
 | Codex CLI | `bash scripts/hooks/install-codex-skills.sh --plan --json`，再 install/update | `$flow-guide help` | 支援的 project-local route；CLI/runtime 缺少時維持 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE` |
 | Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`，再 install/update | 檢查 `.cursor/.dhpk-installed.json` 並 reload Cursor | 支援的 project-local route；native plugin/runtime 證據分開 |
-| AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`，再使用 receipt-owned adapter | CLI 可用時執行 `agy agents` | Experimental；結構安裝不等於 runtime `PASS` |
+| AGY | 從 GitHub Release 下載 `dhpk-agy-<version>.tar.gz`（或執行 `bin/dhpk distribution build agy-plugin`），再執行 `node scripts/ci/install-agy-plugin.js plan --source dist/on-demand/dhpk-agy --json` 並使用 receipt-owned adapter | CLI 可用時執行 `agy agents` | Experimental；結構安裝不等於 runtime `PASS` |
 
-腳本或 CI 情境下，Claude 路徑也支援非互動旗標（需要 `claude` CLI）：
+從 checkout 安裝時，`bash scripts/install.sh --dry-run` 預覽，`bash scripts/install.sh`
+安裝。腳本或 CI 情境下，安裝腳本也支援非互動旗標（需要 `claude` CLI）：
 
 ```bash
 bash scripts/install.sh --dry-run --non-interactive
@@ -68,8 +69,21 @@ dhpk 遵循 [Claude Code plugin 標準發布模式](https://docs.claude.com/en/d
 
 ```bash
 claude plugin marketplace add hmj1026/dhpk
-claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hook_profile=standard
+claude plugin install dhpk@dhpk --config hook_profile=standard
+claude plugin install dhpk-stacks@dhpk --config modules=php-8.x,laravel-11
 ```
+
+這些 plugin 只含 skill 與 agent，沒有 `commands/` 目錄；以 `/dhpk:<skill-name>` 呼叫
+skill，每個已移除的 command 對應哪個 skill 見 BREAKING changelog 條目。技術棧 skill
+與模組位於 `dhpk-stacks`。
+
+**遷移指向 `generated/claude-marketplace/package` 的 marketplace：** 已提交的目錄現在是
+`dist/`。執行 `/plugin marketplace update dhpk`，再 `/reload-plugins` 或以
+`/plugin install dhpk@dhpk` 重新安裝。
+
+Cursor、AGY 與 `dhpk-agent` package 不再提交。請從 GitHub Release 下載
+`dhpk-agent`、`dhpk-cursor`、`dhpk-agy` 壓縮檔，或執行
+`bin/dhpk distribution build <agent-plugin|cursor-plugin|agy-plugin>` 建置。
 
 Claude 的詳細安裝路徑、更新、migration 與 receipt 管理請見[平台安裝指南](./docs/platform-installation.zh-TW.md)。
 
@@ -77,14 +91,14 @@ Claude 的詳細安裝路徑、更新、migration 與 receipt 管理請見[平�
 Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整合面)
 及 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
-安裝後隨時可用 `/dhpk:setup` 重新設定（或 `/dhpk:setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
+安裝後隨時可用 `/dhpk:harness-setup` 重新設定（或 `/dhpk:harness-setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
 ## 你會得到什麼
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | Role-based agents | Trigger table 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
-| Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:change-verdict pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
+| Slash entries | 以 `/dhpk:<skill-name>` 呼叫的 skill；沒有 `commands/` 目錄 | `/dhpk:precommit`、`/dhpk:harness-setup`、`/dhpk:change-verdict pending`、`/dhpk:git-smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
 | Canonical skills | Inventory 管理的 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；portable family 負責整併介面。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 3 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git branch-safety gate）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
@@ -96,7 +110,6 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 
 | Surface | 語法 | 範例 |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:flow-guide` |
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$flow-guide help` |
 
@@ -134,11 +147,11 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 4. **提交前驗證**：品質把關，確保 Lint、型別與測試全數通過：
    ```text
    /dhpk:precommit                                   # 執行本機快速/完整驗證管線
-   /dhpk:verify                                      # 執行跨專案完整驗證
+   /dhpk:repo-verify                                      # 執行跨專案完整驗證
    ```
 5. **提交與 PR**：確認全綠後安全交付：
    ```text
-   /dhpk:smart-commit                                # 智慧分組組織 Git commit
+   /dhpk:git-smart-commit                                # 智慧分組組織 Git commit
    /dhpk:create-pr                                   # 建立目標為 develop 的 PR
    ```
 
@@ -164,13 +177,12 @@ worker、reasoner、provider、planner 或 architecture selector。提案 author
 
 ## userConfig
 
-74 個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定，也可隨時用 `/dhpk:setup` 重新設定。完整參考（每個旋鈕在哪裡設定、所有選項、專案層級覆寫語法）見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
+`dhpk` 有 18 個旋鈕、`dhpk-stacks` 有 19 個，全部可在安裝時用 `--config <key>=<value>` 設定，也可隨時用 `/dhpk:harness-setup` 重新設定。完整參考（每個旋鈕在哪裡設定、所有選項、專案層級覆寫語法）見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
 ```bash
-claude plugin install dhpk@dhpk \
-  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author \
-  --config docker_containers=php-fpm,mysql \
-  --config hook_profile=standard
+claude plugin install dhpk-stacks@dhpk \
+  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
+claude plugin install dhpk@dhpk --config hook_profile=standard
 ```
 
 精選的模組組合請見 `manifests/install-profiles.json`。
@@ -262,7 +274,7 @@ OnePassword 驗證是 operator action，不是可 discovery 的 skill：需要 c
 - **`react-19`** — React 19（2024 年 12 月）。Actions 與 async transitions、新 hooks（`useActionState`/`useOptimistic`/`useFormStatus`、`use()`）、`ref` 作為一般 prop（免 `forwardRef`）、`<Context>` 直接當 provider、document metadata 自動 hoist、資源預載（`preload`/`preinit`）、穩定的 Server Components。移除 `ReactDOM.render`/`hydrate`、function component 的 `propTypes`/`defaultProps`、legacy Context 與 string refs。Next.js 16 建議但非必需。
 
 **跨版本**：
-- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（由 reviewer trigger table 建議）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動選取。
+- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（由 reviewer trigger table 建議）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:library-author cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動選取。
 
 **iOS / Swift**（依賴鏈式——每個都 `requires: swift`；可用 `ios-app` 安裝 profile 一次啟用整套）：
 - **`swift`** — Swift 6 strict-concurrency 基線 + Swift 5.10 / iOS 17 相容性 + Swift 6.2 approachable-concurrency。整套套件的基礎。
@@ -370,7 +382,7 @@ materialization 驗證目前已對正式實體 package 通過；Codex Plugin Mar
 repository checkout；已安裝的 Claude plugin 不含 `cursor/`。預設
 仍採全 symlink 預設；`--copy` 是可攜 fallback。installer 會寫入
 schema-v3 receipt `.cursor/.dhpk-installed.json`，且不會寫入
-`.cursor/hooks.json`。`plugins/dhpk-cursor/` 仍留給 marketplace／user-plugin
+`.cursor/hooks.json`。`dist/on-demand/dhpk-cursor/` 仍留給 marketplace／user-plugin
 路徑。完整政策見 **[`docs/platform-installation.zh-TW.md`](./docs/platform-installation.zh-TW.md)**。
 
 ## 遷移現有專案
@@ -382,18 +394,17 @@ schema-v3 receipt `.cursor/.dhpk-installed.json`，且不會寫入
 ```
 dhpk/
 ├── .claude-plugin/
-│   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
-│   └── plugin.json               # 含 userConfig 的插件 manifest
+│   ├── marketplace.json          # dhpk 與 dhpk-stacks 條目（source 位於 dist/claude-marketplace/）
+│   └── plugin.json               # authoring tree 的 manifest，含 userConfig
 ├── agents/                       # 33 個角色 agent（32 root + 1 模組 reviewer；INDEX.md 為導覽用）
-├── commands/                     # slash 指令（review、setup、smart-commit、opsx-apply-resume 等）
-├── skills/                       # SSOT：68 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
+├── skills/                       # SSOT：39 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}
 │   ├── yii-1.1/                            # Yii 1.1 框架
 │   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
 │   ├── laravel-5.4/, laravel-6/ … laravel-11/  # 每個主版本一個（5.4 需要 php-5.6）
-│   ├── js/{module.yaml, hooks/, skills/, commands/, references/}
+│   ├── js/{module.yaml, hooks/, references/}
 │   ├── vue-2/, laravel-mix/                # 前端：Vue 2 SFC + Laravel Mix 5 資產管線
 │   ├── nextjs-15.5/, nextjs-16/         # Next.js React 框架
 │   ├── react-18/, react-19/             # React 函式庫（各主版本）
@@ -416,14 +427,15 @@ dhpk/
 ├── cursor/                       # Cursor project-local 雙軌（Cursor 不會自動載入）
 │   ├── AGENTS.md                 # Cursor 雙路徑指引
 │   ├── skills/                   # 指向 canonical skills/ 的相對 symlink
-│   ├── agents/、rules/*.mdc、commands/
+│   ├── agents/、rules/*.mdc
 ├── codex/                        # Codex CLI 雙軌（Claude Code 不會自動載入）
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md、README.zh-TW.md # 如何同步進專案
 │   ├── skills/                   # 24 個指向 canonical skill 的相對 symlink
 │   ├── agents/、config.toml.example
-├── .codex-plugin/plugin.json     # Codex plugin manifest（marketplace 可安裝，實驗性）
-├── plugins/dhpk/                 # 追蹤中的 Codex-native package：19 個實體項目、零 symlink
+├── dist/claude-marketplace/      # 已提交的 Directory Plugin（package/）與 dhpk-stacks（stacks-package/）
+├── distribution/                 # 這兩個 package 的手寫來源
+├── plugins/dhpk/                 # 已提交的 Public Plugin：實體 skill、零 symlink、不含 hook
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

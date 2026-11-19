@@ -1,13 +1,6 @@
 ---
 name: create-pr
-description: 'Create a GitHub pull request from a pushed branch with ticket-aware title and body generation. Not for: committing, pushing, merging, releasing, or editing an existing PR. Output: a dry-run gh pr create command by default, or the created PR URL after explicit execution.'
-argument-hint: '[--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]'
-disable-model-invocation: true
-metadata:
-  dhpk-capability-id: dhpk.skill.create-pr
-  dhpk-name-style: portable-skill
-  dhpk-invocation-class: explicit-only
-  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
+description: "Create a GitHub pull request from a pushed branch with ticket-aware title and body generation. Not for: committing, pushing, merging, releasing, or editing an existing PR. Output: a dry-run gh pr create command by default, or the created PR URL after explicit execution."
 ---
 
 # Create PR

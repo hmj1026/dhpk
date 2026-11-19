@@ -2,7 +2,8 @@
 
 // (#1430) source and dot are execution entrances: the file they run is judged by its visible
 // name, apart from the Reader adapters. The script content is never read.
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { runHook: runHookAt, mkRepo, rmRepo } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

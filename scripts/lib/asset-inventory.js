@@ -167,7 +167,6 @@ function collectInventory(root) {
     },
     sources: {
       claudePlugin: readJson(repoRoot, '.claude-plugin/plugin.json'),
-      codexPlugin: readJson(repoRoot, '.codex-plugin/plugin.json'),
       moduleCatalog,
       hooks: {
         events: [...hookEvents].sort(),

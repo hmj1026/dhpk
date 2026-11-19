@@ -157,28 +157,39 @@ observed execution, separately from structural and package checks.
 - **THEN** the normalized arguments, authority and terminal evidence remain
   unchanged despite removal of the legacy script path
 
-### Requirement: Documentation commands remain thin front doors to doc-maintain modes
+### Requirement: Documentation modes are invoked through the doc-maintain skill
 
-REQ-6: The canonical commands `commands/update-docs.md`,
-`commands/update-codemaps.md`, and `commands/doc-refactor.md` SHALL remain
-thin front doors. Claude command names `/dhpk:update-docs`,
-`/dhpk:update-codemaps`, and `/dhpk:doc-refactor` SHALL stay stable. Each
-front door SHALL forward to skill owner `doc-maintain` with a fixed mode
-(`update`, `codemap`, `refactor`) while preserving the predecessor's
-arguments, documentation-only authority, and terminal evidence. A front door
-SHALL NOT add workflow logic, silently broaden authority, define a second
-Usage Grammar, or keep a retired skill directory as its owner.
+REQ-6: The former commands `update-docs`, `update-codemaps`, and
+`doc-refactor` are removed; the plugin ships no `commands/` directory. Users
+invoke `/dhpk:doc-maintain update`, `/dhpk:doc-maintain codemap`, and
+`/dhpk:doc-maintain refactor`. Each mode SHALL keep the predecessor's
+arguments, documentation-only authority, and terminal evidence, and the skill
+SHALL NOT keep a retired skill directory as its owner.
 
-#### Scenario: Update-docs command forwards to the family mode
+#### Scenario: Update mode receives the documentation task
 
-- **WHEN** a user invokes `/dhpk:update-docs` with a docs path or workflow
+- **WHEN** a user invokes `/dhpk:doc-maintain update` with a docs path or workflow
   keyword
 - **THEN** `doc-maintain` mode `update` receives the same normalized arguments
   and the result reports the skill-owned PASS, NOT_RUN, BLOCKED, or Need Human
   evidence
 
-#### Scenario: Front door retains a retired skill owner
+#### Scenario: A disposition retains a retired skill owner
 
 - **WHEN** a disposition still names `update-docs`, `update-codemaps`, or
   `doc-refactor` as the skill owner after cutover
-- **THEN** validation fails and the front door is not published
+- **THEN** validation fails and the entry is not published
+
+### Requirement: The plugin publishes workflows as skills only
+
+The plugin SHALL NOT ship a `commands/` directory or a `modules/*/commands/`
+directory. Every workflow is a skill invoked as `/dhpk:<skill-name>`, and the
+manifest SHALL NOT declare a `commands` path. The thin front door generator and
+the disposition inventory remain available for a future Host-only command but
+SHALL report an empty inventory while no skill declares one.
+
+#### Scenario: A former command name is requested
+
+- **WHEN** a user invokes a removed command name such as `/dhpk:verify`
+- **THEN** it does not resolve, and the changelog lists the replacement skill
+  invocation, for example `/dhpk:repo-verify`

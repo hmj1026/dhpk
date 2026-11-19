@@ -35,6 +35,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const { onDemandPackageDir, onDemandRelativeDir } = require('../lib/on-demand-packages');
 const {
   VERDICTS,
   normalizeConsumerEvidence,
@@ -90,6 +91,7 @@ const CONSUMER_HOST_CONFIG_MARKERS = Object.freeze({
   cursor: Object.freeze([
     '.cursor/.dhpk-installed.json',
     'plugins/dhpk-agent/plugin.json',
+    `${onDemandRelativeDir('agent-plugin')}/plugin.json`,
     '.cursor-plugin/plugin.json',
     '.cursor/plugins/local/dhpk-agent/plugin.json',
     '.cursor/plugins/local/dhpk-cursor/.cursor-plugin/plugin.json',
@@ -97,6 +99,7 @@ const CONSUMER_HOST_CONFIG_MARKERS = Object.freeze({
   agy: Object.freeze([
     '.agents/.dhpk-installed.json',
     'plugins/dhpk-agy/plugin.json',
+    `${onDemandRelativeDir('agy-plugin')}/plugin.json`,
   ]),
 });
 const CONSUMER_REQUIREMENT_TRIGGERS = new Set([
@@ -2336,7 +2339,7 @@ function verifyCursorSync(root, version) {
       };
     }
     const managedEntries = receipt.managed_entries;
-    const nativeKinds = ['agents', 'rules', 'commands', 'supporting_assets'];
+    const nativeKinds = ['agents', 'rules', 'supporting_assets'];
     const leftoverSkills = Object.keys((managedEntries && managedEntries.skills) || {});
     const leftoverDirs = leftoverCursorNativeSkillDirectories(project);
     const leftoverCopies = leftoverSkills.concat(leftoverDirs.ok ? leftoverDirs.leftovers : []);
@@ -2551,7 +2554,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
   const validationStage = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-validation-'));
   let strictEvidence;
   try {
-    for (const relative of ['.claude-plugin', 'skills', 'agents', 'commands', 'modules']) {
+    for (const relative of ['.claude-plugin', 'skills', 'agents', 'modules']) {
       const source = path.join(root, relative);
       if (fs.existsSync(source)) {
         fs.cpSync(source, path.join(validationStage, relative), { recursive: true, dereference: true });
@@ -2719,7 +2722,7 @@ function verifyCodexNative(root) {
 
 function verifyProjectedConsumer(root, platform, version, options = {}) {
   const agentPlugin = platform === 'agent-plugin' || platform === 'codex';
-  const packageRoot = path.join(root, 'plugins', agentPlugin ? 'dhpk-agent' : 'dhpk-cursor');
+  const packageRoot = onDemandPackageDir(root, agentPlugin ? 'agent-plugin' : 'cursor-plugin');
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
   const probePlatform = agentPlugin ? 'agent-plugin' : 'cursor';
   const probeArgs = [probe, '--platform', probePlatform, '--package-root', packageRoot, '--inventory', path.join(root, 'manifests', 'distribution-inventory.json'), '--version', version];
@@ -2746,7 +2749,7 @@ function verifyProjectedConsumer(root, platform, version, options = {}) {
   let companionEvidence = null;
   if (!agentPlugin) {
     try {
-      const companion = validateAgentPluginPackage(path.join(root, 'plugins', 'dhpk-agent'));
+      const companion = validateAgentPluginPackage(onDemandPackageDir(root, 'agent-plugin'));
       companionEvidence = {
         status: companion.ok ? 'PASS' : 'FAIL',
         reason: companion.ok
@@ -3074,7 +3077,7 @@ function verifyAgyProjectInstallation(root, receiptPath) {
 }
 
 function verifyAgyPackageInstallation(root, version) {
-  const packageRoot = path.join(root, 'plugins', 'dhpk-agy');
+  const packageRoot = onDemandPackageDir(root, 'agy-plugin');
   const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
   let inventory;
   try {
@@ -3103,7 +3106,7 @@ function verifyAgyPackageInstallation(root, version) {
       reason: 'AGY package failed target-version, inventory, or source-selection validation',
       adapter: AGY_PACKAGE_ADAPTER,
       diagnostics,
-      artifacts: [{ path: 'plugins/dhpk-agy/plugin.json', version: null }],
+      artifacts: [{ path: `${onDemandRelativeDir('agy-plugin')}/plugin.json`, version: null }],
       checkedClaims: ['package-manifest', 'package-inventory-selection', 'package-fingerprints'],
     });
   }
@@ -3146,8 +3149,8 @@ function verifyAgyPackageInstallation(root, version) {
 
     const canonicalRelative = contract.canonical_relative.split(path.sep).join('/');
     const artifacts = [
-      { path: 'plugins/dhpk-agy/plugin.json', version },
-      { path: 'plugins/dhpk-agy/provenance.json', version },
+      { path: `${onDemandRelativeDir('agy-plugin')}/plugin.json`, version },
+      { path: `${onDemandRelativeDir('agy-plugin')}/provenance.json`, version },
       { path: `<sandbox-home>/${canonicalRelative}/plugin.json`, version },
       { path: `<sandbox-home>/${canonicalRelative}/provenance.json`, version },
     ];

@@ -4,10 +4,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const { validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
 const { rewriteCursorHarnessBody, rewriteCursorNativeAgentBody } = require('../scripts/lib/cursor-harness-adapt');
-const { AGY_SUPPORT_FILES, NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, cursorNativeAgentClosureErrors, agyNativeAgentClosureErrors } = require('../scripts/lib/native-agent-support');
+const { AGY_SUPPORT_FILES, NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, rewriteAgyNativeSupportBody, rewriteCursorNativeSupportBody, cursorNativeAgentClosureErrors, agyNativeAgentClosureErrors } = require('../scripts/lib/native-agent-support');
 
 const CLAUDE_ROOT = '${' + 'CLAUDE_PLUGIN_ROOT}';
 const CURSOR_ROOT = '${' + 'CURSOR_PLUGIN_ROOT}';
@@ -312,9 +313,9 @@ test('AGY native-agent closure assigns dispatch locators to their owning roles',
 });
 
 test('published native packages resolve representative support without a source checkout', () => {
-  const cursorRoot = path.join(ROOT, 'plugins', 'dhpk-cursor');
-  const agyRoot = path.join(ROOT, 'plugins', 'dhpk-agy');
-  const agentRoot = path.join(ROOT, 'plugins', 'dhpk-agent');
+  const cursorRoot = path.join(builtPackage('cursor-plugin'));
+  const agyRoot = path.join(builtPackage('agy-plugin'));
+  const agentRoot = path.join(builtPackage('agent-plugin'));
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const cursor = validateCursorPackage({ packageRoot: cursorRoot, inventory });
   assert.strictEqual(cursor.ok, true, cursor.errors.join('\n'));
@@ -356,7 +357,7 @@ test('a generated AGY package carries its native agent support closure without F
   try {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const releaseVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
-    const provenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agy', 'provenance.json'), 'utf8'));
+    const provenance = JSON.parse(fs.readFileSync(path.join(builtPackage('agy-plugin'), 'provenance.json'), 'utf8'));
     materializeAgyPluginPackage({
       root: ROOT,
       inventory,
@@ -416,6 +417,16 @@ test('native agent support files carry the full require closure of the selector 
   assert.deepStrictEqual(missing, []);
   assert.ok(closure.includes('scripts/lib/dispatch-config.js'));
   assert.ok(closure.includes('manifests/host-profiles.json'));
+});
+
+test('support file prose carries no Claude plugin-root token on either host', () => {
+  const body = `Read ${CLAUDE_ROOT}/agent-traps/x.md and ${CLAUDE_ROOT}/rules/execution-policy.md, as in \`${CLAUDE_ROOT}\`.`;
+  const cursor = rewriteCursorNativeSupportBody(body);
+  assert.ok(!cursor.includes(CLAUDE_ROOT));
+  assert.ok(cursor.includes(`${CURSOR_ROOT}/rules/execution-policy.mdc`));
+  const agy = rewriteAgyNativeSupportBody(body);
+  assert.ok(!agy.includes(CLAUDE_ROOT));
+  assert.ok(agy.includes('agent-traps/x.md') && agy.includes('rules/execution-policy.md'));
 });
 
 run('native-agent-support');

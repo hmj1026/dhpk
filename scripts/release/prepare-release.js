@@ -21,7 +21,8 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { SEMVER_PATTERN, MANIFEST_PATHS, AGY_GENERATOR_DOC_PATHS, checkParity, releaseScope, writeAgyGeneratorDocPins } = require('../lib/release-parity');
+const { SEMVER_PATTERN, AGY_GENERATOR_DOC_PATHS, checkParity, releaseScope, writeAgyGeneratorDocPins } = require('../lib/release-parity');
+const { VERSION_SOURCE, versionSyncOutputs } = require('../lib/host-manifests');
 const { readFragments, validateFragments, promote } = require('../lib/changelog-fragments');
 const { materializeNativePackage, resolveCodexNativeProfileSelection } = require('../lib/codex-native-package');
 const { materializeAgentPluginPackage } = require('../lib/agent-plugin-package');
@@ -34,34 +35,15 @@ const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/pla
 const { lstatOrNull, isInside } = require('../lib/bounded-filesystem');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 
-// The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
-// provenance.json) is generated, derived output — not a hand-patchable
-// manifest. `write` mode regenerates it wholesale via materializeNativePackage
-// instead of field-patching, so skills/fingerprints/provenance never drift
-// from the version bump that produced them.
-const NATIVE_PACKAGE_PATHS = new Set([
-  'plugins/dhpk/.codex-plugin/plugin.json',
-  'plugins/dhpk/provenance.json',
-  'plugins/dhpk-agent/plugin.json',
-  'plugins/dhpk-agent/provenance.json',
-  'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
-  'plugins/dhpk-cursor/provenance.json',
-  'plugins/dhpk-agy/plugin.json',
-  'plugins/dhpk-agy/provenance.json',
-]);
-
-// The generated Claude marketplace package is regenerated wholesale via
-// materialize() in write mode rather than field-patching plugin.json, so
-// packaged docs stay in lockstep with the version bump.
-const GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS = new Set([
-  'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-]);
-
-function skipFieldPatchManifest(relPath) {
-  return NATIVE_PACKAGE_PATHS.has(relPath) || GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS.has(relPath);
-}
-
-const FIELD_PATCH_MANIFESTS = MANIFEST_PATHS.filter((relPath) => !skipFieldPatchManifest(relPath));
+// Only the generator-declared version-sync manifests (and package.json, the
+// version source) are field-patched. Every other declared manifest is generated
+// output (native, Agent, AGY, Cursor packages and the generated Claude
+// marketplace package): `write` mode regenerates those wholesale so
+// skills/fingerprints/provenance never drift from the version bump.
+const FIELD_PATCH_MANIFESTS = [
+  ...versionSyncOutputs().map((output) => output.path),
+  VERSION_SOURCE,
+];
 const OPERATION_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
@@ -103,13 +85,7 @@ function allowsPublishTargetCheck(args, branch) {
 function writeManifestVersion(root, relPath, version) {
   const abs = path.join(root, relPath);
   const data = JSON.parse(fs.readFileSync(abs, 'utf8'));
-  if (relPath.endsWith('marketplace.json')) {
-    const entry = (data.plugins || []).find((p) => p.name === 'dhpk');
-    if (!entry) throw new Error(`${relPath}: no 'dhpk' plugin entry`);
-    entry.version = version;
-  } else {
-    data.version = version;
-  }
+  data.version = version;
   fs.writeFileSync(abs, `${JSON.stringify(data, null, 2)}\n`);
 }
 
@@ -150,10 +126,8 @@ function isCanonicalReleaseTarget(root, target) {
   ]);
   const canonicalDirectories = new Set([
     path.join(resolvedRoot, 'plugins', 'dhpk'),
-    path.join(resolvedRoot, 'plugins', 'dhpk-agent'),
-    path.join(resolvedRoot, 'plugins', 'dhpk-cursor'),
-    path.join(resolvedRoot, 'plugins', 'dhpk-agy'),
-    path.join(resolvedRoot, 'generated', 'claude-marketplace', 'package'),
+    path.join(resolvedRoot, 'dist', 'claude-marketplace', 'package'),
+    path.join(resolvedRoot, 'dist', 'claude-marketplace', 'stacks-package'),
   ]);
   if (canonicalFiles.has(resolvedTarget) || canonicalDirectories.has(resolvedTarget)) return true;
   const fragmentDirectory = path.join(resolvedRoot, 'changelog.d');
@@ -674,9 +648,9 @@ function main() {
     if (validationErrors.length > 0) throw new Error(`generated release package validation failed: ${validationErrors.join('; ')}`);
 
     const stagedClaude = path.join(stagingRoot, 'claude-marketplace-package');
-    materialize({ root: args.root, out: stagedClaude });
-    writeManifestVersion(stagedClaude, '.claude-plugin/plugin.json', args.version);
-    writeAgyGeneratorDocPins(stagedClaude, args.version);
+    materialize({ root: args.root, out: stagedClaude, version: args.version });
+    const stagedStacks = path.join(stagingRoot, 'claude-stacks-package');
+    materialize({ root: args.root, out: stagedStacks, kind: 'stacks', version: args.version });
 
     const stagedChangelog = path.join(stagingRoot, 'CHANGELOG.md');
     fs.copyFileSync(changelogPath, stagedChangelog);
@@ -718,10 +692,8 @@ function main() {
         source: path.join(stagedFiles, relPath),
       })),
       { target: path.join(args.root, 'plugins', 'dhpk'), source: stagedNative },
-      { target: path.join(args.root, 'plugins', 'dhpk-agent'), source: stagedAgent },
-      { target: path.join(args.root, 'plugins', 'dhpk-cursor'), source: stagedCursor },
-      { target: path.join(args.root, 'plugins', 'dhpk-agy'), source: stagedAgy },
-      { target: path.join(args.root, 'generated', 'claude-marketplace', 'package'), source: stagedClaude },
+      { target: path.join(args.root, 'dist', 'claude-marketplace', 'package'), source: stagedClaude },
+      { target: path.join(args.root, 'dist', 'claude-marketplace', 'stacks-package'), source: stagedStacks },
       ...promoted.consumed.map((relative) => ({ target: path.join(fragmentDir, relative), source: null })),
     ];
     const operationKey = args.operationKey || `release-${args.version}-${Date.now()}`;
@@ -731,10 +703,8 @@ function main() {
       root: args.root,
     });
     changed.push('plugins/dhpk/ (regenerated codex-native package: manifest, skills/, fingerprints.json, provenance.json)');
-    changed.push('plugins/dhpk-agent/ (regenerated standard Agent Plugin package)');
-    changed.push('plugins/dhpk-cursor/ (regenerated Cursor Plugin package)');
-    changed.push('plugins/dhpk-agy/ (regenerated native AGY package)');
-    changed.push('generated/claude-marketplace/package/ (regenerated Claude marketplace package)');
+    changed.push('dist/claude-marketplace/package/ (regenerated Claude marketplace package)');
+    changed.push('dist/claude-marketplace/stacks-package/ (regenerated dhpk-stacks package)');
 
     console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
     for (const f of changed) console.log(`  - ${f}`);

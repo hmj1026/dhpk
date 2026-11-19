@@ -28,9 +28,9 @@ The create-pr command SHALL resolve the selected head and base once. An explicit
 
 ### Requirement: create-pr does not reference nonexistent skills
 
-The create-pr command file SHALL NOT instruct following a skill that does not exist in the plugin.
+The `create-pr` skill SHALL NOT instruct following a skill that does not exist in the plugin.
 
 #### Scenario: Dangling skill reference removed
 
-- **WHEN** `commands/create-pr.md` is validated
+- **WHEN** `skills/create-pr/SKILL.md` is validated
 - **THEN** it contains no reference to a `create-pr` skill directory absent from the repo

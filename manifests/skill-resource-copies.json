@@ -52,7 +52,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:930e27d6723224b119275af6909ef40232cdaaeb9a137e0af16cc974e2675467",
+      "sha256": "sha256:edcaf3e59a5bc0334724c80a5709b11fcd6af0bd6f731b121ff3efe1736e0247",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -136,7 +136,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/invocation-classification.md",
-      "sha256": "sha256:fe88b81d49672ff698f469190b96b60bebb5ed45dd3777d25dd69bcbe11b6f18",
+      "sha256": "sha256:81752533018c5bfc4cdee54228ed00b7e24e07d1ee4fdd2dda4b4a63512393ba",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md": {
@@ -196,7 +196,7 @@
     "skills/harness-setup/data/module-catalog.json": {
       "skill_id": "harness-setup",
       "source": "manifests/module-catalog.json",
-      "sha256": "sha256:fb6412a96c83789d2ea96c5c89de42195e3c231d20a9fbf409b302b1b6a5a865",
+      "sha256": "sha256:365131a380dfb9d9ed300cafa530949d879e7fce0fb68ecf14660969a06e0a24",
       "mode": "0644"
     },
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {

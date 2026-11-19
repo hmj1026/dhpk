@@ -425,14 +425,14 @@
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
       "canonical_digest": "d247f5fec20fb073f223500215eb11aa38b588f0d51ebb7755ca17de58afcecf",
-      "projection_digest": "2f7d5afaa09fbd37be0d90bf373a812d08c5c07d334e517177cac0cbbc7f22b2",
+      "projection_digest": "03890c7948b7c29051ebe3a75b96675850f726d37fba148626eb3ec31993129b",
       "destination": "dhpk/contracts/artifact-contract.md"
     },
     {
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "930e27d6723224b119275af6909ef40232cdaaeb9a137e0af16cc974e2675467",
+      "canonical_digest": "edcaf3e59a5bc0334724c80a5709b11fcd6af0bd6f731b121ff3efe1736e0247",
       "projection_digest": "c28fe7bd0a96e3b92fe5247ac11e11ca515d5df19dedcbcde2b654419662b8ac",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -461,8 +461,8 @@
       "id": "codex-supporting-docs-docker-setup-md",
       "source": "codex/supporting/docs/docker-setup.md",
       "canonical_source": "docs/docker-setup.md",
-      "canonical_digest": "5f35fa7fa9de0edd9b4a068bc6ab3f964633f8889b663308998bfe9df11da5cf",
-      "projection_digest": "07898ac72561aeb87325925b8623fc0413eb67e29b0b15ed71f4ea9c80ec0303",
+      "canonical_digest": "a1043890a8af8f6c02e6c77d297c791d3bcd202558e159c88d324bff67fb09d8",
+      "projection_digest": "50224ef2144ee5d801f906427862febcafba404bc3f2b68dd63d1402246ef306",
       "destination": "dhpk/docs/docker-setup.md"
     },
     {
@@ -3513,7 +3513,6 @@
         "surface": "cursor-plugin",
         "source_paths": [
           "agents/",
-          "commands/",
           "rules/",
           "hooks/hooks.json"
         ],
@@ -3559,7 +3558,6 @@
         "surface": "cursor-sync",
         "source_paths": [
           "agents/",
-          "commands/",
           "rules/"
         ],
         "destination": "cursor/",

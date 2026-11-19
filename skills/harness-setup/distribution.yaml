@@ -129,27 +129,5 @@
         "summary": "Use harness setup with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "setup",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:setup",
-      "argument_contract": "[--show] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force] [--vendor]",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/setup.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/setup.md"
-      ],
-      "allowed_tools": "Read, Grep, Glob, Bash(bash:*), Bash(node:*), Bash(git rev-parse:*), Bash(ls:*), Bash(mkdir:*), Bash(cp:*), Bash(chmod:*), Skill, AskUserQuestion"
-    }
-  ]
+  }
 }

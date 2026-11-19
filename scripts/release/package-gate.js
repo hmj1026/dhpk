@@ -9,7 +9,7 @@
 // regeneration). Composes into one release-evidence stage.
 //
 // Claude's marketplace source is the tracked generated package under
-// generated/claude-marketplace/package. The authoring checkout remains
+// dist/claude-marketplace/package. The authoring checkout remains
 // separate so project-level CLAUDE.md instructions never enter the consumer
 // cache. The package generator check below prevents the tracked projection
 // from drifting from canonical Claude sources.

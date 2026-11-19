@@ -11,18 +11,18 @@ TBD - created by archiving change consolidate-hooks-delegation-verdicts. Update 
 > for historical traceability and are not active requirements after direct
 > Sentinel retirement.
 >
-### Requirement: SubagentStop quality gate is default-off and controlled by a userConfig key
+### Requirement: SubagentStop quality gate is default-off and controlled by an environment variable
 
-`scripts/hooks/subagent-stop-quality.sh` SHALL be wired on the `SubagentStop` matcher but SHALL be a no-op (immediate exit 0, no heuristic evaluation) unless the `userConfig.subagent_quality_gate` key is explicitly set to an enabling value. The default value of `subagent_quality_gate` SHALL be off.
+`scripts/hooks/subagent-stop-quality.sh` SHALL be wired on the `SubagentStop` matcher but SHALL be a no-op (immediate exit 0, no heuristic evaluation) unless the `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` environment variable (read via `dhpk_config_get subagent_quality_gate`) is explicitly set to an enabling value. The default value SHALL be off. The setting is not a `plugin.json` userConfig option; a consumer that registers the hook sets the variable itself.
 
-#### Scenario: Gate is inert when userConfig key is unset
+#### Scenario: Gate is inert when environment variable is unset
 
-- **WHEN** `userConfig.subagent_quality_gate` is unset or at its default value
+- **WHEN** `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` is unset or at its default value
 - **THEN** `subagent-stop-quality.sh` exits 0 without evaluating any thin-report heuristic
 
 #### Scenario: Gate evaluates heuristics when explicitly enabled
 
-- **WHEN** `userConfig.subagent_quality_gate` is explicitly set to an enabling value
+- **WHEN** `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` is explicitly set to an enabling value
 - **THEN** `subagent-stop-quality.sh` evaluates its thin-report heuristics against the stopping subagent's report
 
 ### Requirement: Thin-report heuristics block-and-continue exactly once per result
@@ -118,16 +118,16 @@ For the seven sentinel reviewer agents (`code-reviewer`, `doc-reviewer`, `databa
 
 ### Requirement: Session start announces a non-default subagent quality gate setting
 
-When `userConfig.subagent_quality_gate` is set to a non-default value, the session-start hook SHALL announce that setting, mirroring the existing announcement pattern used for `planner_model`/`deep_reasoner_model`.
+When `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` is set to a non-default value, the session-start hook SHALL announce that setting, mirroring the existing announcement pattern used for `planner_model`/`deep_reasoner_model`.
 
 #### Scenario: Non-default setting is announced at session start
 
-- **WHEN** a session starts with `userConfig.subagent_quality_gate` set to a non-default (enabling) value
+- **WHEN** a session starts with `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` set to a non-default (enabling) value
 - **THEN** the session-start hook's output announces that the subagent quality gate is enabled
 
 #### Scenario: Default setting produces no announcement
 
-- **WHEN** a session starts with `userConfig.subagent_quality_gate` unset or at its default value
+- **WHEN** a session starts with `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` unset or at its default value
 - **THEN** the session-start hook makes no mention of the subagent quality gate
 
 ### Requirement: Reviewer agents complete their verdict in a single run

@@ -1,7 +1,7 @@
 # Portable command workflows
 
-Codex invokes installed Skills with `$<public-name>`. Claude's existing
-`/dhpk:<command>` entry points forward to the same canonical procedures.
+Codex invokes installed Skills with `$<public-name>`. Claude invokes the same
+skills as `/dhpk:<skill-name>`; the plugin ships no command forwarders.
 Use `$flow-guide help` to discover the installed grammar; package presence and
 runtime availability are separate evidence.
 
@@ -14,15 +14,19 @@ runtime availability are separate evidence.
 | `simplify` | `$code-simplify` |
 | `smart-commit` | `$git-smart-commit` |
 | `create-release` | `$release-creator` |
-| `matrix-cell-onboard` | `$matrix-cell-onboard` |
+| `setup` | `$harness-setup` |
+| `matrix-cell-onboard` | `$library-author cell-onboard` |
+| `doc-refactor` | `$doc-maintain refactor` |
+| `update-codemaps` | `$doc-maintain codemap` |
+| `update-docs` | `$doc-maintain update` |
 | `ts-check-status` | `$js-static-checks status --path <directory>` |
 
-Retired aliases no longer provide entry points; use the current portable skill
-directly.
+The `Existing entry` names are removed commands; use the current skill
+directly (`/dhpk:<skill>` in Claude).
 
-The other generic command workflows use the command's name directly:
+The other generic workflows are skills of the same name:
 `create-pr`, `git-worktree`, `merge-prep`, `pr-summary`, `project-brief`,
-`doc-refactor`, `update-docs`, `update-codemaps`, and `precommit`. Dependency
+and `precommit`. Dependency
 audit and pending-change review use the `change-verdict` tasks `deps` and
 `pending`. Current `flow-guide` and `flow-drive` keep their names.
 

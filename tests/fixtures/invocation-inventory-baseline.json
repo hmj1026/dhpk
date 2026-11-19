@@ -4,7 +4,7 @@
   "note": "Point-in-time inventory refreshed for the consolidated command surface; command metadata classes remain validated live by scripts/ci/validate-invocation-policy.js.",
   "counts": {
     "skills": 105,
-    "commands": 44
+    "commands": 26
   },
   "skills": [
     {
@@ -920,27 +920,6 @@
       "claudeUserInvocableFalse": false
     },
     {
-      "path": "commands/create-pr.md",
-      "name": "create-pr",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/create-release.md",
-      "name": "create-release",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/deep-analyze.md",
-      "name": "deep-analyze",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
       "path": "commands/dep-audit.md",
       "name": "dep-audit",
       "pairedSkill": null,
@@ -955,24 +934,10 @@
       "claudeUserInvocableFalse": false
     },
     {
-      "path": "commands/doc-refactor.md",
-      "name": "doc-refactor",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
       "path": "commands/evolve.md",
       "name": "evolve",
       "pairedSkill": null,
       "claudeDisableModelInvocation": true,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/git-worktree.md",
-      "name": "git-worktree",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false
     },
     {
@@ -1032,50 +997,8 @@
       "claudeUserInvocableFalse": false
     },
     {
-      "path": "commands/matrix-cell-onboard.md",
-      "name": "matrix-cell-onboard",
-      "pairedSkill": "matrix-cell-onboard",
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/merge-prep.md",
-      "name": "merge-prep",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/opsx-apply-resume.md",
-      "name": "opsx-apply-resume",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": true,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/pr-summary.md",
-      "name": "pr-summary",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
       "path": "commands/precommit-fast.md",
       "name": "precommit-fast",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/precommit.md",
-      "name": "precommit",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/project-brief.md",
-      "name": "project-brief",
       "pairedSkill": null,
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false
@@ -1102,57 +1025,8 @@
       "claudeUserInvocableFalse": false
     },
     {
-      "path": "commands/setup.md",
-      "name": "setup",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": true,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/simplify.md",
-      "name": "simplify",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/smart-commit.md",
-      "name": "smart-commit",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
       "path": "commands/spec-mine.md",
       "name": "spec-mine",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/ui-ux-verify.md",
-      "name": "ui-ux-verify",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/update-codemaps.md",
-      "name": "update-codemaps",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/update-docs.md",
-      "name": "update-docs",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/verify.md",
-      "name": "verify",
       "pairedSkill": null,
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false

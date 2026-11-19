@@ -3,7 +3,8 @@
 // (#1455) git 依設定或環境變數執行的命令：editor、fsmonitor、credential helper、gpg、askpass、external diff、
 // filter、textconv、alias、ssh LocalCommand／KnownHostsCommand，以及 GIT_CONFIG_COUNT／--config-env／
 // GIT_CONFIG_PARAMETERS 注入。字串裡可見的 Protected Path 讀取與直接寫出相同判定；外部腳本內容不讀取（ADR 0037）。
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { mkRepo, rmRepo, runHook } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

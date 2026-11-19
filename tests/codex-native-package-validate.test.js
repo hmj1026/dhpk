@@ -344,13 +344,6 @@ test('native structural verification returns stage-bound evidence instead of a l
     return JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
   }
 
-  test('the native .codex-plugin/plugin.json now passes native-candidate structural validation (physical tracked package, no symlinks)', () => {
-    const manifest = loadManifest('.codex-plugin/plugin.json');
-    const result = validateNativeCandidate({ manifestSkillsField: manifest.skills, packageRoot: ROOT });
-    assert.deepStrictEqual(result.errors, []);
-    assert.ok(result.ok);
-  });
-
   test('the marketplace-target wrapper plugin.json now passes native-candidate structural validation (./skills/, no parent-relative escape)', () => {
     const manifest = loadManifest(path.join('plugins', 'dhpk', '.codex-plugin', 'plugin.json'));
     const packageRoot = path.join(ROOT, 'plugins', 'dhpk');
@@ -359,18 +352,16 @@ test('native structural verification returns stage-bound evidence instead of a l
     assert.ok(result.ok);
   });
 
-  test('the tracked package contains the canonical common and Codex-only entries', () => {
+  test('the tracked package contains exactly the public catalog and no Host-only entry', () => {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const selection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
-    const publicationView = compileMarketplacePublicationView({ inventory, selection, hostSurface: 'codex-native' });
+    const publicationView = compileMarketplacePublicationView({ inventory, selection });
     const packageRoot = path.join(ROOT, 'plugins', 'dhpk');
     const candidateSkillNames = fs.readdirSync(path.join(packageRoot, 'skills'));
     const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
     const expectedPublicIds = publicationView.publicEntries.map((entry) => entry.id).sort();
-    const expectedHostOnlyIds = publicationView.hostOnly.map((entry) => entry.id).sort();
-    const expectedIds = [...expectedPublicIds, ...expectedHostOnlyIds].sort();
-    const expectedNames = [...publicationView.publicEntries, ...publicationView.hostOnly]
-      .map((entry) => entry.name || entry.id).sort();
+    const expectedIds = expectedPublicIds;
+    const expectedNames = publicationView.publicEntries.map((entry) => entry.name || entry.id).sort();
     const result = validateNativeMembership({ candidateSkillNames, inventory, publicationView });
 
     assert.deepStrictEqual(publicationView.errors, []);
@@ -380,7 +371,7 @@ test('native structural verification returns stage-bound evidence instead of a l
     assert.deepStrictEqual(candidateSkillNames.sort(), expectedNames);
     assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
     assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, expectedPublicIds);
-    assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, expectedHostOnlyIds);
+    assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, []);
     assert.strictEqual(provenance.marketplacePublication.selectionDigest, publicationView.selectionDigest);
   });
 }
@@ -396,42 +387,31 @@ test('native structural verification returns stage-bound evidence instead of a l
   const resolve = (base, p) => path.join(base, p.replace(/^\.\//, ''));
 
   const claudePlugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-  const rootManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.codex-plugin', 'plugin.json'), 'utf8'));
   const wrapperDir = path.join(ROOT, 'plugins', 'dhpk');
   const wrapperManifest = JSON.parse(fs.readFileSync(path.join(wrapperDir, '.codex-plugin', 'plugin.json'), 'utf8'));
   const marketplace = JSON.parse(fs.readFileSync(path.join(ROOT, '.agents', 'plugins', 'marketplace.json'), 'utf8'));
 
-  test('root .codex-plugin/plugin.json has a semver version', () => {
-    assert.match(rootManifest.version, /^\d+\.\d+\.\d+$/, `version='${rootManifest.version}'`);
+  test('the repo root is not a Codex plugin root', () => {
+    assert.ok(!fs.existsSync(path.join(ROOT, '.codex-plugin')), 'root .codex-plugin must stay retired');
   });
 
-  test('root .codex-plugin/plugin.json version matches .claude-plugin/plugin.json', () => {
-    assert.strictEqual(rootManifest.version, claudePlugin.version);
+  test('plugins/dhpk .codex-plugin/plugin.json has a semver version matching .claude-plugin/plugin.json', () => {
+    assert.match(wrapperManifest.version, /^\d+\.\d+\.\d+$/, `version='${wrapperManifest.version}'`);
+    assert.strictEqual(wrapperManifest.version, claudePlugin.version);
   });
 
-test('root .codex-plugin/plugin.json skills path resolves to an existing directory', () => {
-  const result = validateNativeCandidate({ manifestSkillsField: rootManifest.skills, packageRoot: ROOT });
-  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
-  assert.ok(result.ok);
-  assert.strictEqual(rootManifest.skills, './plugins/dhpk/skills/');
-});
-
-  test('thin wrapper plugin.json name/version match the root manifest', () => {
-    assert.strictEqual(wrapperManifest.name, rootManifest.name);
-    assert.strictEqual(wrapperManifest.version, rootManifest.version);
+  test('plugins/dhpk skills path resolves to the package skills directory', () => {
+    const result = validateNativeCandidate({ manifestSkillsField: wrapperManifest.skills, packageRoot: wrapperDir });
+    assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+    assert.ok(result.ok);
+    assert.strictEqual(wrapperManifest.skills, './skills/');
   });
 
-  test('thin wrapper skills path resolves to the same directory as the root manifest', () => {
-    const wrapperSkillsDir = resolve(wrapperDir, wrapperManifest.skills);
-    const rootSkillsDir = resolve(ROOT, rootManifest.skills);
-    assert.strictEqual(fs.realpathSync(wrapperSkillsDir), fs.realpathSync(rootSkillsDir));
-  });
-
-  test('marketplace.json plugin name/version match the marketplace-target wrapper manifest', () => {
+  test('marketplace.json plugin entry names the wrapper and carries no version key', () => {
     const entry = marketplace.plugins && marketplace.plugins[0];
     assert.ok(entry, 'marketplace.json has no plugins[0]');
     assert.strictEqual(entry.name, wrapperManifest.name);
-    assert.strictEqual(entry.version, wrapperManifest.version);
+    assert.ok(!('version' in entry), 'Codex marketplace entry must not carry a version key');
   });
 
   test('marketplace.json source.path resolves exactly to the tracked plugins/dhpk wrapper', () => {
@@ -583,12 +563,12 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     } finally { fs.rmSync(out, { recursive: true, force: true }); }
   });
 
-  test('Codex native generation requires the named profile for its exact 16-skill package', () => {
+  test('Codex native generation requires the named profile for its exact 14-skill Public Plugin package', () => {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
     const expectedIds = [
       'change-verdict', 'code-trace', 'create-pr', 'doc-maintain', 'flow-drive', 'flow-guide',
-      'git-smart-commit', 'git-worktree', 'library-author', 'opsx-apply-resume', 'precommit',
+      'git-smart-commit', 'git-worktree', 'precommit',
       'proposal-analyze', 'release-creator', 'repo-verify', 'tdd', 'ui-ux-verify',
     ].sort();
     const profile = profiles.profiles['codex-native'];
@@ -1009,15 +989,14 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
       const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
         .map((entry) => entry.id).sort();
-      const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
-        && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
-      const expectedIds = [...commonIds, ...hostOnlyIds].sort();
+      const hostOnlyIds = [];
+      const expectedIds = commonIds;
       assert.deepStrictEqual(provenance.runtimeSupportStableIds, []);
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) {
         assert.ok(!provenance.materializedSkillIds.includes(id), id);
       }
       const flowDrive = path.join(out, 'skills', 'flow-drive');
-      assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
+      assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'references']);
       assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
       const references = fs.readdirSync(path.join(flowDrive, 'references')).sort();
       assert.ok(references.includes('migration.md'), 'Flow Drive retains its migration guide');
@@ -1186,9 +1165,8 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
       const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
         .map((entry) => entry.id).sort();
-      const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
-        && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
-      const expectedIds = [...commonIds, ...hostOnlyIds].sort();
+      const hostOnlyIds = [];
+      const expectedIds = commonIds;
 
       const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
       const generated = materializeNativePackage({

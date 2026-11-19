@@ -23,7 +23,7 @@ Static package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
 For installation or activation work, inspect repository/session state, verify
 the installed surface, and choose the supported Host route. For an established
 environment, reuse current evidence and invoke the known task owner directly.
-Claude uses `/dhpk:<name>`, Cursor its generated command, and Codex `$<name>`
+Claude uses `/dhpk:<name>`, Cursor its synced skill, and Codex `$<name>`
 (Codex has no `/dhpk:*` command). `flow-guide` offers optional navigation;
 `flow-drive` implements a confirmed task. Apply the consumer's Project
 Convention and report the evidence and next action. Plugin management
@@ -75,8 +75,8 @@ from skill invocation. Choose one Codex runtime route per host: use the
 supported project-local `codex-sync` path for daily work, or use the
 experimental native package only in a disposable isolated `CODEX_HOME`.
 Claude workflows enter through `/dhpk:flow-guide`,
-`/dhpk:flow-drive`, or an explicit family skill; Cursor uses the generated
-command after `install-cursor-harness.sh`; Codex enters through `$flow-guide` /
+`/dhpk:flow-drive`, or an explicit family skill; Cursor uses the synced
+skill after `install-cursor-harness.sh`; Codex enters through `$flow-guide` /
 `$flow-drive` after project-local `.codex/` sync (Codex has no `/dhpk:*` command).
 
 ## Install
@@ -108,12 +108,11 @@ claude plugin install dhpk@dhpk
 /plugin install dhpk@dhpk
 ```
 
-Add `--config` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:setup` after install) — see [`docs/configuration.md`](./configuration.md) for the full knob reference:
+Add `--config` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:harness-setup` after install) — see [`docs/configuration.md`](./configuration.md) for the full knob reference:
 
 ```bash
 claude plugin install dhpk@dhpk \
   --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-  --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 
@@ -122,8 +121,8 @@ Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@
 After install, reconfigure any time from inside Claude Code:
 
 ```text
-/dhpk:setup           # rerun the same questions
-/dhpk:setup --show    # print current effective config
+/dhpk:harness-setup           # rerun the same questions
+/dhpk:harness-setup --show    # print current effective config
 ```
 
 ### Path B — Local clone + interactive installer
@@ -152,7 +151,7 @@ node scripts/ci/validate-skills.js --strict
 
 These commands validate repository source and are not proof of the official
 consumer. The Claude marketplace points at the generated physical package
-under `generated/claude-marketplace/package`; it excludes the development-only
+under `dist/claude-marketplace/package`; it excludes the development-only
 root `CLAUDE.md` before the package enters the marketplace cache. Verify that
 projection is current with:
 
@@ -230,7 +229,7 @@ and is also the safe order for copy mode.
 | `marketplace add` says the path doesn't exist | You followed Path B but skipped the `git clone` step | Run `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk` first — or switch to Path A which needs no clone |
 | `claude plugin install dhpk@dhpk` says marketplace not found | `marketplace add` didn't run, or you removed it earlier | Re-run the `marketplace add` line from your chosen path |
 | `/dhpk:*` commands or hooks don't appear after install | Session loaded its skill list before install finished | Run `/reload-plugins` inside Claude Code, or restart the session |
-| `claude plugin list` shows dhpk but `/dhpk:setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk@dhpk` (or `/plugin enable dhpk@dhpk`) |
+| `claude plugin list` shows dhpk but `/dhpk:harness-setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk@dhpk` (or `/plugin enable dhpk@dhpk`) |
 | `install.sh` errors on `gum` / `jq` not found | Optional UI deps missing | The script falls back to plain shell / `python3`; install `gum` and `jq` for the nicer flow, or ignore the warning |
 | Some skill descriptions truncated/dropped (seen in `/doctor`) | Many modules shipped → skill-listing budget overflow (module skills list regardless of `modules`, [#12](https://github.com/hmj1026/dhpk/issues/12)) | Raise `skillListingBudgetFraction` in `settings.json` (default ~1% → `0.02`–`0.03`), or install fewer modules / disable the whole plugin with `/plugin` where unused |
 | Version advisory asks you to update `.claude/dhpk-versions.json`, but it is a symlink | The Write tool refuses symlink targets | Run `realpath .claude/dhpk-versions.json` and write the verified entry to that real path; `scripts/version-diff.sh` prints the same safe instruction |
@@ -243,7 +242,7 @@ Choose the capability that supplies the missing outcome for daily development:
 missing outcome → owning workflow or method → applicable evidence → next action
 ```
 
-When you know the outcome but haven't decided which capability to dispatch, Claude uses `/dhpk:flow-guide`, Codex uses `$flow-guide`, and Cursor uses its local commands. When the exact workflow is known, invoke the specific project skill or slash command directly.
+When you know the outcome but haven't decided which capability to dispatch, Claude uses `/dhpk:flow-guide`, Codex uses `$flow-guide`, and Cursor uses its synced skills. When the exact workflow is known, invoke the specific project skill directly.
 
 For a fast lookup, see the cheat sheet: [Skill and Slash Command Cheat Sheet](./skill-command-cheat-sheet.md) · [繁體中文](./skill-command-cheat-sheet.zh-TW.md).
 
@@ -265,7 +264,7 @@ required resources define what the skill needs.
 `flow-guide` is read-only advice. `flow-drive` is an explicit native task/help
 entry. None of the cases below authorizes commit, push, merge, or deploy.
 Claude uses `/dhpk:<name>`; Codex uses `$<name>` after project-local sync;
-Cursor uses the generated local command. Full Host grammar stays in
+Cursor uses the synced skill. Full Host grammar stays in
 [README — What you get](../README.md#what-you-get) and
 [Codex skill usage](./codex-skill-usage.md).
 
@@ -358,7 +357,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
 
 - **Actions**:
   - For installation, activation, or unfamiliar configuration, use `/dhpk:flow-guide help` (Codex: `$flow-guide help`) for available entries.
-  - When module configuration needs inspection, use `/dhpk:setup --show` on its supported Host. Reuse an established environment for routine work.
+  - When module configuration needs inspection, use `/dhpk:harness-setup --show` on its supported Host. Reuse an established environment for routine work.
 - **Completion Criterion**: Active modules and configuration match project requirements without missing prerequisites.
 
 #### Step 2: Inquire, Explore & Route
@@ -414,7 +413,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
     /dhpk:precommit --fast --dry-run                  # preview selected commands
     /dhpk:precommit --fast                            # omit build; selected tests may be the full suite
     /dhpk:precommit                                   # full pipeline (lint:fix -> build -> test:unit)
-    /dhpk:verify                                      # cross-layer validation (includes integration & e2e)
+    /dhpk:repo-verify                                      # cross-layer validation (includes integration & e2e)
     ```
     Select the checks required by the project and change scope. Apply the kernel's
     [Evidence snapshots](../rules/execution-policy-kernel.md#evidence-snapshots)
@@ -430,8 +429,8 @@ owns the requested outcome. The vocabulary and boundary are defined in
 - **Actions**:
   - **Smart Batch Commit**: When commit work is authorized, group changes by cohesion into project-compliant messages and runnable Git commands:
     ```text
-    /dhpk:smart-commit
-    /dhpk:smart-commit --scope resources/assets/js --type refactor
+    /dhpk:git-smart-commit
+    /dhpk:git-smart-commit --scope resources/assets/js --type refactor
     ```
   - **Open Pull Request**: Extract ticket IDs and generate project-compliant PR summaries:
     ```text
@@ -440,7 +439,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
     ```
   - **Release & Deployment Checklist**: Use for a separately requested release or deployment outcome:
     ```text
-    /dhpk:create-release                              # version bump, changelog update, and Git tag
+    /dhpk:release-creator                              # version bump, changelog update, and Git tag
     deploy-list --tag="[RELEASE-1.0.0]" --description="Release summary" --lang=en
     ```
 - **Completion Criterion**: The requested handoff outcome is produced under the Project Convention, with required checks accounted for. Commit, PR, merge, release, and deployment remain separate states.
@@ -646,10 +645,10 @@ legacy dispositions and the pinned release that retains those interfaces.
   /dhpk:precommit
   ```
 
-#### 8. repo-verify / /dhpk:verify (Repository Cross-Layer Verification)
+#### 8. repo-verify / /dhpk:repo-verify (Repository Cross-Layer Verification)
 
 - **Purpose**: Read-only cross-layer validation across all project levels (lint, typecheck, unit, integration, e2e).
-- **Invocation Syntax**: `/dhpk:verify [<mode>] [--integration=<path>] [--e2e=<path>]` (Codex: `$repo-verify ...`)
+- **Invocation Syntax**: `/dhpk:repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]` (Codex: `$repo-verify ...`)
 - **Parameter Breakdown**:
 
   | Parameter | Type / Choices | Default | Description |
@@ -661,19 +660,19 @@ legacy dispositions and the pinned release that retains those interfaces.
 - **Practical Examples**:
   ```text
   # Run full repository verification
-  /dhpk:verify
+  /dhpk:repo-verify
 
   # Run fast verification stage
-  /dhpk:verify fast
+  /dhpk:repo-verify fast
 
   # Run full verification with customized test directories
-  /dhpk:verify full --integration=tests/Integration --e2e=tests/E2E
+  /dhpk:repo-verify full --integration=tests/Integration --e2e=tests/E2E
   ```
 
-#### 9. smart-commit (Smart Atomic Batch Commit)
+#### 9. git-smart-commit (Smart Atomic Batch Commit)
 
 - **Purpose**: Analyzes unstaged/staged files, groups them by cohesion, formats Conventional Commit messages matching project conventions, and produces copy-pasteable Git commands.
-- **Invocation Syntax**: `/dhpk:smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
+- **Invocation Syntax**: `/dhpk:git-smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
 - **Parameter Breakdown**:
 
   | Parameter | Type | Description |
@@ -685,13 +684,13 @@ legacy dispositions and the pinned release that retains those interfaces.
 - **Practical Examples**:
   ```text
   # Analyze all working tree changes and group into atomic commits
-  /dhpk:smart-commit
+  /dhpk:git-smart-commit
 
   # Stage only frontend assets and enforce refactor type
-  /dhpk:smart-commit --scope resources/assets/js --type refactor
+  /dhpk:git-smart-commit --scope resources/assets/js --type refactor
 
   # Include AI co-author trailer
-  /dhpk:smart-commit --ai-co-author
+  /dhpk:git-smart-commit --ai-co-author
   ```
 
 #### 10. create-pr (Pull Request Creation)
@@ -861,9 +860,8 @@ exact tracked `plugins/dhpk/` artifact into a sandboxed `CODEX_HOME`,
 deletes the source checkout, and verifies every allowlisted native skill
 materialized as a real (non-symlink) file — the exact failure mode
 [issue #88](https://github.com/hmj1026/dhpk/issues/88) tracked is closed at
-the manifest level (both `.codex-plugin/plugin.json` and
-`plugins/dhpk/.codex-plugin/plugin.json` now resolve to the same tracked
-physical tree). This proof runs as part of the release CONSUMER gate
+the manifest level (`plugins/dhpk/.codex-plugin/plugin.json` resolves to the
+tracked physical tree, and the Codex plugin root is `plugins/dhpk/`: the repository root carries no `.codex-plugin/` or root `plugin.json`). This proof runs as part of the release CONSUMER gate
 whenever a `codex` CLI is available; see
 [`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package)
 for the full gate model.
@@ -885,7 +883,7 @@ available. If the query is missing or unsupported, the result reports
 `providerCheck: UNAVAILABLE` and sync may proceed; the installer never removes
 the global plugin automatically. Do not delete the whole `.codex/` directory.
 
-See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
+See `plugins/dhpk/README.md` for details.
 
 ## Migrating an existing project
 

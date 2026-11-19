@@ -70,8 +70,9 @@ when to load the skill.
 | `license` | Agent Skills spec field; accepted, unused by Claude Code. |
 | `compatibility` | Agent Skills spec field; accepted, unused by Claude Code. |
 
-Command files under `commands/` support the same frontmatter except `name`
-and `paths`, which Claude Code ignores there. Skill `SKILL.md` bodies are
+dhpk ships no `commands/` directory. A consumer-owned command file under
+`commands/` supports the same frontmatter except `name` and `paths`, which
+Claude Code ignores there. Skill `SKILL.md` bodies are
 out of scope for this schema page.
 
 `scripts/ci/validate-skills.js` accepts every field in this table and rejects

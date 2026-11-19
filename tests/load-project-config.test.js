@@ -572,4 +572,42 @@ test('DHPK_HOOK_PROFILE env one-shot override wins over settings file', () => {
   });
 }
 
+function writeStacksSettings(root, coreOptions, stacksOptions) {
+  fs.mkdirSync(path.join(root, '.claude'), { recursive: true });
+  const configs = {};
+  if (coreOptions) configs['dhpk@dhpk'] = { options: coreOptions };
+  if (stacksOptions) configs['dhpk-stacks@dhpk'] = { options: stacksOptions };
+  fs.writeFileSync(path.join(root, '.claude', 'settings.local.json'), JSON.stringify({ pluginConfigs: configs }));
+}
+
+test('modules from the dhpk-stacks project options reach the hooks', () => {
+  const root = tmpRoot();
+  writeStacksSettings(root, { hook_profile: 'minimal' }, { modules: ['js', 'python'] });
+  const res = sh(root, 'echo "$CLAUDE_PLUGIN_OPTION_MODULES|$CLAUDE_PLUGIN_OPTION_HOOK_PROFILE"');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout.trim(), 'js,python|minimal');
+});
+
+test('a legacy modules value under dhpk@dhpk is still read', () => {
+  const root = tmpRoot();
+  writeStacksSettings(root, { modules: 'php-7.4' }, null);
+  const res = sh(root, 'echo "$CLAUDE_PLUGIN_OPTION_MODULES"');
+  assert.strictEqual(res.stdout.trim(), 'php-7.4');
+});
+
+test('dhpk-stacks project options win over the legacy dhpk@dhpk value', () => {
+  const root = tmpRoot();
+  writeStacksSettings(root, { modules: 'php-7.4' }, { modules: 'js' });
+  const res = sh(root, 'echo "$CLAUDE_PLUGIN_OPTION_MODULES"');
+  assert.strictEqual(res.stdout.trim(), 'js');
+});
+
+test('a malformed dhpk-stacks entry marks the configuration invalid like a malformed core entry', () => {
+  const root = tmpRoot();
+  fs.mkdirSync(path.join(root, '.claude'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.claude', 'settings.local.json'), JSON.stringify({ pluginConfigs: { 'dhpk-stacks@dhpk': null } }));
+  const res = sh(root, 'echo "${DHPK_CREDENTIAL_CONFIG_ERROR:-}"');
+  assert.strictEqual(res.stdout.trim(), '1');
+});
+
 run('load-project-config');

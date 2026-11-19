@@ -135,9 +135,7 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
   const ROOT = path.join(__dirname, '..');
   const SURFACES = [
     'plugins/dhpk',
-    'plugins/dhpk-agent',
-    'plugins/dhpk-agy',
-    'generated/claude-marketplace/package',
+    'dist/claude-marketplace/package',
   ];
 
   function isolatedEnvironment() {
@@ -382,6 +380,29 @@ test('change-verdict authorizes the installed helper paths without unrestricted 
   const backend = fs.readFileSync(path.join(ROOT, 'skills/change-verdict/references/shared/cli-backend.md'), 'utf8');
   assert.match(backend, /\$SKILL_DIR\/scripts\/review-cli\.sh/);
   assert.doesNotMatch(backend, /skills\/change-verdict\/scripts\/review-cli\.sh/);
+});
+
+test('shipped next-edge data fills missing frontmatter keys and never overrides frontmatter', () => {
+  const tmp = tempRoot('dhpk-next-data-');
+  try {
+    const copy = path.join(tmp, 'plugin');
+    fs.cpSync(path.join(ROOT, 'plugins/dhpk'), copy, { recursive: true });
+    const skillFile = path.join(copy, 'skills/doc-maintain/SKILL.md');
+    const text = fs.readFileSync(skillFile, 'utf8');
+    fs.writeFileSync(skillFile, text.replace(/^---\n/, '---\nmetadata:\n  dhpk-next:\n    update:PASS: none\n'));
+    const script = `
+      const helper = require(process.argv[1] + '/skills/flow-guide/scripts/skill-next-actions.js');
+      const meta = helper.collectSkillMetadata();
+      process.stdout.write(JSON.stringify(meta['doc-maintain'].values));
+    `;
+    const out = spawnSync(process.execPath, ['-e', script, copy], { encoding: 'utf8', env: { ...process.env } });
+    assert.strictEqual(out.status, 0, out.stderr);
+    const values = JSON.parse(out.stdout);
+    assert.strictEqual(values['dhpk-next']['update:PASS'], 'none', 'frontmatter stays authoritative');
+    assert.deepStrictEqual(values['dhpk-modes'], ['update', 'codemap', 'refactor'], 'missing keys come from the shipped file');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('standalone commit and trace skills package without injected policy dependencies', () => {

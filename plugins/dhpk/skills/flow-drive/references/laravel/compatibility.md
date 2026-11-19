@@ -49,4 +49,4 @@ a replacement for the complete version reference.
   constraints; do not collapse them into one modern-PHP assumption.
 
 For complete examples and per-release verification, follow the links in
-[`SKILL.md`](SKILL.md) and the selector references in `references/`.
+[`REFERENCE.md`](REFERENCE.md) and the selector references in `references/`.

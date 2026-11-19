@@ -32,7 +32,7 @@
 
 ### Next Actions
 
-- `/update-docs` — Expand README with more sections
+- `/dhpk:doc-maintain update` — Expand README with more sections
 - `/codex-test-gen` — Add tests — current coverage is very low
 
 ## Gate: ⛔
@@ -54,7 +54,7 @@
   ],
   "findings": { "p0": 0, "p1": 2, "p2": 3 },
   "next_actions": [
-    { "id": "oss-readme", "command": "/update-docs", "reason": "...", "confidence": 0.8 }
+    { "id": "oss-readme", "command": "/dhpk:doc-maintain update", "reason": "...", "confidence": 0.8 }
   ]
 }
 ```

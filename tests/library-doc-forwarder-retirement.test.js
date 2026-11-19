@@ -7,7 +7,6 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { resolveConfig, resolveRole } = require('../scripts/cli-dispatch/dispatch-runtime/cli-role-resolver');
 const { buildContext } = require('../scripts/cli-dispatch/dispatch-runtime/build-cli-dispatch-context');
-const selector = require('../scripts/fast-worker-selector');
 const pluginManifest = require('../.claude-plugin/plugin.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -72,20 +71,6 @@ function cloneGeneratorFixture(prefix) {
   return fixtureRoot;
 }
 
-for (const role of RETIRED_ROLES) {
-  test(`${role.name} is BLOCKED with successor and rollback guidance`, () => {
-    const result = resolveRole({
-      requestedRole: role.name,
-      mode: role.mode,
-      provider: role.provider,
-    });
-
-    assert.strictEqual(result.status, 'BLOCKED', `${role.name} must not resolve as an executable alias`);
-    assert.match(result.reason, new RegExp(role.successor));
-    assert.match(result.reason, /0\.66\.1/);
-  });
-}
-
 test('unknown execution roles remain distinguishable from retired names', () => {
   const result = resolveRole({ requestedRole: 'invented-role', mode: 'read-only' });
 
@@ -109,18 +94,6 @@ for (const role of RETIRED_ROLES) {
     assert.match(result.reason, new RegExp(role.successor));
     assert.match(result.reason, /0\.66\.1/);
     assert.deepStrictEqual(writes, [], `${role.name} must not publish context`);
-  });
-}
-
-for (const role of RETIRED_ROLES.filter((candidate) => candidate.name !== 'codex-deep-reasoner')) {
-  test(`fast-worker selection blocks ${role.name} instead of silently selecting Claude`, () => {
-    // Retired names are blocked before, and independent of, Host detection.
-    const result = selector.select({ backend: role.name });
-
-    assert.strictEqual(result.status, 'BLOCKED', `${role.name} must not become a successful worker selection`);
-    assert.strictEqual(result.requested_backend, role.name);
-    assert.match(result.reason, new RegExp(role.successor));
-    assert.match(result.reason, /0\.66\.1/);
   });
 }
 
@@ -248,18 +221,6 @@ test('removed configuration keys are BLOCKED when a context is built and the can
   assert.match(result.reason, /codex_deep_reasoner_effort/);
   assert.match(result.reason, /reasoner_target/);
   assert.strictEqual(writes.length, 0);
-});
-
-test('shared catalog and legacy request interfaces reject retired roles', () => {
-  const contract = require('../scripts/lib/dispatch-contract');
-  const catalog = require('../manifests/provider-model-catalog.json');
-  for (const role of RETIRED_ROLES) {
-    assert.throws(() => contract.translateLegacyRequest({ schema: 'dhpk.cli.request.v1', requested_role: role.name }),
-      new RegExp(role.successor));
-    assert.throws(() => contract.createProviderModelCatalog({ ...catalog,
-      role_aliases: { [role.name]: { role: 'worker', authority: 'workspace-write' } } }),
-    new RegExp(role.successor));
-  }
 });
 
 test('AGY package agent selection contains canonical successors without retired forwarders', () => {

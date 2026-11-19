@@ -137,9 +137,13 @@ subagent 實際啟動了 hook。
 
 ## Bash 外層上限
 
-Bash `PreToolUse` command 宣告 `timeout: 2100` 與 `onFailure: "block"`。
+Bash `PreToolUse` command 宣告 `timeout: 1800` 與 `onFailure: "block"`。
 Claude Code 2.1.295 與更新版本可以在這個 hook 逾時或無法執行時阻擋觸發的命令。
-更舊版本不被宣稱具有相同的 fail-closed 行為。這份宣告不是已量測的 2100 秒等待。
+更舊版本不被宣稱具有相同的 fail-closed 行為。這份宣告不是已量測的 1800 秒等待。
+
+這個值已從 2100 秒降到 1800 秒（#1501），hook 卡住時 Bash 工具最多凍結 30
+分鐘而不是 35 分鐘。1800 是仍能涵蓋下方 1732 秒支持範圍並保留餘裕的最小整數
+分鐘值；再調低會中斷合法的四 stack commit gate。要再調低，必須同時縮小該範圍。
 
 `Edit|Write|MultiEdit` guard 同樣宣告 `onFailure: "block"`，`timeout` 為 5。
 Claude Code 2.1.295 與更新版本會對這個 guard fail-close：hook 失敗或逾時就阻擋編輯。
@@ -148,7 +152,7 @@ Claude Code 2.1.295 與更新版本會對這個 guard fail-close：hook 失敗�
 支持的預設範圍是 JS、Python、Swift、PHP 各一個 commit root，該 root 上一個
 Python project group，以及 Swift build/test 設定不高於 360/480 秒。內層
 deadline 加每次 1 秒 grace 是 JS 212、Python 255、Swift 842、PHP 423，合計
-1732 秒。剩下的 368 秒留給準備與清理。沒有內層 deadline 的步驟不在這個合計裡。
+1732 秒。剩下的 68 秒留給準備與清理。沒有內層 deadline 的步驟不在這個合計裡。
 更多 root、更多 group、更大的 Swift override，或任何到達上限的執行都可能被
 中斷。被中斷或未完成的檢查不是 PASS，觸發的 Bash 命令也不會越過這個上限被放行。
 內層 deadline 維持不變。`SubagentStop` 不在這個上限內。
@@ -166,14 +170,36 @@ key 就自動註冊。需要它們的 consumer 必須自行註冊 hook command�
 probe、completion/graduation scan、SessionEnd 與 compaction、learning observation、
 post-edit formatting/lint，以及 Stop reminder。
 
-只被這些選用 script 讀取的 userConfig key（例如 `agent_warmstart_enabled`、
+這些選用 script 在 `plugin.json` 沒有對應的 userConfig 選項，Claude Code 設定
+介面不會顯示它們。它們的開關（例如 `agent_warmstart_enabled`、
 `completion_evidence_enabled`、`graduation_scan_enabled`、`skill_hint_enabled`）
-在對應 hook 註冊前不會有任何作用；它們在 `plugin.json` 的說明一律以
-"Requires explicit consumer hook registration" 開頭。
+只在對應 hook 註冊後，由專案 overlay 或 `DHPK_*` env override 讀取。
+
+### 已移除的 userConfig key
+
+下列 key 已不再是 `plugin.json` 的 userConfig 選項。對應 hook script 仍把它們當作 env
+後備來讀取，因此手動註冊 hook 的 consumer 需自行設定 env 變數。
+
+| 原 key | Consumer 設定的 env 變數 | 讀取者 |
+|--------|--------------------------|--------|
+| `subagent_quality_gate` | `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` (via `dhpk_config_get`) | `scripts/hooks/subagent-stop-quality.sh` |
+| `docker_containers` | `CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS` (comma-separated) | `scripts/statusline/statusline.sh` |
+| `swiftlint_bin` | `CLAUDE_PLUGIN_OPTION_SWIFTLINT_BIN` | `modules/xcode-tooling/hooks/post-edit-swiftlint.sh` |
+| `reap_stale_mcp_processes` | `CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES=true` | `scripts/hooks/session-end.sh` |
+| `skill_hint_enabled` | `CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED` (via `dhpk_config_bool`; `DHPK_DISABLE_SKILL_HINT=1` also disables) | `scripts/hooks/userpromptsubmit-skill-hint.sh` |
+| `learning_db_enabled` | `CLAUDE_PLUGIN_OPTION_LEARNING_DB_ENABLED` or `DHPK_LEARNING_DB=1` (via `dhpk_config_bool`) | `scripts/hooks/_lib/learning-db.sh` |
+| `graduation_scan_enabled` | `CLAUDE_PLUGIN_OPTION_GRADUATION_SCAN_ENABLED` or `DHPK_GRADUATION_SCAN=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `completion_evidence_enabled` | `CLAUDE_PLUGIN_OPTION_COMPLETION_EVIDENCE_ENABLED` or `DHPK_COMPLETION_EVIDENCE=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `agent_warmstart_enabled` | `CLAUDE_PLUGIN_OPTION_AGENT_WARMSTART_ENABLED` or `DHPK_AGENT_WARMSTART=1` (via `dhpk_config_bool`) | `scripts/hooks/pre-agent-warmstart.sh` |
+| `lockfile_sync_commands` | `CLAUDE_PLUGIN_OPTION_LOCKFILE_SYNC_COMMANDS` (comma-separated `<manifest>:<command>`) | `scripts/hooks/post-edit-advisory.sh` |
+| `php_bin` | `CLAUDE_PLUGIN_OPTION_PHP_BIN` | `modules/php-5.6/hooks/post-edit-php-syntax.sh` |
+| `harness_restore_hint` | none (no shipped script reads it) | none |
+| `sentinel_commit_gate` | none (retired; `DHPK_SENTINEL_COMMIT_GATE` is not read) | none |
+| `hot_tables` | none (prose-only; declare hot tables in CLAUDE.md) | none |
 
 ### 註冊範例
 
-`/dhpk:setup --install hooks`（installer `scripts/setup/install-assets.sh`）會把
+`/dhpk:harness-setup --install hooks`（installer `scripts/setup/install-assets.sh`）會把
 `scripts/hooks/`（含 `_lib/`）複製到 `<project>/.claude/dhpk/scripts/hooks/`，
 並把 `hooks/hooks.json` 複製到 `<project>/.claude/dhpk/hooks/`。請在 consumer
 project 的 `.claude/settings.json`（或 `settings.local.json`）註冊複製後的 script：
@@ -211,7 +237,7 @@ project 的 `.claude/settings.json`（或 `settings.local.json`）註冊複製�
 接著透過 `pluginConfigs."dhpk@dhpk".options`（`agent_warmstart_enabled`、
 `completion_evidence_enabled`、`graduation_scan_enabled`）或一次性 env override
 （例如 `DHPK_AGENT_WARMSTART=1`）啟用行為。複製出來的檔案只是快照：每次升級 dhpk
-後，必須重跑 installer（`/dhpk:setup --install hooks`，內容不同時加 `--force`）
+後，必須重跑 installer（`/dhpk:harness-setup --install hooks`，內容不同時加 `--force`）
 讓 script 與 `_lib/` 跟上 plugin 版本。
 
 Module hook 仍可參與合併的 Bash dispatcher：active module 的 `pre-bash-*.sh` 與
@@ -227,7 +253,7 @@ runtime 重新確認。來源對應仍以 [`hooks/hooks.json`](../hooks/hooks.js
 
 ## 將 assets 複製到 consumer project
 
-`/dhpk:setup --install hooks|rules|scripts|all` 會呼叫
+`/dhpk:harness-setup --install hooks|rules|scripts|all` 會呼叫
 `scripts/setup/install-assets.sh`。hooks 與 scripts 複製到
 `<project>/.claude/dhpk/{hooks,scripts}`。預設 `--install rules` 寫入
 `<project>/.claude/rules/dhpk-overrides.md`，不會把 upstream policy 複製到

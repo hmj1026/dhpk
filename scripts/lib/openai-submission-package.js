@@ -1,14 +1,9 @@
 'use strict';
 
-const {
-  AGENT_PLUGIN_SCHEMA,
-  normalizePortableFrontmatter,
-  stableStringify,
-  validatePortableManifest,
-} = require('./agent-plugin-package');
+const { stableStringify, validatePortableManifest } = require('./agent-plugin-package');
 const { sha256Hex } = require('./content-fingerprint');
 const { compileMarketplacePublicationView } = require('./marketplace-selection');
-const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
+const { compilePublicPluginTree } = require('./public-plugin-tree');
 const { validateOpenaiListingAssets } = require('./openai-submission-assets');
 
 const OPENAI_CATEGORIES = Object.freeze([
@@ -110,45 +105,18 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
 
   const publicationView = compileMarketplacePublicationView({ inventory, selection, aliases });
   if (publicationView.errors.length > 0) return failure(publicationView.errors.map((error) => `marketplace selection: ${error}`));
-  const content = compileMarketplaceSkillContent({ root, inventory, publicationView, sourceFileAllowlist });
-  if (!content.ok) return failure(content.errors);
+  const tree = compilePublicPluginTree({ root, inventory, publicationView, manifest, sourceFileAllowlist });
+  if (!tree.ok) return failure(tree.errors);
+  const { files, bundleProvenance } = tree;
 
-  const inventoryById = new Map(inventory.skills.map((skill) => [skill.id, skill]));
-  const fileErrors = [];
-  const files = [];
-  for (const sourceFile of content.files) {
-    let bytes = Buffer.from(sourceFile.bytes);
-    const skill = inventoryById.get(sourceFile.skillId);
-    const isSkillMarkdown = sourceFile.path.startsWith('skills/') && sourceFile.path.endsWith('/SKILL.md');
-    if (isSkillMarkdown) {
-      const parsed = normalizePortableFrontmatter(bytes.toString('utf8'));
-      if (!parsed.ok) {
-        fileErrors.push(...parsed.errors.map((error) => `${sourceFile.skillId} ${error}`));
-        continue;
-      }
-      if (skill && parsed.name !== skill.name) {
-        fileErrors.push(`${sourceFile.skillId} SKILL.md name '${parsed.name}' does not match catalog name '${skill.name}'`);
-        continue;
-      }
-      bytes = Buffer.from(parsed.output, 'utf8');
-    }
-    files.push({ path: sourceFile.path, bytes, mode: sourceFile.mode & 0o111 ? 0o755 : 0o644 });
-  }
-  if (fileErrors.length > 0) return failure(fileErrors);
-
-  const manifestBytes = Buffer.from(`${stableStringify(manifest)}\n`, 'utf8');
-  if (files.some((file) => file.path === 'plugin.json')) return failure(['package path collision at plugin.json']);
-  files.push({ path: 'plugin.json', bytes: manifestBytes, mode: 0o644 });
-  files.sort((left, right) => left.path < right.path ? -1 : (left.path > right.path ? 1 : 0));
-
-  const listing = manifest.extensions['com.openai'].interface;
+  const listing = tree.manifest.extensions['com.openai'].interface;
   const assetErrors = validateOpenaiListingAssets(listing, new Map(files.map((file) => [file.path, file.bytes])));
   if (assetErrors.length > 0) return failure(assetErrors);
 
   const fileFingerprints = Object.fromEntries(files.map((file) => [file.path, sha256Hex(file.bytes)]));
   const selectedStableIds = [...new Set([
-    ...content.bundleProvenance.entryIds,
-    ...content.bundleProvenance.childIds,
+    ...bundleProvenance.entryIds,
+    ...bundleProvenance.childIds,
   ])].sort();
   const identity = {
     version: sourceIdentity.version,
@@ -164,7 +132,7 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
     inventoryDigest: sha256Hex(stableStringify(inventory)),
     selectedStableIds,
     fileFingerprints,
-    bundleProvenance: content.bundleProvenance,
+    bundleProvenance,
   };
   return { ok: true, errors: [], files, provenance };
 }

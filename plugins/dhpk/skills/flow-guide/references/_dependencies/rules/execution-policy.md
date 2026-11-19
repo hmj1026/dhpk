@@ -14,7 +14,7 @@ for missing, absolute, traversal, or symlink escaping paths. Do not infer the
 base from an active Skill, environment variable, checkout search, or fallback
 chain.
 
-> Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra reviewer trigger paths, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
+> Project overrides: projects that adopt this policy should keep their own short project rule file (or `CLAUDE.md` section) that only encodes deltas — e.g. extra reviewer trigger paths, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
 >
 > The project policy is an input delta: it may extend the selected base policy
 > with project-specific triggers or tables, but it cannot supply a missing base
@@ -650,11 +650,11 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 
 - New feature / bugfix in business layer → establish independent RED evidence before implementation; use `tdd-guide` when a separate test seam, runtime setup, or specialist ownership is needed.
 - Money / crypto / cert / token paths not matched by hook patterns → `security-reviewer`.
-- Repository methods on high-volume tables (each project declares its own hot tables via the `hot_tables` userConfig key or its CLAUDE.md / rules — names like `orders` / `records` / `stock` are POS-system examples only) → `performance-analyzer`.
+- Repository methods on high-volume tables (each project declares its own hot tables in its CLAUDE.md / rules — names like `orders` / `records` / `stock` are POS-system examples only) → `performance-analyzer`.
 - Editing `<script>` blocks inside view-layer template files (PHP / ERB / Twig / Razor) → `frontend-reviewer`.
 - New / changed domain type, value object, enum, or struct with non-trivial invariants ("make illegal states unrepresentable") → `type-design-analyzer` (also a `code-reviewer` delegate).
 - Deep error-handling audit (empty catch / swallowed exceptions / hidden fallbacks / missing rollback) → `silent-failure-hunter` (also a `code-reviewer` delegate).
-- Structural change (new module / renamed dir / new public service or API surface) → `doc-updater` (it runs `/update-codemaps` + `/update-docs`).
+- Structural change (new module / renamed dir / new public service or API surface) → `doc-updater` (it runs `/dhpk:doc-maintain codemap` + `/dhpk:doc-maintain update`).
 - Needing current / up-to-date library / framework / API docs mid-task → `docs-lookup` (Context7).
 - Cleanup beyond a single file — a file > 800 lines to split, cross-file duplicate logic, or a multi-module dead-code sweep → `refactor-cleaner` (use `/simplify` for in-place single-file work).
 - `swift build` / `xcodebuild` / SPM resolution failure → `swift-build-resolver` (swift / xcode-tooling module active).
@@ -778,7 +778,7 @@ Addition/removal justification and residue-cleanup requirements live in `${POLIC
 
 ## Not in scope
 
-- **Does not restate** stack-specific coding conventions — those live in each project's `.claude/rules/<stack>.md` or the matching dhpk module reference.
+- **Does not restate** stack-specific coding conventions — those live in each project's own stack rule file or the matching dhpk module reference.
 - **Does not restate** the anti-rationalization phrasing table — see `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md`.
 - **Does not restate** the tool-selection decision tree — see `${POLICY_BUNDLE_ROOT}/rules/tool-routing.md`.
 - **Does not restate** the full end-of-task self-check — use the selected entry

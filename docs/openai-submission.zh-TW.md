@@ -25,11 +25,13 @@ skill 內的條件式指引；不會另外成為公開 listing 或 selector entr
 不屬於此 skills-only 候選版。
 
 候選 metadata 位於
-[`manifests/openai-submission.json`](../manifests/openai-submission.json)。目前
-版本是 `0.64.4`，與 repository 現行 plugin 版本一致。候選 `developerName` 依使用者
+[`manifests/listing-metadata.json`](../manifests/listing-metadata.json)（唯一的
+listing 來源）；建置器由它產生送審 manifest，版本一律取自 `package.json`。候選 `developerName` 依使用者
 指示設為 `hmj1026`；Portal identity verification 仍是 `NOT_RUN`。
-Privacy URL 是指向 repository `develop` branch 的候選連結。下方 policy 仍是草稿；
-在公開 URL 指向已審閱內容之前，不可當作已發布或已核准的提交政策。
+Privacy 與 support URL 指向 GitHub Pages（`https://hmj1026.github.io/dhpk/privacy.html`
+與 `.../support.html`），由 `.github/workflows/pages.yml` 從 `docs/privacy.md` 與
+`docs/support.md` 發布。Repository 的 Pages source 必須設為「GitHub Actions」；在 workflow
+部署且 URL 可解析之前，公開可達性維持 `NOT_RUN`。
 
 | 證據 | 目前狀態 |
 |---|---|
@@ -53,7 +55,6 @@ builder 產生且帶有效 receipt 的 artifact。
 
 ```bash
 bin/dhpk distribution openai-submission generate \
-  --manifest manifests/openai-submission.json \
   --output /absolute/path/outside/dhpk/dhpk-openai-submission \
   --json
 
@@ -125,7 +126,7 @@ ChatGPT Work consumer verification 是之後發布前的獨立必要條件，目
 不可宣稱 ChatGPT Work 已支援或已通過發布驗收。
 
 目前 checkpoint 的第 1–6 項對此 release candidate 都是 `NOT_RUN`；Privacy policy
-URL 尚未指向已發布政策，候選版狀態為 `NOT_PUBLISHED`。不可用生成的 ZIP、本機
+URL 尚未驗證為可公開存取，候選版狀態為 `NOT_PUBLISHED`。不可用生成的 ZIP、本機
 marketplace entry、catalog count 或 package validator 代替這些 gate。
 
 ## 官方參考資料

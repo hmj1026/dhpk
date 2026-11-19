@@ -55,12 +55,12 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'code exploration', kind: 'skill', id: 'code-trace' },
   { label: 'project audit', kind: 'skill', id: 'project-audit' },
   { label: 'deploy list', kind: 'skill', id: 'deploy-list' },
-  { label: 'refactor / simplify', kind: 'command', id: 'simplify' },
+  { label: 'refactor / simplify', kind: 'skill', id: 'code-simplify' },
   { label: 'tech spec authoring', kind: 'skill', id: 'flow-guide' },
-  { label: 'pre-commit checks', kind: 'command', id: 'precommit' },
-  { label: 'create PR', kind: 'command', id: 'create-pr' },
+  { label: 'pre-commit checks', kind: 'skill', id: 'precommit' },
+  { label: 'create PR', kind: 'skill', id: 'create-pr' },
   { label: 'create release', kind: 'skill', id: 'release-creator' },
-  { label: 'smart commit', kind: 'command', id: 'smart-commit' },
+  { label: 'smart commit', kind: 'skill', id: 'git-smart-commit' },
   { label: 'feasibility study', kind: 'skill', id: 'flow-guide' },
   { label: 'risk assessment', kind: 'skill', id: 'change-verdict' },
   {
@@ -74,7 +74,7 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
     id: 'tdd-workflow',
   },
   { label: 'adaptive dev workflow (feature)', kind: 'skill', id: 'flow-guide' },
-  { label: 'verification loop', kind: 'command', id: 'verify' },
+  { label: 'verification loop', kind: 'skill', id: 'repo-verify' },
 ]);
 
 function mustExist(file, phase) {

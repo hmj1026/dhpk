@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const fingerprint = require('../scripts/lib/content-fingerprint');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -17,7 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const ADVERSARIAL = path.join(__dirname, 'fixtures', 'content-fingerprint', 'adversarial');
 
 function readJson(relative) {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8'));
+  return JSON.parse(fs.readFileSync(path.resolve(ROOT, relative), 'utf8'));
 }
 
 function tempDir(label) {
@@ -149,9 +150,9 @@ test('checked-in provenance inventoryDigest values are reproduced from the real 
   const insertion = fingerprint.inventoryDigestInsertionOrder(inventory);
   const sorted = fingerprint.inventoryDigestKeySorted(inventory);
   assert.strictEqual(readJson('plugins/dhpk/provenance.json').inventoryDigest, insertion);
-  assert.strictEqual(readJson('plugins/dhpk-cursor/provenance.json').inventoryDigest, insertion);
-  assert.strictEqual(readJson('plugins/dhpk-agent/provenance.json').inventoryDigest, sorted);
-  assert.strictEqual(readJson('plugins/dhpk-agy/provenance.json').inventoryDigest, sorted);
+  assert.strictEqual(readJson(path.join(builtPackage('cursor-plugin'), 'provenance.json')).inventoryDigest, insertion);
+  assert.strictEqual(readJson(path.join(builtPackage('agent-plugin'), 'provenance.json')).inventoryDigest, sorted);
+  assert.strictEqual(readJson(path.join(builtPackage('agy-plugin'), 'provenance.json')).inventoryDigest, sorted);
   assert.notStrictEqual(insertion, sorted);
 });
 
@@ -189,33 +190,33 @@ test('Codex native fingerprints.json entries are reproduced from the package on 
 });
 
 test('Agent plugin fingerprints.json entries are reproduced from the package on disk', () => {
-  const recorded = readJson('plugins/dhpk-agent/fingerprints.json').skills;
-  const algorithm = fingerprint.resolveFingerprintAlgorithm(readJson('plugins/dhpk-agent/provenance.json'));
+  const recorded = readJson(path.join(builtPackage('agent-plugin'), 'fingerprints.json')).skills;
+  const algorithm = fingerprint.resolveFingerprintAlgorithm(readJson(path.join(builtPackage('agent-plugin'), 'provenance.json')));
   const names = Object.keys(recorded);
   assert.ok(names.length > 0);
   for (const name of names) {
-    const entries = fingerprint.collectDirectoryEntries(path.join(ROOT, 'plugins', 'dhpk-agent', 'skills', name), { order: 'locale', skipBytecode: true });
+    const entries = fingerprint.collectDirectoryEntries(path.join(builtPackage('agent-plugin'), 'skills', name), { order: 'locale', skipBytecode: true });
     assert.strictEqual(algorithm, 'tree-merkle-v1');
     assert.strictEqual(fingerprint.treeFingerprint(filesOnly(entries)), recorded[name], `agent skill ${name}`);
   }
 });
 
 test('Cursor fingerprints.json entries are reproduced from the package on disk', () => {
-  const recorded = readJson('plugins/dhpk-cursor/fingerprints.json');
+  const recorded = readJson(path.join(builtPackage('cursor-plugin'), 'fingerprints.json'));
   const keys = Object.keys(recorded);
   assert.ok(keys.length > 0);
-  const entries = fingerprint.collectDirectoryEntries(path.join(ROOT, 'plugins', 'dhpk-cursor'), { skipBytecode: true });
+  const entries = fingerprint.collectDirectoryEntries(path.join(builtPackage('cursor-plugin')), { skipBytecode: true });
   for (const key of keys) {
     assert.strictEqual(fingerprint.treeNodeFingerprint(filesOnly(entries), key), recorded[key], `cursor entry ${key}`);
   }
 });
 
 test('AGY fingerprints.json file entries are SHA-256 digests of the file bytes', () => {
-  const recorded = readJson('plugins/dhpk-agy/fingerprints.json').files;
+  const recorded = readJson(path.join(builtPackage('agy-plugin'), 'fingerprints.json')).files;
   const relatives = Object.keys(recorded);
   assert.ok(relatives.length > 0);
   for (const relative of relatives) {
-    const bytes = fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agy', relative));
+    const bytes = fs.readFileSync(path.join(builtPackage('agy-plugin'), relative));
     assert.strictEqual(fingerprint.sha256Hex(bytes), recorded[relative], `agy file ${relative}`);
   }
 });

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
 
 const COMMIT = 'b'.repeat(40);
@@ -174,7 +175,7 @@ test('a pre-existing empty output directory is refused without an owner receipt'
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-const TRACKED_AGY_PACKAGE = path.join(__dirname, '..', 'plugins', 'dhpk-agy');
+const TRACKED_AGY_PACKAGE = builtPackage('agy-plugin');
 
 test('validation result is identical when the content cache is disabled', () => {
   const cached = validateAgyPluginPackage(TRACKED_AGY_PACKAGE);

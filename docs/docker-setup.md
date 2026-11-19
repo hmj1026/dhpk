@@ -2,19 +2,17 @@
 
 > **Languages**: **English** · [繁體中文](./docker-setup.zh-TW.md)
 
-Reference for the `docker_containers` plugin option when a consumer explicitly
-registers a Docker workflow. The installer and `/dhpk:setup` do not add a
+Reference for a consumer-registered Docker workflow. The installer and `/dhpk:harness-setup` do not add a
 Docker hook by default.
 
-> **TL;DR** — If your project does not use Docker, leave `docker_containers`
-> empty and skip this doc. No default dhpk hook probes Docker.
+> **TL;DR** — If your project does not use Docker, skip this doc. No default dhpk hook probes Docker.
 
 ---
 
 ## What dhpk does with Docker
 
-When `userConfig.docker_containers` is non-empty, it is configuration for an
-explicitly registered consumer Docker workflow; dhpk does not automatically
+dhpk has no `docker_containers` plugin option. A consumer that registers its own
+Docker workflow owns its configuration; dhpk does not automatically
 run a SessionStart check or export container variables. A consumer script may
 adopt the following convention:
 
@@ -23,7 +21,7 @@ adopt the following convention:
 2. **Container-name convention** — the list can be positional: first for PHP,
    second for MySQL. The registered script owns any environment exports.
 
-Empty list (`docker_containers=[]`) leaves the optional workflow unconfigured.
+Without a registered consumer workflow, dhpk does nothing with Docker.
 
 ## Prerequisites
 
@@ -57,7 +55,7 @@ An opt-in Docker script can use this positional convention:
 | 1st | `DHPK_PHP_CONTAINER` | PHP-FPM / PHP-CLI container |
 | 2nd | `DHPK_MYSQL_CONTAINER` | Database container (MySQL/MariaDB/Postgres) |
 
-For example, a consumer script can map `docker_containers=php-fpm,mysql` to:
+For example, a consumer script can map a container list such as `php-fpm,mysql` to:
 
 ```
 DHPK_PHP_CONTAINER=php-fpm
@@ -100,8 +98,8 @@ Then register your Docker workflow with matching names:
 
 ```bash
 bash ~/projects/dhpk/scripts/install.sh
-# Configure your consumer's explicit Docker workflow with:
-#   docker_containers=php-fpm,mysql
+# Configure your consumer's explicit Docker workflow with its own container list:
+#   php-fpm,mysql
 ```
 
 ## Troubleshooting
@@ -115,14 +113,13 @@ omitting `container_name:` produces `<project>_<service>_1` (compose v1) or
 Restart the WSL distro: `wsl --shutdown` (from PowerShell) then reopen.
 
 **Workflow never fires.**
-`docker_containers` defaults to `[]`; configure the list and register the
+dhpk registers no Docker script by default; register the
 consumer Docker script explicitly.
 
 **Want to disable the workflow temporarily.**
-Remove its consumer hook registration or clear `docker_containers` in the
-consumer configuration.
+Remove its consumer hook registration.
 
 ## Related
 
 - `manifests/module-catalog.json` — declares the positional container-role order
-- `scripts/install.sh` / `/dhpk:setup` — installation and configuration entry points
+- `scripts/install.sh` / `/dhpk:harness-setup` — installation and configuration entry points

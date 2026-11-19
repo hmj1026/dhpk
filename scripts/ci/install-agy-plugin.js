@@ -37,7 +37,7 @@ if (!['plan', 'status', 'install', 'update', 'migrate', 'uninstall', 'rollback']
 
 const explicitTarget = option('target', null);
 const targetRoot = explicitTarget ? path.resolve(explicitTarget) : null;
-const sourceRoot = path.resolve(option('source', path.join(ROOT, 'plugins', 'dhpk-agy')));
+const sourceRoot = path.resolve(option('source', path.join(ROOT, 'dist', 'on-demand', 'dhpk-agy')));
 const json = args.includes('--json');
 
 try {

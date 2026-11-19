@@ -9,18 +9,20 @@ const {
   compileDispositionLedger,
 } = require('../scripts/lib/marketplace-selection');
 
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
+
 const ROOT = path.join(__dirname, '..');
-const readJson = (relative) => JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8'));
+const readJson = (relative) => JSON.parse(fs.readFileSync(path.resolve(ROOT, relative), 'utf8'));
 const INVENTORY = readJson('manifests/distribution-inventory.json');
 const SELECTION = readJson('manifests/marketplace-selection.json');
 const ALIASES = Object.keys(readJson('skills/flow-guide/references/codex-usage-catalog.json').runtimeIndex.aliases);
 const PACKAGE_SKILL_CATALOGS = [
   { root: 'plugins/dhpk/skills', surface: 'codex-native', includeCommon: true },
-  { root: 'plugins/dhpk-agent/skills', surface: 'agent-plugin', includeCommon: true },
-  { root: 'plugins/dhpk-agy/skills', surface: 'agy-plugin', includeCommon: true },
+  { root: path.join(builtPackage('agent-plugin'), 'skills'), surface: 'agent-plugin', includeCommon: true },
+  { root: path.join(builtPackage('agy-plugin'), 'skills'), surface: 'agy-plugin', includeCommon: true },
   // Cursor owns its Host-only overlay; its common entries are shared from Agent.
-  { root: 'plugins/dhpk-cursor/skills', surface: 'cursor-plugin', includeCommon: false },
-  { root: 'generated/claude-marketplace/package/skills', surface: 'claude-core', includeCommon: true },
+  { root: path.join(builtPackage('cursor-plugin'), 'skills'), surface: 'cursor-plugin', includeCommon: false },
+  { root: 'dist/claude-marketplace/package/skills', surface: 'claude-core', includeCommon: true },
 ];
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -209,19 +211,20 @@ test('every generated package lists skills under their inventory name, never an 
   const inventoryNames = new Set(INVENTORY.skills.map((skill) => skill.name));
   const aliasSet = new Set(ALIASES);
   for (const { root: relative, surface, includeCommon } of PACKAGE_SKILL_CATALOGS) {
-    const root = path.join(ROOT, relative);
-    const publication = compilePublication({ hostSurface: surface });
+    const root = path.resolve(ROOT, relative);
+    // Codex native is the Public Plugin tree: the public catalog without a Host overlay.
+    const publication = compilePublication(surface === 'codex-native' ? {} : { hostSurface: surface });
     assert.deepStrictEqual(publication.errors, [], `${surface} publication must compile`);
     const expectedEntries = includeCommon
       ? [...publication.publicEntries, ...publication.hostOnly]
       : publication.hostOnly;
     const expectedNames = expectedEntries.map((entry) => entry.name).sort();
     if (!includeCommon && expectedNames.length === 0) {
-      const provenance = readJson('plugins/dhpk-cursor/provenance.json');
+      const provenance = readJson(path.join(builtPackage('cursor-plugin'), 'provenance.json'));
       assert.strictEqual(provenance.sharedSkillSurface, 'agent-plugin');
       assert.strictEqual(provenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
       assert.deepStrictEqual(provenance.sharedSkillIds, publication.publicEntries.map((entry) => entry.id).sort());
-      for (const entry of publication.publicEntries) assert.ok(fs.existsSync(path.join(ROOT, provenance.sharedSkillSource, entry.name, 'SKILL.md')), entry.id);
+      for (const entry of publication.publicEntries) assert.ok(fs.existsSync(path.join(builtPackage('agent-plugin'), 'skills', entry.name, 'SKILL.md')), entry.id);
       assert.ok(!fs.existsSync(root), 'shared-only Cursor must not duplicate the Skill tree');
       continue;
     }

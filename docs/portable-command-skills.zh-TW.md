@@ -1,7 +1,7 @@
 # 跨 Host 的 command 工作流程
 
-Codex 使用 `$<public-name>` 呼叫已安裝的 skill；Claude 原有的
-`/dhpk:<command>` 入口轉接到同一份流程。使用 `$flow-guide help`
+Codex 使用 `$<public-name>` 呼叫已安裝的 skill；Claude 以
+`/dhpk:<skill-name>` 呼叫同一批 skill；plugin 不再提供 command forwarder。使用 `$flow-guide help`
 查詢參數；套件存在與實際可執行是不同的驗證結果。
 
 ## 名稱與遷移
@@ -13,14 +13,17 @@ Codex 使用 `$<public-name>` 呼叫已安裝的 skill；Claude 原有的
 | `simplify` | `$code-simplify` |
 | `smart-commit` | `$git-smart-commit` |
 | `create-release` | `$release-creator` |
-| `matrix-cell-onboard` | `$matrix-cell-onboard` |
+| `setup` | `$harness-setup` |
+| `matrix-cell-onboard` | `$library-author cell-onboard` |
+| `doc-refactor` | `$doc-maintain refactor` |
+| `update-codemaps` | `$doc-maintain codemap` |
+| `update-docs` | `$doc-maintain update` |
 | `ts-check-status` | `$js-static-checks status --path <directory>` |
 
-退休 aliases 不再提供入口；請直接使用目前的 portable skill。
+「原有入口」欄的名稱是已移除的 command；請直接使用目前的 skill（Claude 為 `/dhpk:<skill>`）。
 
-其他通用流程直接使用目前的 command 名稱：`create-pr`、`git-worktree`、
-`merge-prep`、`pr-summary`、`project-brief`、`doc-refactor`、`update-docs`、
-`update-codemaps`、`precommit`。依賴稽核與待提交變更審查由
+其他通用流程是同名 skill：`create-pr`、`git-worktree`、
+`merge-prep`、`pr-summary`、`project-brief`、`precommit`。依賴稽核與待提交變更審查由
 `change-verdict` 的 `deps` 與 `pending` 任務負責。目前的
 `flow-guide` 與 `flow-drive` 維持名稱。
 

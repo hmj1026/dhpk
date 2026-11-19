@@ -30,6 +30,9 @@ jobs:
 
       - uses: ./.github/actions/setup-dhpk-test-env
 
+      - name: Install pinned Claude CLI for package verification
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
+
       # One implementation shared with the release-PR `release-rehearsal` CI
       # job (dry-run mode), so these stages have already run on this tree
       # before the tag existed. Tag mode first proves the tag is vX.Y.Z and
@@ -79,6 +82,17 @@ jobs:
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
+      # The Agent, Cursor and AGY packages are built on demand by
+      # release-verify.sh (stage host-packages) and attached to the release
+      # by the publish job; they are never committed.
+      - name: Upload on-demand host package archives
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dhpk-release-host-packages-${{ github.run_id }}
+          path: ${{ runner.temp }}/host-packages/*.tar.gz
           if-no-files-found: error
           retention-days: 7
 
@@ -141,6 +155,12 @@ jobs:
           name: dhpk-release-publication-bundle-verifier-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle-verifier
 
+      - name: Download on-demand host package archives
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dhpk-release-host-packages-${{ github.run_id }}
+          path: ${{ runner.temp }}/dhpk-release-host-packages
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
@@ -191,6 +211,28 @@ jobs:
               --notes-file - < "$RUNNER_TEMP/dhpk-release-notes-validated.txt"
           fi
 
+      # Attach the on-demand Agent, Cursor and AGY archives. An asset that is
+      # already on the release is preserved, so a re-run never replaces bytes.
+      - name: Attach on-demand host packages to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          existing="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
+          shopt -s nullglob
+          archives=("$RUNNER_TEMP"/dhpk-release-host-packages/*.tar.gz)
+          if [ "${#archives[@]}" -ne 3 ]; then
+            echo "publish: expected 3 host package archives, found ${#archives[@]}" >&2
+            exit 1
+          fi
+          for archive in "${archives[@]}"; do
+            if grep -qxF "$(basename "$archive")" <<<"$existing"; then
+              echo "Release asset $(basename "$archive") already exists; preserving it."
+            else
+              gh release upload "$GITHUB_REF_NAME" "$archive"
+            fi
+          done
+
   # Post-publish CONSUMER verification (task 4.2). Runs on a fresh, ephemeral
   # runner — the only place it's safe to run `claude plugin install` for real
   # (a dev machine's install writes to the shared global plugin cache; the
@@ -217,6 +259,20 @@ jobs:
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact
+
+      # Consumers fetch the on-demand packages from the release, so the
+      # consumer gate probes the published archives, not a local rebuild. The
+      # extracted trees land in the ignored build directory.
+      - name: Download published host packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dhpk-published-host-packages" dist/on-demand
+          gh release download "$GITHUB_REF_NAME" --pattern 'dhpk-*.tar.gz' --dir "$RUNNER_TEMP/dhpk-published-host-packages"
+          for archive in "$RUNNER_TEMP"/dhpk-published-host-packages/*.tar.gz; do
+            tar -xzf "$archive" -C dist/on-demand
+          done
 
       # Installs the real `claude` CLI so the supported Claude
       # marketplace-add/install/list check runs for real here (this ephemeral

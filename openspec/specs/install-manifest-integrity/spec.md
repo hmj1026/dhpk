@@ -117,7 +117,7 @@ per-skill aggregates compiled from Skill directories (inventory per-skill
 fields, skill-resources, skill-directory-coverage, command-skill-dispositions,
 and generated `commands/*.md` once that phase is active). A manual edit of a
 generated per-skill field or front-door file SHALL fail without updating
-publication surfaces. Hand-editing `generated/` outputs remains forbidden.
+publication surfaces. Hand-editing `dist/` outputs remains forbidden.
 
 #### Scenario: Manual manifest edit bypasses the inventory
 
@@ -212,7 +212,7 @@ map, inventory per-skill fields, command dispositions, then command front-door
 files). After each phase, `--check` for already-migrated aggregates AND
 existing checks for not-yet-migrated aggregates SHALL pass. Rollback of a
 phase SHALL restore the prior checked-in bytes of that aggregate without
-requiring Skill-directory rewrites or hand-edits of `generated/` outputs. Host
+requiring Skill-directory rewrites or hand-edits of `dist/` outputs. Host
 publication surfaces and install behaviour SHALL remain unchanged by the
 migration.
 
