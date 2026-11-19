@@ -2352,7 +2352,7 @@ function runCursorConsumerProbeRaw({
       const normalized = output.toLowerCase();
       const requestedCapabilities = Array.isArray(requiredDiscoveryCapabilities) && requiredDiscoveryCapabilities.length > 0
         ? requiredDiscoveryCapabilities.map((value) => String(value).toLowerCase())
-        : ['dhpk', 'skill', 'command', 'agent', 'rule'];
+        : ['dhpk', 'skill', 'agent', 'rule'];
       const negative = NEGATIVE_CURSOR_DISCOVERY_PATTERNS.some((pattern) => pattern.test(output));
       const probe = parsed && parsed.dhpkProbe;
       let attestation = null;

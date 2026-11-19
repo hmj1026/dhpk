@@ -34,7 +34,7 @@ const DEFAULT_CODEX_PROBE_TIMEOUT_MS = 30_000;
 const MAX_CODEX_PROBE_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_CODEX_PROBE_MAX_OUTPUT_BYTES = 256 * 1024;
 const MAX_CODEX_PROBE_OUTPUT_BYTES = 4 * 1024 * 1024;
-const CURSOR_DISCOVERY_PROMPT = 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.';
+const CURSOR_DISCOVERY_PROMPT = 'Read only. Return exactly: dhpk skills agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.';
 const CURSOR_STREAM_OUTPUT_FLAGS = ['--output-format', 'stream-json', '--stream-partial-output'];
 
 function parseArgs(argv) {
@@ -363,7 +363,7 @@ function runCursorProbe(root, execute = false) {
       requireDiscovery: true,
       // Cursor owns agents/commands/rules here; skills are intentionally
       // supplied by the companion Agent Plugin projection.
-      requiredLoaderComponents: ['agents', 'commands', 'rules'],
+      requiredLoaderComponents: ['agents', 'rules'],
       requirePackageChallenge: true,
       networkMode: 'shared',
     });
