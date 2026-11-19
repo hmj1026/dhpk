@@ -13,7 +13,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { writeVersionManifests } = require('./_lib/release-manifest-fixtures');
-const { STACKS_SHARED_HOOK_LIBS, FIXTURE_WITHOUT_STACK_SKILLS_ENV } = require('../scripts/ci/gen-claude-marketplace-package');
+const { STACKS_SHARED_HOOK_LIBS, compileStacksPackage } = require('../scripts/ci/gen-claude-marketplace-package');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
@@ -51,7 +51,7 @@ function mkRepo({ branch = 'develop' } = {}) {
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'), path.join(root, '.claude-plugin', 'icon.png'));
     seedPackageSources(root);
     fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n## 1.0.0 — 2026-01-01 — Prior\n\nPrior notes.\n');
-    fs.writeFileSync(path.join(root, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: tdd-workflow\n---\n');
+    fs.writeFileSync(path.join(root, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: tdd-workflow\ndescription: Sample TDD skill\n---\n');
     fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
       '---',
       'name: sample',
@@ -77,14 +77,22 @@ function mkRepo({ branch = 'develop' } = {}) {
     fs.writeFileSync(
       path.join(root, 'manifests', 'distribution-inventory.json'),
       JSON.stringify({
+        surfaces: ['claude-core'],
         skills: [
-          { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-          { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
+          { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', profiles: [], surfaces: ['claude-core', 'codex-native'] },
+          { id: 'sample', name: 'dhpk-sample', path: 'skills/dhpk-sample', profiles: [], surfaces: ['agy-plugin'] },
         ],
         surface_membership: { 'agy-plugin': ['sample'] },
         agy_plugin: { agents: ['sample.md'], rules: ['rules/tool-routing.md'] },
       })
     );
+    fs.writeFileSync(path.join(root, 'manifests', 'marketplace-selection.json'), JSON.stringify({
+      schema: 'dhpk.marketplace-selection.v1',
+      skills: [
+        { id: 'tdd', authority: 'guidance-only', kind: 'entry', owner: 'tdd', selection: 'common' },
+        { id: 'sample', authority: 'guidance-only', kind: 'entry', owner: 'sample', selection: 'common' },
+      ],
+    }));
     fs.writeFileSync(path.join(root, 'manifests', 'install-profiles.json'), JSON.stringify({
       profiles: {
         common: { skillIds: ['tdd'], modules: [] },
@@ -116,7 +124,7 @@ function runCli(repo, args, extraEnv = {}) {
   return spawnSync('node', [CLI, '--repo-root', repo, ...args], {
     cwd: repo,
     encoding: 'utf8',
-    env: { ...process.env, [FIXTURE_WITHOUT_STACK_SKILLS_ENV]: '1', ...extraEnv },
+    env: { ...process.env, ...extraEnv },
   });
 }
 
@@ -164,6 +172,25 @@ function snapshotReleaseTargets(repo) {
 function assertReleaseTargetsEqual(repo, expected, message) {
   assert.deepStrictEqual(snapshotReleaseTargets(repo), expected, message);
 }
+
+testWithRepo('the stacks package generator fails closed without the stack-skills manifests', (repo) => {
+  for (const manifest of ['distribution-inventory.json', 'marketplace-selection.json']) {
+    const hidden = path.join(repo, 'manifests', manifest);
+    const kept = `${hidden}.kept`;
+    const present = fs.existsSync(hidden);
+    if (present) fs.renameSync(hidden, kept);
+    try {
+      assert.throws(
+        () => compileStacksPackage({ root: repo }),
+        (error) => /manifests\/distribution-inventory\.json and manifests\/marketplace-selection\.json/.test(error.message)
+          && !/DHPK_|environment|\benv\b/i.test(error.message),
+        `missing ${manifest} must throw without naming an environment variable`,
+      );
+    } finally {
+      if (present) fs.renameSync(kept, hidden);
+    }
+  }
+});
 
 testWithRepo('rejects a non-semver version before touching anything', (repo) => {
   const before = snapshotReleaseTargets(repo);
