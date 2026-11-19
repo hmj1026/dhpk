@@ -51,11 +51,11 @@ else
     OUTPUT="$(npx --no-install eslint "${PATHS[@]}" 2>&1 || true)"
 fi
 
-if echo "$OUTPUT" | grep -qE '^\s*[0-9]+\s+problems?\s*\(|✖ [0-9]+\s+problems?'; then
+if grep -qE '^\s*[0-9]+\s+problems?\s*\(|✖ [0-9]+\s+problems?' < <(echo "$OUTPUT"); then
     COUNT="$(echo "$OUTPUT" | grep -oE '[0-9]+ problems?' | tail -1)"
     echo "[js-lint] ⚠ ESLint ${COUNT:-issues} across ${#PATHS[@]} edited file(s) this response (fix before commit)" >&2
     echo "$OUTPUT" | grep -E '^\s+[0-9]+:[0-9]+\s+(error|warning)' | head -10 | sed 's/^/  /' >&2
-elif echo "$OUTPUT" | grep -q 'Parsing error\|Cannot find module'; then
+elif grep -q 'Parsing error\|Cannot find module' < <(echo "$OUTPUT"); then
     echo "[js-lint] WARN: eslint could not parse one of the edited files (parser/config issue — silent skip)" >&2
 fi
 

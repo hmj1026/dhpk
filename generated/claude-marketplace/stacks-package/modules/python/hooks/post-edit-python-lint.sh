@@ -69,14 +69,14 @@ run_ruff() {
 }
 
 CHECK_OUT="$(run_ruff "check \"$FILE_PATH\"" || true)"
-if echo "$CHECK_OUT" | grep -qE 'Found [0-9]+ error|^[^:]+\.py:[0-9]+:[0-9]+:'; then
+if grep -qE 'Found [0-9]+ error|^[^:]+\.py:[0-9]+:[0-9]+:' < <(echo "$CHECK_OUT"); then
     COUNT="$(echo "$CHECK_OUT" | grep -oE 'Found [0-9]+ error[s]?' | head -1)"
     echo "[py-lint] ⚠ ruff ${COUNT:-issues} in $REL (fix before commit)" >&2
     echo "$CHECK_OUT" | grep -E '^[^:]+\.py:[0-9]+:[0-9]+:' | head -5 | sed 's/^/  /' >&2
 fi
 
 FMT_OUT="$(run_ruff "format --check \"$FILE_PATH\"" || true)"
-if echo "$FMT_OUT" | grep -q 'Would reformat'; then
+if grep -q 'Would reformat' < <(echo "$FMT_OUT"); then
     echo "[py-lint] ℹ ruff format would reformat $REL — run 'ruff format $REL'" >&2
 fi
 

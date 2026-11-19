@@ -80,8 +80,7 @@ destination_available() {
     local want="${1##*name=}"; want="${want%%,*}"
     # Escape ERE metacharacters — device names contain parens, e.g. "iPhone SE (3rd generation)".
     local escaped; escaped="$(printf '%s' "$want" | sed 's/[][\.*^$(){}+?|]/\\&/g')"
-    xcrun simctl list devices available 2>/dev/null \
-        | grep -qE "^[[:space:]]+${escaped} \("
+    grep -qE "^[[:space:]]+${escaped} \(" < <(xcrun simctl list devices available 2>/dev/null)
 }
 
 # Decide build unit: prefer xcodebuild when an Xcode project/workspace + scheme

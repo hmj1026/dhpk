@@ -80,9 +80,9 @@ dhpk_collect_stack_evidence() {
     if [ -f "$root/package.json" ]; then
         has_js=1
         package_text="$(tr -d '\n' < "$root/package.json" 2>/dev/null || true)"
-        printf '%s' "$package_text" | grep -Eq '"next"[[:space:]]*:' && evidence+=(nextjs)
-        printf '%s' "$package_text" | grep -Eq '"react"[[:space:]]*:' && evidence+=(react)
-        printf '%s' "$package_text" | grep -Eq '"vue"[[:space:]]*:' && evidence+=(vue)
+        grep -Eq '"next"[[:space:]]*:' < <(printf '%s' "$package_text") && evidence+=(nextjs)
+        grep -Eq '"react"[[:space:]]*:' < <(printf '%s' "$package_text") && evidence+=(react)
+        grep -Eq '"vue"[[:space:]]*:' < <(printf '%s' "$package_text") && evidence+=(vue)
     elif [ -f "$root/pnpm-lock.yaml" ] || [ -f "$root/yarn.lock" ] || [ -f "$root/package-lock.json" ]; then
         has_js=1
     fi

@@ -79,13 +79,13 @@ for pdir in $PDIRS; do
         quoted=""
         for f in "$@"; do quoted="$quoted \"$f\""; done
         CHECK_OUT="$(run_tool "$pdir" "$RUFF_BIN" "check$quoted" || true)"
-        if echo "$CHECK_OUT" | grep -qE 'Found [0-9]+ error|^[^:]+\.py:[0-9]+:[0-9]+:'; then
+        if grep -qE 'Found [0-9]+ error|^[^:]+\.py:[0-9]+:[0-9]+:' < <(echo "$CHECK_OUT"); then
             COUNT="$(echo "$CHECK_OUT" | grep -oE 'Found [0-9]+ error[s]?' | head -1)"
             echo "[py-lint] ⚠ ruff ${COUNT:-issues} across edited file(s) under ${pdir#$ROOT/}" >&2
             echo "$CHECK_OUT" | grep -E '^[^:]+\.py:[0-9]+:[0-9]+:' | head -8 | sed 's/^/  /' >&2
         fi
         FMT_OUT="$(run_tool "$pdir" "$RUFF_BIN" "format --check$quoted" || true)"
-        if echo "$FMT_OUT" | grep -q 'Would reformat'; then
+        if grep -q 'Would reformat' < <(echo "$FMT_OUT"); then
             echo "[py-lint] ℹ ruff format would reformat some edited file(s) — run 'ruff format .'" >&2
         fi
     fi
