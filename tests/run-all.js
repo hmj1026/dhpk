@@ -10,7 +10,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { runNodeTest } = require('../scripts/lib/bounded-child-process');
 const { validateAssertionSummary } = require('../scripts/lib/assertion-evidence');
 
@@ -676,11 +676,30 @@ function writeTimingReport(file, report) {
   fs.writeFileSync(target, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
 }
 
+// Host packages built on demand (ADR 0040) are not committed, yet package and
+// consumer-gate suites read them from dist/on-demand. A fresh checkout (a CI
+// shard, a new worktree) has none, so build the missing ones before the full
+// suite. Trees without the on-demand library (copied fixtures) are skipped.
+function ensureOnDemandPackages(root, env) {
+  const libFile = path.join(root, 'scripts', 'lib', 'on-demand-packages.js');
+  const launcher = path.join(root, 'bin', 'dhpk');
+  if (!fs.existsSync(libFile) || !fs.existsSync(launcher)) return;
+  const { ON_DEMAND_SURFACES, onDemandPackageDir } = require(libFile);
+  for (const surface of ON_DEMAND_SURFACES) {
+    if (fs.existsSync(onDemandPackageDir(root, surface))) continue;
+    const built = spawnSync('bash', [launcher, 'distribution', 'build', surface, '--json'], { cwd: root, env, encoding: 'utf8' });
+    if (built.status !== 0) {
+      throw new Error(`on-demand ${surface} build failed before the test run: ${String(built.stderr || built.stdout).trim()}`);
+    }
+  }
+}
+
 async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
   const options = parseOptions(argv, sourceEnv);
   const env = prepareEnv(sourceEnv);
   const timeoutMs = readTimeoutMs(env);
   if (!options.worker) sweepStaleScratch(path.resolve(TESTS_DIR, '..'));
+  if (!options.worker && options.files.length === 0) ensureOnDemandPackages(path.resolve(TESTS_DIR, '..'), env);
   let ownedTmpRoot = null;
   if (!env.DHPK_TEST_TMP_ROOT) {
     ownedTmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-test-run-'));
@@ -749,6 +768,7 @@ module.exports = {
   parseOptions,
   defaultJobs,
   sweepStaleScratch,
+  ensureOnDemandPackages,
   partitionFiles,
   fileTimeoutMs,
   createTimingReport,

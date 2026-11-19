@@ -339,6 +339,7 @@ dhpk_inspect_command() {
     _dhpk_ci_saw_shell_assign=0
     _dhpk_ci_git_taint=" "
     _dhpk_ci_git_named=" "
+    _dhpk_ci_nonascii_names=" "
     _dhpk_ci_flag_clear
     _dhpk_ci_scan_git_taint "$cmd"
     _dhpk_ci_saw_arith_consumer=0
