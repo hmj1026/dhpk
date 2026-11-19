@@ -118,9 +118,13 @@ APIs in marked test source; use executable routes, shared metadata parsers,
 or resource-existence checks. It is a bounded source check, not cross-file
 dataflow analysis or a document-wording gate.
 
-For long local runs, choose `DHPK_TEST_JOBS` explicitly; `2` is a recommended
-starting point when local resources allow, and the runner default remains
-`1`. A typical progress-enabled run is:
+The local runner defaults to `min(cpus, 4)` parallel jobs (at least 1); CI pins
+`DHPK_TEST_JOBS` explicitly. Each worker child runs with `DHPK_TEST_JOBS=1`, and
+the runner sets `DHPK_HOOK_BATCH_JOBS` per worker to
+`max(1, floor(cpus / workers))` so batched hook suites do not nest on top of the
+workers; a value you set yourself is kept. Set `DHPK_TEST_JOBS` explicitly as a
+cap, for example `2` on machines with fewer than four cpus or under load. A
+typical progress-enabled run is:
 
 ```sh
 DHPK_TEST_JOBS=2 DHPK_TEST_PROGRESS=1 npm test

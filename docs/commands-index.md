@@ -6,7 +6,8 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 > Navigation for slash entries shipped by the dhpk plugin. The plugin ships no
 > `commands/` directory; every entry is a skill invoked as `/dhpk:<skill-name>`. External OpenSpec commands, when that separate
-> plugin is installed, use `/opsx:<name>`.
+> plugin is installed, use `/opsx:<name>`. dhpk ships no slash commands; these
+> are skill entries invoked by skill name.
 
 ## 工作入口與交付
 
