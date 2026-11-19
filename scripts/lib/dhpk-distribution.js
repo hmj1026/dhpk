@@ -40,7 +40,6 @@ const {
   ON_DEMAND_SURFACES,
   isOnDemandSurface,
   onDemandRelativeDir,
-  onDemandPackageDir,
   archiveOnDemandPackage,
   withOnDemandSurfaceLock,
 } = require('./on-demand-packages');
@@ -446,9 +445,11 @@ function execute(argv, root) {
       snapshot ? snapshot.root : root,
       effectiveRequest.options.output || surface.output,
     );
+    // Readers take the same per-directory lock as `generate` and `build`, for
+    // the default and any custom --output, so they never see a half-published
+    // package. A read-only parent falls back to an unlocked read.
     const lockBeforeRuntime = isOnDemandSurface(request.surface)
       && (request.operation === 'validate' || request.operation === 'verify')
-      && targetOutput === path.resolve(onDemandPackageDir(root, request.surface))
       && fs.existsSync(path.dirname(targetOutput));
     const runDistribution = () => {
       const context = runtime(snapshot ? snapshot.root : root, effectiveRequest);
@@ -476,7 +477,7 @@ function execute(argv, root) {
       return { context, result };
     };
     const { context, result } = lockBeforeRuntime
-      ? withOnDemandSurfaceLock(targetOutput, runDistribution)
+      ? withOnDemandSurfaceLock(targetOutput, runDistribution, { readOnlyFallback: true })
       : runDistribution();
     const evidence = {
       stage: 'structural',

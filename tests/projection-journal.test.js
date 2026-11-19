@@ -581,6 +581,37 @@ test('testEffectBatch_crashedRecoveryPreservesForeignAndEditedFilesWhileCleaning
   });
 });
 
+test('testEffectBatch_crashedRecoveryKeepsUserFilesAtUnstartedTargetsEvenWhenTheyArePrefixes', () => {
+  // Steps run in order, so after the first incomplete copy (b) nothing later
+  // ran. A user file at a later target (c) is foreign even when it happens to
+  // be a byte prefix of the staged source, such as an empty file.
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (step === 3) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    for (const name of ['a', 'b', 'c']) fs.writeFileSync(at(`.agents/.stage/${name}.md`), `from-tx-${name}\n`);
+    journal.setPhase('publishing');
+    assert.throws(() => {
+      journal.effectBatch(['a', 'b', 'c'].map((name) => ({
+        kind: 'copy-tree',
+        args: { from: `.agents/.stage/${name}.md`, to: `.agents/managed/${name}.md`, digest: digest(`from-tx-${name}\n`) },
+        inverse: { kind: 'remove', args: { paths: [`.agents/managed/${name}.md`], mode: 'file', digest: digest(`from-tx-${name}\n`) } },
+      })));
+    }, (error) => error instanceof SimulatedCrash);
+
+    fs.writeFileSync(at('.agents/managed/a.md'), 'from-tx-a\n');
+    fs.rmSync(at('.agents/managed/b.md'), { force: true });
+    fs.writeFileSync(at('.agents/managed/c.md'), '');
+    throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/c.md'), 'utf8'), '', 'user file at an unstarted target must survive');
+  });
+});
+
 test('testEffectBatch_interruptedRollbackAfterBeforeThrowPreservesCollidingFile', () => {
   withProject(({ projectRoot }, at) => {
     seed(at);

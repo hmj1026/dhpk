@@ -168,10 +168,13 @@ test('withOnDemandSurfaceLock uses a load-safe ownerless grace window and reclai
     );
     assert.strictEqual(fs.existsSync(lockDir), true, 'fresh ownerless lock must remain untouched');
 
-    // Backdating mtime past staleGraceMs allows clean stale reclamation.
-    const expiredAt = new Date(Date.now() - ON_DEMAND_LOCK_STALE_GRACE_MS - 1000);
+    // A lock left 60s ago (half the 120s acquire timeout) must be reclaimable
+    // under the default grace window. The literal stays independent of the
+    // implementation constant, so an oversized grace window fails here.
+    const expiredAt = new Date(Date.now() - 60_000);
     fs.utimesSync(lockDir, expiredAt, expiredAt);
-    const result = withOnDemandSurfaceLock(packageDir, () => 'reclaimed');
+    // A short timeout keeps waiting from aging the lock into any oversized window.
+    const result = withOnDemandSurfaceLock(packageDir, () => 'reclaimed', { timeoutMs: 2000, pollMs: 25 });
     assert.strictEqual(result, 'reclaimed');
     assert.strictEqual(fs.existsSync(lockDir), false, 'reclaimed lock must be cleaned up on release');
   } finally {
@@ -334,7 +337,7 @@ test('withOnDemandSurfaceLock handles ENOTSUP link fallback and stale-reclaim ra
     // Case 2: Slow live acquirer finishes writing owner.json right before tombstone links
     // -> reclaimer must abort without ever renaming or removing the live lock.
     fs.mkdirSync(lockDir);
-    const expiredAt = new Date(Date.now() - ON_DEMAND_LOCK_STALE_GRACE_MS - 1000);
+    const expiredAt = new Date(Date.now() - 60_000);
     fs.utimesSync(lockDir, expiredAt, expiredAt);
     const origRename = fs.renameSync;
     let injectedLiveOwner = false;
@@ -439,47 +442,127 @@ test('withOnDemandSurfaceLock serializes concurrent stale-lock reclamation acros
   }
 });
 
+function waitForLine(child, marker, label) {
+  return new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+      if (stdout.includes(marker)) resolve();
+    });
+    child.on('error', reject);
+    child.on('close', (code) => reject(new Error(`${label} exited before ${marker} (${code}): ${stderr}`)));
+  });
+}
+
+const HOLDER_SCRIPT = [
+  'const fs = require("node:fs");',
+  'const { withOnDemandSurfaceLock } = require(process.argv[1]);',
+  'const buf = new Int32Array(new SharedArrayBuffer(4));',
+  'withOnDemandSurfaceLock(process.argv[2], () => {',
+  '  process.stdout.write("LOCKED\\n");',
+  '  while (!fs.existsSync(process.argv[3])) Atomics.wait(buf, 0, 0, 10);',
+  '  fs.writeFileSync(process.argv[4], String(Date.now()));',
+  '});',
+].join('\n');
+
+const VALIDATOR_SCRIPT = [
+  'const fs = require("node:fs");',
+  'const { execute } = require(process.argv[1]);',
+  'process.stdout.write("STARTED\\n");',
+  'const result = execute(JSON.parse(process.argv[2]), process.argv[3]);',
+  'fs.writeFileSync(process.argv[4], JSON.stringify({ finishedAt: Date.now(), result }));',
+].join('\n');
+
+// A validate that ignores the lock finishes in tens of milliseconds, so it is
+// still running after this window only if it is blocked on the lock.
+const BLOCKED_WINDOW_MS = 400;
+
+// The holder keeps the lock until the test signals release, and the test only
+// signals after observing that the started validator is still blocked. A
+// validate that skips the lock exits inside the window and fails the check.
+async function assertValidateWaitsForLock({ scratch, packageDir, argv, root }) {
+  const libPath = path.join(ROOT, 'scripts', 'lib', 'on-demand-packages.js');
+  const distributionPath = path.join(ROOT, 'scripts', 'lib', 'dhpk-distribution.js');
+  const releaseSignal = path.join(scratch, 'release.signal');
+  const releasedFile = path.join(scratch, 'released.txt');
+  const resultFile = path.join(scratch, 'validate-result.json');
+  const holder = spawn(process.execPath, ['-e', HOLDER_SCRIPT, libPath, packageDir, releaseSignal, releasedFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const holderExit = new Promise((resolve) => holder.on('close', resolve));
+  try {
+    await waitForLine(holder, 'LOCKED', 'lock holder');
+    const validator = spawn(process.execPath, ['-e', VALIDATOR_SCRIPT, distributionPath, JSON.stringify(argv), root, resultFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const validatorExit = new Promise((resolve) => validator.on('close', resolve));
+    await waitForLine(validator, 'STARTED', 'validator');
+    await new Promise((resolve) => setTimeout(resolve, BLOCKED_WINDOW_MS));
+    assert.strictEqual(validator.exitCode, null, 'distribution validate must block while the surface lock is held');
+    assert.strictEqual(fs.existsSync(resultFile), false, 'validate must not finish while the surface lock is held');
+    fs.writeFileSync(releaseSignal, 'release\n');
+    assert.strictEqual(await validatorExit, 0);
+    assert.strictEqual(await holderExit, 0);
+    const { finishedAt, result } = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+    const releasedAt = Number(fs.readFileSync(releasedFile, 'utf8'));
+    assert.ok(finishedAt >= releasedAt, `validate finished (${finishedAt}) before holder released (${releasedAt})`);
+    return result;
+  } finally {
+    fs.writeFileSync(releaseSignal, 'release\n');
+    await holderExit;
+  }
+}
+
 test('distribution validate serializes against an active on-demand surface lock before reading provenance', async () => {
   const tempRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-dist-lock-')));
   try {
-    const onDemandDir = path.join(tempRoot, 'dist', 'on-demand');
-    fs.mkdirSync(onDemandDir, { recursive: true });
-    const packageDir = path.join(onDemandDir, 'dhpk-cursor');
-    const releasedFile = path.join(tempRoot, 'released.txt');
-    const libPath = path.join(ROOT, 'scripts', 'lib', 'on-demand-packages.js');
-    const holderScript = [
-      'const fs = require("node:fs");',
-      'const { withOnDemandSurfaceLock } = require(process.argv[1]);',
-      'const buf = new Int32Array(new SharedArrayBuffer(4));',
-      'withOnDemandSurfaceLock(process.argv[2], () => {',
-      '  process.stdout.write("LOCKED\\n");',
-      '  Atomics.wait(buf, 0, 0, 180);',
-      '  fs.writeFileSync(process.argv[3], String(Date.now()));',
-      '});',
-    ].join('\n');
-
-    const child = spawn(process.execPath, ['-e', holderScript, libPath, packageDir, releasedFile], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stderr = '';
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    await new Promise((resolve, reject) => {
-      let stdout = '';
-      child.stdout.on('data', (chunk) => {
-        stdout += chunk;
-        if (stdout.includes('LOCKED')) resolve();
-      });
-      child.on('error', reject);
-      child.on('close', (code) => reject(new Error(`holder exited early (${code}): ${stderr}`)));
+    const packageDir = path.join(tempRoot, 'dist', 'on-demand', 'dhpk-cursor');
+    fs.mkdirSync(path.dirname(packageDir), { recursive: true });
+    const result = await assertValidateWaitsForLock({
+      scratch: tempRoot,
+      packageDir,
+      argv: ['cursor-plugin', 'validate', '--json'],
+      root: tempRoot,
     });
-
-    const exitPromise = new Promise((resolve) => child.on('close', (code) => resolve(code)));
-    execute(['cursor-plugin', 'validate', '--json'], tempRoot);
-    const finishedAt = Date.now();
-    const exitCode = await exitPromise;
-    assert.strictEqual(exitCode, 0, stderr);
-    assert.strictEqual(fs.existsSync(releasedFile), true, 'distribution validate must wait until the active surface lock releases');
-    const releasedAt = Number(fs.readFileSync(releasedFile, 'utf8'));
-    assert.ok(finishedAt >= releasedAt, `validate finished (${finishedAt}) before holder released (${releasedAt})`);
+    // The fixture root has no sources, so validate fails after the lock opens.
+    assert.strictEqual(result.ok, false, JSON.stringify(result));
   } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('distribution validate with a custom --output waits for the build lock on that directory', async () => {
+  const tempRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-custom-lock-')));
+  try {
+    const packageDir = path.join(tempRoot, 'custom', 'dhpk-cursor');
+    fs.mkdirSync(packageDir, { recursive: true });
+    const result = await assertValidateWaitsForLock({
+      scratch: tempRoot,
+      packageDir,
+      argv: ['cursor-plugin', 'validate', '--output', packageDir, '--json'],
+      root: ROOT,
+    });
+    // An empty package directory is read and rejected, proving validate ran.
+    assert.strictEqual(result.payload.operation, 'validate', JSON.stringify(result));
+    assert.strictEqual(result.payload.output, packageDir);
+    assert.strictEqual(result.payload.verdict, 'FAIL');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('distribution validate falls back to an unlocked read when the package parent is read-only', () => {
+  if (typeof process.getuid === 'function' && process.getuid() === 0) return; // root ignores directory modes
+  const tempRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-readonly-')));
+  const parent = path.join(tempRoot, 'readonly');
+  const packageDir = path.join(parent, 'dhpk-cursor');
+  try {
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.chmodSync(parent, 0o555);
+    const result = execute(['cursor-plugin', 'validate', '--output', packageDir, '--json'], ROOT);
+    assert.strictEqual(result.payload && result.payload.operation, 'validate', JSON.stringify(result));
+    assert.strictEqual(result.payload.verdict, 'FAIL');
+    assert.deepStrictEqual(fs.readdirSync(parent), ['dhpk-cursor'], 'no lock directory may be created in a read-only parent');
+  } finally {
+    fs.chmodSync(parent, 0o755);
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });

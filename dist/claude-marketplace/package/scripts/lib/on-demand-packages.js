@@ -22,6 +22,8 @@ const RECLAIM_GUARD_ATTEMPTS = 2;
 const LOCK_FILE_MODE = 0o600;
 // Filesystems that cannot hard-link fall back to an exclusive `wx` write.
 const LINK_UNSUPPORTED_CODES = new Set(['EPERM', 'ENOTSUP', 'ENOSYS']);
+// Lock creation failures that mean the package parent cannot be written.
+const READ_ONLY_LOCK_CODES = new Set(['EACCES', 'EROFS', 'EPERM']);
 const TOMBSTONE = Object.freeze({
   CHANGED: 'changed',
   TOMBSTONED: 'tombstoned',
@@ -343,6 +345,7 @@ function withOnDemandSurfaceLock(packageDir, fn, {
   timeoutMs = ON_DEMAND_LOCK_TIMEOUT_MS,
   pollMs = ON_DEMAND_LOCK_POLL_MS,
   staleGraceMs = ON_DEMAND_LOCK_STALE_GRACE_MS,
+  readOnlyFallback = false,
 } = {}) {
   const { lockDir } = resolveLockDir(packageDir);
   if (HELD_LOCKS.has(lockDir)) return fn();
@@ -355,6 +358,12 @@ function withOnDemandSurfaceLock(packageDir, fn, {
       fs.mkdirSync(lockDir);
       candidateStat = fs.lstatSync(lockDir);
     } catch (error) {
+      // A reader of a parent it cannot write falls back to an unlocked read.
+      // That is safe for one user on a read-only location (no builder of that
+      // user can publish there either); a different user with write access
+      // could still be mid-publish, so shared multi-user package directories
+      // are not supported by this fallback.
+      if (readOnlyFallback && error && READ_ONLY_LOCK_CODES.has(error.code)) return fn();
       if (error && error.code === 'EEXIST') {
         if (tryReclaimStaleLock(lockDir, staleGraceMs)) continue;
         if (Date.now() >= deadline) {

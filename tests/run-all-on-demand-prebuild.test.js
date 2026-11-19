@@ -12,9 +12,13 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { ensureOnDemandPackages } = require('./run-all');
-const { packageInventoryDigest } = require('../scripts/lib/platform-provenance');
 
 const REPO = path.resolve(__dirname, '..');
+// sha256 of the compact JSON of the default fixture inventory
+// { schema: 'v1', skills: ['a'] }, checked independently with
+// `printf %s '{"schema":"v1","skills":["a"]}' | sha256sum`.
+const FIXTURE_INVENTORY = Object.freeze({ schema: 'v1', skills: Object.freeze(['a']) });
+const FIXTURE_INVENTORY_DIGEST = '942da80c2c1d36438a7e9cd3a94fabe986e1c810934fa77d01b2807e8c8b4712';
 
 const LAUNCHER_OK = [
   '#!/usr/bin/env bash',
@@ -87,11 +91,11 @@ test('ensureOnDemandPackages fails loudly when a build fails', () => {
   }
 });
 
-function provenanceFixtureRoot({ version = '1.2.3', inventory = { schema: 'v1', skills: ['a'] }, gitInit = false } = {}) {
+function provenanceFixtureRoot({ version = '1.2.3', gitInit = false } = {}) {
   const root = fixtureRoot();
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
   fs.mkdirSync(path.join(root, '.claude-plugin'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory)}\n`);
+  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(FIXTURE_INVENTORY)}\n`);
   fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), `${JSON.stringify({ name: 'dhpk', version })}\n`);
   let head = '1'.repeat(40);
   if (gitInit) {
@@ -114,7 +118,7 @@ function provenanceFixtureRoot({ version = '1.2.3', inventory = { schema: 'v1', 
       sourceVersion: version,
       sourceCommit: head,
       generatedFromCommit: head,
-      inventoryDigest: packageInventoryDigest(surface, inventory),
+      inventoryDigest: FIXTURE_INVENTORY_DIGEST,
       ...overrides,
     }));
   };

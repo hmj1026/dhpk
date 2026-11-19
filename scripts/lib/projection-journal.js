@@ -155,6 +155,32 @@ function isPartialCopyFile(projectRoot, record) {
   return targetBytes.length < sourceBytes.length && sourceBytes.subarray(0, targetBytes.length).equals(targetBytes);
 }
 
+// Steps run in journal order, and the `planned` records of a crashed run are
+// the journal's tail. So only the first `planned` file copy whose target is not
+// its complete copy can have been interrupted mid-write; every later planned
+// copy never started, and a file at its target belongs to someone else even
+// when it is a byte prefix of the staged source (an empty file always is).
+// Copies without a recorded file digest cannot be judged and are skipped.
+// Trade-off: if a completed earlier copy was deleted or edited after the crash,
+// that copy is taken as in flight and a genuine later partial copy fails closed
+// with RECOVERY_CONFLICT instead of being cleaned up. No user file is deleted.
+function isJudgeablePlannedCopy(record) {
+  return record.state === 'planned' && record.kind === 'copy-tree' && Boolean(record.args)
+    && typeof record.args.digest === 'string' && typeof record.args.to === 'string';
+}
+
+function isCompleteCopy(projectRoot, record) {
+  try {
+    return fileDigestOrNull(effectAbsolute(projectRoot, record.args.to)) === record.args.digest;
+  } catch (_) {
+    return false;
+  }
+}
+
+function firstIncompletePlannedCopy(projectRoot, effects) {
+  return effects.find((record) => isJudgeablePlannedCopy(record) && !isCompleteCopy(projectRoot, record)) || null;
+}
+
 function pathMatchesOrContains(ancestorOrExact, targetPath) {
   return ancestorOrExact === targetPath || targetPath.startsWith(`${ancestorOrExact}/`);
 }
@@ -438,20 +464,24 @@ class ProjectionJournal {
     } else if (markedUnstarted) {
       this.flush();
     }
+    // Judged once, before any inverse changes the disk.
+    const inFlightCopy = firstIncompletePlannedCopy(this.projectRoot, effects);
+    const isInFlightPartialCopy = (candidate) => candidate === inFlightCopy && isPartialCopyFile(this.projectRoot, candidate);
     for (let index = effects.length - 1; index >= 0; index -= 1) {
       const record = effects[index];
       if (record.state === 'undone') continue;
       if (!record.inverse) throw fail('UNSAFE_TRANSACTION', `project projection transaction effect ${record.id} (${record.kind}) cannot be undone`);
       // An interrupted copy may leave a truncated prefix of the staged source
-      // file before its full digest matches. Verify that prefix relationship so
-      // foreign or post-crash edited files still fail closed with a conflict.
-      const partialCopy = isPartialCopyFile(this.projectRoot, record);
+      // file before its full digest matches. Only the one in-flight copy may
+      // bypass the digest check, and only as a verified prefix, so foreign or
+      // post-crash edited files still fail closed with a conflict.
+      const partialCopy = isInFlightPartialCopy(record);
       let inverse = partialCopy ? { ...record.inverse, args: { ...record.inverse.args, digest: null } } : record.inverse;
       let skipInverse = false;
       if (inverse.kind === 'chmod' && inverse.args && typeof inverse.args.path === 'string') {
         const creator = findFileCreatorRecord(effects, index, inverse.args.path);
         if (creator) {
-          if (isPartialCopyFile(this.projectRoot, creator)) {
+          if (isInFlightPartialCopy(creator)) {
             // Skip chmod on an interrupted partial copy so the earlier
             // copy-tree inverse can remove it without a digest conflict.
             skipInverse = true;
