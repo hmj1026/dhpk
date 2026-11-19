@@ -10,9 +10,12 @@
 #     package manager, never hand-edited
 #
 # Project-extensible:
-#   Set GUARD_EXTRA_PATTERNS to add patterns (pipe-separated grep -E regex).
+#   Set GUARD_EXTRA_PATTERNS to add patterns: bash ERE (the [[ =~ ]] dialect),
+#   with | alternation inside a pattern and/or one pattern per line. An empty
+#   line matches every path. A path is judged one line at a time, and a regex
+#   that does not compile blocks every edit.
 #   Example: GUARD_EXTRA_PATTERNS="src/locales/.*\.json$|generated/.*"
-#   WARNING: used as a grep regex. Only set in trusted project config.
+#   WARNING: used as a regex. Only set in trusted project config.
 
 set -euo pipefail
 
@@ -164,8 +167,8 @@ edit_guard_blocks() {
 
 if edit_guard_in_scratchpad "$norm_path"; then
     :  # allow Claude session scratchpads, including temporary .env files
-elif edit_guard_match i '(^|/)\.env\.(example|sample|dist|template)$' "$norm_path"; then
-    :  # allow version-controlled env templates
+elif [[ "$norm_path" != *$'\n'* ]] && edit_guard_match i '(^|/)\.env\.(example|sample|dist|template)$' "$norm_path"; then
+    :  # allow version-controlled env templates (never a multi-line path: one clean line must not vouch for the rest)
 elif edit_guard_blocks i '(^|/)\.env([.: ].*)?$|(^|/)\.git[. ]*(:[^/]*)?(/|$)' "$norm_path" "$file_path"; then
     echo "[edit-guard] blocked sensitive file: $file_path" >&2
     exit 2
@@ -234,8 +237,31 @@ if [ -n "${GUARD_EXTRA_PATTERNS:-}" ]; then
     # Matched in bash like every other pattern (see edit_guard_match): a regex
     # that does not compile, or any failure to decide, blocks. Because [[ =~ ]]
     # never parses the pattern as an option, a pattern that starts with '-' is safe.
-    extra_rc=0
-    edit_guard_match - "$GUARD_EXTRA_PATTERNS" "$file_path" || extra_rc=$?
+    # GUARD_EXTRA_PATTERNS is split on newlines and each line is its own regex, as
+    # grep -E treated it; an empty line matches every path. One trailing newline
+    # is ignored. A line that does not compile makes the whole value invalid.
+    extra_rc=1
+    extra_rest="$GUARD_EXTRA_PATTERNS"
+    extra_rest="${extra_rest%$'\n'}"
+    while :; do
+        extra_pattern="${extra_rest%%$'\n'*}"
+        if [ -z "$extra_pattern" ]; then
+            extra_line_rc=0
+        else
+            extra_line_rc=0
+            edit_guard_match - "$extra_pattern" "$file_path" || extra_line_rc=$?
+        fi
+        if [ "$extra_line_rc" -eq 0 ]; then
+            extra_rc=0
+        elif [ "$extra_line_rc" -ne 1 ]; then
+            extra_rc=2
+            break
+        fi
+        case "$extra_rest" in
+            *$'\n'*) extra_rest="${extra_rest#*$'\n'}" ;;
+            *) break ;;
+        esac
+    done
     case "$extra_rc" in
         0)
             echo "[edit-guard] blocked by GUARD_EXTRA_PATTERNS: $file_path" >&2
@@ -245,7 +271,7 @@ if [ -n "${GUARD_EXTRA_PATTERNS:-}" ]; then
         *)
             # Fail closed: a broken regex means the guard is silently OFF for every
             # edit — block instead so the misconfiguration gets fixed, not ignored.
-            echo "[edit-guard] blocked: invalid GUARD_EXTRA_PATTERNS regex — fix the pattern (pipe-separated grep -E) or unset it" >&2
+            echo "[edit-guard] blocked: invalid GUARD_EXTRA_PATTERNS regex — fix the pattern (bash ERE, one per line) or unset it" >&2
             exit 2
             ;;
     esac

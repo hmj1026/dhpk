@@ -77,6 +77,43 @@ test('pre-edit-guard applies a GUARD_EXTRA_PATTERNS regex that starts with a das
   assert.strictEqual(editHook('src/plain.txt', { GUARD_EXTRA_PATTERNS: '-secret' }).status, 0);
 });
 
+test('pre-edit-guard treats a newline-separated GUARD_EXTRA_PATTERNS value as one regex per line', () => {
+  const patterns = 'secret\nnotes';
+  assert.strictEqual(editHook('/repo/notes.txt', { GUARD_EXTRA_PATTERNS: patterns }).status, 2);
+  assert.strictEqual(editHook('/repo/secret.txt', { GUARD_EXTRA_PATTERNS: patterns }).status, 2);
+  assert.strictEqual(editHook('/repo/other.txt', { GUARD_EXTRA_PATTERNS: patterns }).status, 0);
+  // A single trailing newline adds no pattern.
+  assert.strictEqual(editHook('/repo/other.txt', { GUARD_EXTRA_PATTERNS: 'secret\n' }).status, 0);
+});
+
+test('pre-edit-guard lets an empty GUARD_EXTRA_PATTERNS line match every path, as grep does', () => {
+  const res = editHook('/repo/anything.txt', { GUARD_EXTRA_PATTERNS: 'secret\n\nnotes' });
+  assert.strictEqual(res.status, 2, `expected exit 2, got ${res.status}; stderr=${res.stderr}`);
+  assert.match(res.stderr, /blocked by GUARD_EXTRA_PATTERNS/);
+});
+
+test('pre-edit-guard blocks a bad regex on any GUARD_EXTRA_PATTERNS line', () => {
+  const res = editHook('/repo/anything.txt', { GUARD_EXTRA_PATTERNS: 'secret\n(unbalanced' });
+  assert.strictEqual(res.status, 2);
+  assert.match(res.stderr, /invalid GUARD_EXTRA_PATTERNS regex/);
+});
+
+test('pre-edit-guard does not let one clean template line vouch for a multi-line path', () => {
+  for (const filePath of ['/repo/.env.example\nX/.env', '/repo/.env.example\nX/.git/config', 'X/.env\n/repo/.env.example']) {
+    const res = editHook(filePath);
+    assert.strictEqual(res.status, 2, `${JSON.stringify(filePath)}: expected exit 2, got ${res.status}; stderr=${res.stderr}`);
+  }
+  assert.strictEqual(editHook('/repo/.env.example').status, 0, 'a plain template path stays allowed');
+});
+
+test('pre-edit-guard keeps case-insensitive matching out of the case-sensitive checks', () => {
+  // .env and .git names are matched case-insensitively; lock files and extra patterns are not.
+  assert.strictEqual(editHook('/repo/.ENV').status, 2);
+  assert.strictEqual(editHook('/repo/COMPOSER.LOCK').status, 0);
+  assert.strictEqual(editHook('/repo/NOTES.txt', { GUARD_EXTRA_PATTERNS: 'notes' }).status, 0);
+  assert.strictEqual(editHook('/repo/notes.txt', { GUARD_EXTRA_PATTERNS: 'notes' }).status, 2);
+});
+
 // Static guard for the whole class: no hook script may put an early-exiting
 // reader at the end of a pipe inside a condition.
 function hookScripts() {
