@@ -10,7 +10,7 @@ const { normalizeConsumerEvidence } = require('../scripts/lib/release-evidence')
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'consumer-gate.js');
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')).version;
-const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
+const { NODE_BASH_ONLY_PATH } = require('./_lib/node-only-path');
 
 function physicalTempDir(prefix) {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
