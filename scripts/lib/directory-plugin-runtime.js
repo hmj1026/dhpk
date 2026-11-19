@@ -73,7 +73,7 @@ const BUILD_ONLY_FILES = Object.freeze([
   ].map((name) => `scripts/lib/${name}.js`),
   'scripts/lib/install-prompts.sh',
   ...[
-    'claude-user-config-legacy', 'claude-user-config-metadata', 'command-forwarder-copies',
+    'claude-user-config-legacy', 'claude-user-config-metadata',
     'command-skill-dispositions', 'discovery-budgets', 'listing-metadata', 'marketplace-runtime-acceptance',
     'marketplace-selection', 'skill-directory-coverage', 'skill-resource-copies', 'skill-resources',
   ].map((name) => `manifests/${name}.json`),
