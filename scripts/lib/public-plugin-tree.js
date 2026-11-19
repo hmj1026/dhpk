@@ -7,6 +7,7 @@
 // manifests from this module, so the two outputs cannot drift apart.
 
 const { normalizePortableFrontmatter, stableStringify } = require('./agent-plugin-package');
+const { extractMetadata } = require('../ci/_lib/frontmatter');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { layoutPublicPlugin, remapBundleProvenance } = require('./public-plugin-layout');
 
@@ -15,6 +16,43 @@ const CODEX_MANIFEST_PATH = '.codex-plugin/plugin.json';
 
 // Portable frontmatter without metadata: dhpk-* keys are internal bookkeeping.
 const PUBLIC_FRONTMATTER_ALLOWLIST = Object.freeze(['name', 'description', 'license', 'compatibility']);
+
+// Runtime-consumed dhpk-* keys: the flow-guide next-action runtime reads these
+// three from peer frontmatter. The Public Plugin frontmatter carries none, so
+// the build moves them into one shipped data file the runtime loads instead.
+const RUNTIME_DATA_PATH = 'skills/flow-guide/references/skill-next-map.json';
+const RUNTIME_DATA_KEYS = Object.freeze({
+  'dhpk-next': 'next',
+  'dhpk-modes': 'modes',
+  'dhpk-invocation-class': 'invocationClass',
+});
+
+// Next-edge data of every public skill, taken from the source frontmatter and
+// keyed by skill name; null when flow-guide is not part of the tree. Sorted, so
+// the bytes are deterministic. It holds routing data only, no build facts.
+function buildRuntimeDataFile(sourceFiles) {
+  const hasRuntime = sourceFiles.some((file) => file.path === 'skills/flow-guide/SKILL.md');
+  if (!hasRuntime) return null;
+  const skills = {};
+  for (const file of sourceFiles) {
+    if (!/^skills\/[^/]+\/SKILL\.md$/.test(file.path)) continue;
+    const text = Buffer.from(file.bytes).toString('utf8');
+    const name = /^name:\s*["']?([^"'\r\n]+?)["']?\s*$/m.exec(text.split(/\r?\n---/)[0]);
+    if (!name) continue;
+    const { values } = extractMetadata(text);
+    const entry = {};
+    for (const [key, field] of Object.entries(RUNTIME_DATA_KEYS)) {
+      if (values[key] !== undefined) entry[field] = values[key];
+    }
+    if (Object.keys(entry).length > 0) skills[name[1]] = entry;
+  }
+  const sorted = Object.fromEntries(Object.keys(skills).sort().map((key) => [key, skills[key]]));
+  return {
+    path: RUNTIME_DATA_PATH,
+    bytes: Buffer.from(`${stableStringify({ schema: 'dhpk.skill-next-map.v1', skills: sorted })}\n`, 'utf8'),
+    mode: 0o644,
+  };
+}
 
 // Public Plugin SKILL.md bytes: portable frontmatter only. Returns
 // { ok, bytes, errors }; files other than a SKILL.md pass through unchanged.
@@ -103,6 +141,13 @@ function compilePublicPluginTree({ root, inventory, publicationView, manifest, s
     }
   }
   files.push(...manifests);
+  const runtimeData = buildRuntimeDataFile(content.files);
+  if (runtimeData) {
+    if (files.some((existing) => existing.path === runtimeData.path)) {
+      return { ok: false, errors: [`package path collision at ${runtimeData.path}`], files: [], content: null };
+    }
+    files.push(runtimeData);
+  }
   files.sort((left, right) => (left.path < right.path ? -1 : (left.path > right.path ? 1 : 0)));
   return { ok: true, errors: [], files, content, manifest: prepared.manifest, bundleProvenance: prepared.bundleProvenance };
 }
@@ -131,6 +176,8 @@ module.exports = {
   OPENAI_MANIFEST_PATH,
   CODEX_MANIFEST_PATH,
   normalizePublicSkillFile,
+  buildRuntimeDataFile,
+  RUNTIME_DATA_PATH,
   renderCodexPluginManifest,
   publicPluginManifestFiles,
   preparePublicPlugin,

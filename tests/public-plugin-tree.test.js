@@ -109,4 +109,15 @@ test('canonical skill sources keep their distribution.yaml and metadata', () => 
   assert.ok(fs.existsSync(path.join(ROOT, 'skills', 'flow-guide', 'distribution.yaml')));
 });
 
+test('the Public Plugin ships next edges as one runtime data file, not frontmatter', () => {
+  const data = readJson('plugins/dhpk/skills/flow-guide/references/skill-next-map.json');
+  assert.strictEqual(data.schema, 'dhpk.skill-next-map.v1');
+  assert.strictEqual(data.skills['doc-maintain'].next['update:PASS'], 'git-smart-commit');
+  assert.deepStrictEqual(data.skills['doc-maintain'].modes, ['update', 'codemap', 'refactor']);
+  assert.deepStrictEqual(Object.keys(data.skills), Object.keys(data.skills).slice().sort());
+  const text = JSON.stringify(data);
+  assert.ok(!/provenance|fingerprint|capability-id|sourceCommit/i.test(text), 'routing data only, no build facts');
+  assert.strictEqual(fs.existsSync(path.join(NATIVE_ROOT, 'skills', 'doc-maintain', 'distribution.yaml')), false);
+});
+
 run('public-plugin-tree');
