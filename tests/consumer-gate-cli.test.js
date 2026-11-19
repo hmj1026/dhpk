@@ -70,7 +70,7 @@ exit 0
 // PATH containing real node/bash but deliberately excluding wherever the
 // real `claude` CLI lives, so "claude absent" is genuinely absent rather
 // than relying on ordering against the host's real PATH.
-const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
+const { NODE_BASH_ONLY_PATH } = require('./_lib/node-only-path');
 
 // The codex-sync check verifies the installed manifest version against the
 // target; use the real repo's own current version so these tests don't

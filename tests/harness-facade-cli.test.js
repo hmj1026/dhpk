@@ -13,7 +13,7 @@ const receipts = require('../scripts/lib/harness-receipt');
 const harness = require('../scripts/lib/harness');
 
 const ROOT = path.join(__dirname, '..');
-const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
+const { NODE_BASH_ONLY_PATH } = require('./_lib/node-only-path');
 const DEFAULT_INVOKE_TIMEOUT_MS = 30_000;
 
 // Simulated developer machine: an ambient `cursor-agent` is first on the
