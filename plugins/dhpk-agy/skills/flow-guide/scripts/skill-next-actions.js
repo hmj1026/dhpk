@@ -74,6 +74,32 @@ function restorePortableHandoffMetadata(header) {
   return output.join('\n');
 }
 
+// Shipped next-edge data (Public Plugin build): fills only the keys a skill's
+// frontmatter lacks, so frontmatter stays authoritative where it exists.
+const RUNTIME_DATA_KEYS = Object.freeze({ next: 'dhpk-next', modes: 'dhpk-modes', invocationClass: 'dhpk-invocation-class' });
+
+function readShippedNextData() {
+  try {
+    const data = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'references', 'skill-next-map.json'), 'utf8'));
+    return data && data.schema === 'dhpk.skill-next-map.v1' && data.skills && typeof data.skills === 'object' ? data.skills : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function withShippedNextData(metadata, shipped) {
+  const merged = { ...metadata };
+  for (const [name, entry] of Object.entries(shipped)) {
+    if (!Object.prototype.hasOwnProperty.call(merged, name) || !entry || typeof entry !== 'object') continue;
+    const values = { ...(merged[name].values || {}) };
+    for (const [field, key] of Object.entries(RUNTIME_DATA_KEYS)) {
+      if (values[key] === undefined && entry[field] !== undefined) values[key] = entry[field];
+    }
+    merged[name] = { ...merged[name], values };
+  }
+  return merged;
+}
+
 function collectSkillMetadata() {
   const metadata = {};
   const visit = directory => {
@@ -89,7 +115,7 @@ function collectSkillMetadata() {
     }
   };
   visit(path.resolve(__dirname, '..', '..'));
-  return metadata;
+  return withShippedNextData(metadata, readShippedNextData());
 }
 
 function parseNextHost(argv = []) {
