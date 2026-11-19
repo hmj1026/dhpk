@@ -1865,7 +1865,7 @@ _dhpk_ci_alias_value_risky() {
         fi
     done
     # git deeper in the value, after a separator or an option word.
-    case "${value,,}" in
+    case "$(tr '[:upper:]' '[:lower:]' <<<"$value")" in
         *git*) ;;
         *) return 1 ;;
     esac

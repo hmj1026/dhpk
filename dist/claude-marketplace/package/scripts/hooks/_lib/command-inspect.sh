@@ -325,7 +325,8 @@ _dhpk_ci_apply_set_allexport() {
 # can rebuild the words). A bare git value (g=git) stays with the subcommand
 # check at the use site.
 _dhpk_ci_git_value_risky() {
-    local raw="$1" val="${1,,}" ifs="$2" i=1 n sub
+    local raw="$1" val ifs="$2" i=1 n sub
+    val="$(tr '[:upper:]' '[:lower:]' <<<"$1")"
     local -a ws_a
     # Folded: ${l,,}, ${l^^}, ${l~~} and ${l@L} can rebuild git from other case.
     if [ "$ifs" = "1" ]; then
@@ -1464,7 +1465,7 @@ _dhpk_ci_scan_git_taint() {
     case "$rest" in
         *IFS=*|*IFS+=*) _dhpk_ci_taint_ifs=1 ;;
     esac
-    case "${rest,,}" in
+    case "$(tr '[:upper:]' '[:lower:]' <<<"$rest")" in
         *git*) ;;
         *) return 0 ;;
     esac
@@ -1492,14 +1493,14 @@ _dhpk_ci_scan_git_taint() {
         fi
         var="_dhpk_ci_tv_$name"
         printf -v "$var" '%s %s' "${!var:-}" "$v"
-        case "${v,,}" in *git*) _dhpk_ci_taint_gitassign=1 ;; esac
+        case "$(tr '[:upper:]' '[:lower:]' <<<"$v")" in *git*) _dhpk_ci_taint_gitassign=1 ;; esac
         case "$names" in *" $name "*) ;; *) names="$names$name " ;; esac
     done
     for name in $names; do
         var="_dhpk_ci_tv_$name"
         if _dhpk_ci_git_value_risky "${!var}" "$_dhpk_ci_taint_ifs"; then
             _dhpk_ci_taint_add "$name"
-        elif _dhpk_ci_word_mentions_git "${!var,,}"; then
+        elif _dhpk_ci_word_mentions_git "$(tr '[:upper:]' '[:lower:]' <<<"${!var}")"; then
             _dhpk_ci_git_named="${_dhpk_ci_git_named}$name "
         fi
         case "$appended" in
@@ -1525,7 +1526,7 @@ _dhpk_ci_scan_git_taint() {
     while [[ "$rest" =~ $re_build ]]; do
         seg="${BASH_REMATCH[2]}"
         rest="${rest#*"${BASH_REMATCH[0]}"}"
-        if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "${1,,}"; then
+        if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "$(tr '[:upper:]' '[:lower:]' <<<"$1")"; then
             read -r -a ws_a <<<"$seg"
             for w in "${ws_a[@]}"; do
                 [[ "$w" =~ $re_id ]] && _dhpk_ci_taint_add "$w"
