@@ -534,7 +534,13 @@ function compileNativePackage({
           { ...skillMetadata, ownerId: file.ownerId, sourcePath: file.sourcePath, contentKind: file.kind },
         ));
       }
-      const ownerFingerprintFiles = ownerFiles.map((file) => ({
+      // The runtime data file ships inside its owning skill directory, so the
+      // skill fingerprint must cover it like any other file on disk.
+      const runtimeData = publicLayout.runtimeData;
+      const ownedRuntimeData = runtimeData && runtimeData.path.startsWith(`skills/${publicName}/`)
+        ? [{ path: runtimeData.path, bytes: runtimeData.bytes }]
+        : [];
+      const ownerFingerprintFiles = [...ownerFiles, ...ownedRuntimeData].map((file) => ({
         destination: path.posix.relative(path.posix.join('skills', publicName), file.path),
         content: file.bytes,
       }));
