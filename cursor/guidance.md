@@ -15,13 +15,13 @@ directory: project rules must be `.mdc`, and that package has no `skills/`.
 
 | Route | Owner | What it is for |
 |-------|-------|----------------|
-| Cursor project-local sync | `.cursor/.dhpk-installed.json` | Supported write path. Installs skills, subagents, `.mdc` rules, commands, and `.cursor/dhpk/` support files into the consumer project. |
+| Cursor project-local sync | `.cursor/.dhpk-installed.json` | Supported write path. Installs skills, subagents, `.mdc` rules, and `.cursor/dhpk/` support files into the consumer project. |
 | Cursor Plugin package | `dist/on-demand/dhpk-cursor/` | Marketplace or `~/.cursor/plugins/local/` install. Native components only; portable skills stay on `dist/on-demand/dhpk-agent/`. |
 
-Canonical skill, agent, command, and rule **bodies** stay in `skills/`,
-`agents/`, `commands/`, and `rules/`. `cursor/skills/` is symlink-only.
-`cursor/agents/`, `cursor/rules/*.mdc`, `cursor/commands/`, and `cursor/dhpk/`
-are generated. `cursor/dhpk/` is the rewritten support tree (trap sheets,
+Canonical skill, agent, and rule **bodies** stay in `skills/`, `agents/`, and
+`rules/`; dhpk ships no `commands/` directory. `cursor/skills/` is
+symlink-only. `cursor/agents/`, `cursor/rules/*.mdc`, and `cursor/dhpk/` are
+generated. `cursor/dhpk/` is the rewritten support tree (trap sheets,
 contracts, policies, and other inventory supporting assets) that the installer
 copies into `.cursor/dhpk/`.
 
@@ -49,7 +49,6 @@ bash installer for supported writes.
   skills/<public-name>/     -> symlink or copy of the canonical skill
   agents/*.md               -> generated Cursor subagents
   rules/*.mdc               -> generated project rules
-  commands/*.md             -> generated commands
   dhpk/                     -> trap sheets, contracts, rewritten policies
 ```
 

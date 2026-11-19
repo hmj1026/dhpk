@@ -60,7 +60,7 @@ handoff and does not invoke Flow Drive automatically.
 | [`yii1`](../skills/yii1/SKILL.md) | Yii 1.1 backend 開發、回歸測試與靜態安全審計 | 不用於 Yii2 或非 PHP 專案 |
 | [`legacy-characterization-tests`](../skills/legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
 
-Git、release、setup、review 與其他 slash command 的完整清單在
+Git、release、setup、review 與其他 skill 入口的完整清單在
 [`docs/commands-index.md`](commands-index.md)。
 
 ## 0.54 退役與 operator 邊界

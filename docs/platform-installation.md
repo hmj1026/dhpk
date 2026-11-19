@@ -1075,7 +1075,7 @@ cp -R dist/on-demand/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 
 Alternatively use a reviewed `.cursor-plugin/marketplace.json` source. Reload
 Cursor, configure variables without committing credentials, then verify the
-selected `rules/`, `agents/`, `commands/`, and `hooks/hooks.json`. Native
+selected `rules/`, `agents/`, and `hooks/hooks.json`. Native
 agents locate prompt-defense, trap sheets, and execution policy inside this
 package with `${CURSOR_PLUGIN_ROOT}`. They do not read a project-local
 `.cursor/dhpk/` tree. External worker adapters resolve through the

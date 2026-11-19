@@ -93,10 +93,9 @@ Names are deliberately different across host surfaces:
 
 | Surface | Syntax | Example |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
-| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
+| Claude plugin skill (no `commands/` directory) | `/dhpk:<public-skill-name>` | `/dhpk:precommit`, `/dhpk:change-verdict` |
 | Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
-| Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
+| Cursor synced skill | `.cursor/skills/<public-skill-name>/` after `install-cursor-harness.sh` | `change-verdict` |
 | Codex guidance entry | `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` after discovery | `$flow-guide help flow-drive` |
 | Codex implementation entry | `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` after discovery | `$flow-drive "Fix the receipt total and verify it."` |
 
@@ -336,8 +335,8 @@ Formatting, lint, Docker probes, prompt hints, session snapshots, and other
 advisory work are explicit consumer extensions rather than default hooks.
 See [Hook extension model](./hook-extension.md).
 
-Commands remain namespaced `/dhpk:<name>` on Claude. Cursor uses the generated
-command. Codex uses `$flow-guide` for discovery and advice, `$flow-drive` for
+Skills remain namespaced `/dhpk:<name>` on Claude. Cursor uses the synced
+skill. Codex uses `$flow-guide` for discovery and advice, `$flow-drive` for
 confirmed implementation, and has no `/dhpk:do` command. Overlapping workflows
 use these primary entry points:
 

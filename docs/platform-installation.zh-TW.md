@@ -944,8 +944,8 @@ cp -R dist/on-demand/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 ```
 
 也可使用 reviewed `.cursor-plugin/marketplace.json` source。Reload Cursor，
-不要提交 credential 的 variables，並驗證選取的 `rules/`、`agents/`、
-`commands/` 與 `hooks/hooks.json`。native agents 以 `${CURSOR_PLUGIN_ROOT}`
+不要提交 credential 的 variables，並驗證選取的 `rules/`、`agents/` 與
+`hooks/hooks.json`。native agents 以 `${CURSOR_PLUGIN_ROOT}`
 定位這個 package 裡的 prompt-defense、trap sheet 與 execution policy，不讀
 project-local `.cursor/dhpk/`。外部 worker adapter 透過並排安裝的
 `dhpk-agent` skill store 定位

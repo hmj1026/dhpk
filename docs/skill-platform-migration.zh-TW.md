@@ -84,10 +84,9 @@ metadata 檔案推論可用。
 
 | Surface | 語法 | 範例 |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
-| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
+| Claude plugin skill（沒有 `commands/` 目錄） | `/dhpk:<public-skill-name>` | `/dhpk:precommit`、`/dhpk:change-verdict` |
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
-| Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
+| Cursor synced skill | `install-cursor-harness.sh` 之後的 `.cursor/skills/<public-skill-name>/` | `change-verdict` |
 | Codex guidance entry | discovery 後使用 `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` | `$flow-guide help flow-drive` |
 | Codex implementation entry | discovery 後使用 `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` | `$flow-drive "修正收據總額並驗證。"` |
 
@@ -298,7 +297,7 @@ Formatting、lint、Docker probe、prompt hint、session snapshot
 與其他 advisory 工作都改為 consumer 明確啟用的 extension，而非預設 hook。見
 [Hook extension model](./hook-extension.zh-TW.md)。
 
-Command 一律保留 `/dhpk:<name>` namespace（Claude）。Cursor 使用產生的 command。
+Skill 一律保留 `/dhpk:<name>` namespace（Claude）。Cursor 使用同步的 skill。
 Codex 使用 `$flow-guide` 做 discovery 與 guidance、使用 `$flow-drive` 做已確認變更的
 implementation，沒有 `/dhpk:do`。主要入口為：
 
