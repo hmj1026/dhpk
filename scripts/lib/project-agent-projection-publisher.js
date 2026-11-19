@@ -2113,7 +2113,7 @@ function publishManagedCandidate({
           publishFileSteps.push({
             kind: 'chmod',
             args: { path: to, mode },
-            inverse: { kind: 'chmod', args: { path: to, mode } },
+            inverse: { kind: 'chmod', args: { path: to, mode, digest: fingerprints[relative] } },
             after: checkFingerprint,
           });
         }

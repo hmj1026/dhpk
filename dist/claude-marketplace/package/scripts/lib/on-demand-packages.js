@@ -13,7 +13,10 @@ const { spawnSync } = require('node:child_process');
 const ON_DEMAND_ROOT = 'dist/on-demand';
 const ON_DEMAND_LOCK_TIMEOUT_MS = 120_000;
 const ON_DEMAND_LOCK_POLL_MS = 25;
-const ON_DEMAND_LOCK_STALE_GRACE_MS = 500;
+// Generous grace window for a newly created lock directory whose owner.json
+// has not landed yet (e.g., under heavy CPU/I/O loadavg 5-20), while staying
+// well below ON_DEMAND_LOCK_TIMEOUT_MS so crashed empty locks still recover.
+const ON_DEMAND_LOCK_STALE_GRACE_MS = 10_000;
 const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 const HELD_LOCKS = new Set();
 const ON_DEMAND_PACKAGES = Object.freeze({
@@ -27,6 +30,20 @@ function sleepMs(milliseconds) {
   Atomics.wait(SLEEP_BUFFER, 0, 0, milliseconds);
 }
 
+function lstatOrNull(target) {
+  try {
+    return fs.lstatSync(target);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function sameDirectory(left, right) {
+  if (!left || !right) return false;
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
 function processIsAlive(pid) {
   try {
     process.kill(pid, 0);
@@ -36,28 +53,35 @@ function processIsAlive(pid) {
   }
 }
 
-function tryReclaimStaleLock(lockDir, staleGraceMs) {
-  let stale = false;
-  let validOwner = false;
-  const ownerFile = path.join(lockDir, 'owner.json');
+function readLockOwner(lockDir) {
   try {
-    const owner = JSON.parse(fs.readFileSync(ownerFile, 'utf8'));
-    if (owner && Number.isSafeInteger(owner.pid) && owner.pid > 0) {
-      validOwner = true;
-      stale = !processIsAlive(owner.pid);
+    const owner = JSON.parse(fs.readFileSync(path.join(lockDir, 'owner.json'), 'utf8'));
+    if (owner && typeof owner === 'object' && Number.isSafeInteger(owner.pid) && owner.pid > 0) {
+      return owner;
     }
   } catch (_) {
-    // Missing or unreadable owner.json falls through to the grace-window check.
+    // Missing, partial, or invalid owner.json is treated as ownerless.
   }
-  if (!validOwner) {
-    try {
-      const stat = fs.lstatSync(lockDir);
-      stale = (Date.now() - stat.mtimeMs) >= staleGraceMs;
-    } catch (statError) {
-      if (statError && statError.code === 'ENOENT') return true;
-    }
-  }
-  if (!stale) return false;
+  return null;
+}
+
+function isMatchingOwner(owner, expected) {
+  return Boolean(owner && expected && owner.pid === expected.pid && owner.token === expected.token);
+}
+
+// Returns true when stale, false when live/within grace, or null when absent.
+function isLockDirectoryStale(lockDir, staleGraceMs) {
+  const owner = readLockOwner(lockDir);
+  if (owner) return !processIsAlive(owner.pid);
+  const stat = lstatOrNull(lockDir);
+  if (!stat) return null;
+  return (Date.now() - stat.mtimeMs) >= staleGraceMs;
+}
+
+function tryReclaimStaleLock(lockDir, staleGraceMs) {
+  const initial = isLockDirectoryStale(lockDir, staleGraceMs);
+  if (initial === null) return true;
+  if (!initial) return false;
   const retiring = `${lockDir}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
   try {
     fs.renameSync(lockDir, retiring);
@@ -65,7 +89,83 @@ function tryReclaimStaleLock(lockDir, staleGraceMs) {
     if (error && error.code === 'ENOENT') return true;
     return false;
   }
+  // Re-verify the moved lock so a live or freshly created lock that replaced
+  // the stale slot before renameSync is restored instead of destroyed.
+  if (isLockDirectoryStale(retiring, staleGraceMs) === false) {
+    try {
+      fs.renameSync(retiring, lockDir);
+    } catch (_) {
+      // Best-effort restore if another process already claimed the slot.
+    }
+    return false;
+  }
   fs.rmSync(retiring, { recursive: true, force: true });
+  return true;
+}
+
+function claimLockOwnership(lockDir, acquiredStat, ownerRecord) {
+  if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
+  const ownerPath = path.join(lockDir, 'owner.json');
+  const ownerTmp = path.join(lockDir, `.owner-${process.pid}-${ownerRecord.token}.tmp`);
+  const payload = `${JSON.stringify(ownerRecord)}\n`;
+  try {
+    fs.writeFileSync(ownerTmp, payload, { mode: 0o600 });
+    if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
+    try {
+      fs.linkSync(ownerTmp, ownerPath);
+    } catch (error) {
+      if (error && (error.code === 'EPERM' || error.code === 'ENOTSUP' || error.code === 'ENOSYS')) {
+        fs.writeFileSync(ownerPath, payload, { flag: 'wx', mode: 0o600 });
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    if (error && (error.code === 'ENOENT' || error.code === 'EEXIST' || error.code === 'ENOTDIR')) {
+      return false;
+    }
+    try {
+      fs.unlinkSync(ownerTmp);
+    } catch (_) {
+      // Ignore cleanup errors on the error path.
+    }
+    if (sameDirectory(acquiredStat, lstatOrNull(lockDir))) {
+      try {
+        fs.rmdirSync(lockDir);
+      } catch (_) {
+        // Only removes the directory if it is still empty and ours.
+      }
+    }
+    throw error;
+  } finally {
+    try {
+      fs.unlinkSync(ownerTmp);
+    } catch (_) {
+      // Already removed or lock directory was retired.
+    }
+  }
+  return sameDirectory(acquiredStat, lstatOrNull(lockDir))
+    && isMatchingOwner(readLockOwner(lockDir), ownerRecord);
+}
+
+function releaseOnDemandSurfaceLock(lockDir, ownerRecord) {
+  if (!isMatchingOwner(readLockOwner(lockDir), ownerRecord)) return false;
+  const releasing = `${lockDir}.release-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+  try {
+    fs.renameSync(lockDir, releasing);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return false;
+    throw error;
+  }
+  if (!isMatchingOwner(readLockOwner(releasing), ownerRecord)) {
+    try {
+      fs.renameSync(releasing, lockDir);
+    } catch (_) {
+      // Best-effort restore if another process already claimed the slot.
+    }
+    return false;
+  }
+  fs.rmSync(releasing, { recursive: true, force: true });
   return true;
 }
 
@@ -83,28 +183,50 @@ function withOnDemandSurfaceLock(packageDir, fn, {
   if (HELD_LOCKS.has(lockDir)) return fn();
   fs.mkdirSync(parentDir, { recursive: true });
   const deadline = Date.now() + timeoutMs;
+  let ownerRecord = null;
   while (true) {
+    let acquiredStat;
     try {
       fs.mkdirSync(lockDir);
-      break;
+      acquiredStat = fs.lstatSync(lockDir);
     } catch (error) {
-      if (!error || error.code !== 'EEXIST') throw error;
-      if (tryReclaimStaleLock(lockDir, staleGraceMs)) continue;
-      if (Date.now() >= deadline) {
-        throw new Error(`timed out waiting for on-demand package lock: ${lockDir}`);
+      if (error && error.code === 'EEXIST') {
+        if (tryReclaimStaleLock(lockDir, staleGraceMs)) continue;
+        if (Date.now() >= deadline) {
+          throw new Error(`timed out waiting for on-demand package lock: ${lockDir}`);
+        }
+        sleepMs(pollMs);
+        continue;
       }
-      sleepMs(pollMs);
+      if (error && error.code === 'ENOENT') {
+        if (Date.now() >= deadline) {
+          throw new Error(`timed out waiting for on-demand package lock: ${lockDir}`);
+        }
+        sleepMs(pollMs);
+        continue;
+      }
+      throw error;
     }
+    const candidate = {
+      pid: process.pid,
+      token: crypto.randomBytes(12).toString('hex'),
+      createdAt: Date.now(),
+    };
+    if (claimLockOwnership(lockDir, acquiredStat, candidate)) {
+      ownerRecord = candidate;
+      break;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(`timed out waiting for on-demand package lock: ${lockDir}`);
+    }
+    sleepMs(pollMs);
   }
   try {
-    const ownerTmp = path.join(lockDir, `.owner-${process.pid}.tmp`);
-    fs.writeFileSync(ownerTmp, `${JSON.stringify({ pid: process.pid, createdAt: Date.now() })}\n`, { mode: 0o600 });
-    fs.renameSync(ownerTmp, path.join(lockDir, 'owner.json'));
     HELD_LOCKS.add(lockDir);
     return fn();
   } finally {
     HELD_LOCKS.delete(lockDir);
-    fs.rmSync(lockDir, { recursive: true, force: true });
+    releaseOnDemandSurfaceLock(lockDir, ownerRecord);
   }
 }
 
@@ -166,6 +288,7 @@ function archiveOnDemandPackage({ surface, packageDir, version }) {
 module.exports = {
   ON_DEMAND_ROOT,
   ON_DEMAND_SURFACES,
+  ON_DEMAND_LOCK_STALE_GRACE_MS,
   isOnDemandSurface,
   onDemandPackageName,
   onDemandRelativeDir,

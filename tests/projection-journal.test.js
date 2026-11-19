@@ -150,6 +150,21 @@ test('testChmod_restoresModeAndSkipsAnAbsentFile', () => {
   });
 });
 
+test('testChmod_withDigestRefusesModifiedFileWithoutMutatingMode', () => {
+  withProject((roots, at) => {
+    fs.writeFileSync(at('script'), '#!/bin/sh\n', { mode: 0o600 });
+    fs.chmodSync(at('script'), 0o600);
+    const matching = { kind: 'chmod', args: { path: 'script', mode: 0o755, digest: digest('#!/bin/sh\n') } };
+    applyEffect(roots, matching);
+    assert.strictEqual(fs.statSync(at('script')).mode & 0o777, 0o755);
+
+    fs.writeFileSync(at('script'), '#!/bin/sh\necho user-edit\n');
+    fs.chmodSync(at('script'), 0o600);
+    throwsCode(() => applyEffect(roots, matching), 'RECOVERY_CONFLICT');
+    assert.strictEqual(fs.statSync(at('script')).mode & 0o777, 0o600, 'mismatched file permissions must stay untouched');
+  });
+});
+
 test('testCopyTree_copiesOnceAndRefusesOtherContent', () => {
   withProject((roots, at) => {
     fs.mkdirSync(at('stage'));
@@ -610,6 +625,108 @@ test('testEffectBatch_interruptedRollbackAfterBeforeThrowPreservesCollidingFile'
     assert.strictEqual(fs.readFileSync(at('.agents/managed/user.md'), 'utf8'), 'precious-user-file\n');
     assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
   });
+});
+
+test('testEffectBatch_crashedChmodRollbackPreservesForeignAndEditedPermissionsWhileCleaningPartialCopy', () => {
+  // Both explicit-digest chmod inverses and legacy/caller chmod inverses that
+  // omit digest must preserve foreign/edited permissions on crashed recovery.
+  for (const includeChmodDigest of [false, true]) {
+    withProject(({ projectRoot }, at) => {
+      seed(at);
+      const journal = ProjectionJournal.begin({
+        projectRoot,
+        journalPath: at(JOURNAL),
+        afterStep: { mid: (step) => { if (step === 4) throw new SimulatedCrash(step); } },
+        journal: { schema: 'test.v1', phase: 'prepared' },
+      });
+      journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+      fs.writeFileSync(at('.agents/.stage/a.md'), 'from-tx-a\n');
+      fs.writeFileSync(at('.agents/.stage/b.md'), 'from-tx-b\n');
+      const digestA = digest('from-tx-a\n');
+      const digestB = digest('from-tx-b\n');
+      journal.setPhase('publishing');
+      assert.throws(() => {
+        journal.effectBatch([
+          {
+            kind: 'copy-tree',
+            args: { from: '.agents/.stage/a.md', to: '.agents/managed/a.md', digest: digestA },
+            inverse: { kind: 'remove', args: { paths: ['.agents/managed/a.md'], mode: 'file', digest: digestA } },
+          },
+          {
+            kind: 'chmod',
+            args: { path: '.agents/managed/a.md', mode: 0o644 },
+            inverse: { kind: 'chmod', args: { path: '.agents/managed/a.md', mode: 0o644, ...(includeChmodDigest ? { digest: digestA } : {}) } },
+          },
+          {
+            kind: 'copy-tree',
+            args: { from: '.agents/.stage/b.md', to: '.agents/managed/b.md', digest: digestB },
+            inverse: { kind: 'remove', args: { paths: ['.agents/managed/b.md'], mode: 'file', digest: digestB } },
+          },
+          {
+            kind: 'chmod',
+            args: { path: '.agents/managed/b.md', mode: 0o644 },
+            inverse: { kind: 'chmod', args: { path: '.agents/managed/b.md', mode: 0o644, ...(includeChmodDigest ? { digest: digestB } : {}) } },
+          },
+        ]);
+      }, (error) => error instanceof SimulatedCrash);
+
+      // Foreign non-empty file with custom permissions at unstarted b.md.
+      fs.writeFileSync(at('.agents/managed/b.md'), 'foreign-secret\n', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/b.md'), 0o600);
+      // Post-crash user edit with custom permissions at completed a.md.
+      fs.writeFileSync(at('.agents/managed/a.md'), 'user-edited-a\n', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/a.md'), 0o600);
+
+      throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/b.md'), 'utf8'), 'foreign-secret\n');
+      assert.strictEqual(fs.statSync(at('.agents/managed/b.md')).mode & 0o777, 0o600, `foreign file mode must remain 0600 (includeChmodDigest=${includeChmodDigest})`);
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/a.md'), 'utf8'), 'user-edited-a\n');
+      assert.strictEqual(fs.statSync(at('.agents/managed/a.md')).mode & 0o777, 0o600, `edited file mode must remain 0600 (includeChmodDigest=${includeChmodDigest})`);
+
+      // Even after the foreign b.md is cleared by the user, recovery still
+      // refuses to mutate the user-edited a.md permissions.
+      fs.rmSync(at('.agents/managed/b.md'));
+      throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/a.md'), 'utf8'), 'user-edited-a\n');
+      assert.strictEqual(fs.statSync(at('.agents/managed/a.md')).mode & 0o777, 0o600);
+    });
+
+    // A genuine truncated prefix of the staged source at a copy-tree + chmod
+    // pair is still cleaned up cleanly instead of blocking on chmod digest.
+    withProject(({ projectRoot }, at) => {
+      seed(at);
+      const journal = ProjectionJournal.begin({
+        projectRoot,
+        journalPath: at(JOURNAL),
+        afterStep: { mid: (step) => { if (step === 2) throw new SimulatedCrash(step); } },
+        journal: { schema: 'test.v1', phase: 'prepared' },
+      });
+      journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+      fs.writeFileSync(at('.agents/.stage/partial.md'), 'full-content-from-stage\n');
+      const digestPartial = digest('full-content-from-stage\n');
+      journal.setPhase('publishing');
+      assert.throws(() => {
+        journal.effectBatch([
+          {
+            kind: 'copy-tree',
+            args: { from: '.agents/.stage/partial.md', to: '.agents/managed/partial.md', digest: digestPartial },
+            inverse: { kind: 'remove', args: { paths: ['.agents/managed/partial.md'], mode: 'file', digest: digestPartial } },
+          },
+          {
+            kind: 'chmod',
+            args: { path: '.agents/managed/partial.md', mode: 0o644 },
+            inverse: { kind: 'chmod', args: { path: '.agents/managed/partial.md', mode: 0o644, ...(includeChmodDigest ? { digest: digestPartial } : {}) } },
+          },
+        ]);
+      }, (error) => error instanceof SimulatedCrash);
+
+      fs.writeFileSync(at('.agents/managed/partial.md'), 'full-con', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/partial.md'), 0o600);
+      recover(projectRoot);
+      assert.strictEqual(fs.existsSync(at('.agents/managed/partial.md')), false, `partial copy must still be cleaned up (includeChmodDigest=${includeChmodDigest})`);
+      assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+    });
+  }
 });
 
 run('projection-journal');

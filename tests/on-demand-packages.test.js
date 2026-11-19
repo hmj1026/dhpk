@@ -7,10 +7,11 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   ON_DEMAND_SURFACES,
+  ON_DEMAND_LOCK_STALE_GRACE_MS,
   isOnDemandSurface,
   onDemandPackageName,
   onDemandRelativeDir,
@@ -148,6 +149,125 @@ test('withOnDemandSurfaceLock supports re-entrancy and reclaims stale dead-PID l
     assert.strictEqual(result, 'ok');
     assert.strictEqual(nestedRan, true);
     assert.strictEqual(fs.existsSync(lockDir), false, 'lock directory must be cleaned up on exit');
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('withOnDemandSurfaceLock uses a load-safe ownerless grace window and reclaims expired ownerless locks', () => {
+  assert.ok(ON_DEMAND_LOCK_STALE_GRACE_MS >= 5000, `expected >= 5000ms grace window, got ${ON_DEMAND_LOCK_STALE_GRACE_MS}`);
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-grace-')));
+  try {
+    const packageDir = path.join(parent, 'dhpk-cursor');
+    const lockDir = path.join(parent, '.dhpk-cursor.build-lock');
+    // Fresh ownerless lock directory must NOT be stolen prematurely under the default grace window.
+    fs.mkdirSync(lockDir);
+    assert.throws(
+      () => withOnDemandSurfaceLock(packageDir, () => 'should-not-run', { timeoutMs: 150, pollMs: 25 }),
+      /timed out waiting for on-demand package lock/,
+    );
+    assert.strictEqual(fs.existsSync(lockDir), true, 'fresh ownerless lock must remain untouched');
+
+    // Backdating mtime past staleGraceMs allows clean stale reclamation.
+    const expiredAt = new Date(Date.now() - ON_DEMAND_LOCK_STALE_GRACE_MS - 1000);
+    fs.utimesSync(lockDir, expiredAt, expiredAt);
+    const result = withOnDemandSurfaceLock(packageDir, () => 'reclaimed');
+    assert.strictEqual(result, 'reclaimed');
+    assert.strictEqual(fs.existsSync(lockDir), false, 'reclaimed lock must be cleaned up on release');
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('withOnDemandSurfaceLock verifies ownership on release so reclaimed live locks are not deleted', () => {
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-owner-')));
+  try {
+    const packageDir = path.join(parent, 'dhpk-cursor');
+    const lockDir = path.join(parent, '.dhpk-cursor.build-lock');
+    const replacementOwner = { pid: process.pid, token: 'other-live-owner-token', createdAt: Date.now() };
+    const replacementMarker = path.join(lockDir, 'sentinel.txt');
+
+    const replaceLock = () => {
+      const moved = `${lockDir}.simulated-reclaim`;
+      fs.renameSync(lockDir, moved);
+      fs.rmSync(moved, { recursive: true, force: true });
+      fs.mkdirSync(lockDir);
+      fs.writeFileSync(path.join(lockDir, 'owner.json'), `${JSON.stringify(replacementOwner)}\n`);
+      fs.writeFileSync(replacementMarker, 'live-owner\n');
+    };
+
+    // Normal return path: must not remove another owner's replacement lock.
+    const result = withOnDemandSurfaceLock(packageDir, () => {
+      const current = JSON.parse(fs.readFileSync(path.join(lockDir, 'owner.json'), 'utf8'));
+      assert.strictEqual(current.pid, process.pid);
+      assert.strictEqual(typeof current.token, 'string');
+      assert.ok(current.token.length >= 16, 'owner token must be non-trivial');
+      replaceLock();
+      return 'done';
+    });
+    assert.strictEqual(result, 'done');
+    assert.strictEqual(fs.existsSync(lockDir), true, 'replacement lock must survive stale owner release');
+    assert.strictEqual(fs.readFileSync(replacementMarker, 'utf8'), 'live-owner\n');
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(lockDir, 'owner.json'), 'utf8')), replacementOwner);
+
+    // Clear replacement lock and verify the error path also preserves a replacement lock
+    // and clears HELD_LOCKS for future acquisitions.
+    fs.rmSync(lockDir, { recursive: true, force: true });
+    assert.throws(() => {
+      withOnDemandSurfaceLock(packageDir, () => {
+        replaceLock();
+        throw new Error('boom');
+      });
+    }, /boom/);
+    assert.strictEqual(fs.existsSync(lockDir), true, 'replacement lock must survive failed owner release');
+    assert.strictEqual(fs.readFileSync(replacementMarker, 'utf8'), 'live-owner\n');
+
+    // Once the other owner finishes, this process can acquire and release again normally.
+    fs.rmSync(lockDir, { recursive: true, force: true });
+    assert.strictEqual(withOnDemandSurfaceLock(packageDir, () => 'again'), 'again');
+    assert.strictEqual(fs.existsSync(lockDir), false);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('withOnDemandSurfaceLock serializes concurrent processes without overlapping critical sections', async () => {
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-mp-')));
+  try {
+    const packageDir = path.join(parent, 'dhpk-cursor');
+    const lockDir = path.join(parent, '.dhpk-cursor.build-lock');
+    const traceFile = path.join(parent, 'trace.log');
+    const libPath = path.join(ROOT, 'scripts', 'lib', 'on-demand-packages.js');
+    const script = [
+      'const fs = require("node:fs");',
+      'const { withOnDemandSurfaceLock } = require(process.argv[1]);',
+      'const buf = new Int32Array(new SharedArrayBuffer(4));',
+      'withOnDemandSurfaceLock(process.argv[2], () => {',
+      '  fs.appendFileSync(process.argv[3], `enter:${process.argv[4]}\\n`);',
+      '  Atomics.wait(buf, 0, 0, 60);',
+      '  fs.appendFileSync(process.argv[3], `exit:${process.argv[4]}\\n`);',
+      '});',
+    ].join('\n');
+
+    const children = ['w1', 'w2', 'w3'].map((id) => new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, ['-e', script, libPath, packageDir, traceFile, id], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let stderr = '';
+      child.stderr.on('data', (chunk) => { stderr += chunk; });
+      child.on('error', reject);
+      child.on('close', (code) => resolve({ id, code, stderr }));
+    }));
+    const results = await Promise.all(children);
+    for (const res of results) {
+      assert.strictEqual(res.code, 0, `${res.id} failed: ${res.stderr}`);
+    }
+    const lines = fs.readFileSync(traceFile, 'utf8').trim().split('\n');
+    assert.strictEqual(lines.length, 6, `expected 6 trace lines, got ${JSON.stringify(lines)}`);
+    for (let index = 0; index < lines.length; index += 2) {
+      const entered = lines[index].match(/^enter:(w\d)$/);
+      assert.ok(entered, `expected enter line at ${index}, got ${lines[index]}`);
+      assert.strictEqual(lines[index + 1], `exit:${entered[1]}`, `critical sections overlapped: ${JSON.stringify(lines)}`);
+    }
+    assert.strictEqual(fs.existsSync(lockDir), false, 'lock directory must be cleaned up after concurrent workers finish');
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }

@@ -155,6 +155,26 @@ function isPartialCopyFile(projectRoot, record) {
   return targetBytes.length < sourceBytes.length && sourceBytes.subarray(0, targetBytes.length).equals(targetBytes);
 }
 
+// Finds the most recent earlier non-undone file-creating record (`copy-tree` or
+// `write-file`) for `targetPath`, stopping if an intervening rename, remove,
+// or symlink replaced that path. Used during rollback so a trailing `chmod`
+// inverse verifies content ownership before touching permissions (and skips
+// partial copies that `copy-tree`'s inverse is about to clean up).
+function findFileCreatorRecord(effects, beforeIndex, targetPath) {
+  for (let index = beforeIndex - 1; index >= 0; index -= 1) {
+    const candidate = effects[index];
+    if (!candidate || candidate.state === 'undone') continue;
+    const { kind, args } = candidate;
+    if (!args) continue;
+    if (kind === 'copy-tree' && args.to === targetPath) return candidate;
+    if (kind === 'write-file' && args.path === targetPath) return candidate;
+    if (kind === 'rename' && (args.from === targetPath || args.to === targetPath)) return null;
+    if (kind === 'remove' && Array.isArray(args.paths) && args.paths.includes(targetPath)) return null;
+    if (kind === 'symlink' && args.path === targetPath) return null;
+  }
+  return null;
+}
+
 function removeEffect(projectRoot, { paths, mode, digest = null, target = null }) {
   for (const relative of paths) {
     const absolute = effectAbsolute(projectRoot, relative);
@@ -229,6 +249,9 @@ function applyEffect(projectRoot, { kind, args }, { forward = false } = {}) {
       const stat = lstatOrNull(absolute);
       if (!stat) return;
       if (stat.isSymbolicLink() || !stat.isFile()) throw effectConflict(args.path, 'transaction mode target is unsafe');
+      if (args.digest && sha256Hex(fs.readFileSync(absolute)) !== args.digest) {
+        throw effectConflict(args.path, 'transaction mode target changed outside the transaction');
+      }
       fs.chmodSync(absolute, args.mode);
       return;
     }
@@ -413,7 +436,21 @@ class ProjectionJournal {
       // file before its full digest matches. Verify that prefix relationship so
       // foreign or post-crash edited files still fail closed with a conflict.
       const partialCopy = isPartialCopyFile(this.projectRoot, record);
-      applyEffect(this.projectRoot, partialCopy ? { ...record.inverse, args: { ...record.inverse.args, digest: null } } : record.inverse);
+      let inverse = partialCopy ? { ...record.inverse, args: { ...record.inverse.args, digest: null } } : record.inverse;
+      let skipInverse = false;
+      if (inverse.kind === 'chmod' && inverse.args && typeof inverse.args.path === 'string') {
+        const creator = findFileCreatorRecord(effects, index, inverse.args.path);
+        if (creator) {
+          if (isPartialCopyFile(this.projectRoot, creator)) {
+            // Skip chmod on an interrupted partial copy so the earlier
+            // copy-tree inverse can remove it without a digest conflict.
+            skipInverse = true;
+          } else if (!inverse.args.digest && creator.args && creator.args.digest) {
+            inverse = { ...inverse, args: { ...inverse.args, digest: creator.args.digest } };
+          }
+        }
+      }
+      if (!skipInverse) applyEffect(this.projectRoot, inverse);
       if (this.midStep) this.midStep(this.step + 1, record);
       record.state = 'undone';
       this.flush();

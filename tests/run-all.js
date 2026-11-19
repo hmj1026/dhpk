@@ -62,7 +62,7 @@ const WEIGHT_HINTS = Object.freeze({
   'hook-bypass.test.js': 124,
   'hook-bypass-git-gate.test.js': 106,
   'credential-read-policy.test.js': 92,
-  'gen-agents-skills.test.js': 80,
+  'gen-agents-skills.test.js': 10,
   'project-agent-projection-journal-crash.test.js': 60,
   'install-codex-adapter-journal.test.js': 54,
   'dhpk-install-lifecycle.test.js': 45,
