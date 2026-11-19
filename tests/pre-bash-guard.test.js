@@ -544,6 +544,24 @@ test('module hook that exits without reading stdin does not turn a later block i
   }
 });
 
+// The commit-gate envelope is documented, not computed: the per-stack inner
+// deadlines (plus one second of grace) live in separate module shell scripts.
+// Source: scripts/hooks/pre-bash-dispatch.sh comment and docs/hook-extension.md
+// ("JS 212, Python 255, Swift 842, and PHP 423, totaling 1732 seconds").
+const COMMIT_GATE_ENVELOPE_SECONDS = { js: 212, python: 255, swift: 842, php: 423 };
+
+test('Bash PreToolUse timeout stays strictly above the commit-gate envelope', () => {
+  const envelope = Object.values(COMMIT_GATE_ENVELOPE_SECONDS).reduce((a, b) => a + b, 0);
+  const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'));
+  const bash = hooks.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash').hooks[0];
+  assert.ok(
+    bash.timeout > envelope,
+    `Bash hook timeout ${bash.timeout}s must exceed the commit-gate envelope ${envelope}s (margin ${bash.timeout - envelope}s)`
+  );
+  const dispatch = fs.readFileSync(path.join(ROOT, 'scripts/hooks/pre-bash-dispatch.sh'), 'utf8');
+  assert.match(dispatch, new RegExp(`\\(${envelope} seconds\\)`), 'dispatcher comment must state the envelope total');
+});
+
 test('Bash PreToolUse declares the 1800-second block ceiling', () => {
   const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'));
   const bash = hooks.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash').hooks[0];
