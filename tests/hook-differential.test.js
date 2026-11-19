@@ -603,18 +603,60 @@ for (const [kind, build] of Object.entries(DEEP_KINDS)) {
 }
 
 const SIBLINGS = 3000;
+// Wall time is a Flicker under CPU contention (5311 ms vs a 5000 ms budget on
+// a loaded CI shard), so measure the hook's own CPU time (user+sys) through
+// bash's `time` builtin and compare two input sizes: a linear scan costs about
+// 2x for 2x the siblings, a quadratic one about 4x.
+function hookCpuMs(count) {
+  const wrapper = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cpu-')), 'timed.sh');
+  fs.writeFileSync(
+    wrapper,
+    `TIMEFORMAT='DHPK_CPU %3U %3S'\ntime bash "${path.join(ROOT, 'scripts', 'hooks', 'pre-bash-dispatch.sh')}"\n`
+  );
+  try {
+    const res = runHook(wrapper, {
+      payload: { tool_input: { command: `echo ${'$(true)${x}'.repeat(count)}${TAIL}` } },
+      deleteEnv: ['DHPK_ALLOW_NO_VERIFY', 'DHPK_BRANCH_SAFETY'],
+      timeout: 60000,
+    });
+    assert.strictEqual(res.signal, null, `killed by ${res.signal}`);
+    assert.strictEqual(res.status, BLOCK, `got ${res.status}; stderr=${String(res.stderr).slice(-120)}`);
+    return parseCpuMs(res.stderr);
+  } finally {
+    fs.rmSync(path.dirname(wrapper), { recursive: true, force: true });
+  }
+}
+
+function parseCpuMs(stderr) {
+  const m = /DHPK_CPU (\d+)\.(\d+) (\d+)\.(\d+)/.exec(String(stderr));
+  assert.ok(m, `no DHPK_CPU line in stderr: ${String(stderr).slice(-200)}`);
+  return Number(`${m[1]}${m[2]}`) + Number(`${m[3]}${m[4]}`);
+}
+
+function minCpuMs(count, runs = 2) {
+  return Math.min(...Array.from({ length: runs }, () => hookCpuMs(count)));
+}
+
+function scalingRatio(smallMs, largeMs) {
+  return largeMs / Math.max(smallMs, 1);
+}
+
+test('parseCpuMs sums user and system seconds into milliseconds', () => {
+  assert.strictEqual(parseCpuMs('noise\nDHPK_CPU 1.250 0.500\n'), 1750);
+});
+
+test('scalingRatio flags quadratic growth but accepts linear growth', () => {
+  assert.ok(scalingRatio(500, 1000) < 3, 'linear 2x must pass');
+  assert.ok(scalingRatio(500, 2000) >= 3, 'quadratic 4x must be rejected');
+});
+
 test(`pre-bash-dispatch scans ${SIBLINGS} sibling substitutions in linear time (#1408)`, () => {
-  const cmd = `echo ${'$(true)${x}'.repeat(SIBLINGS)}${TAIL}`;
-  const t0 = performance.now();
-  const res = runHook('pre-bash-dispatch.sh', {
-    payload: { tool_input: { command: cmd } },
-    deleteEnv: ['DHPK_ALLOW_NO_VERIFY', 'DHPK_BRANCH_SAFETY'],
-    timeout: 60000,
-  });
-  const elapsedMs = performance.now() - t0;
-  assert.strictEqual(res.signal, null, `killed by ${res.signal}`);
-  assert.strictEqual(res.status, BLOCK, `got ${res.status}; stderr=${String(res.stderr).slice(-120)}`);
-  assert.ok(elapsedMs < 5000, `expected linear-time scan (<5000ms), took ${elapsedMs.toFixed(1)}ms`);
+  const half = minCpuMs(SIBLINGS / 2);
+  const full = minCpuMs(SIBLINGS);
+  const ratio = scalingRatio(half, full);
+  if (process.env.DHPK_DEBUG_CPU) console.log(`cpu ${SIBLINGS / 2}=${half}ms ${SIBLINGS}=${full}ms ratio=${ratio.toFixed(2)}`);
+  assert.ok(full < 15000, `expected CPU < 15000ms for ${SIBLINGS} siblings, got ${full}ms`);
+  assert.ok(ratio < 3, `expected linear scaling (ratio < 3), got ${ratio.toFixed(2)} (${half}ms -> ${full}ms)`);
 });
 
 // ---------------------------------------------------------------------------
