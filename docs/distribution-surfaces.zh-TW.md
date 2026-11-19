@@ -148,7 +148,7 @@ surface 維持獨立：建置 Cursor 或 AGY 不會改動 Published Package。
 
 Platform capability matrix 讓相同的 portable skill 只有一個 physical publication
 owner：`dist/on-demand/dhpk-agent/skills/`。Standard Agent Plugin 擁有這份 generated tree；
-`dist/on-demand/dhpk-cursor/` 預設只放 Cursor-native rules、agents、commands、hooks 與
+`dist/on-demand/dhpk-cursor/` 預設只放 Cursor-native rules、agents、hooks 與
 variables。Cursor provenance 會記錄 shared stable IDs 與
 `dist/on-demand/dhpk-agent/skills/` source，但不建立第二份 `skills/`。只有明確 matrix row
 使用 `projection_mode: overlay`、指定 stable IDs，並記錄 transform、fallback 與獨立

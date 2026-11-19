@@ -397,7 +397,7 @@ dhpk/
 │   ├── marketplace.json          # dhpk 與 dhpk-stacks 條目（source 位於 dist/claude-marketplace/）
 │   └── plugin.json               # authoring tree 的 manifest，含 userConfig
 ├── agents/                       # 33 個角色 agent（32 root + 1 模組 reviewer；INDEX.md 為導覽用）
-├── skills/                       # SSOT：68 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
+├── skills/                       # SSOT：39 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}

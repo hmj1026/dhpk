@@ -22,7 +22,7 @@
 
 安裝或啟用問題先檢查 repository／session 狀態、確認已安裝的 surface，再選擇
 受支援的 Host 路徑。環境已確認時，重用仍有效的證據，直接呼叫已知的任務 owner。
-Claude 用 `/dhpk:<name>`，Cursor 用產生的 command，Codex 用 `$<name>`
+Claude 用 `/dhpk:<name>`，Cursor 用同步的 skill，Codex 用 `$<name>`
 （沒有 `/dhpk:*` command）。`flow-guide` 提供可選導覽；`flow-drive` 實作已確認
 任務。依消費專案的 Project Convention 執行，回報證據與下一步。Plugin 管理
 （`claude plugin …`、`codex plugin …`）不會呼叫 skill。
@@ -70,7 +70,7 @@ Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invoc
 `codex-sync`，或只在 disposable isolated `CODEX_HOME` 使用 experimental native
 package。
 Claude workflow 從 `/dhpk:flow-guide`、`/dhpk:flow-drive` 或明確 family skill
-進入；Cursor 在 `install-cursor-harness.sh` 之後使用產生的 command；Codex 在
+進入；Cursor 在 `install-cursor-harness.sh` 之後使用同步的 skill；Codex 在
 project-local `.codex/` 同步後從 `$flow-guide`／`$flow-drive` 進入（Codex 沒有
 `/dhpk:*` command）。
 
@@ -232,7 +232,7 @@ containment 或 modified-file safety。`--uninstall` 只移除 receipt-owned 且
 missing outcome → owning workflow or method → applicable evidence → next action
 ```
 
-當知道目標但尚未決定調度哪項能力時，Claude 使用 `/dhpk:flow-guide`，Codex 使用 `$flow-guide`，Cursor 使用對應的本地指令。明確已知特定任務時，可直接呼叫專案技能或 slash 指令。
+當知道目標但尚未決定調度哪項能力時，Claude 使用 `/dhpk:flow-guide`，Codex 使用 `$flow-guide`，Cursor 使用同步的 skill。明確已知特定任務時，可直接呼叫專案技能。
 
 快速查閱清單可參考：[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
@@ -249,7 +249,7 @@ canonical skill directory，並確認其聲明的 Host capability 與必要資�
 
 `flow-guide` 是唯讀建議；`flow-drive` 是 explicit native task/help entry。以下案例都不授
 權 commit、push、merge 或 deploy。Claude 用 `/dhpk:<name>`；Codex 在
-project-local sync 之後用 `$<name>`；Cursor 用產生出來的本地 command。完整
+project-local sync 之後用 `$<name>`；Cursor 用同步的 skill。完整
 Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到什麼) 與
 [Codex skill 用法](./codex-skill-usage.zh-TW.md)。
 

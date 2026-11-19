@@ -176,7 +176,7 @@ build never changes the Published Packages.
 The platform capability matrix gives identical portable skills one physical
 publication owner: `dist/on-demand/dhpk-agent/skills/`. The standard Agent Plugin owns
 that generated tree, while `dist/on-demand/dhpk-cursor/` contains only Cursor-native
-rules, agents, commands, hooks, and variables by default. Cursor provenance
+rules, agents, hooks, and variables by default. Cursor provenance
 records the shared stable IDs and `dist/on-demand/dhpk-agent/skills/` source; it does not
 create a second `skills/` tree. A Cursor-specific copy is allowed only when an
 explicit matrix row uses `projection_mode: overlay`, names the stable IDs, and

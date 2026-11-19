@@ -23,7 +23,7 @@ Static package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
 For installation or activation work, inspect repository/session state, verify
 the installed surface, and choose the supported Host route. For an established
 environment, reuse current evidence and invoke the known task owner directly.
-Claude uses `/dhpk:<name>`, Cursor its generated command, and Codex `$<name>`
+Claude uses `/dhpk:<name>`, Cursor its synced skill, and Codex `$<name>`
 (Codex has no `/dhpk:*` command). `flow-guide` offers optional navigation;
 `flow-drive` implements a confirmed task. Apply the consumer's Project
 Convention and report the evidence and next action. Plugin management
@@ -75,8 +75,8 @@ from skill invocation. Choose one Codex runtime route per host: use the
 supported project-local `codex-sync` path for daily work, or use the
 experimental native package only in a disposable isolated `CODEX_HOME`.
 Claude workflows enter through `/dhpk:flow-guide`,
-`/dhpk:flow-drive`, or an explicit family skill; Cursor uses the generated
-command after `install-cursor-harness.sh`; Codex enters through `$flow-guide` /
+`/dhpk:flow-drive`, or an explicit family skill; Cursor uses the synced
+skill after `install-cursor-harness.sh`; Codex enters through `$flow-guide` /
 `$flow-drive` after project-local `.codex/` sync (Codex has no `/dhpk:*` command).
 
 ## Install
@@ -242,7 +242,7 @@ Choose the capability that supplies the missing outcome for daily development:
 missing outcome → owning workflow or method → applicable evidence → next action
 ```
 
-When you know the outcome but haven't decided which capability to dispatch, Claude uses `/dhpk:flow-guide`, Codex uses `$flow-guide`, and Cursor uses its local commands. When the exact workflow is known, invoke the specific project skill or slash command directly.
+When you know the outcome but haven't decided which capability to dispatch, Claude uses `/dhpk:flow-guide`, Codex uses `$flow-guide`, and Cursor uses its synced skills. When the exact workflow is known, invoke the specific project skill directly.
 
 For a fast lookup, see the cheat sheet: [Skill and Slash Command Cheat Sheet](./skill-command-cheat-sheet.md) · [繁體中文](./skill-command-cheat-sheet.zh-TW.md).
 
@@ -264,7 +264,7 @@ required resources define what the skill needs.
 `flow-guide` is read-only advice. `flow-drive` is an explicit native task/help
 entry. None of the cases below authorizes commit, push, merge, or deploy.
 Claude uses `/dhpk:<name>`; Codex uses `$<name>` after project-local sync;
-Cursor uses the generated local command. Full Host grammar stays in
+Cursor uses the synced skill. Full Host grammar stays in
 [README — What you get](../README.md#what-you-get) and
 [Codex skill usage](./codex-skill-usage.md).
 
