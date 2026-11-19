@@ -1,6 +1,5 @@
 name = "scoped-worker"
 description = "Use for a minimal code repair after the root cause, interface, ownership, assigned files, and failing regression evidence are confirmed; not for architecture or cross-module decisions."
-model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 
 developer_instructions = """

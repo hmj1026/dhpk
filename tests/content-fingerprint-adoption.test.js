@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const { fingerprintDir: codexFingerprintDir } = require('../scripts/lib/codex-native-package');
 const { fingerprintDir: agentFingerprintDir } = require('../scripts/lib/agent-plugin-package');
 const { fingerprintPath: cursorFingerprintPath, validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
@@ -98,7 +99,7 @@ test('Cursor fingerprintPath returns the tree-merkle-v1 value; an empty director
 test('Cursor validator recomputes every fingerprints.json entry and names a corrupted one', () => {
   const copy = tempDir('cursor');
   try {
-    fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-cursor'), copy, { recursive: true });
+    fs.cpSync(path.join(builtPackage('cursor-plugin')), copy, { recursive: true });
     const fingerprintsPath = path.join(copy, 'fingerprints.json');
     const fingerprints = JSON.parse(fs.readFileSync(fingerprintsPath, 'utf8'));
     assert.deepStrictEqual(validateCursorPackage({ packageRoot: copy }).errors, []);
@@ -114,7 +115,7 @@ test('Cursor validator recomputes every fingerprints.json entry and names a corr
 test('Cursor validator cannot be bypassed by adding a surface key to fingerprints.json', () => {
   const copy = tempDir('cursor-bypass');
   try {
-    fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-cursor'), copy, { recursive: true });
+    fs.cpSync(path.join(builtPackage('cursor-plugin')), copy, { recursive: true });
     const fingerprintsPath = path.join(copy, 'fingerprints.json');
     const fingerprints = JSON.parse(fs.readFileSync(fingerprintsPath, 'utf8'));
     const tampered = { ...fingerprints, surface: 'x', agents: '0'.repeat(64) };

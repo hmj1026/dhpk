@@ -280,7 +280,8 @@ the example also shows the effective default subagent model and reasoning
 effort.
 
 Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`,
-`model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's
+`model_reasoning_effort`, and `developer_instructions`, and MUST NOT set `model` (the
+user's configured Codex default model applies); the plugin's
 `validate_codex` guardrail enforces this static metadata contract. Codex agent
 definitions are TOML-only; legacy Markdown role bodies are not dispatchable.
 The 16 generated roles are produced by `scripts/gen-codex-agents.js`: 14 from
@@ -289,10 +290,10 @@ shared `agents/*.md` sources and 2 from Codex-only
 Codex-only sources are authoring inputs only and are not installed; generated
 TOMLs are installed under `.codex/agents/`. The generator is
 deterministic/idempotent (re-running with no source change produces
-byte-identical output) and does not touch the 4 hand-maintained roles. Model
-and effort rationale is maintained in `../rules/model-economics.md`.
+byte-identical output) and does not touch the 4 hand-maintained roles. Effort
+rationale is maintained in `../rules/model-economics.md`.
 
-When a custom agent file sets model or model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Do not declare sandbox_mode in the role file.
+dhpk agent files set only model_reasoning_effort; the model comes from the user's Codex configuration. When a custom agent file sets model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Do not declare sandbox_mode in the role file.
 
 A physical file, valid metadata, and successful built-in `explorer` dispatch do
 not prove that the project custom-role registry loaded. Runtime PASS requires a

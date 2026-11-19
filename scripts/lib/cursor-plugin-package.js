@@ -53,7 +53,7 @@ const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { RULE_ACTIVATION_MAP, canonicalRulePath } = require('./rule-activation-map');
 const { collectStandalonePackageAssets, collectNativeAgentTrapAssets } = require('./standalone-package-assets');
-const { cursorNativeAgentClosureErrors } = require('./native-agent-support');
+const { cursorNativeAgentClosureErrors, rewriteCursorNativeSupportBody } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 const {
@@ -681,7 +681,7 @@ function cursorReadmeContents() {
       'Portable skills are owned by the standard Agent Plugin package at',
       '`plugins/dhpk-agent/skills/` and are not duplicated here unless an explicit',
       'inventory overlay is selected.',
-      'Follow the [platform installation guide](../../docs/platform-installation.md)',
+      'Follow the [platform installation guide](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.md)',
       'for coordinated installation, verification, and Cursor-only rollback.',
       'The marketplace/local plugin route is this package. The supported project-local',
       'route is `bash scripts/hooks/install-cursor-harness.sh` into `.cursor/` (native',
@@ -691,7 +691,7 @@ function cursorReadmeContents() {
     'README.zh-TW.md': [
       '# dhpk Cursor Plugin 套件',
       '',
-      '此 physical Cursor-native projection 由 canonical inventory 產生。agent support 檔在此 package 的 `agent-traps/`。portable skills 由 standard Agent Plugin 的 `plugins/dhpk-agent/skills/` 單獨擁有，除非明確選擇 environment overlay，不在此重複複製。協同安裝、驗證與 Cursor-only rollback 請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。marketplace／local plugin 路徑是此套件；支援的 project-local 路徑是 `bash scripts/hooks/install-cursor-harness.sh`（v1 不映射 native hooks）。',
+      '此 physical Cursor-native projection 由 canonical inventory 產生。agent support 檔在此 package 的 `agent-traps/`。portable skills 由 standard Agent Plugin 的 `plugins/dhpk-agent/skills/` 單獨擁有，除非明確選擇 environment overlay，不在此重複複製。協同安裝、驗證與 Cursor-only rollback 請依照[平台安裝指南](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.zh-TW.md)。marketplace／local plugin 路徑是此套件；支援的 project-local 路徑是 `bash scripts/hooks/install-cursor-harness.sh`（v1 不映射 native hooks）。',
       '',
     ].join('\n'),
   };
@@ -835,11 +835,15 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   for (const asset of standaloneAssets) {
     if (existingDestinations.has(asset.destination)) continue;
     existingDestinations.add(asset.destination);
-    traversalBudget.accountBytes(asset.content.byteLength, asset.destination);
+    const isTrapSupport = String(asset.stableId || '').startsWith('native-agent-trap:');
+    const content = isTrapSupport && asset.destination.endsWith('.md')
+      ? Buffer.from(rewriteCursorNativeSupportBody(asset.content.toString('utf8')))
+      : asset.content;
+    traversalBudget.accountBytes(content.byteLength, asset.destination);
     files.push({
       source: asset.source,
       destination: asset.destination,
-      content: asset.content,
+      content,
       mode: asset.mode,
       transform: {
         id: String(asset.stableId || '').startsWith('native-agent-trap:')
@@ -2352,7 +2356,7 @@ function runCursorConsumerProbeRaw({
       const normalized = output.toLowerCase();
       const requestedCapabilities = Array.isArray(requiredDiscoveryCapabilities) && requiredDiscoveryCapabilities.length > 0
         ? requiredDiscoveryCapabilities.map((value) => String(value).toLowerCase())
-        : ['dhpk', 'skill', 'command', 'agent', 'rule'];
+        : ['dhpk', 'skill', 'agent', 'rule'];
       const negative = NEGATIVE_CURSOR_DISCOVERY_PATTERNS.some((pattern) => pattern.test(output));
       const probe = parsed && parsed.dhpkProbe;
       let attestation = null;

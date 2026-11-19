@@ -37,12 +37,13 @@ Host 專用列與公開提交 catalog 分開。Cursor 引用 Agent-owned common 
 `skills/` 下的公開 owner 及其 contained 子技能資源；排除 Host-only
 與 withdrawn 技能。
 
-請提供在 `extensions["com.openai"].interface` 宣告 listing metadata
-的 portable manifest。來源 checkout 必須乾淨；比較重複產製結果時，
+Manifest 由 `manifests/listing-metadata.json`（listing metadata 位於
+`extensions["com.openai"].interface`）與 `package.json` 版本產生；`--manifest`
+為選用覆寫，版本必須相同。來源 checkout 必須乾淨；比較重複產製結果時，
 請使用 checkout 外的輸出目錄：
 
 ```bash
-bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission generate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
 ```
@@ -125,41 +126,31 @@ runtime support，也不能讓 experimental surface 自動畢業。Evidence verd
 集合：`PASS`、`FAIL`、`NOT_RUN`、`NOT_CONFIGURED`、`SKIP_INCOMPATIBLE`、`BLOCKED`、
 `UNAVAILABLE`。
 
-## generated／plugin 副本評估（#1104）
+## Published Package 與 on-demand 建置
 
-目前仍保留 generated 發佈樹，因為支援的 checkout 與本機安裝路徑會直接讀取
-這些目錄。本節是評估界線，不授權刪除整棵樹，也不合併各 Host 套件；各 Host
-surface 仍維持獨立。#1104 對 #970 的引用視為歷史脈絡；目前 #970 的標題是模型
-設定提案。
+依 [ADR-0040](adr/0040-two-published-packages.md)，repository 只提交兩個 Published Package；
+其餘 Host 套件在需要時才建置。
 
-在 2026-10-28 的 `develop` snapshot，`git ls-files generated plugins` 找到 2,458
-個 regular files。與輸出根目錄以外的 tracked canonical files 比對 Git blob，
-其中 2,314 個為位元組完全相同，其餘是 Host metadata、manifest、provenance、
-fingerprint 或其他套件專屬輸出。可用 `git ls-files generated plugins` 與
-`git hash-object -- <path>` 重現。
+| 套件 | 位置 | 對象 | 取得方式 |
+| --- | --- | --- | --- |
+| Directory Plugin | `dist/claude-marketplace/package` | Claude Code | `/plugin install dhpk@dhpk` |
+| `dhpk-stacks` | `dist/claude-marketplace/stacks-package` | Claude Code；需要 Directory Plugin | `/plugin install dhpk-stacks@dhpk` |
+| Public Plugin | `plugins/dhpk` | Codex 與 ChatGPT Work | Public Plugins Directory，或 `codex plugin add dhpk@dhpk` |
+| `dhpk-agent` | `dist/on-demand/dhpk-agent` | Agent Plugins 1.0.0 client | Release 壓縮檔，或 `bin/dhpk distribution build agent-plugin` |
+| `dhpk-cursor` | `dist/on-demand/dhpk-cursor` | Cursor | Release 壓縮檔，或 `bin/dhpk distribution build cursor-plugin` |
+| `dhpk-agy` | `dist/on-demand/dhpk-agy` | AGY | Release 壓縮檔，或 `bin/dhpk distribution build agy-plugin` |
 
-| Surface | tracked 檔案 | 位元組相同 | 套件專屬 | 決策 |
-| --- | ---: | ---: | ---: | --- |
-| `generated/claude-marketplace/package` | 1,141 | 1,128 | 13 | 保留；需先以 clean-checkout materializer 與 relocation probe 取代直接路徑，才能評估移除。 |
-| `plugins/dhpk`（Codex native） | 435 | 415 | 20 | 保留；native 實驗路徑與 package gate 直接使用此根目錄及其 provenance/fingerprint。 |
-| `plugins/dhpk-agent` | 389 | 364 | 25 | 保留；Agent 發佈擁有此共享 skill 實體樹與 package manifest。 |
-| `plugins/dhpk-cursor` | 67 | 32 | 35 | 保留；Cursor-native 規則、agent、command、hook 是 Host 專屬，與 `dhpk-agent` 分開。 |
-| `plugins/dhpk-agy` | 426 | 375 | 51 | 保留；AGY 安裝與 receipt 檢查使用準備好的 package root。 |
-
-安全的後續工作是針對選定的位元組相同 helper／reference 類別進行有界的
-packaging-only 實驗：先加入明確 materializer 輸入、每個直接 consumer 的
-clean-checkout／relocation fixture，保留 manifest／provenance／digest ownership，
-並驗證 update 與 rollback。在這些證據完成前移除 tracked files 會使 standalone
-skill、execution bundle 或 checkout 安裝缺檔。實驗不得改變 release signing
-語意，也不得要求各 Host 套件對稱。
+`dist/on-demand/` 已被 Git 忽略。Release workflow 會建置三個 on-demand 套件，並把
+`dhpk-agent`、`dhpk-cursor`、`dhpk-agy` 壓縮檔附在每個 GitHub Release。各 Host
+surface 維持獨立：建置 Cursor 或 AGY 不會改動 Published Package。
 
 ## Standard Agent Plugin 與 Cursor native ownership
 
 Platform capability matrix 讓相同的 portable skill 只有一個 physical publication
-owner：`plugins/dhpk-agent/skills/`。Standard Agent Plugin 擁有這份 generated tree；
-`plugins/dhpk-cursor/` 預設只放 Cursor-native rules、agents、commands、hooks 與
+owner：`dist/on-demand/dhpk-agent/skills/`。Standard Agent Plugin 擁有這份 generated tree；
+`dist/on-demand/dhpk-cursor/` 預設只放 Cursor-native rules、agents、commands、hooks 與
 variables。Cursor provenance 會記錄 shared stable IDs 與
-`plugins/dhpk-agent/skills/` source，但不建立第二份 `skills/`。只有明確 matrix row
+`dist/on-demand/dhpk-agent/skills/` source，但不建立第二份 `skills/`。只有明確 matrix row
 使用 `projection_mode: overlay`、指定 stable IDs，並記錄 transform、fallback 與獨立
 fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills 只有一個
 更新／rollback owner，而 Cursor-native files 由另一個 owner 獨立管理。
@@ -181,14 +172,17 @@ reference。它不會把 canonical skill 改成新 owner，也不會把 `.agents
 
 Source checkout 是 authoring tree；`scripts/ci/gen-claude-manifest.js` 從 inventory
 產生註冊的 skill roots，這些 roots 不代表安裝後的 discovery catalog。主
-`dhpk@dhpk` marketplace 指向 `generated/claude-marketplace/package`，由
-`scripts/ci/gen-claude-marketplace-package.js` 依 shared catalog 產生。
+`dhpk@dhpk` marketplace 項目指向 `dist/claude-marketplace/package`，`dhpk-stacks@dhpk`
+項目指向 `dist/claude-marketplace/stacks-package`，兩者皆由
+`scripts/ci/gen-claude-marketplace-package.js` 依 shared catalog 產生。套件只含
+skill 與 agent，沒有 `commands/` 目錄；以 `/dhpk:<skill-name>` 呼叫 skill。
+技術棧 skill 與模組位於 `dhpk-stacks`。
 
 Catalog 擁有 15 個 common 公開入口、folded branches/references 與必要 Host support。
 Canonical 總數、實體目錄數量與原生 discovery 是不同 scope，不能互相當成證據。
 請參閱 [catalog 契約](./contracts/marketplace-catalog.md) 與
 [安裝指南](./platform-installation.zh-TW.md)。Claude manifest 註冊 directory root，
-不是逐 skill allowlist；module 設定控制 runtime activation。
+不是逐 skill allowlist；`modules` 設定只控制 runtime activation。
 
 Retirement row 留在診斷 ledger，不會安裝為 alias；請參閱
 [retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
@@ -236,7 +230,7 @@ Structural、installation、選用 budget research 與 native runtime evidence �
 ## Claude userConfig metadata candidate 與 rollback
 
 `scripts/ci/gen-claude-user-config.js` 從
-`manifests/claude-user-config-metadata.json` 產生精簡描述。它保留所有 74 個已
+`manifests/claude-user-config-metadata.json` 產生精簡描述。它保留已
 characterize 的 key、type、default、validation 相關欄位、alias 與 module 行為；
 對 active manifest 唯一改動的只有描述文字。詳細說明仍留在每個精簡 pointer
 所指向的 canonical 文件與 skill。
@@ -251,8 +245,8 @@ node scripts/ci/gen-claude-user-config.js --check
 ```
 
 啟用必須明確設定 `DHPK_ENABLE_COMPACT_USER_CONFIG=1`；rollback 使用 `--rollback`
-與 59-key rollback snapshot `manifests/claude-user-config-legacy.json`
-（version 0.43.0，早於 74-key metadata）。
+與 rollback snapshot `manifests/claude-user-config-legacy.json`
+（version 0.43.0）。
 `claude-user-config` 類別與 skill discovery、profile bundle、agent、command 及
 runtime activation 分開量測；byte／word／token 的縮減只是 structural metadata
 evidence。Claude probe 使用 `claude plugin list --json`，將適用且已啟用的
@@ -273,8 +267,8 @@ bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 
 已安裝的 Claude plugin 不含 `codex/`；sync 需使用 repository checkout。
 
-目前 `codex/skills/` 有 16 個指向 canonical `skills/` 的相對 symlink（14 個可呼叫 skill
-加上內部 `cli-transport` 與 `cli-dispatch-context` runtime）。專案同步可
+目前 `codex/skills/` 有 24 個指向 canonical `skills/` 的相對 symlink（皆為可呼叫 skill；內部 `cli-transport` 與
+`cli-dispatch-context` runtime 已於 0.66.2 退役）。專案同步可
 選預設 symlink 或 `--copy` 實體檔，並以 schema-v3 receipt 管理 `--update`、
 `--migrate` 與 `--uninstall`。`--force` 只略過 project-root heuristic，不會繞過
 ownership 或 filesystem safety。完整操作見
@@ -283,10 +277,13 @@ ownership 或 filesystem safety。完整操作見
 ## Codex native plugin package
 
 Native marketplace artifact 位於 `plugins/dhpk/`，由
-`gen-codex-native-package.js` 從 inventory 的明確 `codex-native` surface 產生。它
-包含同一組 14 個 public skill 與 `cli-transport`、`cli-dispatch-context` 兩個內部
-runtime，共 16 個 physical entries；全部是追蹤中的實體檔，零
-symlink；root 與 wrapper manifest 都解析到這一份 physical tree。
+`bin/dhpk distribution codex-native generate` 從 inventory 的明確 `codex-native`
+surface 產生。它就是 Public Plugin tree：skill、`plugin.json` 與
+`.codex-plugin/plugin.json` 的位元組與 OpenAI submission ZIP 相同
+（兩者都由 `scripts/lib/public-plugin-tree.js` 建置），沒有 Host-only skill，也不含
+hook。只有 `provenance.json`、`fingerprints.json` 與 README 是 native package
+額外加入。所有 skill 檔都是追蹤中的實體檔，零 symlink；
+`.codex-plugin/plugin.json` 的 `skills` 解析到這份 physical tree。
 
 三個獨立 release gate 分別驗證：
 

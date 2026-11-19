@@ -20,7 +20,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { rmRepo, runHook } = require('./_lib/hookharness');
 const {
   BLOCK,
@@ -839,6 +840,12 @@ test('pre-bash-guard blocks syntax the decoder cannot place', () => {
   assert.match(res.stderr, /unsupported shell syntax/);
 });
 
+// The 2000-deep inputs cost quadratic time: about 6 s on a fast machine for the
+// process-substitution row (identical on develop, the hook is unchanged), and
+// the batch runner runs rows in parallel on a loaded 2-vCPU runner. The hook
+// itself is budgeted at 1800 s (hooks.json); this only bounds a hung hook.
+const DEEP_NEST_TIMEOUT_MS = 300000;
+
 test('pre-bash-dispatch blocks deeply nested substitutions with exit 2, not a crash', () => {
   const tail = ' ; git commit --no-verify -m x';
   for (const command of [
@@ -848,7 +855,7 @@ test('pre-bash-dispatch blocks deeply nested substitutions with exit 2, not a cr
     `cat ${'<('.repeat(2000)}true${')'.repeat(2000)}${tail}`,
   ]) {
     const res = runHook('pre-bash-dispatch.sh', {
-      payload: { tool_input: { command } }, deleteEnv: ['DHPK_ALLOW_NO_VERIFY', 'DHPK_BRANCH_SAFETY'], timeout: 60000,
+      payload: { tool_input: { command } }, deleteEnv: ['DHPK_ALLOW_NO_VERIFY', 'DHPK_BRANCH_SAFETY'], timeout: DEEP_NEST_TIMEOUT_MS,
     });
     expectStatus(res, BLOCK, command.slice(0, 20));
   }

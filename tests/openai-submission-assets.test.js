@@ -3,7 +3,7 @@
 const { test, run, assert } = require('./_lib/tinytest');
 const { validateOpenaiListingAssets } = require('../scripts/lib/openai-submission-assets');
 
-const ASSET_PATH = './skills/flow-guide/assets/dhpk-icon.svg';
+const ASSET_PATH = './assets/dhpk-icon.svg';
 const SAFE_SVG = [
   '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
   '  <rect x="0" y="0" width="48" height="48" fill="#ffffff"/>',
@@ -59,7 +59,7 @@ test('supplied dark listing icon fields must resolve to included SVG assets', ()
 test('dark listing icon fields reject escaping package paths', () => {
   for (const field of ['composerIconDark', 'logoDark']) {
     const errors = validateOpenaiListingAssets(
-      listing({ [field]: './skills/flow-guide/assets/../../../../outside.svg' }),
+      listing({ [field]: './assets/../../outside.svg' }),
       assetFiles(),
     );
     assert.notStrictEqual(errors.length, 0, field);
@@ -76,16 +76,16 @@ test('dark listing icon fields reject active SVG content', () => {
 
 test('listing icon references require canonical contained relative paths', () => {
   const unsafePaths = [
-    'skills/flow-guide/assets/dhpk-icon.svg',
-    '/skills/flow-guide/assets/dhpk-icon.svg',
+    'assets/dhpk-icon.svg',
+    '/assets/dhpk-icon.svg',
     '../outside.svg',
-    './skills/flow-guide/assets/../dhpk-icon.svg',
-    './skills/flow-guide/assets/%2e%2e/dhpk-icon.svg',
-    './skills/flow-guide/assets/dhpk-icon.svg?size=large',
-    './skills/flow-guide/assets/dhpk-icon.svg#preview',
-    './skills/flow-guide/assets/dhpk-icon.svg\\alias',
+    './assets/../dhpk-icon.svg',
+    './assets/%2e%2e/dhpk-icon.svg',
+    './assets/dhpk-icon.svg?size=large',
+    './assets/dhpk-icon.svg#preview',
+    './assets/dhpk-icon.svg\\alias',
     'https://example.test/dhpk-icon.svg',
-    './skills/flow-guide/assets/dhpk-icon.svg\u0001',
+    './assets/dhpk-icon.svg\u0001',
   ];
   for (const unsafePath of unsafePaths) {
     const errors = validateOpenaiListingAssets(listing({ composerIcon: unsafePath }), assetFiles());
@@ -201,7 +201,7 @@ test('listing icon SVG preserves the four XML whitespace characters outside the 
 
 test('skills-only listing rejects supplied screenshots', () => {
   const errors = validateOpenaiListingAssets(
-    listing({ screenshots: ['./skills/flow-guide/assets/preview.png'] }),
+    listing({ screenshots: ['./assets/preview.png'] }),
     assetFiles(),
   );
   assert.match(errorText(errors), /screenshot|skills.only|unsupported/i);

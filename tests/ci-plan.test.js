@@ -34,7 +34,7 @@ const INSTALLER_SUITES = [
   'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js',
   'install-codex-adapter-journal.test.js',
   'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js',
-  'installer-bundle.test.js', 'install-code-data-root.test.js', 'install-shell-entry-parity.test.js', 'install-shell-entry-thin.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js',
+  'installer-modules.test.js', 'install-code-data-root.test.js', 'install-shell-entry-parity.test.js', 'install-shell-entry-thin.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js',
   'macos-installer-files.test.js', 'native-shared-skill-install.test.js',
 ];
 const AVAILABLE_SUITES = [SMOKE_SUITE, ...RESOURCE_SUITES, 'utils.test.js'];
@@ -314,7 +314,7 @@ test('a wording edit with its required .none marker and generated companion rema
   withChangedFiles([
     'skills/flow-drive/SKILL.md',
     'changelog.d/1113-none.none',
-    'generated/claude-marketplace/package/skills/flow-drive/SKILL.md',
+    'dist/claude-marketplace/package/skills/flow-drive/SKILL.md',
   ], (plan) => {
     assert.strictEqual(plan.mode, 'light');
     assert.strictEqual(plan.classification.status, 'accepted');

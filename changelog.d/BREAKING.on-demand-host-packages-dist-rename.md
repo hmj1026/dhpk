@@ -1,0 +1,2 @@
+scope: distribution
+note: Migration: the committed `generated/` directory is renamed `dist/`, so the Claude marketplace `source` paths are now `./dist/claude-marketplace/package` and `./dist/claude-marketplace/stacks-package` (update or re-add the marketplace), and the Cursor, AGY and dhpk-agent packages are no longer committed under `plugins/`; build them with `bin/dhpk distribution build <agent-plugin|cursor-plugin|agy-plugin>` or download the `dhpk-agent`, `dhpk-cursor` and `dhpk-agy` archives from the GitHub Release.

@@ -31,7 +31,6 @@ set -u
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CATALOG="$PLUGIN_ROOT/manifests/module-catalog.json"
 PROFILES="$PLUGIN_ROOT/manifests/install-profiles.json"
-DOCKER_DOC="$PLUGIN_ROOT/docs/docker-setup.md"
 
 # shellcheck source=lib/install-prompts.sh
 source "$PLUGIN_ROOT/scripts/lib/install-prompts.sh"
@@ -279,7 +278,6 @@ check_cmd git     required "sentinel / artifact path resolution"
 check_cmd claude  required "Claude Code CLI — to invoke 'claude plugin install'"
 check_cmd python3 optional "module.yaml parser (only if you enable modules)"
 check_cmd jq      optional "faster JSON parsing (catalog falls back to python3)"
-check_cmd docker  optional "only consulted if you enable docker_containers"
 check_cmd gum     optional "nicer interactive UI; falls back to plain shell prompts"
 echo
 if [[ $MISSING_REQUIRED -ne 0 ]]; then
@@ -321,7 +319,6 @@ if [[ -f "$PROFILES" ]]; then
 fi
 
 SELECTED_MODULES=()
-DOCKER_CONTAINERS=""
 REVIEW_AGENTS=()
 HOOK_PROFILE="standard"
 [[ $HOOK_PROFILE_SET -eq 1 ]] && HOOK_PROFILE="$HOOK_PROFILE_ARG"
@@ -353,7 +350,7 @@ else
   done
 
   echo
-  echo "─── Step 1/4 · Select language / framework stacks ────────"
+  echo "─── Step 1/3 · Select language / framework stacks ────────"
   SELECTED_LABELS=()
   while IFS= read -r line; do
     [[ -n "$line" ]] && SELECTED_LABELS+=("$line")
@@ -373,7 +370,7 @@ else
   # ────────────────────────────────────────────────────────────────────
   if [[ ${#SELECTED_STACKS[@]} -gt 0 ]]; then
     echo
-    echo "─── Step 2/4 · Pick a version for each stack ─────────────"
+    echo "─── Step 2/3 · Pick a version for each stack ─────────────"
     for sid in "${SELECTED_STACKS[@]}"; do
       VERSIONS=()
       while IFS= read -r v; do VERSIONS+=("$v"); done < <(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .versions[].id")
@@ -433,34 +430,10 @@ else
   fi
 
   # ────────────────────────────────────────────────────────────────────
-  # 3c. Docker block
+  # 3c. Review agents + hook profile
   # ────────────────────────────────────────────────────────────────────
   echo
-  echo "─── Step 3/4 · Docker integration ────────────────────────"
-  dhpk_box \
-    "Docker prerequisites" \
-    "" \
-    "SessionStart uses 'docker ps' to verify containers are running." \
-    "Before enabling, please ensure:" \
-    "  1. Docker is installed (Docker Desktop or docker-ce)." \
-    "  2. docker compose plugin is available ('docker compose version')." \
-    "  3. You know your compose service names (the values you'll enter next)." \
-    "  4. WSL: enable Docker Desktop's WSL integration. Note that files" \
-    "     created in-container as root land on host as root-owned (git trap)." \
-    "  5. First container exports as DHPK_PHP_CONTAINER; second as" \
-    "     DHPK_MYSQL_CONTAINER (hooks rely on this order)." \
-    "" \
-    "Full guide: docs/docker-setup.md"
-
-  if dhpk_yes_no "Enable docker container check at SessionStart?" n; then
-    DOCKER_CONTAINERS="$(dhpk_input "Container names (comma-separated, e.g. 'php-fpm,mysql')" "")"
-  fi
-
-  # ────────────────────────────────────────────────────────────────────
-  # 3d. Review agents + hook profile
-  # ────────────────────────────────────────────────────────────────────
-  echo
-  echo "─── Step 4/4 · Review agents & hook profile ──────────────"
+  echo "─── Step 3/3 · Review agents & hook profile ──────────────"
   if dhpk_yes_no "Override default review agent names (code/database/security/frontend/doc)?" n; then
     code_agent="$(dhpk_input "code reviewer agent name"     "code-reviewer")"
     db_agent="$(dhpk_input   "database reviewer agent name" "database-reviewer")"
@@ -486,7 +459,6 @@ fi
 echo
 echo "─── Resolved configuration ──────────────────────────────"
 echo "  modules           : ${SELECTED_MODULES[*]:-<none>}"
-echo "  docker_containers : ${DOCKER_CONTAINERS:-<none>}"
 echo "  review_agents     : ${REVIEW_AGENTS[*]:-<defaults>}"
 echo "  hook_profile      : $HOOK_PROFILE"
 echo "  claude_plugin     : dhpk@dhpk (main marketplace)"
@@ -495,9 +467,6 @@ echo
 CMD=(claude plugin install dhpk@dhpk)
 if [[ ${#SELECTED_MODULES[@]} -gt 0 ]]; then
   IFS=','; CMD+=(--config "modules=${SELECTED_MODULES[*]}"); IFS=$' \t\n'
-fi
-if [[ -n "$DOCKER_CONTAINERS" ]]; then
-  CMD+=(--config "docker_containers=$DOCKER_CONTAINERS")
 fi
 if [[ ${#REVIEW_AGENTS[@]} -gt 0 ]]; then
   IFS=','; CMD+=(--config "review_agents=${REVIEW_AGENTS[*]}"); IFS=$' \t\n'
@@ -611,10 +580,7 @@ dhpk_print_installed() {
   echo
   echo "✓ Installed. Next steps:"
   echo "    • Inspect install   : claude plugin list --json"
-  echo "    • Reconfigure later : /dhpk:setup  (inside Claude Code)"
-  if [[ -n "$DOCKER_CONTAINERS" ]]; then
-    echo "    • Docker reference  : $DOCKER_DOC"
-  fi
+  echo "    • Reconfigure later : /dhpk:harness-setup  (inside Claude Code)"
 }
 
 dhpk_run_plugin_update() {

@@ -15,7 +15,7 @@ authority for directories, runners, fixtures, and coverage thresholds.
    behavior. A bug fix starts with a regression test that reproduces the
    reported failure. Use the project's test-first workflow; select `tdd-guide`
    when a separate test seam, runtime setup, or specialist owner is needed.
-2. Run the project's verification command, normally `/verify`, after the RED →
+2. Run the project's verification command, normally `/dhpk:repo-verify`, after the RED →
    GREEN → REFACTOR loop. Record the exact command, tree or commit, and result.
 3. Apply the kernel's [Evidence snapshots](execution-bundle/rules/execution-policy-kernel.md#evidence-snapshots)
    rule after implementation or review fixes.

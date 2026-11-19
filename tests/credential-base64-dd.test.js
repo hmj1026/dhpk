@@ -2,7 +2,8 @@
 
 // #1428: base64 and dd are Readers with their own input grammar (spec #1422, REQ-6, REQ-9).
 // Every block has a legitimate-use allow beside it, every allow a dangerous counterpart.
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { runHook: runHookAt } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

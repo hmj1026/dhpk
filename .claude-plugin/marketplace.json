@@ -9,8 +9,16 @@
   "plugins": [
     {
       "name": "dhpk",
-      "source": "./generated/claude-marketplace/package",
-      "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection."
+      "source": "./dist/claude-marketplace/package",
+      "description": "Reusable Claude Code harness with role-based agents, skills, hooks, and advisory reviewer dispatch, plus a parallel Codex CLI projection. Stack modules and stack skills ship separately in dhpk-stacks."
+    },
+    {
+      "name": "dhpk-stacks",
+      "source": "./dist/claude-marketplace/stacks-package",
+      "description": "Stack modules and stack skills for the dhpk harness: PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift hooks, references, reviewers, and skills. Requires the dhpk core plugin; owns the modules setting.",
+      "dependencies": [
+        "dhpk"
+      ]
     }
   ]
 }

@@ -12,6 +12,8 @@ const {
   expectedAgyPolicy,
   expectedCursorPolicyBody,
   cleanCheckoutReport,
+  verifyPublicPlugin,
+  verifyDirectoryPlugin,
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
@@ -88,7 +90,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
     const codexNativeIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
       .profiles['codex-native'].skillIds;
     assert.strictEqual(commonIds.length, 14);
-    assert.strictEqual(codexNativeIds.length, 16);
+    assert.strictEqual(codexNativeIds.length, 14);
     const inventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/distribution-inventory.json'), 'utf8'));
     const selection = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/marketplace-selection.json'), 'utf8'));
     const byId = new Map(inventory.skills.map((entry) => [entry.id, entry]));
@@ -109,7 +111,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!expectedPhysicalIds.includes(id), id);
       const flowDrive = path.join(output, 'skills', byId.get('flow-drive').name);
-      const expectedFlowDriveEntries = ['SKILL.md', 'distribution.yaml', 'references'];
+      const expectedFlowDriveEntries = surface === 'codex-native' ? ['SKILL.md', 'references'] : ['SKILL.md', 'distribution.yaml', 'references'];
       if (surface === 'codex-native') expectedFlowDriveEntries.push('agents');
       assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), expectedFlowDriveEntries.sort(), `${surface} Flow Drive package entries`);
       if (surface === 'codex-native') {
@@ -127,19 +129,23 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       assert.deepStrictEqual(provenance.selectedStableIds, selectedIds, `${surface} must retain canonical selected IDs`);
       assert.deepStrictEqual(provenance.emittedStableIds, selectedIds, `${surface} must not claim unselected entries`);
 
-      const packagePath = surface === 'agy-plugin' ? 'plugins/dhpk-agy' : surface === 'codex-native' ? 'plugins/dhpk' : null;
-      if (!packagePath) continue;
-      const tracked = path.join(sourceRoot, packagePath);
-      fs.rmSync(tracked, { recursive: true, force: true });
-      fs.cpSync(output, tracked, { recursive: true });
-      const added = spawnSync('git', ['add', packagePath], { cwd: sourceRoot, encoding: 'utf8' });
-      assert.strictEqual(added.status, 0, added.stdout + added.stderr);
-      const committed = spawnSync('git', [
-        '-c', 'user.name=common-verifier-fixture',
-        '-c', 'user.email=test@example.invalid',
-        'commit', '--quiet', '-m', `refresh ${surface} common fixture`,
-      ], { cwd: sourceRoot, encoding: 'utf8' });
-      assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
+      // Only the Codex native package is committed; the AGY package is built on
+      // demand by the verifier itself, so there is nothing to track for it.
+      const packagePath = surface === 'codex-native' ? 'plugins/dhpk' : null;
+      if (!packagePath && surface !== 'agy-plugin') continue;
+      if (packagePath) {
+        const tracked = path.join(sourceRoot, packagePath);
+        fs.rmSync(tracked, { recursive: true, force: true });
+        fs.cpSync(output, tracked, { recursive: true });
+        const added = spawnSync('git', ['add', packagePath], { cwd: sourceRoot, encoding: 'utf8' });
+        assert.strictEqual(added.status, 0, added.stdout + added.stderr);
+        const committed = spawnSync('git', [
+          '-c', 'user.name=common-verifier-fixture',
+          '-c', 'user.email=test@example.invalid',
+          'commit', '--quiet', '-m', `refresh ${surface} common fixture`,
+        ], { cwd: sourceRoot, encoding: 'utf8' });
+        assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
+      }
 
       const verified = spawnSync(process.execPath, [
         path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
@@ -268,51 +274,22 @@ test('a dirty source checkout yields a FAIL report instead of a thrown stack tra
   }
 });
 
-function createHistoricalFixture() {
+// The Agent, Cursor and AGY packages are built on demand, so the verifier is
+// exercised on a clean clone of the current commit: it builds what it verifies.
+function createCloneFixture() {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-platform-subset-'));
   const clone = path.join(root, 'repo');
   const cloned = spawnSync('git', ['clone', '--quiet', ROOT, clone], { encoding: 'utf8' });
   assert.strictEqual(cloned.status, 0, cloned.stdout + cloned.stderr);
-  // Freeze the matching generation before checkout exposes older package outputs.
-  const frozenCursor = path.join(root, 'frozen-cursor');
-  fs.cpSync(path.join(clone, 'plugins', 'dhpk-cursor'), frozenCursor, { recursive: true });
-  const provenance = JSON.parse(fs.readFileSync(path.join(clone, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
-  const checkedOut = spawnSync('git', ['checkout', '--quiet', provenance.generatedFromCommit], { cwd: clone, encoding: 'utf8' });
-  assert.strictEqual(checkedOut.status, 0, checkedOut.stdout + checkedOut.stderr);
-  fs.rmSync(path.join(clone, 'plugins', 'dhpk-cursor'), { recursive: true });
-  fs.cpSync(frozenCursor, path.join(clone, 'plugins', 'dhpk-cursor'), { recursive: true });
-  const cursorReceiptPath = path.join(clone, 'plugins', 'dhpk-cursor', 'provenance.json');
-  const cursorReceipt = JSON.parse(fs.readFileSync(cursorReceiptPath, 'utf8'));
-  cursorReceipt.owner = 'plugins/dhpk-agent';
-  fs.writeFileSync(cursorReceiptPath, `${JSON.stringify(cursorReceipt, null, 2)}\n`);
-  for (const args of [['config', 'user.email', 'test@example.invalid'], ['config', 'user.name', 'subset-fixture']]) {
-    const configured = spawnSync('git', args, { cwd: clone, encoding: 'utf8' });
-    assert.strictEqual(configured.status, 0, configured.stdout + configured.stderr);
-  }
-  const committed = spawnSync('git', ['add', 'plugins/dhpk-cursor'], { cwd: clone, encoding: 'utf8' });
-  assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
-  const commit = spawnSync('git', ['commit', '--quiet', '-m', 'corrupt unrelated Cursor receipt'], { cwd: clone, encoding: 'utf8' });
-  assert.strictEqual(commit.status, 0, commit.stdout + commit.stderr);
-  const generated = path.join(root, 'generated-agent');
-  const generatedResult = spawnSync(process.execPath, [
-    path.join(clone, 'scripts', 'ci', 'gen-agent-plugin-package.js'), generated,
-  ], { cwd: clone, encoding: 'utf8' });
-  assert.strictEqual(generatedResult.status, 0, generatedResult.stdout + generatedResult.stderr);
-  fs.rmSync(path.join(clone, 'plugins', 'dhpk-agent'), { recursive: true, force: true });
-  fs.cpSync(generated, path.join(clone, 'plugins', 'dhpk-agent'), { recursive: true });
-  const regenerated = spawnSync('git', ['add', 'plugins/dhpk-agent'], { cwd: clone, encoding: 'utf8' });
-  assert.strictEqual(regenerated.status, 0, regenerated.stdout + regenerated.stderr);
-  const packageCommit = spawnSync('git', ['commit', '--quiet', '-m', 'refresh Agent fixture package'], { cwd: clone, encoding: 'utf8' });
-  assert.strictEqual(packageCommit.status, 0, packageCommit.stdout + packageCommit.stderr);
   return { root, clone };
 }
 
-const historicalFixture = createHistoricalFixture();
+const cloneFixture = createCloneFixture();
 
-test('public verifier filters an unrelated corrupt Cursor receipt from an Agent-only run', () => {
+test('public verifier builds and verifies only the selected Agent package', () => {
   const result = spawnSync(process.execPath, [
     path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
-    '--surface', 'agent-plugin', '--repo-root', historicalFixture.clone,
+    '--surface', 'agent-plugin', '--repo-root', cloneFixture.clone,
   ], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, result.stdout + result.stderr);
   const report = JSON.parse(result.stdout);
@@ -320,23 +297,66 @@ test('public verifier filters an unrelated corrupt Cursor receipt from an Agent-
   assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin']);
   assert.deepStrictEqual(report.selection, { requested: ['agent-plugin'], resolved: ['agent-plugin'] });
   assert.deepStrictEqual(Object.keys(report.policyParity.projections), ['claude']);
+  assert.ok(fs.existsSync(path.join(cloneFixture.clone, 'dist', 'on-demand', 'dhpk-agent', 'provenance.json')), 'the verifier builds the package it checks');
+  assert.ok(!fs.existsSync(path.join(cloneFixture.clone, 'dist', 'on-demand', 'dhpk-cursor')), 'unselected on-demand packages are not built');
 });
 
-test('public Cursor selection verifies its Agent owner dependency and fails on the selected receipt', () => {
+test('public Cursor selection builds and verifies its Agent owner dependency', () => {
   try {
     const result = spawnSync(process.execPath, [
       path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
-      '--surface', 'cursor-plugin', '--repo-root', historicalFixture.clone,
+      '--surface', 'cursor-plugin', '--repo-root', cloneFixture.clone,
     ], { encoding: 'utf8' });
-    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
     const report = JSON.parse(result.stdout);
-    assert.strictEqual(report.verdict, 'FAIL');
+    assert.strictEqual(report.verdict, 'PASS');
     assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin', 'cursor-plugin']);
     assert.deepStrictEqual(report.selection, { requested: ['cursor-plugin'], resolved: ['agent-plugin', 'cursor-plugin'] });
-    assert.ok(report.surfaces['cursor-plugin'].errors.some((error) => /provenance owner/i.test(error)), report.errors.join('; '));
+    assert.strictEqual(report.surfaces['cursor-plugin'].conformance, 'PASS');
   } finally {
-    fs.rmSync(historicalFixture.root, { recursive: true, force: true });
+    // the clone is removed by the last test below
   }
+});
+
+test('public AGY selection runs the AGY conformance rules on the built package', () => {
+  try {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+      '--surface', 'agy-plugin', '--repo-root', cloneFixture.clone,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.verdict, 'PASS');
+    assert.strictEqual(report.surfaces['agy-plugin'].conformance, 'PASS');
+  } finally {
+    fs.rmSync(cloneFixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Public Plugin built from the committed tree passes publication conformance', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const result = verifyPublicPlugin({ root: ROOT, inventory });
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.conformance, 'PASS');
+  assert.ok(result.fileCount > 0);
+});
+
+test('public-plugin is a selectable verifier surface with no dependencies', () => {
+  assert.deepStrictEqual(resolveSurfaceSelection(['public-plugin']), {
+    ok: true, requested: ['public-plugin'], resolved: ['public-plugin'],
+  });
+});
+
+test('Directory Plugin built from the committed tree passes conformance and claude validate', () => {
+  const result = verifyDirectoryPlugin({ root: ROOT });
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.conformance, 'PASS');
+});
+
+test('directory-plugin is a selectable verifier surface with no dependencies', () => {
+  assert.deepStrictEqual(resolveSurfaceSelection(['directory-plugin']), {
+    ok: true, requested: ['directory-plugin'], resolved: ['directory-plugin'],
+  });
 });
 
 run('verify-platform-packages');

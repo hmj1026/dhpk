@@ -27,7 +27,7 @@ Every `/dhpk:<name>` reference in shipped harness markdown SHALL resolve to a re
 
 #### Scenario: Docs reference a command name that does not resolve
 
-- **WHEN** shipped markdown references `/dhpk:setup` and no registered command or skill named `setup` exists
+- **WHEN** shipped markdown references `/dhpk:harness-setup` and no registered command or skill named `setup` exists
 - **THEN** the reference-integrity check reports the dangling reference and exits non-zero
 
 #### Scenario: An intentional example is whitelisted

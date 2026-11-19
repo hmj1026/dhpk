@@ -30,13 +30,16 @@ Host-only and withdrawn skills are excluded. Optional agent-role/custom-role
 distribution has separate acceptance and is outside this skills-only candidate.
 
 The candidate metadata is maintained in
-[`manifests/openai-submission.json`](../manifests/openai-submission.json). Its
-version is `0.64.4`, matching the current repository plugin version. The
+[`manifests/listing-metadata.json`](../manifests/listing-metadata.json), the
+single listing source. The builder renders the submission manifest from it and
+takes the version from `package.json` (single version source). The
 candidate `developerName` is `hmj1026`, as directed by the user; portal identity
-verification remains `NOT_RUN`. The privacy URL is
-a candidate link to this repository's `develop` branch. The policy below is a
-draft and is not published or approved for submission until that public URL
-resolves to reviewed content.
+verification remains `NOT_RUN`. The privacy and support
+URLs point at GitHub Pages (`https://hmj1026.github.io/dhpk/privacy.html` and
+`.../support.html`), published by `.github/workflows/pages.yml` from
+`docs/privacy.md` and `docs/support.md`. The repository's Pages source must be
+set to "GitHub Actions"; public reachability remains `NOT_RUN` until the
+workflow has deployed and the URLs resolve.
 
 | Evidence | Current status |
 |---|---|
@@ -62,7 +65,6 @@ valid artifact and receipt produced by this builder.
 
 ```bash
 bin/dhpk distribution openai-submission generate \
-  --manifest manifests/openai-submission.json \
   --output /absolute/path/outside/dhpk/dhpk-openai-submission \
   --json
 
@@ -152,7 +154,7 @@ of Codex candidate acceptance. Do not claim ChatGPT Work support or acceptance
 until that verification passes.
 
 At the current checkpoint, steps 1–6 are `NOT_RUN` for the release candidate;
-the privacy policy URL is not yet a published policy, and the candidate is
+the Pages URLs have not been verified as publicly reachable, and the candidate is
 `NOT_PUBLISHED`. Do not mark those gates complete based on a generated ZIP,
 local marketplace entry, catalog count, or package validator.
 

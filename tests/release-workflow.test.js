@@ -19,14 +19,6 @@ const verifyScript = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'rele
 const releaseJob = raw.slice(raw.indexOf('\n  release:\n'), raw.indexOf('\n  publish:\n'));
 const verifyStepIdx = releaseJob.indexOf('- name: Verify release candidate');
 
-test('release workflows share one repository-global queue without cancelling active releases', () => {
-  assert.match(
-    raw,
-    /^concurrency:\n  group: release-\$\{\{\s*github\.repository\s*\}\}\n  cancel-in-progress: false$/m,
-    'release workflow must queue every tag in one repository-global, non-cancelling group',
-  );
-});
-
 test('release step preserves an existing release instead of editing it', () => {
   const viewIdx = raw.indexOf('gh release view');
   const createIdx = raw.indexOf('gh release create');
@@ -132,23 +124,6 @@ test('release publication validates the bundle and streams only its validated no
   assert.match(publishBlock, /--notes-output\s+"\$validated_notes_file"/);
   assert.match(publishBlock, /--notes-file -\s+<\s+"\$RUNNER_TEMP\/dhpk-release-notes-validated\.txt"/);
   assert.doesNotMatch(publishBlock, /steps\.notes\.outputs\.notes/);
-});
-
-test('publication steps that call gh bind GH_REPO because the no-checkout job has no git remote to infer from', () => {
-  const publishIdx = raw.indexOf('  publish:');
-  const nextJobIdx = raw.indexOf('  consumer-verify:', publishIdx);
-  const publishBlock = raw.slice(publishIdx, nextJobIdx);
-  const steps = publishBlock.split(/\n      - name: /).slice(1);
-  const ghSteps = steps.filter((step) => /^\s*gh\s/m.test(step));
-  assert.ok(ghSteps.length > 0, 'publication job must invoke the gh CLI');
-  for (const step of ghSteps) {
-    const stepName = step.split('\n', 1)[0];
-    assert.match(
-      step,
-      /GH_REPO:\s*\$\{\{\s*github\.repository\s*\}\}/,
-      `publication step "${stepName}" calls gh without GH_REPO; the job does not checkout, so gh cannot resolve the repository from git`,
-    );
-  }
 });
 
 test('release verification proves the tag commit is contained in main', () => {

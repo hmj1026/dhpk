@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const receipts = require('../scripts/lib/platform-provenance');
 const { inventoryDigestInsertionOrder, inventoryDigestKeySorted } = require('../scripts/lib/content-fingerprint');
 
@@ -20,10 +21,15 @@ const PACKAGES = [
   { surface: 'agy-plugin', root: 'plugins/dhpk-agy', order: 'key-sorted' },
 ];
 
+// The Agent, Cursor and AGY packages are built on demand; Codex native is committed.
+function packageDir(pkg) {
+  return pkg.root === 'plugins/dhpk' ? path.join(ROOT, pkg.root) : builtPackage(pkg.surface);
+}
+
 function copyReceipt(pkg) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-package-receipt-'));
   for (const name of ['provenance.json', 'fingerprints.json']) {
-    fs.copyFileSync(path.join(ROOT, pkg.root, name), path.join(dir, name));
+    fs.copyFileSync(path.join(packageDir(pkg), name), path.join(dir, name));
   }
   return dir;
 }
@@ -37,13 +43,13 @@ function rewrite(dir, name, mutate) {
 
 for (const pkg of PACKAGES) {
   test(`${pkg.surface}: the tracked receipt reads, verifies, and re-serializes byte-for-byte`, () => {
-    const receipt = receipts.readPackageReceipt(path.join(ROOT, pkg.root), { surface: pkg.surface });
+    const receipt = receipts.readPackageReceipt(path.join(packageDir(pkg)), { surface: pkg.surface });
     assert.deepStrictEqual(receipt.errors, []);
     assert.strictEqual(receipt.ok, true);
     assert.deepStrictEqual(receipts.verifyPackageReceipt(receipt, receipt.fingerprints), []);
     const text = receipts.serializePackageReceipt(pkg.surface, { provenance: receipt.provenance, fingerprints: receipt.fingerprints });
-    assert.strictEqual(text.provenance, fs.readFileSync(path.join(ROOT, pkg.root, 'provenance.json'), 'utf8'));
-    assert.strictEqual(text.fingerprints, fs.readFileSync(path.join(ROOT, pkg.root, 'fingerprints.json'), 'utf8'));
+    assert.strictEqual(text.provenance, fs.readFileSync(path.join(packageDir(pkg), 'provenance.json'), 'utf8'));
+    assert.strictEqual(text.fingerprints, fs.readFileSync(path.join(packageDir(pkg), 'fingerprints.json'), 'utf8'));
   });
 
   test(`${pkg.surface}: the inventory digest uses the ${pkg.order} ordering`, () => {
@@ -51,13 +57,13 @@ for (const pkg of PACKAGES) {
     const expected = pkg.order === 'key-sorted' ? inventoryDigestKeySorted(inventory) : inventoryDigestInsertionOrder(inventory);
     assert.strictEqual(receipts.packageInventoryDigest(pkg.surface, inventory), expected);
     assert.notStrictEqual(inventoryDigestKeySorted(inventory), inventoryDigestInsertionOrder(inventory));
-    const tracked = JSON.parse(fs.readFileSync(path.join(ROOT, pkg.root, 'provenance.json'), 'utf8'));
+    const tracked = JSON.parse(fs.readFileSync(path.join(packageDir(pkg), 'provenance.json'), 'utf8'));
     const sourceInventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     assert.strictEqual(receipts.packageInventoryDigest(pkg.surface, sourceInventory), tracked.inventoryDigest);
   });
 
   test(`${pkg.surface}: a changed, missing, or extra fingerprint is reported`, () => {
-    const receipt = receipts.readPackageReceipt(path.join(ROOT, pkg.root), { surface: pkg.surface });
+    const receipt = receipts.readPackageReceipt(path.join(packageDir(pkg)), { surface: pkg.surface });
     const [first, second] = Object.keys(receipt.fingerprints);
     const observed = { ...receipt.fingerprints, [first]: 'f'.repeat(64), extra: 'e'.repeat(64) };
     delete observed[second];
@@ -103,7 +109,7 @@ for (const pkg of PACKAGES) {
 
   test(`${pkg.surface}: a receipt for another surface is rejected`, () => {
     const other = PACKAGES.find((candidate) => candidate.surface !== pkg.surface);
-    const receipt = receipts.readPackageReceipt(path.join(ROOT, pkg.root), { surface: other.surface });
+    const receipt = receipts.readPackageReceipt(path.join(packageDir(pkg)), { surface: other.surface });
     assert.strictEqual(receipt.ok, false);
   });
 }

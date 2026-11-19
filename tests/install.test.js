@@ -217,10 +217,9 @@ test('--dry-run walks the full custom flow (scripted stdin) and stops before exe
   // Scripted answers, one per line, matching the plain (no-gum) prompt flow:
   //   1. "Use a curated preset?"           -> blank (default n)      -> custom flow
   //   2. Stack multi-select                -> blank (none selected)
-  //   3. "Enable docker container check?"  -> blank (default n)
-  //   4. "Override default review agents?" -> blank (default n)
-  //   5. Hook profile single-select        -> "1" (first listed profile)
-  const stdin = ['', '', '', '', '1', ''].join('\n');
+  //   3. "Override default review agents?" -> blank (default n)
+  //   4. Hook profile single-select        -> "1" (first listed profile)
+  const stdin = ['', '', '', '1', ''].join('\n');
   const probeRoot = makeTempDir('dhpk-install-dry-run-');
   TEMP_FIXTURES.push(probeRoot);
   const claudeLog = path.join(probeRoot, 'claude-called.log');
@@ -236,7 +235,7 @@ test('--dry-run walks the full custom flow (scripted stdin) and stops before exe
 });
 
 test('--print is accepted as an alias for --dry-run', () => {
-  const stdin = ['', '', '', '', '1', ''].join('\n');
+  const stdin = ['', '', '', '1', ''].join('\n');
   const res = runScript(['--print'], stdin);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(res.stdout.includes('(--dry-run set — not executing.)'), res.stdout);
@@ -246,7 +245,7 @@ test('default custom flow installs the existing main Claude marketplace', () => 
   const outputRoot = makeTempDir('dhpk-install-profile-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude-called.log');
-  const stdin = ['', '', '', '', '1', 'y'].join('\n');
+  const stdin = ['', '', '', '1', 'y'].join('\n');
   const res = runScript([], stdin, {
     env: { DHPK_CLAUDE_PROFILE_OUT: outputRoot },
     claudeLog,
@@ -265,7 +264,7 @@ test('default custom flow needs neither Node nor jq before invoking the main mar
   const outputRoot = makeTempDir('dhpk-install-no-node-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude-called.log');
-  const res = runScript([], ['', '', '', '', '1', 'y'].join('\n'), {
+  const res = runScript([], ['', '', '', '1', 'y'].join('\n'), {
     noJq: true,
     claudeLog,
     env: { DHPK_CLAUDE_PROFILE_OUT: outputRoot },
@@ -408,7 +407,7 @@ test('--non-interactive --yes auto-confirms and installs the main marketplace', 
 });
 
 test('--hook-profile in the interactive flow skips the hook-profile prompt and keeps the flag value', () => {
-  const res = runScript(['--dry-run', '--hook-profile', 'strict'], ['', '', '', ''].join('\n'));
+  const res = runScript(['--dry-run', '--hook-profile', 'strict'], ['', '', ''].join('\n'));
   assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
   assert.match(res.stdout, /hook_profile\s+: strict/);
   assert.ok(!res.stdout.includes('Hook profile:'), res.stdout);

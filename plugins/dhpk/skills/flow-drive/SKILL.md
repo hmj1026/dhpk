@@ -1,12 +1,6 @@
 ---
 name: flow-drive
-argument-hint: '<task-text|task-file|confirmed-spec-or-change-id> | --help'
-description: 'Use the current Host and Model to complete one bounded, authorized task and report observed verification evidence or a precise blocker.'
-disable-model-invocation: true
-metadata:
-  dhpk-capability-id: dhpk.skill.flow-drive
-  dhpk-name-style: portable-family
-  dhpk-invocation-class: explicit-only
+description: "Use the current Host and Model to complete one bounded, authorized task and report observed verification evidence or a precise blocker."
 ---
 
 # Flow Drive

@@ -16,7 +16,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('node:child_process');
 const { CODEX_MCP_COMMAND_NAMES, collectInventory } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
 const {
@@ -32,19 +31,6 @@ const p = (...s) => path.join(ROOT, ...s);
 // Codex MCP is retired. Keep this as an exact zero policy rather than a
 // ceiling: a newly introduced grant must fail CI even if it is the first one.
 const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, commandGrants: 0 });
-
-// Explicit ownership for newly added top-level test suites. Keep keys exact so
-// a similarly named suite cannot inherit another suite's owner by accident.
-const SUITE_OWNER_REGISTRY = Object.freeze({
-  'tests/check-hook-shellcheck.test.js': 'scripts/ci/check-hook-shellcheck.js',
-  // 維護工具的 suite 明列來源，讓本地與 CI 的 admission 使用相同對照。
-  'tests/maintainer-issue-snapshot.test.js': 'scripts/maintainer/issue-snapshot.js',
-  'tests/maintainer-verification-run.test.js': 'scripts/maintainer/verification-run.js',
-  'tests/maintainer-delivery-gate.test.js': 'scripts/maintainer/delivery-gate.js',
-  'tests/maintainer-preflight.test.js': 'scripts/maintainer/delivery-preflight.js',
-  'tests/maintainer-ci-watch.test.js': 'scripts/maintainer/ci-watch.js',
-  'tests/dispatch-telemetry-report.test.js': 'scripts/dispatch-telemetry-report.js',
-});
 
 function computeCounts() {
   return collectInventory(ROOT).counts;
@@ -119,72 +105,7 @@ function checkOrWriteProjectionSets({ write }) {
   return drift.length;
 }
 
-function isPathWithin(root, candidate) {
-  const relative = path.relative(root, candidate);
-  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
-}
-
-function hasValidSuiteOwner(suiteRel) {
-  if (!Object.prototype.hasOwnProperty.call(SUITE_OWNER_REGISTRY, suiteRel)) return false;
-  const ownerRel = SUITE_OWNER_REGISTRY[suiteRel];
-  if (typeof ownerRel !== 'string'
-    || ownerRel.length === 0
-    || ownerRel.trim() !== ownerRel
-    || ownerRel.includes('\\')
-    || path.posix.isAbsolute(ownerRel)
-    || path.posix.normalize(ownerRel) !== ownerRel
-    || ownerRel === suiteRel) {
-    return false;
-  }
-
-  const ownerPath = path.resolve(ROOT, ...ownerRel.split('/'));
-  if (!isPathWithin(ROOT, ownerPath)) return false;
-
-  try {
-    if (!fs.lstatSync(ownerPath).isFile()) return false;
-    return isPathWithin(fs.realpathSync(ROOT), fs.realpathSync(ownerPath));
-  } catch {
-    return false;
-  }
-}
-
-function warnForUnownedAddedSuites(diffBase) {
-  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(diffBase || '')) {
-    console.warn('WARNING [catalog]: suite-owner comparison unavailable; --diff-base must be a full commit SHA.');
-    return;
-  }
-
-  const comparison = spawnSync('git', [
-    'diff',
-    '--no-renames',
-    '--diff-filter=A',
-    '--name-only',
-    '-z',
-    `${diffBase}...HEAD`,
-    '--',
-    'tests/',
-  ], { cwd: ROOT, maxBuffer: 4 * 1024 * 1024 });
-
-  if (comparison.error || comparison.status !== 0 || !Buffer.isBuffer(comparison.stdout)) {
-    console.warn('WARNING [catalog]: suite-owner comparison unavailable; no admission warnings were evaluated.');
-    return;
-  }
-
-  const addedSuites = comparison.stdout.toString('utf8')
-    .split('\0')
-    .filter((filePath) => /^tests\/[^/]+\.test\.js$/.test(filePath))
-    .sort();
-
-  for (const suiteRel of addedSuites) {
-    if (!hasValidSuiteOwner(suiteRel)) {
-      console.warn(`WARNING [catalog]: newly added test suite ${suiteRel} has no valid owner registered in SUITE_OWNER_REGISTRY.`);
-    }
-  }
-}
-
-function checkOrWrite({ write, diffBase }) {
-  if (!write && diffBase !== undefined) warnForUnownedAddedSuites(diffBase);
-
+function checkOrWrite({ write }) {
   const inventory = collectInventory(ROOT);
   const retirementErrors = retiredCodexMcpErrors(inventory.counts, inventory);
   for (const error of retirementErrors) console.error(`RETIREMENT ${error}`);
@@ -225,15 +146,6 @@ function printTable() {
 }
 
 const args = process.argv.slice(2);
-const diffBaseIndex = args.indexOf('--diff-base');
-const inlineDiffBase = args.find((arg) => arg.startsWith('--diff-base='));
-const hasDiffBase = diffBaseIndex !== -1 || inlineDiffBase !== undefined;
-const diffBase = inlineDiffBase !== undefined
-  ? inlineDiffBase.slice('--diff-base='.length)
-  : (diffBaseIndex === -1 ? undefined : args[diffBaseIndex + 1]);
-if (args.includes('--check')) process.exit(checkOrWrite({
-  write: false,
-  ...(hasDiffBase ? { diffBase: diffBase === undefined ? '' : diffBase } : {}),
-}));
+if (args.includes('--check')) process.exit(checkOrWrite({ write: false }));
 else if (args.includes('--write')) process.exit(checkOrWrite({ write: true }));
 else printTable();

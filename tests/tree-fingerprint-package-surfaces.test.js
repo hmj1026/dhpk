@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   treeFingerprint,
@@ -188,10 +189,10 @@ test('Agent Plugin: unparseable provenance.json fails closed as unreadable, not 
 }));
 
 test('AGY: the package carries no directory-level tree value and no tree marker (row 17)', () => {
-  const provenance = readJson(path.join(ROOT, 'plugins', 'dhpk-agy', 'provenance.json'));
-  const files = Object.keys(readJson(path.join(ROOT, 'plugins', 'dhpk-agy', 'fingerprints.json')).files);
+  const provenance = readJson(path.join(builtPackage('agy-plugin'), 'provenance.json'));
+  const files = Object.keys(readJson(path.join(builtPackage('agy-plugin'), 'fingerprints.json')).files);
   assert.ok(files.length > 0);
-  assert.ok(files.every((relative) => fs.statSync(path.join(ROOT, 'plugins', 'dhpk-agy', relative)).isFile()));
+  assert.ok(files.every((relative) => fs.statSync(path.join(builtPackage('agy-plugin'), relative)).isFile()));
   assert.ok(!Object.hasOwn(provenance, 'fingerprintAlgorithm'));
 });
 

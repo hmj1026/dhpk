@@ -7,8 +7,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-function createHostProjectionConformance({ root, assert }) {
+// The Agent, Cursor and AGY packages are built on demand, so their roots default
+// to the ignored build directory and callers pass `packageRoots` for a build
+// that lives elsewhere.
+function createHostProjectionConformance({ root, assert, packageRoots = {} }) {
   const resolve = (relative) => path.join(root, relative.replace(/^\.\//, ''));
+  const agentRoot = packageRoots.agent || path.join(root, 'dist', 'on-demand', 'dhpk-agent');
+  const agyRoot = packageRoots.agy || path.join(root, 'dist', 'on-demand', 'dhpk-agy');
+  const cursorRoot = packageRoots.cursor || path.join(root, 'dist', 'on-demand', 'dhpk-cursor');
   return [
     {
       platform: 'claude',
@@ -44,23 +50,22 @@ function createHostProjectionConformance({ root, assert }) {
     },
     {
       platform: 'agy',
-      manifest: 'plugins/dhpk-agy/plugin.json',
+      manifest: path.join(agyRoot, 'plugin.json'),
       assertFormat(value) {
         for (const component of ['agents', 'rules']) {
           assert.ok(!Object.prototype.hasOwnProperty.call(value, component), `AGY manifest must omit unsupported ${component} field`);
-          assert.ok(fs.statSync(resolve(`plugins/dhpk-agy/${component}`)).isDirectory(), `missing AGY ${component} directory`);
+          assert.ok(fs.statSync(path.join(agyRoot, component)).isDirectory(), `missing AGY ${component} directory`);
         }
         assert.deepStrictEqual(value.skills, ['./skills/']);
       },
     },
     {
       platform: 'cursor',
-      manifest: 'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
+      manifest: path.join(cursorRoot, '.cursor-plugin', 'plugin.json'),
       assertFormat(value) {
-        for (const field of ['rules', 'agents', 'commands', 'hooks']) {
+        for (const field of ['rules', 'agents', 'hooks']) {
           assert.ok(typeof value[field] === 'string', `Cursor manifest must expose ${field}`);
         }
-        const cursorRoot = resolve('plugins/dhpk-cursor');
         const provenance = JSON.parse(fs.readFileSync(path.join(cursorRoot, 'provenance.json'), 'utf8'));
         if (value.skills !== undefined) {
           assert.strictEqual(typeof value.skills, 'string', 'Cursor skills must be a path');
@@ -72,13 +77,13 @@ function createHostProjectionConformance({ root, assert }) {
         if (provenance.sharedSkillSurface) {
           assert.strictEqual(provenance.sharedSkillSurface, 'agent-plugin');
           assert.strictEqual(provenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
-          const owner = JSON.parse(fs.readFileSync(resolve('plugins/dhpk-agent/provenance.json'), 'utf8'));
+          const owner = JSON.parse(fs.readFileSync(path.join(agentRoot, 'provenance.json'), 'utf8'));
           assert.deepStrictEqual(provenance.sharedSkillIds, owner.marketplacePublication.publicEntryIds);
           assert.deepStrictEqual(provenance.sharedSkillNames, owner.selectedSkillNames);
           assert.ok(provenance.sharedSkillIds.includes('flow-drive'));
           assert.strictEqual(provenance.sharedSkillNames.length, provenance.sharedSkillIds.length);
           for (const name of provenance.sharedSkillNames) {
-            assert.ok(fs.statSync(resolve(`${provenance.sharedSkillSource}${name}/SKILL.md`)).isFile(), `missing shared Skill ${name}`);
+            assert.ok(fs.statSync(path.join(agentRoot, 'skills', name, 'SKILL.md')).isFile(), `missing shared Skill ${name}`);
           }
         } else {
           assert.strictEqual(typeof value.skills, 'string', 'standalone Cursor requires skills');

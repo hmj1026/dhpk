@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const { networkSandboxProbe, sandboxInvocation } = require('../scripts/lib/cursor-plugin-package');
 const { AGENT_PLUGIN_SCHEMA, MCP_SCHEMA } = require('../scripts/lib/agent-plugin-package');
 const { redactSensitiveText } = require('../scripts/lib/redaction');
@@ -383,7 +384,7 @@ test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
 });
 
 test('Cursor checkout probe does not fail structural validation when --inventory is omitted', () => {
-  const packageRoot = path.join(ROOT, 'plugins/dhpk-cursor');
+  const packageRoot = path.join(builtPackage('cursor-plugin'));
   const inventory = path.join(ROOT, 'manifests', 'distribution-inventory.json');
   const omitted = runProbe('cursor', packageRoot);
   const omittedPayload = JSON.parse(omitted.stdout);

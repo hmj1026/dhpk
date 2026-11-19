@@ -12,8 +12,7 @@ coexistence, unique discovery, rollback, and publication authorization remain
 unchanged.
 
 How dhpk decides which skills and modules reach each consumer surface
-(Claude plugin, opt-in stack modules, Codex project-local sync, experimental
-Codex marketplace), and what each surface can and cannot filter.
+(Claude plugin, `dhpk-stacks`, Codex project-local sync, Public Plugin), and what each surface can and cannot filter.
 
 For exact installation commands, support tiers, status vocabulary, consumer
 evidence, and rollback, use the [platform installation SSOT](./platform-installation.md).
@@ -41,12 +40,14 @@ package from the [accepted marketplace catalog](contracts/marketplace-catalog.md
 It uses root `plugin.json`, the public owners under `skills/`, and their
 contained child resources. Host-only and withdrawn skills are excluded.
 
-Provide a portable manifest containing the intended listing metadata under
-`extensions["com.openai"].interface`. Use a clean source checkout and an output
+The manifest is rendered from `manifests/listing-metadata.json` (listing
+metadata under `extensions["com.openai"].interface`) and the `package.json`
+version; `--manifest` is an optional override that must carry the same
+version. Use a clean source checkout and an output
 directory outside the checkout when comparing repeated builds:
 
 ```bash
-bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission generate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
 bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
 ```
@@ -151,49 +152,32 @@ claims runtime support. Evidence verdicts remain the closed vocabulary
 `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, and
 `UNAVAILABLE`.
 
-## Generated and plugin copy assessment (#1104)
+## Published Packages and on-demand builds
 
-The repository keeps generated publication trees because supported checkout and
-local-install routes consume those directories directly. This is an assessment
-boundary, not permission to remove a tree or combine Host packages. Host
-surfaces remain independent, consistent with #1104 (its reference to #970 is
-historical context; the current #970 title is a model-configuration proposal).
+Two Published Packages are committed, per [ADR-0040](adr/0040-two-published-packages.md);
+every other Host package is built on demand.
 
-At the 2026-10-28 `develop` snapshot, `git ls-files generated plugins` found
-2,458 regular files. Comparing Git blob identities with tracked canonical files
-outside those output roots found 2,314 byte-identical files. The remainder are
-transformed Host metadata, manifests, provenance, fingerprints, or other
-package-specific output. The measurement is reproducible with:
+| Package | Location | Audience | Acquire |
+| --- | --- | --- | --- |
+| Directory Plugin | `dist/claude-marketplace/package` | Claude Code | `/plugin install dhpk@dhpk` |
+| `dhpk-stacks` | `dist/claude-marketplace/stacks-package` | Claude Code; requires the Directory Plugin | `/plugin install dhpk-stacks@dhpk` |
+| Public Plugin | `plugins/dhpk` | Codex and ChatGPT Work | Public Plugins Directory, or `codex plugin add dhpk@dhpk` |
+| `dhpk-agent` | `dist/on-demand/dhpk-agent` | Agent Plugins 1.0.0 clients | Release archive, or `bin/dhpk distribution build agent-plugin` |
+| `dhpk-cursor` | `dist/on-demand/dhpk-cursor` | Cursor | Release archive, or `bin/dhpk distribution build cursor-plugin` |
+| `dhpk-agy` | `dist/on-demand/dhpk-agy` | AGY | Release archive, or `bin/dhpk distribution build agy-plugin` |
 
-```sh
-git ls-files generated plugins
-git hash-object -- <path>
-```
-
-| Surface | Tracked files | Byte-identical | Package-specific | Decision |
-| --- | ---: | ---: | ---: | --- |
-| `generated/claude-marketplace/package` | 1,141 | 1,128 | 13 | Keep for checkout marketplace loading; defer removal until a clean-checkout materializer and relocation probe replace the direct path. |
-| `plugins/dhpk` (Codex native) | 435 | 415 | 20 | Keep; the experimental native route and package gate consume the tracked root and its provenance/fingerprints. |
-| `plugins/dhpk-agent` | 389 | 364 | 25 | Keep; Agent publication owns this physical shared-skill tree and package manifest. |
-| `plugins/dhpk-cursor` | 67 | 32 | 35 | Keep; Cursor-native rules, agents, commands, and hooks are Host-specific and remain separate from `dhpk-agent`. |
-| `plugins/dhpk-agy` | 426 | 375 | 51 | Keep; AGY installation and receipt checks consume the prepared package root. |
-
-The safe follow-up is a bounded packaging-only experiment for selected
-byte-identical helper/reference classes. It must first add an explicit
-materializer input and clean-checkout/relocation fixtures for every direct
-consumer, preserve manifest/provenance/digest ownership, and prove update and
-rollback behavior. Until that evidence exists, removing tracked files would
-make standalone skills, execution bundles, or checkout installs fail with
-missing files. The experiment must not change release signing semantics or
-require symmetry between Host packages.
+`dist/on-demand/` is ignored by Git. The release workflow builds the three
+on-demand packages and attaches `dhpk-agent`, `dhpk-cursor`, and `dhpk-agy`
+archives to each GitHub Release. Host surfaces stay independent: a Cursor or AGY
+build never changes the Published Packages.
 
 ## Standard Agent Plugin and Cursor native ownership
 
 The platform capability matrix gives identical portable skills one physical
-publication owner: `plugins/dhpk-agent/skills/`. The standard Agent Plugin owns
-that generated tree, while `plugins/dhpk-cursor/` contains only Cursor-native
+publication owner: `dist/on-demand/dhpk-agent/skills/`. The standard Agent Plugin owns
+that generated tree, while `dist/on-demand/dhpk-cursor/` contains only Cursor-native
 rules, agents, commands, hooks, and variables by default. Cursor provenance
-records the shared stable IDs and `plugins/dhpk-agent/skills/` source; it does not
+records the shared stable IDs and `dist/on-demand/dhpk-agent/skills/` source; it does not
 create a second `skills/` tree. A Cursor-specific copy is allowed only when an
 explicit matrix row uses `projection_mode: overlay`, names the stable IDs, and
 records its transform, fallback, and independent fingerprint. Update and
@@ -227,8 +211,11 @@ keep their documented platform-native agent/rule projections.
 The source checkout is the authoring tree. `scripts/ci/gen-claude-manifest.js`
 derives its registered skill roots from the inventory; these roots do not
 represent the installed discovery catalog. The main `dhpk@dhpk` marketplace
-entry points to `generated/claude-marketplace/package`, generated by
-`scripts/ci/gen-claude-marketplace-package.js` from the shared catalog.
+entry points to `dist/claude-marketplace/package` and the `dhpk-stacks@dhpk`
+entry to `dist/claude-marketplace/stacks-package`, both generated by
+`scripts/ci/gen-claude-marketplace-package.js` from the shared catalog. The
+packages ship skills and agents only, with no `commands/` directory; call a
+skill as `/dhpk:<skill-name>`. Stack skills and modules live in `dhpk-stacks`.
 
 The catalog owns the 15 common public entries, folded branches/references, and
 necessary Host support. Canonical totals and physical directory counts are
@@ -242,7 +229,7 @@ see [retirement guidance](./skill-platform-migration.md#alias-free-retirement-le
 ## Claude userConfig metadata candidate and rollback
 
 `scripts/ci/gen-claude-user-config.js` generates compact descriptions from
-`manifests/claude-user-config-metadata.json`. It preserves all 74 characterized
+`manifests/claude-user-config-metadata.json`. It preserves the characterized
 keys, types, defaults, validation-related fields, aliases, and module behavior;
 the only active-manifest field it changes is description text. Guidance remains
 in the canonical documentation and skills referenced by each compact pointer.
@@ -257,9 +244,8 @@ node scripts/ci/gen-claude-user-config.js --check
 ```
 
 Activation is explicit and gated by `DHPK_ENABLE_COMPACT_USER_CONFIG=1`; rollback
-uses `--rollback` and the 59-key rollback snapshot
-`manifests/claude-user-config-legacy.json` (version 0.43.0, predating the
-74-key metadata). The `claude-user-config`
+uses `--rollback` and the rollback snapshot
+`manifests/claude-user-config-legacy.json` (version 0.43.0). The `claude-user-config`
 category is measured separately from skill discovery, profile bundles, agents,
 commands, and runtime activation. Byte/word/token reduction is structural
 metadata evidence only. If the exact configured Claude probe cannot bind the
@@ -281,21 +267,16 @@ siblings.
 
 Consequences:
 
-- **A module skill cannot be individually hidden.** If `modules/vue-2/skills/`
-  contains two skills and one is deprecated, `./modules/vue-2/skills/` stays
-  registered as long as the other is not — the deprecated skill's description
-  remains discoverable to the host even though the distribution inventory no
-  longer classifies it as promoted.
+- **A skill cannot be individually hidden.** A deprecated skill's description
+  remains discoverable to the host while any sibling under the same root is
+  registered, even though the distribution inventory no longer classifies it as
+  promoted.
 - **A whole root can still disappear.** If every skill under a root becomes
   deprecated, `generateClaudeSkillRoots()` drops that root entirely — this is
   the one case where Claude's registration surface actually shrinks.
-- **`optional` (module) skill descriptions are never hidden by module
-  selection.** Enabling/disabling a stack module in `userConfig.modules`
-  changes which module's *hooks and guidance* activate at runtime, but every
-  module's skill directory is still registered in `plugin.json` and its
-  `SKILL.md` description is still listed by the host regardless of which
-  modules a project has enabled. Do not describe the optional set as "hidden"
-  at discovery time — only runtime activation is gated.
+- **Stack skills are not gated by module selection.** They ship as top-level
+  skills in `dhpk-stacks`; the `modules` setting controls only which modules'
+  hooks and guidance activate.
 
 This means `generatedSkillIds` (the inventory-derived "should be promoted"
 set used for counts and validation in task 4) is a documentation and
@@ -313,7 +294,7 @@ explicit `--out`, validated additive skill overlays, and module presets remain
 available through their existing owners.
 
 The formal Codex native package has a separate active `codex-native` profile
-that records the exact 16 skill IDs physically published by that package.
+that records the exact 14 public catalog skill IDs physically published by that package.
 Native generation and release staging both require this explicit selection;
 omitting it fails closed. This package provenance profile does not change the
 `common` default used by the other installation surfaces. A legacy native
@@ -399,6 +380,15 @@ fallback or `lifecycle=promoted` — via `materializeNativePackage()` in
 (see [ADR-0006](adr/0006-codex-native-publication-artifact.md)),
 never generated fresh at install time.
 
+**One Public Plugin tree.** The package is the Public Plugin tree: the same
+skills, `plugin.json`, and `.codex-plugin/plugin.json` bytes as the OpenAI
+submission ZIP (`scripts/lib/public-plugin-tree.js` builds both). Its skill set
+is the public catalog (public entries and their bundled children) with no
+Host-only skills; only `provenance.json`, `fingerprints.json`, and the README
+files are native-package additions. `node scripts/ci/verify-platform-packages.js
+--surface public-plugin` builds the tree from sources and fails when this
+directory differs from it.
+
 **Native package membership.** The inventory owns native package membership.
 Flow Drive is a portable task/help instruction directory and owns no transport,
 context, adapter, or runner runtime. Shared CLI dispatch support is maintained
@@ -432,11 +422,11 @@ For the executable duplicate-discovery check and its read-only remediation
 steps, use [Check for duplicate Codex discovery](./platform-installation.md#check-for-duplicate-codex-discovery)
 in the platform installation SSOT.
 
-**Structural safety.** Both `.codex-plugin/plugin.json` (root) and
-`plugins/dhpk/.codex-plugin/plugin.json` (marketplace-target wrapper) now
-resolve to the SAME physical `plugins/dhpk/skills/` tree — the root manifest
-via the in-root-relative `./plugins/dhpk/skills/`, the wrapper via
-`./skills/` — with zero symlinks. This closes the two concrete failure
+**Structural safety.** `plugins/dhpk/.codex-plugin/plugin.json` resolves its
+skills via `./skills/` to the physical `plugins/dhpk/skills/` tree with zero
+symlinks, and the package carries no hooks.
+The Codex marketplace entry in `.agents/plugins/marketplace.json` carries only
+documented fields and no per-entry `version`. This closes the two concrete failure
 shapes behind issue #88 (the symlink-dependent `codex/skills/` mirror and the
 parent-relative `../../codex/skills/` wrapper escape); both are enforced by
 `validateNativeCandidate()` and pinned by
@@ -469,16 +459,18 @@ what a release ships without secrets.
 real CONSUMER PASS are necessary evidence, not sufficient by themselves.
 Native Codex marketplace support remains **experimental** until a later,
 separately approved graduation decision — this document, `README.md`, and
-`.codex-plugin/README.md` continue to say so, and
+`plugins/dhpk/README.md` continue to say so, and
 `tests/codex-native-package-validate.test.js` fails loudly if that labeling
 is silently dropped. The supported Codex delivery path remains
 `scripts/hooks/install-codex-skills.sh`, a separate project-local sync
 contract unaffected by this package (see its own tests in
 `tests/install-codex-skills.test.js` for copy/symlink/update/version-fingerprint
 coverage). The shell entries only parse options and exec the JS installer; a
-standalone `harness-setup` package carries that installer as one generated
-bundle, `scripts/lib/dhpk-installer.cjs` (`scripts/lib/installer-bundle.js`,
-checked by `npm run check:installer-bundle`).
+standalone `harness-setup` package carries that installer as readable source
+modules (the entry `scripts/lib/install-adapters/codex-cli.js` and its require
+closure, each at most 256 KiB) under the skill's own `scripts/lib/`, with no
+generated bundle (`scripts/lib/installer-modules.js`, checked by
+`npm run check:installer-modules`).
 
 **Hardened distribution evidence.** The installer contract and terminology are
 defined in [basic operations](basic-operations.md#sync-codex-cli-content). A
@@ -491,7 +483,7 @@ verification set is:
 ```text
 node tests/install-codex-skills.test.js
 node tests/install-shell-entry-parity.test.js
-node tests/installer-bundle.test.js
+node tests/installer-modules.test.js
 node tests/validate-openai-metadata.test.js
 node tests/consumer-gate-cli.test.js
 node scripts/ci/validate-openai-metadata.js --root .

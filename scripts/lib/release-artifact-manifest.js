@@ -19,6 +19,8 @@ const {
   validateSurfaceReceipt,
 } = require('./platform-provenance');
 
+const { isOnDemandSurface, onDemandRelativeDir } = require('./on-demand-packages');
+
 const SCHEMA = 'dhpk.release-artifact-manifest.v1';
 const PRODUCER = 'verify-platform-packages';
 const COMMIT = /^[a-f0-9]{40}$/i;
@@ -29,12 +31,12 @@ const PACKAGE_SURFACES = Object.freeze([
   'codex-native',
   'agy-plugin',
 ]);
-const PACKAGE_ROOTS = Object.freeze({
-  'agent-plugin': 'plugins/dhpk-agent',
-  'cursor-plugin': 'plugins/dhpk-cursor',
-  'codex-native': 'plugins/dhpk',
-  'agy-plugin': 'plugins/dhpk-agy',
-});
+// Committed packages sit at their owner path; the on-demand ones are bound at
+// the gitignored build directory (a release build or the extracted release asset).
+const PACKAGE_ROOTS = Object.freeze(Object.fromEntries(PACKAGE_SURFACES.map((surface) => [
+  surface,
+  isOnDemandSurface(surface) ? onDemandRelativeDir(surface) : SURFACE_OWNERS[surface],
+])));
 
 function git(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();

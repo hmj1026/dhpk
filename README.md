@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.md#codex-project-local-sync-supported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.md#cursor-project-local-sync-supported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.md#surface-matrix)
 
-A generic, install-and-go Claude Code harness. It ships **33 role-based agents** (32 root-level agents plus one module-scoped reviewer), registered dhpk commands, six task-shaped capability families, a cross-session learning DB (opt-in), advisory reviewer dispatch (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. It ships **33 role-based agents** (32 root-level agents plus one module-scoped reviewer), skills invoked as `/dhpk:<skill-name>`, six task-shaped capability families, a cross-session learning DB (opt-in), advisory reviewer dispatch (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
 
 > **Harness engineering over prompt engineering.** dhpk treats the agent's operating environment — hooks, reviewer dispatch, routing rules, and stack-aware modules — as the unit of leverage. Rather than hand-tuning one-off prompts, you install a reusable harness that makes the right checks fire automatically and keeps the model on the rails across sessions.
 
@@ -24,7 +24,7 @@ If you are not sure which skill or command to start with, use the **[Skill & Sla
 | `git` | Required | Artifact path resolution; `git rev-parse --show-toplevel` |
 | `python3` | Required for the Claude Bash gate | Inspects credential reads and parses `module.yaml` for opt-in module activation and routing |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
-| `docker` | Optional | Used only by an explicitly registered Docker workflow with `userConfig.docker_containers` |
+| `docker` | Optional | Used only by an explicitly registered consumer Docker workflow (see `docs/docker-setup.md`) |
 | Codex CLI binary | Optional | Required only for CLI-backed roles/reviews, `codex exec` second opinions, or `install-codex-skills.sh` when Codex should load the synced content |
 | Cursor | Optional | Required ONLY if you run `install-cursor-harness.sh` and want Cursor to load the project-local `.cursor/` harness |
 | `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `code-trace` family. Missing → falls back to `Grep` / `Read`. |
@@ -44,12 +44,13 @@ install default in [`manifests/install-profiles.json`](./manifests/install-profi
 
 | Host | Recommended route | First verification | Evidence boundary |
 |---|---|---|---|
-| Claude Code | `bash scripts/install.sh` (`--dry-run` first) | Start a new session and run `/dhpk:flow-guide help` | The selected default is maintained in the install-profile SSOT; detailed routes and receipt behavior are in the [platform installation guide](./docs/platform-installation.md) |
+| Claude Code | `/plugin marketplace add hmj1026/dhpk`, then `/plugin install dhpk@dhpk`; add `/plugin install dhpk-stacks@dhpk` for stack modules | Start a new session and run `/dhpk:flow-guide help` | The selected default is maintained in the install-profile SSOT; detailed routes and receipt behavior are in the [platform installation guide](./docs/platform-installation.md) |
 | Codex CLI | `bash scripts/hooks/install-codex-skills.sh --plan --json`, then install/update | `$flow-guide help` | Supported project-local route; unavailable CLI/runtime stays `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE` |
 | Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`, then install/update | Inspect `.cursor/.dhpk-installed.json` and reload Cursor | Supported project-local route; native plugin/runtime evidence is separate |
-| AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`, then the receipt-owned adapter | `agy agents` when the CLI is available | Experimental; structural install is not runtime `PASS` |
+| AGY | Download `dhpk-agy-<version>.tar.gz` from the GitHub Release (or `bin/dhpk distribution build agy-plugin`), then `node scripts/ci/install-agy-plugin.js plan --source dist/on-demand/dhpk-agy --json` and the receipt-owned adapter | `agy agents` when the CLI is available | Experimental; structural install is not runtime `PASS` |
 
-For scripted or CI use, the Claude route also accepts non-interactive flags
+From a checkout, `bash scripts/install.sh --dry-run` previews and `bash scripts/install.sh`
+installs. For scripted or CI use, the installer also accepts non-interactive flags
 (the `claude` CLI is required):
 
 ```bash
@@ -71,22 +72,35 @@ dhpk follows the standard [Claude Code plugin distribution model](https://docs.c
 
 ```bash
 claude plugin marketplace add hmj1026/dhpk
-claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hook_profile=standard
+claude plugin install dhpk@dhpk --config hook_profile=standard
+claude plugin install dhpk-stacks@dhpk --config modules=php-8.x,laravel-11
 ```
+
+The plugins ship skills and agents with no `commands/` directory; call a skill as
+`/dhpk:<skill-name>`. The BREAKING changelog entries map each removed command to its
+skill. Stack skills and modules live in `dhpk-stacks`.
+
+**Migrating a marketplace that points at `generated/claude-marketplace/package`:** the
+committed directory is now `dist/`. Run `/plugin marketplace update dhpk`, then
+`/reload-plugins` or reinstall with `/plugin install dhpk@dhpk`.
+
+The Cursor, AGY, and `dhpk-agent` packages are not committed. Download the
+`dhpk-agent`, `dhpk-cursor`, and `dhpk-agy` archives from the GitHub Release, or build
+them with `bin/dhpk distribution build <agent-plugin|cursor-plugin|agy-plugin>`.
 
 For detailed Claude installation routes, updates, migration, and receipt
 handling, see the [platform installation guide](./docs/platform-installation.md).
 
 **Requirements**: Claude Code 2.x. Current dhpk workflows are Codex-free by default. Optional Codex CLI and external app-server integrations are documented in the [Codex integration surfaces](#codex-integration-surfaces) section and [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
-Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the current config). Full install paths (GitHub vs. local clone), update/uninstall, and troubleshooting live in **[`docs/basic-operations.md`](./docs/basic-operations.md)**. Full `--config` knob reference: **[`docs/configuration.md`](./docs/configuration.md)**.
+Reconfigure any time with `/dhpk:harness-setup` (or `/dhpk:harness-setup --show` to print the current config). Full install paths (GitHub vs. local clone), update/uninstall, and troubleshooting live in **[`docs/basic-operations.md`](./docs/basic-operations.md)**. Full `--config` knob reference: **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ## What you get
 
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | Role-based agents | Trigger-table-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
-| Commands | dhpk commands | `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:change-verdict pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:ui-ux-verify`, etc. |
+| Slash entries | Skills invoked as `/dhpk:<skill-name>`; no `commands/` directory. | `/dhpk:precommit`, `/dhpk:harness-setup`, `/dhpk:change-verdict pending`, `/dhpk:git-smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:ui-ux-verify`, etc. |
 | Canonical skills | Inventory-owned packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract; portable families provide consolidated interfaces. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 3 events | PreToolUse (Edit guard and combined Bash safety/Git branch-safety gate), SessionStart (module activation), SubagentStop (fast-worker liveness cleanup) |
@@ -98,7 +112,6 @@ Invocation syntax is surface-specific:
 
 | Surface | Syntax | Example |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:flow-guide` |
 | Codex skill | `$<public-skill-name>` after discovery | `$flow-guide help` |
 
@@ -137,11 +150,11 @@ After installation, daily development follows this 5-step standard workflow (usi
 4. **Pre-Commit Verification**: Run pre-commit quality gates (lint, typecheck, tests):
    ```text
    /dhpk:precommit                                   # run fast or full local verification pipeline
-   /dhpk:verify                                      # run cross-project verification
+   /dhpk:repo-verify                                      # run cross-project verification
    ```
 5. **Commit and PR**: Deliver safely once all gates pass green:
    ```text
-   /dhpk:smart-commit                                # cleanly staged atomic commit
+   /dhpk:git-smart-commit                                # cleanly staged atomic commit
    /dhpk:create-pr                                   # create PR targeting develop branch
    ```
 
@@ -169,13 +182,12 @@ for the full inspect → route → implement → review → verify → handoff f
 
 ## userConfig
 
-75 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
+18 knobs on `dhpk` and 19 on `dhpk-stacks`, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:harness-setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ```bash
-claude plugin install dhpk@dhpk \
-  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author \
-  --config docker_containers=php-fpm,mysql \
-  --config hook_profile=standard
+claude plugin install dhpk-stacks@dhpk \
+  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
+claude plugin install dhpk@dhpk --config hook_profile=standard
 ```
 
 See `manifests/install-profiles.json` for curated module bundles.
@@ -274,7 +286,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`react-19`** — React 19 (December 2024). Actions + async transitions, new hooks (`useActionState`/`useOptimistic`/`useFormStatus`, `use()`), `ref` as a prop (no `forwardRef`), `<Context>` as provider, document metadata hoisting, resource preloading (`preload`/`preinit`), stable Server Components. Removes `ReactDOM.render`/`hydrate`, `propTypes`/`defaultProps` on function components, legacy Context, and string refs. Recommended (not required) for Next.js 16.
 
 **Cross-cutting**:
-- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (recommended by the reviewer trigger table), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-selects the reviewer on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
+- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (recommended by the reviewer trigger table), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:library-author cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-selects the reviewer on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
 
 **iOS / Swift** (dependency-chained — each `requires: swift`; enable the whole set via the `ios-app` install profile):
 - **`swift`** — Swift 6 strict-concurrency baseline + Swift 5.10 / iOS 17 compatibility + Swift 6.2 approachable-concurrency. The foundation the rest of the suite requires.
@@ -324,7 +336,7 @@ node scripts/ci/validate-skills.js --strict
 ```
 
 These checks cover repository source. The marketplace uses the generated
-physical package at `generated/claude-marketplace/package`, which excludes the
+physical package at `dist/claude-marketplace/package`, which excludes the
 development-only root `CLAUDE.md`. For official Claude CLI evidence, validate
 the installed cache directly with:
 
@@ -396,7 +408,7 @@ the supported path is `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.s
 Sync requires a repository checkout; an installed Claude plugin does not include
 `cursor/`. Cursor retains its all-symlink default; `--copy` is the portable fallback. The
 installer writes a schema-v3 receipt at `.cursor/.dhpk-installed.json` and does
-not write `.cursor/hooks.json`. Keep `plugins/dhpk-cursor/` for the marketplace
+not write `.cursor/hooks.json`. Keep `dist/on-demand/dhpk-cursor/` for the marketplace
 / user-plugin route. Full policy: **[`docs/platform-installation.md`](./docs/platform-installation.md)**.
 
 ## Migrating an existing project
@@ -408,10 +420,9 @@ If the project already has its own `.claude/` harness, dhpk supports a phased pa
 ```
 dhpk/
 ├── .claude-plugin/
-│   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
-│   └── plugin.json               # plugin manifest with userConfig
+│   ├── marketplace.json          # dhpk and dhpk-stacks entries (sources under dist/claude-marketplace/)
+│   └── plugin.json               # authoring-tree manifest with userConfig
 ├── agents/                       # 33 role-based agents (32 root + 1 module-scoped reviewer; INDEX.md is navigation)
-├── commands/                     # slash commands (review, setup, codex-*, smart-commit, opsx-apply-resume, ...)
 ├── skills/                       # SSOT: 68 flat canonical packages rooted at skills/<public-name>/ (six portable family names are unprefixed)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
@@ -420,7 +431,7 @@ dhpk/
 │   ├── yii-1.1/                            # Yii 1.1 framework
 │   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
 │   ├── laravel-5.4/, laravel-6/ … laravel-11/  # one per major (5.4 requires php-5.6)
-│   ├── js/{module.yaml, hooks/, skills/, commands/, references/}
+│   ├── js/{module.yaml, hooks/, references/}
 │   ├── vue-2/, laravel-mix/                # frontend: Vue 2 SFC + Laravel Mix 5 asset pipeline
 │   ├── nextjs-15.5/, nextjs-16/         # Next.js React framework
 │   ├── react-18/, react-19/             # React library (per-major)
@@ -443,14 +454,15 @@ dhpk/
 ├── cursor/                       # Cursor project-local dual-track (Cursor does NOT auto-load this tree)
 │   ├── AGENTS.md                 # Cursor dual-route guidance
 │   ├── skills/                   # relative symlinks to canonical skills/
-│   ├── agents/, rules/*.mdc, commands/
+│   ├── agents/, rules/*.mdc
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md, README.zh-TW.md # how to sync into a project
 │   ├── skills/                   # 24 relative symlinks to canonical skills
 │   ├── agents/, config.toml.example
-├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
-├── plugins/dhpk/                 # tracked Codex-native package: 19 physical entries, zero symlinks
+├── dist/claude-marketplace/      # committed Directory Plugin (package/) and dhpk-stacks (stacks-package/)
+├── distribution/                 # hand-authored sources for those two packages
+├── plugins/dhpk/                 # committed Public Plugin: physical skills, zero symlinks, no hooks
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

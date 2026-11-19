@@ -102,7 +102,7 @@ function nativePublicationFixture({ marker = 'valid', profile = false, removeSel
       publicEntryIds: [...view.publicEntries.map((entry) => entry.id)].sort(),
       hostOnlyIds: [...view.hostOnly.map((entry) => entry.id)].sort(),
     };
-    if (marker === 'tampered-list') provenance.marketplacePublication.hostOnlyIds.pop();
+    if (marker === 'tampered-list') provenance.marketplacePublication.publicEntryIds.pop();
   }
   if (profile) {
     provenance.emittedStableIds = [ids[0]];
@@ -150,7 +150,7 @@ test('native marketplace publication provenance rejects a tampered selection dig
   }
 });
 
-test('native marketplace publication provenance rejects a tampered host-only ID list', () => {
+test('native marketplace publication provenance rejects a tampered public ID list', () => {
   const paths = nativePublicationFixture({ marker: 'tampered-list' });
   try {
     const surfaces = discoverNativeFixture(paths);

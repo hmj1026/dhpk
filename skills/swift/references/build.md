@@ -24,7 +24,6 @@ Load references on demand:
 
 | Key | Default | Used by |
 |-----|---------|---------|
-| `swiftlint_bin` | `swiftlint` | post-edit hook (path/wrapper to SwiftLint) |
 | `xcode_scheme` | `""` (auto-detect / skip test gate) | pre-commit hook |
 | `xcode_destination` | `""` (test step auto-picks first available simulator; build always uses generic) | pre-commit hook |
 | `swift_build_skip_tests` | `false` | pre-commit hook (build only, no tests) |

@@ -6,6 +6,7 @@ const { execFileSync } = require('node:child_process');
 const { sha256Hex } = require('./content-fingerprint');
 const { assertCleanSourceCheckout } = require('./platform-provenance');
 const { compileMarketplacePublicationView } = require('./marketplace-selection');
+const { readSourceVersion, renderOpenaiSubmissionManifest } = require('./host-manifests');
 
 const RECEIPT_SCHEMA = 'dhpk.openai-submission-artifact.v1';
 const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
@@ -130,7 +131,7 @@ function publish(output, bytes, receipt, selectedSkillNames, previousDigest) {
 
 function executeOpenaiSubmission(request, sourceRoot) {
   const root = physicalPath(sourceRoot);
-  const output = physicalPath(path.resolve(root, request.options.output || 'generated/openai-submission'));
+  const output = physicalPath(path.resolve(root, request.options.output || 'dist/openai-submission'));
   if (output === root || root.startsWith(`${output}${path.sep}`)
     || output === path.join(root, 'skills') || output.startsWith(`${path.join(root, 'skills')}${path.sep}`)
     || output === path.join(root, 'manifests') || output.startsWith(`${path.join(root, 'manifests')}${path.sep}`)) {
@@ -145,7 +146,12 @@ function executeOpenaiSubmission(request, sourceRoot) {
   if (request.operation === 'generate') {
     assertCleanSourceCheckout(root);
     const previousDigest = fs.existsSync(output) ? readArtifact(output, selectedSkillNames).receipt.archiveDigest : null;
-    const manifest = readJson(physicalPath(path.resolve(root, request.options.manifest)), 64 * 1024);
+    const version = request.options.version || readSourceVersion(root);
+    // Default: render the manifest from the listing metadata source and package.json.
+    // An explicit --manifest is still validated against the same version.
+    const manifest = request.options.manifest
+      ? readJson(physicalPath(path.resolve(root, request.options.manifest)), 64 * 1024)
+      : renderOpenaiSubmissionManifest(root, version);
     const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
     const sourceTree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: root, encoding: 'utf8' }).trim();
     const objectFormat = execFileSync('git', ['rev-parse', '--show-object-format'], { cwd: root, encoding: 'utf8' }).trim();
@@ -157,7 +163,6 @@ function executeOpenaiSubmission(request, sourceRoot) {
       const metadata = entry.slice(0, separator).split(' ');
       return [entry.slice(separator + 1), { blobDigest: metadata[2], mode: metadata[0] }];
     }));
-    const version = request.options.version || readJson(path.join(root, '.claude-plugin/plugin.json')).version;
     const { compileOpenaiSubmissionPackage } = require('./openai-submission-package');
     const { encodeOpenaiSubmissionZip, validateOpenaiSubmissionBytes } = require('./openai-submission-zip');
     const compiled = compileOpenaiSubmissionPackage({

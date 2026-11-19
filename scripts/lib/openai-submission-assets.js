@@ -432,15 +432,12 @@ function resolveAssetPath(field, value) {
   if (typeof value !== 'string' || value.length === 0) {
     return { error: error(field, 'must be a non-empty relative SVG path') };
   }
-  if (!value.startsWith('./skills/') || value.includes('\\') || /[\u0000-\u0020\u007f?#%:]/u.test(value)) {
-    return { error: error(field, 'must use a canonical contained ./skills/<owner>/... SVG path') };
+  if (!value.startsWith('./assets/') || value.includes('\\') || /[\u0000-\u0020\u007f?#%:]/u.test(value)) {
+    return { error: error(field, 'must use a canonical contained ./assets/... SVG path') };
   }
   const segments = value.slice(2).split('/');
-  if (segments.length < 3 || segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-    return { error: error(field, 'must resolve to an asset owned by a packaged skill') };
-  }
-  if (!/^skills\/[^/]+\//.test(value.slice(2))) {
-    return { error: error(field, 'must resolve to an asset owned by a packaged skill') };
+  if (segments.length < 2 || segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    return { error: error(field, 'must resolve to an asset under ./assets/') };
   }
   if (!/\.svg$/i.test(value)) {
     return { error: error(field, 'must reference an SVG asset for the current submission profile') };

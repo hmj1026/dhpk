@@ -347,7 +347,7 @@ use these primary entry points:
 - `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>` on Claude when explicitly invoked; `--help` is read-only.
 - `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>` for read-only review variants.
 - `/dhpk:precommit` with `--fast` where applicable.
-- `/dhpk:setup --install hooks|rules|scripts|all` for configuration and assets.
+- `/dhpk:harness-setup --install hooks|rules|scripts|all` for configuration and assets.
 
 No discovery or compatibility alias is published for the five `0.47.0`
 retirements or the nine `0.52.0` Codex MCP capability retirements above. Any
@@ -369,7 +369,7 @@ to the user scope, and `-y`/`--yes` is required when the update runs without a
 TTY (for example in CI).
 
 Start a fresh Claude session or run `/reload-plugins`. Confirm that
-`/dhpk:setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:change-verdict` resolve. Project-local
+`/dhpk:harness-setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:change-verdict` resolve. Project-local
 copies of old dhpk skills are not updated by the marketplace; remove them only
 after confirming they are redundant and version controlled or otherwise
 recoverable.

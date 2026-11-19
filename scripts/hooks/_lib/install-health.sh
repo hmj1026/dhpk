@@ -323,8 +323,8 @@ dhpk_version_message() {
     ranges="$(dhpk__pin_ranges "$root")"
     if [ -f "$root/.claude/dhpk-versions.json" ]; then
         # A policy exists. Only an already-blessed version may be recommended.
-        if printf '%s\n' "$ranges" | dhpk__version_covered "$installed"; then
-            if printf '%s\n' "$ranges" | dhpk__version_covered "$available"; then
+        if dhpk__version_covered "$installed" < <(printf '%s\n' "$ranges"); then
+            if dhpk__version_covered "$available" < <(printf '%s\n' "$ranges"); then
                 printf 'dhpk %s installed; %s available and covered by this project'"'"'s verified ranges (marketplace last fetched %s). Run `%s` — a hook cannot run it, and it only takes effect in a fresh session. To inspect effective setup, use `$harness-setup --show`.' \
                     "$installed" "$available" "$phrase" "$update_cmd"
             else

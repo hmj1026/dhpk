@@ -200,7 +200,7 @@ function main(argv = process.argv.slice(2)) {
   const outputName = standalone
     ? `standalone-${args.standaloneSkillIds.join('-')}`
     : 'common';
-  const outputRoot = path.resolve(args.out || path.join(ROOT, 'generated', 'claude-profiles', outputName));
+  const outputRoot = path.resolve(args.out || path.join(ROOT, 'dist', 'claude-profiles', outputName));
   const selectionArgs = standalone
     ? args.standaloneSkillIds.map((id) => `--standalone ${id}`)
     : args.skillIds.map((id) => `--skill ${id}`);

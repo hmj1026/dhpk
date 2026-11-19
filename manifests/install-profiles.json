@@ -22,23 +22,10 @@
         "repo-verify",
         "ui-ux-verify"
       ],
-      "commandIds": [
-        "create-pr",
-        "create-release",
-        "deep-analyze",
-        "flow-drive",
-        "flow-guide",
-        "git-worktree",
-        "precommit",
-        "smart-commit",
-        "ui-ux-verify",
-        "update-docs",
-        "verify"
-      ],
       "compatibilityMode": "profile"
     },
     "codex-native": {
-      "description": "Formal selection identity for the Codex native package's 16 published skills; this is package-specific and does not change the common installation default.",
+      "description": "Formal selection identity for the Codex native package, which is the Public Plugin tree: its skill set is exactly the 14 public catalog entries; this is package-specific and does not change the common installation default.",
       "modules": [],
       "skillIds": [
         "change-verdict",
@@ -49,8 +36,6 @@
         "flow-guide",
         "git-smart-commit",
         "git-worktree",
-        "library-author",
-        "opsx-apply-resume",
         "precommit",
         "proposal-analyze",
         "release-creator",

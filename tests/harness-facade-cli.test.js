@@ -13,7 +13,7 @@ const receipts = require('../scripts/lib/harness-receipt');
 const harness = require('../scripts/lib/harness');
 
 const ROOT = path.join(__dirname, '..');
-const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
+const { NODE_BASH_ONLY_PATH } = require('./_lib/node-only-path');
 const DEFAULT_INVOKE_TIMEOUT_MS = 30_000;
 
 // Simulated developer machine: an ambient `cursor-agent` is first on the
@@ -124,8 +124,8 @@ function temporaryProbeFixture(payload, platform = 'cursor') {
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
   const packageRoot = platform === 'agent'
-    ? path.join(root, 'plugins', 'dhpk-agent')
-    : path.join(root, 'plugins', 'dhpk-cursor', '.cursor-plugin');
+    ? path.join(root, 'dist', 'on-demand', 'dhpk-agent')
+    : path.join(root, 'dist', 'on-demand', 'dhpk-cursor', '.cursor-plugin');
   fs.mkdirSync(packageRoot, { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts', 'release'), { recursive: true });
   fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), '{}\n');
@@ -1195,7 +1195,7 @@ test('probe facade preserves BLOCKED status for a missing package producer resul
   const root = temporaryProbeFixture({ status: 'PASS' });
   const receiptRoot = temporaryReceiptRoot();
   try {
-    fs.rmSync(path.join(root, 'plugins', 'dhpk-cursor'), { recursive: true, force: true });
+    fs.rmSync(path.join(root, 'dist', 'on-demand', 'dhpk-cursor'), { recursive: true, force: true });
     const result = invokeAt(root, [
       'probe',
       '--surface',

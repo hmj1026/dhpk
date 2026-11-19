@@ -40,6 +40,10 @@ openspec/.*
 openspec/specs/.*/
 openspec/specs/**/.*/
 
+# On-demand host packages (`bin/dhpk distribution build <surface>`) and their archives.
+# Committed Published Packages stay under dist/claude-marketplace/ and plugins/dhpk/.
+/dist/on-demand/
+
 # Test coverage & runner reports
 /.dhpk-test-scratch-*/
 coverage/

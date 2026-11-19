@@ -104,13 +104,12 @@ claude plugin install dhpk@dhpk
 /plugin install dhpk@dhpk
 ```
 
-可用 `--config` 旗標預先設定 config（也可以安裝後透過 `/dhpk:setup` 互動回答）：
+可用 `--config` 旗標預先設定 config（也可以安裝後透過 `/dhpk:harness-setup` 互動回答）：
 完整旋鈕請看 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)。
 
 ```bash
 claude plugin install dhpk@dhpk \
   --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-  --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 
@@ -122,8 +121,8 @@ claude plugin install dhpk@dhpk \
 安裝後可隨時重新設定：
 
 ```text
-/dhpk:setup           # 重新回答相同問題
-/dhpk:setup --show    # 顯示目前有效設定
+/dhpk:harness-setup           # 重新回答相同問題
+/dhpk:harness-setup --show    # 顯示目前有效設定
 ```
 
 ### Path B — Local clone + interactive installer
@@ -150,7 +149,7 @@ node scripts/ci/validate-skills.js --strict
 ```
 
 這些指令只驗證 repository source，不代表 official consumer。Claude marketplace 指向
-`generated/claude-marketplace/package` 這個實體 package；它在進入 marketplace cache 前排除
+`dist/claude-marketplace/package` 這個實體 package；它在進入 marketplace cache 前排除
 development-only 的 root `CLAUDE.md`。請用以下指令確認生成物沒有 drift：
 
 ```bash
@@ -220,7 +219,7 @@ containment 或 modified-file safety。`--uninstall` 只移除 receipt-owned 且
 | `marketplace add` 說找不到 path | Path B 忽略了 `git clone` | 先執行 `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk`，或改用不需 clone 的 Path A |
 | `claude plugin install dhpk@dhpk` 說找不到 marketplace | `marketplace add` 未執行或已移除 | 重做所選 path 的 `marketplace add` |
 | 安裝後沒有 `/dhpk:*` 或 hooks | session 在安裝完成前已載入 skill list | Claude Code 內執行 `/reload-plugins` 或重啟 session |
-| `claude plugin list` 有 dhpk 但沒有 `/dhpk:setup` | plugin 已安裝但 disabled | `claude plugin enable dhpk@dhpk`（或 `/plugin enable dhpk@dhpk`） |
+| `claude plugin list` 有 dhpk 但沒有 `/dhpk:harness-setup` | plugin 已安裝但 disabled | `claude plugin enable dhpk@dhpk`（或 `/plugin enable dhpk@dhpk`） |
 | `install.sh` 顯示找不到 `gum`／`jq` | 可選 UI dependency 缺少 | script 會 fallback 到 plain shell／`python3`；需要較好介面時再安裝 `gum`、`jq` |
 | skill description 在 `/doctor` 被截斷或消失 | modules 太多造成 skill-listing budget overflow（module skill 不論 `modules` 都會列出，[#12](https://github.com/hmj1026/dhpk/issues/12)） | 提高 `settings.json` 的 `skillListingBudgetFraction`（約 1% 可改 `0.02`–`0.03`），或減少 modules |
 | version advisory 要更新 `.claude/dhpk-versions.json`，但它是 symlink | Write tool 不接受 symlink target | 執行 `realpath .claude/dhpk-versions.json`，把驗證後 entry 寫入 real path；`scripts/version-diff.sh` 也會印出安全指示 |
@@ -325,7 +324,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 
 - **操作**：
   - 安裝、啟用或設定不明時，使用 `/dhpk:flow-guide help`（Codex: `$flow-guide help`）查閱可用入口。
-  - 需要檢查模組設定時，在支援的 Host 使用 `/dhpk:setup --show`；一般工作重用已確認的環境。
+  - 需要檢查模組設定時，在支援的 Host 使用 `/dhpk:harness-setup --show`；一般工作重用已確認的環境。
 - **完成標準**：確認環境 active modules 與當前專案需求相符，無需額外調整配置。
 
 #### 步驟二：任務諮詢、探索與路由
@@ -381,7 +380,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
     /dhpk:precommit --fast --dry-run                  # 預覽選定的指令
     /dhpk:precommit --fast                            # 略過 build；選定測試仍可能是全套
     /dhpk:precommit                                   # 完整管線（lint:fix -> build -> test:unit）
-    /dhpk:verify                                      # 專案跨層完整驗證（含整合與 E2E）
+    /dhpk:repo-verify                                      # 專案跨層完整驗證（含整合與 E2E）
     ```
     依專案與變更範圍選擇必要檢查。會改檔的檢查影響驗證或審查證據時，套用 kernel 的
     [Evidence snapshots](../rules/execution-policy-kernel.md#evidence-snapshots) 規則。
@@ -396,8 +395,8 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 - **操作**：
   - **智慧分組提交**：已授權 commit 工作時，按凝聚度（Cohesion）分組，產生符合專案風格的訊息與 Git 指令：
     ```text
-    /dhpk:smart-commit
-    /dhpk:smart-commit --scope resources/assets/js --type refactor
+    /dhpk:git-smart-commit
+    /dhpk:git-smart-commit --scope resources/assets/js --type refactor
     ```
   - **建立 Pull Request**：自動提取 Ticket 編號並組裝 PR 摘要：
     ```text
@@ -406,7 +405,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
     ```
   - **發布與部署清單**：只在另行要求 release 或部署結果時使用：
     ```text
-    /dhpk:create-release                              # 升版、更新 Changelog 與 Tag
+    /dhpk:release-creator                              # 升版、更新 Changelog 與 Tag
     deploy-list --tag="[RELEASE-1.0.0]" --description="上線摘要" --lang=zh-TW
     ```
 - **完成標準**：依 Project Convention 產出要求的交接結果，並交代必要檢查。Commit、PR、merge、release 與 deployment 保持分開的狀態。
@@ -610,10 +609,10 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
   /dhpk:precommit
   ```
 
-#### 8. repo-verify / /dhpk:verify（專案完整驗證）
+#### 8. repo-verify / /dhpk:repo-verify（專案完整驗證）
 
 - **定位**：唯讀執行專案各層級的完整驗證（Lint、型別、單元測試、整合測試、E2E）。
-- **呼叫語法**：`/dhpk:verify [<mode>] [--integration=<path>] [--e2e=<path>]`（Codex: `$repo-verify ...`）
+- **呼叫語法**：`/dhpk:repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]`（Codex: `$repo-verify ...`）
 - **參數說明**：
 
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
@@ -625,19 +624,19 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
 - **實戰範例**：
   ```text
   # 執行全庫完整驗證
-  /dhpk:verify
+  /dhpk:repo-verify
 
   # 僅執行快速驗證
-  /dhpk:verify fast
+  /dhpk:repo-verify fast
 
   # 執行完整驗證並指定自訂測試目錄
-  /dhpk:verify full --integration=tests/Integration --e2e=tests/E2E
+  /dhpk:repo-verify full --integration=tests/Integration --e2e=tests/E2E
   ```
 
-#### 9. smart-commit（智慧分組原子提交）
+#### 9. git-smart-commit（智慧分組原子提交）
 
 - **定位**：分析未提交檔案，按凝聚度（Cohesion）智慧分組，依 Conventional Commits 風格生成 Commit 訊息，輸出可複製執行的 Git 指令。
-- **呼叫語法**：`/dhpk:smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
+- **呼叫語法**：`/dhpk:git-smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
 - **參數說明**：
 
   | 參數 | 類型 | 說明 |
@@ -649,13 +648,13 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
 - **實戰範例**：
   ```text
   # 智慧分析所有變更並分組提交
-  /dhpk:smart-commit
+  /dhpk:git-smart-commit
 
   # 僅提交前端相關目錄，並強制標註為 refactor
-  /dhpk:smart-commit --scope resources/assets/js --type refactor
+  /dhpk:git-smart-commit --scope resources/assets/js --type refactor
 
   # 提交並加入 AI 協作者標記
-  /dhpk:smart-commit --ai-co-author
+  /dhpk:git-smart-commit --ai-co-author
   ```
 
 #### 10. create-pr（建立 Pull Request）
@@ -819,7 +818,7 @@ native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--
 若 query 缺少或不受支援，結果回報 `providerCheck: UNAVAILABLE`，sync 可繼續；installer
 不會自動移除 global plugin。不要刪除整個 `.codex/` 目錄。
 
-細節請看 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
+細節請看 `plugins/dhpk/README.md`。
 
 ## 遷移現有專案
 

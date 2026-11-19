@@ -4,7 +4,7 @@
 
 Claude Code **does not** load anything under this `codex/` directory. The content here mirrors the plugin's Claude-side skills and agents in Codex CLI format, so projects using both Claude Code and the Codex CLI can keep their assistant configurations in sync without maintaining a separate repo.
 
-For the complete Supported project-local, legacy/native, and standard Agent
+For the complete Supported project-local, native Public Plugin, and standard Agent
 Plugin routes, see the [platform installation SSOT](../docs/platform-installation.md).
 
 > **Layout note**: every entry under `codex/skills/` is an in-repo relative
@@ -77,7 +77,7 @@ callable `/dhpk:do`.
 
 `codex/agents/` ships 20 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 16 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`, `qa-executor`, `ui-verifier`, `docs-writer`, `scoped-worker`, `quick-worker`). See `guidance.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
 
-Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` for Codex's documented project-local discovery path. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the static metadata contract.
+Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model_reasoning_effort`, and `developer_instructions` for Codex's documented project-local discovery path. No agent file sets `model`: every dhpk agent runs on the default model you configure for Codex (top-level `model` or `[agents]` defaults in your own `config.toml`), and the `validate_codex` gate rejects a `model` key. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the static metadata contract.
 
 Static validation and a current receipt do not prove callability. Start a fresh
 Codex session and dispatch a non-built-in custom role; built-in `explorer`

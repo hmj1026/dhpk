@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dhpk",
+  "displayName": "DHPK Dev Harness",
+  "version": "0.78.0",
+  "description": "Reusable Claude Code harness with role-based agents, skills, hooks, and advisory reviewer dispatch, plus a parallel Codex CLI projection. Stack modules and stack skills ship separately in dhpk-stacks.",
+  "author": {
+    "name": "hmj1026",
+    "url": "https://github.com/hmj1026"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/hmj1026/dhpk",
+  "repository": "https://github.com/hmj1026/dhpk",
+  "icon": "./.claude-plugin/icon.png",
+  "bugs": "https://github.com/hmj1026/dhpk/issues",
+  "keywords": [
+    "harness",
+    "codex",
+    "code-review",
+    "agents",
+    "skills"
+  ],
+  "agents": [
+    "./agents/agy-worker.md",
+    "./agents/architect.md",
+    "./agents/code-reviewer.md",
+    "./agents/codex-reasoner.md",
+    "./agents/codex-reviewer.md",
+    "./agents/codex-worker.md",
+    "./agents/database-reviewer.md",
+    "./agents/deep-reasoner.md",
+    "./agents/doc-reviewer.md",
+    "./agents/doc-updater.md",
+    "./agents/docs-lookup.md",
+    "./agents/docs-writer.md",
+    "./agents/e2e-runner.md",
+    "./agents/fast-worker.md",
+    "./agents/frontend-reviewer.md",
+    "./agents/harness-reviser.md",
+    "./agents/migration-reviewer.md",
+    "./agents/performance-analyzer.md",
+    "./agents/planner.md",
+    "./agents/python-build-resolver.md",
+    "./agents/qa-executor.md",
+    "./agents/quick-worker.md",
+    "./agents/refactor-cleaner.md",
+    "./agents/rust-build-resolver.md",
+    "./agents/security-reviewer.md",
+    "./agents/silent-failure-hunter.md",
+    "./agents/smoke-tester.md",
+    "./agents/swift-build-resolver.md",
+    "./agents/tdd-guide.md",
+    "./agents/type-design-analyzer.md",
+    "./agents/ui-ux-verifier.md",
+    "./agents/version-matrix-impact-reviewer.md"
+  ],
+  "userConfig": {
+    "credential_read_paths": {
+      "type": "string",
+      "title": "Additional credential read paths",
+      "description": "JSON array of declarative path patterns added to the default credential read protection. Project settings may also use a native array. Invalid policies block the Bash gate.",
+      "default": "[]"
+    },
+    "hook_profile": {
+      "type": "string",
+      "title": "Hook profile",
+      "description": "Verbosity of hook output: minimal | standard | strict",
+      "default": "standard"
+    },
+    "review_agents": {
+      "type": "string",
+      "multiple": true,
+      "title": "Review agent names",
+      "description": "Seven reviewer agents recommended after relevant edits (roles: code, database, security, frontend, doc, polyfill, migration). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining roles.",
+      "default": [
+        "code-reviewer",
+        "database-reviewer",
+        "security-reviewer",
+        "frontend-reviewer",
+        "doc-reviewer",
+        "polyfill-reviewer",
+        "migration-reviewer"
+      ]
+    },
+    "orchestration_dispatch": {
+      "type": "string",
+      "title": "Implementation dispatch switch",
+      "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch for implementation worker/reasoner routing, restoring inline implementation and removing the opsx-apply-goal directive line; the mandatory multi-task OpenSpec planner and verification gates remain active.",
+      "default": "on"
+    },
+    "cross_provider": {
+      "type": "boolean",
+      "title": "Cross-provider automatic dispatch",
+      "description": "Opt in to external provider candidates for automatic fast-worker selection. Default false keeps auto native-only; explicit --worker=<target> remains directional and does not enable other providers.",
+      "default": false
+    },
+    "worker_target": {
+      "type": "string",
+      "title": "Provider-neutral worker target",
+      "description": "Optional worker dispatch target using agent/model[:effort]. 'auto' uses the current Host-native target and configured preference order; legacy backend and model keys remain compatibility inputs. Invalid values fail closed.",
+      "default": "auto"
+    },
+    "reasoner_target": {
+      "type": "string",
+      "title": "Provider-neutral reasoner target",
+      "description": "Optional reasoner dispatch target using agent/model[:effort]. 'auto' uses the current Host-native target; the target does not grant write authority. Invalid values fail closed.",
+      "default": "auto"
+    },
+    "planner_target": {
+      "type": "string",
+      "title": "Provider-neutral planner target",
+      "description": "Optional planner dispatch target using agent/model[:effort]. 'auto' uses the current Host-native target; planner authority remains read-only. Invalid values fail closed.",
+      "default": "auto"
+    },
+    "reviewer_target": {
+      "type": "string",
+      "title": "Provider-neutral reviewer target",
+      "description": "Public reviewer dispatch target using agent/model[:effort]. Distinct from the legacy reviewer_model compatibility input. 'auto' uses the current Host-native target; reviewer authority remains read-only. Invalid values fail closed.",
+      "default": "auto"
+    },
+    "preference_order": {
+      "type": "string",
+      "multiple": true,
+      "title": "Provider-neutral preference order",
+      "description": "Ordered Provider or Provider/Model candidates for automatic dispatch. External candidates are eligible only when the Host policy and explicit cross-provider opt-in permit them.",
+      "default": []
+    },
+    "fallback_allow": {
+      "type": "boolean",
+      "title": "Allow pre-side-effect fallback",
+      "description": "Allow the Dispatch Engine to use the current Host-native target after confirmed availability failure before side effects; safety, semantic, timeout, and post-write failures never silently switch Providers.",
+      "default": true
+    },
+    "codex_timeout_secs": {
+      "type": "string",
+      "title": "Codex shared timeout (seconds)",
+      "description": "Shared wrapper backstop for codex-fast-worker, codex-deep-reasoner, and codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables the wrapper backstop. Precedence is project role-specific > project shared > global role-specific > global shared > this shipped default. Invalid values fail closed before dispatch. This does not control Claude's external tool wait. Default '360'.",
+      "default": "360"
+    },
+    "codex_worker_timeout_secs": {
+      "type": "string",
+      "title": "codex-worker timeout (seconds)",
+      "description": "Canonical timeout key for codex-worker; it takes precedence over the one-release codex_fast_worker_timeout_secs alias.",
+      "default": "360"
+    },
+    "codex_reasoner_timeout_secs": {
+      "type": "string",
+      "title": "codex-reasoner timeout (seconds)",
+      "description": "Canonical timeout key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_timeout_secs alias.",
+      "default": "360"
+    },
+    "codex_reviewer_timeout_secs": {
+      "type": "string",
+      "title": "codex-reviewer timeout (seconds)",
+      "description": "Canonical timeout key for codex-reviewer; it takes precedence over the one-release codex_bridge_timeout_secs alias.",
+      "default": "360"
+    },
+    "review_trigger_extra_paths": {
+      "type": "string",
+      "multiple": true,
+      "title": "Extra review trigger paths",
+      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc|mig. Example: 'code:protected/', 'fe:resources/views/', 'mig:db/migrate/'",
+      "default": []
+    },
+    "branch_safety": {
+      "type": "string",
+      "title": "Protected branch safety mode",
+      "description": "Behaviour when a history-mutating git verb (commit/merge/rebase/cherry-pick/reset/push) runs on a protected branch: warn | block | off. Default 'warn'. Env DHPK_BRANCH_SAFETY overrides for one-shot toggles.",
+      "default": "warn"
+    },
+    "protected_branches": {
+      "type": "string",
+      "multiple": true,
+      "title": "Protected branch names / globs",
+      "description": "Branches treated as protected by the branch_safety gate. Glob syntax supported via bash case-match (e.g. 'release/*'). Default: main, master, develop, release/*, hotfix/*. Set to empty list to disable per-branch gating without setting branch_safety=off.",
+      "default": [
+        "main",
+        "master",
+        "develop",
+        "release/*",
+        "hotfix/*"
+      ]
+    }
+  }
+}

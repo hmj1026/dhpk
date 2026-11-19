@@ -85,7 +85,7 @@ note: <user-visible change>
 
 在乾淨的 `develop` 上執行 preparation script。它會更新所有版本 SSOT、產生
 changelog，並重新產生 `prepare-release.js paths` 列出的 `dir` package
-（`plugins/dhpk*/` 與 `generated/claude-marketplace/package/`）：
+（`plugins/dhpk/`、`dist/claude-marketplace/package/` 與 `dist/claude-marketplace/stacks-package/`）：
 
 ```bash
 node scripts/release/prepare-release.js write \
@@ -102,7 +102,7 @@ node scripts/release/prepare-release.js paths
 每一行是下列三種之一：
 
 - `file <path>`：逐欄修改的 manifest、`CHANGELOG.md` heading、帶版本 pin 的安裝文件
-- `dir <prefix>`：整包重新產生的 `plugins/dhpk*/` 與 `generated/claude-marketplace/package/`
+- `dir <prefix>`：整包重新產生的 `plugins/dhpk/`、`dist/claude-marketplace/package/` 與 `dist/claude-marketplace/stacks-package/`
 - `deleted changelog.d/`：已編入 CHANGELOG 的 fragment
 
 一次標準 bump 大約改動二十多個檔案。所有 manifest 必須是同一個 SemVer 版本，tag 格式固定為

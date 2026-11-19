@@ -1,4 +1,4 @@
-# plugins/dhpk — Codex Native Marketplace Publication Package
+# plugins/dhpk — Public Plugin (Codex Native Marketplace Package)
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
@@ -8,8 +8,10 @@ points at. Codex does not discover plugins whose local marketplace
 must target a concrete plugin subdirectory (see
 [openai/codex#26037](https://github.com/openai/codex/issues/26037)).
 
-This is the retained Experimental legacy/native surface. The separate standard
-Agent Plugin and Cursor routes are documented in the [platform installation
+This is the Public Plugin: the skills-only, hook-free package published to the
+OpenAI directory and installed through the Experimental Codex native route. The
+standard Agent Plugin and Cursor packages are built on demand and attached to
+each GitHub Release; see the [platform installation
 SSOT](../../docs/platform-installation.md).
 
 ## Tracked, physical publication artifact
@@ -28,10 +30,7 @@ concrete failure mode behind
 [`docs/distribution-surfaces.md`](../../docs/distribution-surfaces.md)).
 
 `.codex-plugin/plugin.json`'s `skills` field is `./skills/`, resolving to
-this same tracked tree. The root `.codex-plugin/plugin.json` resolves to the
-identical physical directory via the in-root-relative
-`./plugins/dhpk/skills/` — both manifests point at one tracked package, never
-a second copy.
+this same tracked tree.
 
 | File | Purpose |
 |---|---|
@@ -43,9 +42,8 @@ Regenerating this directory and committing the result is part of the release
 PR (`scripts/release/prepare-release.js write`); CI validates it
 (`scripts/ci/verify-codex-native-package.js`) but does not auto-commit it.
 
-Keep `name` and `version` in sync across `.claude-plugin/plugin.json`,
-`.codex-plugin/plugin.json`, this folder's `.codex-plugin/plugin.json`,
-`provenance.json`, and `.agents/plugins/marketplace.json` —
+`package.json` is the single version source. `name` and `version` in this
+folder's `.codex-plugin/plugin.json` and `provenance.json` are generated from it, and
 `tests/codex-native-package-validate.test.js` and `scripts/lib/release-parity.js`
 enforce this.
 

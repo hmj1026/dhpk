@@ -140,6 +140,10 @@ jobs:
         run: node scripts/ci/sync-skill-resources.js --check
       - name: Validate source references
         run: node scripts/ci/validate-references.js
+      - name: Install pinned Claude CLI for package verification
+        if: needs.plan.outputs.mode != 'light' || needs.plan.outputs.surfaces != '[]'
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
+
       - name: Validate retained distribution packages
         if: needs.plan.outputs.mode != 'light' || needs.plan.outputs.surfaces != '[]'
         env:
@@ -170,11 +174,11 @@ jobs:
       - name: Validate Cursor project-local sync
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-cursor-sync.js
+      - name: Installer modules check
+        run: node scripts/ci/check-installer-modules.js --check
       - name: No-drift Claude manifest check
-        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-manifest.js --check
       - name: No-drift Claude marketplace package check
-        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-marketplace-package.js --check
       - name: Validate invocation policy
         if: needs.plan.outputs.mode == 'full'
@@ -182,9 +186,7 @@ jobs:
 
       # Count SSOT: README / manifest exact claims must match reality.
       - name: Catalog count check
-        env:
-          SUITE_ADMISSION_DIFF_BASE: ${{ github.event.pull_request.base.sha }}
-        run: node scripts/ci/catalog.js --check all --diff-base "$SUITE_ADMISSION_DIFF_BASE"
+        run: node scripts/ci/catalog.js --check all
 
       # Release-note fragment schema (always) + PR coverage (base ref must exist locally).
       - name: Validate changelog fragments
@@ -219,6 +221,10 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-dhpk-test-env
+
+      # tests/verify-platform-packages.test.js runs `claude plugin validate`.
+      - name: Install pinned Claude CLI for package verification
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
 
       - name: Download complete CI plan
         id: ci-plan
@@ -415,6 +421,9 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-dhpk-test-env
+
+      - name: Install pinned Claude CLI for package verification
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
 
       - name: Rehearse release verification (dry-run)
         run: bash scripts/release/release-verify.sh --mode dry-run --out-dir "$RUNNER_TEMP"

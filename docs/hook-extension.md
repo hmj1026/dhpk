@@ -176,10 +176,16 @@ not prove actual Claude parent or subagent activation.
 
 ## Bash outer ceiling
 
-The Bash `PreToolUse` command declares `timeout: 2100` and `onFailure: "block"`.
+The Bash `PreToolUse` command declares `timeout: 1800` and `onFailure: "block"`.
 Claude Code 2.1.295 and newer can block the triggering command when that hook
 times out or cannot run. Older versions are not claimed to fail closed the same
-way. This declaration is not a measured 2100-second wait.
+way. This declaration is not a measured 1800-second wait.
+
+The value was lowered from 2100 to 1800 seconds (#1501) so that a hung gate
+freezes the Bash tool for 30 minutes instead of 35. 1800 is the smallest round
+value that still covers the 1732-second supported envelope below with margin;
+a lower value would interrupt a legitimate four-stack commit gate. Lower it
+further only together with that envelope.
 
 The `Edit|Write|MultiEdit` guard also declares `onFailure: "block"`, with
 `timeout: 5`. Claude Code 2.1.295 and newer fail-close that guard: a failed or
@@ -190,7 +196,7 @@ The supported default envelope is one commit root each for JS, Python, Swift,
 and PHP, one Python project group on that root, and Swift build/test settings
 no higher than 360/480 seconds. Inner deadlines plus one second of grace are
 JS 212, Python 255, Swift 842, and PHP 423, totaling 1732 seconds. The
-remaining 368 seconds are for preparation and cleanup. Steps with no inner
+remaining 68 seconds are for preparation and cleanup. Steps with no inner
 deadline are outside that sum. Extra roots, extra groups, a larger Swift
 override, or any run that reaches the ceiling can be interrupted. An
 interrupted or unfinished check is not PASS, and the triggering Bash command
@@ -212,15 +218,39 @@ health checks, Docker probes, completion or graduation scans, SessionEnd and
 compaction work, learning observation, post-edit formatting/linting, and Stop
 reminders.
 
-The userConfig keys read only by these optional scripts (for example
+These optional scripts have no `plugin.json` userConfig options, so the Claude
+Code configuration UI does not offer them. Their switches (for example
 `agent_warmstart_enabled`, `completion_evidence_enabled`,
-`graduation_scan_enabled`, `skill_hint_enabled`) therefore do nothing until the
-matching hook is registered; their descriptions in `plugin.json` start with
-"Requires explicit consumer hook registration".
+`graduation_scan_enabled`, `skill_hint_enabled`) are read only from the
+project overlay or the `DHPK_*` env overrides once the matching hook is
+registered.
+
+### Removed userConfig keys
+
+These keys are no longer `plugin.json` userConfig options. The hook scripts below
+still read them as an env fallback, so a consumer that registers the hook
+manually sets the env var itself.
+
+| Former key | Env var the consumer sets | Reader |
+|------------|---------------------------|--------|
+| `subagent_quality_gate` | `CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE` (via `dhpk_config_get`) | `scripts/hooks/subagent-stop-quality.sh` |
+| `docker_containers` | `CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS` (comma-separated) | `scripts/statusline/statusline.sh` |
+| `swiftlint_bin` | `CLAUDE_PLUGIN_OPTION_SWIFTLINT_BIN` | `modules/xcode-tooling/hooks/post-edit-swiftlint.sh` |
+| `reap_stale_mcp_processes` | `CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES=true` | `scripts/hooks/session-end.sh` |
+| `skill_hint_enabled` | `CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED` (via `dhpk_config_bool`; `DHPK_DISABLE_SKILL_HINT=1` also disables) | `scripts/hooks/userpromptsubmit-skill-hint.sh` |
+| `learning_db_enabled` | `CLAUDE_PLUGIN_OPTION_LEARNING_DB_ENABLED` or `DHPK_LEARNING_DB=1` (via `dhpk_config_bool`) | `scripts/hooks/_lib/learning-db.sh` |
+| `graduation_scan_enabled` | `CLAUDE_PLUGIN_OPTION_GRADUATION_SCAN_ENABLED` or `DHPK_GRADUATION_SCAN=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `completion_evidence_enabled` | `CLAUDE_PLUGIN_OPTION_COMPLETION_EVIDENCE_ENABLED` or `DHPK_COMPLETION_EVIDENCE=1` (via `dhpk_config_bool`) | `scripts/hooks/stop-advisory-dispatch.sh` |
+| `agent_warmstart_enabled` | `CLAUDE_PLUGIN_OPTION_AGENT_WARMSTART_ENABLED` or `DHPK_AGENT_WARMSTART=1` (via `dhpk_config_bool`) | `scripts/hooks/pre-agent-warmstart.sh` |
+| `lockfile_sync_commands` | `CLAUDE_PLUGIN_OPTION_LOCKFILE_SYNC_COMMANDS` (comma-separated `<manifest>:<command>`) | `scripts/hooks/post-edit-advisory.sh` |
+| `php_bin` | `CLAUDE_PLUGIN_OPTION_PHP_BIN` | `modules/php-5.6/hooks/post-edit-php-syntax.sh` |
+| `harness_restore_hint` | none (no shipped script reads it) | none |
+| `sentinel_commit_gate` | none (retired; `DHPK_SENTINEL_COMMIT_GATE` is not read) | none |
+| `hot_tables` | none (prose-only; declare hot tables in CLAUDE.md) | none |
 
 ### Registration example
 
-`/dhpk:setup --install hooks` (installer `scripts/setup/install-assets.sh`)
+`/dhpk:harness-setup --install hooks` (installer `scripts/setup/install-assets.sh`)
 copies `scripts/hooks/` including `_lib/` to
 `<project>/.claude/dhpk/scripts/hooks/` (and `hooks/hooks.json` to
 `<project>/.claude/dhpk/hooks/`). Register the copied scripts in the consumer
@@ -256,11 +286,11 @@ project's `.claude/settings.json` (or `settings.local.json`):
 }
 ```
 
-Then enable the behavior through `pluginConfigs."dhpk@dhpk".options`
+Then enable the behavior through the project overlay `pluginConfigs."dhpk@dhpk".options`
 (`agent_warmstart_enabled`, `completion_evidence_enabled`,
 `graduation_scan_enabled`) or the one-shot env override such as
 `DHPK_AGENT_WARMSTART=1`. The copy is a snapshot: re-run the installer
-(`/dhpk:setup --install hooks`, with `--force` to replace differing files) after
+(`/dhpk:harness-setup --install hooks`, with `--force` to replace differing files) after
 every dhpk upgrade so the scripts and their `_lib/` stay in step with the
 plugin.
 
@@ -280,7 +310,7 @@ runtime before changing hook argument paths. The source mapping remains
 
 ## Copying assets to a consumer project
 
-`/dhpk:setup --install hooks|rules|scripts|all` invokes
+`/dhpk:harness-setup --install hooks|rules|scripts|all` invokes
 `scripts/setup/install-assets.sh`. Hooks and scripts copy into
 `<project>/.claude/dhpk/{hooks,scripts}`. Default `--install rules` writes
 `<project>/.claude/rules/dhpk-overrides.md` and does not copy upstream policy

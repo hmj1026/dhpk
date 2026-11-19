@@ -132,7 +132,7 @@ test('forwarder-specific grants stay distinct from broader owner tools and dispo
   assert.strictEqual(ctx.invoke(forwarders, '--check').status, 1);
 }));
 
-test('code-simplify and library-author aliases generate without undeclared tool grants', () => fixture(ctx => {
+test('alias forwarders for an owner with a mode generate without undeclared tool grants', () => fixture(ctx => {
   const declarations = [
     { id: 'simplify', owner: 'code-simplify', public_name: '/dhpk:simplify' },
     { id: 'matrix-cell-onboard', owner: 'library-author', public_name: '/dhpk:matrix-cell-onboard' },
@@ -158,16 +158,6 @@ test('code-simplify and library-author aliases generate without undeclared tool 
   }
   assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0);
 
-  const root = path.join(__dirname, '..');
-  for (const { id, owner } of declarations) {
-    const distribution = JSON.parse(fs.readFileSync(path.join(root, 'skills', owner, 'distribution.yaml'), 'utf8'));
-    const declaration = distribution.commands.find(command => command.id === id);
-    assert.ok(declaration, `${owner}/${id} canonical declaration exists`);
-    assert.strictEqual(declaration.allowed_tools, undefined, `${owner}/${id} canonical declaration has no tool grant`);
-
-    const bytes = fs.readFileSync(path.join(root, 'commands', `${id}.md`), 'utf8');
-    assert.doesNotMatch(bytes, /^allowed-tools:/m, `commands/${id}.md`);
-  }
 }));
 
 test('forwarder grants reject empty or multiline declarations', () => fixture(ctx => {
@@ -176,14 +166,5 @@ test('forwarder grants reject empty or multiline declarations', () => fixture(ct
     assert.strictEqual(ctx.invoke(forwarders, '--write').status, 1);
   }
 }));
-
-test('legacy setup and document front-door grants retain exact declared bytes', () => {
-  const root = path.join(__dirname, '..');
-  for (const [id, grant] of [
-    ['setup', 'Read, Grep, Glob, Bash(bash:*), Bash(node:*), Bash(git rev-parse:*), Bash(ls:*), Bash(mkdir:*), Bash(cp:*), Bash(chmod:*), Skill, AskUserQuestion'],
-    ['doc-refactor', 'Read, Grep, Glob, Edit'],
-    ['update-docs', 'Read, Write, Edit, Grep, Glob, Bash(bash:*), Bash(cx:*), Bash(git:*), Bash(ls:*), Bash(node:*)'],
-  ]) assert.ok(fs.readFileSync(path.join(root, `commands/${id}.md`), 'utf8').includes(`allowed-tools: '${grant}'`), id);
-});
 
 run('command-generation');

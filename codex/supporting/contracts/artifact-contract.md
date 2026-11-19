@@ -75,7 +75,7 @@ Retention of any parent-persisted copy is advisory. Prune old copies for navigab
 
 ## Model and effort precedence
 
-When a custom agent file sets model or model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Warm review at medium uses a separate verified profile whose file sets model_reasoning_effort to medium.
+dhpk agent files do not set model; the model comes from the user's Codex configuration. When a custom agent file sets model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Warm review at medium uses a separate verified profile whose file sets model_reasoning_effort to medium.
 
 ## Permission boundary
 
@@ -83,4 +83,4 @@ sandbox_mode in a custom agent file does not create an independent sandbox. The 
 
 ## Codex agent TOML schema
 
-Required fields are name, description, and developer_instructions. dhpk roles also set model and model_reasoning_effort. Do not require Claude tools or Claude model aliases. Do not declare sandbox_mode. A citation that the consumer install cannot resolve is UNAVAILABLE, not PASS.
+Required fields are name, description, and developer_instructions. dhpk roles also set model_reasoning_effort and never set model. Do not require Claude tools or Claude model aliases. Do not declare sandbox_mode. A citation that the consumer install cannot resolve is UNAVAILABLE, not PASS.

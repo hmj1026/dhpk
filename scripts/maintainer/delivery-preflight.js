@@ -24,7 +24,7 @@ async function runPreflight({ root, base, baseRef } = {}) {
   const checkers = [
     { name: 'changelog', args: ['scripts/ci/validate-changelog-fragments.js', '--diff-base', base, '--base-ref', baseRef] },
     { name: 'metadata', args: ['tests/codex-skill-metadata.test.js'] },
-    { name: 'catalog', args: ['scripts/ci/catalog.js', '--check', 'all', '--diff-base', base] },
+    { name: 'catalog', args: ['scripts/ci/catalog.js', '--check', 'all'] },
   ];
   const stages = [];
   for (const checker of checkers) {

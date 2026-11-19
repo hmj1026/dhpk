@@ -6,7 +6,8 @@
 // is judged like grep -r: the find roots are scanned and blocked only when a protected path is found or the
 // tree cannot be scanned.
 // Hook-boundary outcomes use synthetic fixtures; unit rows cover the parser in `credential_find.py`.
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { runHook: runHookAt, ROOT } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

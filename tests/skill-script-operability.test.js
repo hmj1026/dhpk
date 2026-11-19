@@ -276,8 +276,9 @@ for (const [key, row] of Object.entries(CLASSIFICATION)) {
         const helperStat = fs.lstatSync(helper);
         assert.ok(helperStat.isFile() && !helperStat.isSymbolicLink(), 'packaged helper must be a physical file');
         assert.ok((helperStat.mode & 0o111) !== 0, 'packaged helper must be executable');
-        const bundleStat = fs.lstatSync(path.join(packagedSkill, 'scripts', 'lib', 'dhpk-installer.cjs'));
-        assert.ok(bundleStat.isFile() && !bundleStat.isSymbolicLink(), 'packaged JS installer bundle must be a physical file');
+        const entryStat = fs.lstatSync(path.join(packagedSkill, 'scripts', 'lib', 'install-adapters', 'codex-cli.js'));
+        assert.ok(entryStat.isFile() && !entryStat.isSymbolicLink(), 'packaged JS installer entry must be a physical file');
+        assert.strictEqual(fs.existsSync(path.join(packagedSkill, 'scripts', 'lib', 'dhpk-installer.cjs')), false, 'no generated installer bundle may ship');
         const result = spawnSync('bash', [path.join(packagedSkill, entry), ...(row.args || ['--help'])], {
           cwd: projectRoot,
           encoding: 'utf8',

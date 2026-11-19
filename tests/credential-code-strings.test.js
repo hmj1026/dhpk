@@ -3,7 +3,8 @@
 // (#1450) Credential Guard 與 eval 等價的程式碼字串：eval、送進 shell 的 here-string、bash/sh -c、
 // trap 動作、alias 改綁、算術 consumer 與啟動檔 process substitution。字串裡可見的 Protected Path 讀取
 // 與直接寫出相同判定；python/node 等 interpreter 程式碼字串仍在範圍外（ADR 0037）。
-const { test, run, assert } = require('./_lib/tinytest');
+const { run, assert } = require('./_lib/tinytest');
+const { batchTest: test } = require('./_lib/hookreplay');
 const { mkRepo, rmRepo, runHook } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');

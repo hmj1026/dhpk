@@ -169,7 +169,7 @@ test('agents/INDEX.md machine-readable roster counts must match manifest agent p
     const counts = JSON.parse(metadata[1]);
     counts.total += 1;
     fs.writeFileSync(indexPath, indexText.replace(metadata[0], `<!-- dhpk-agent-roster-counts: ${JSON.stringify(counts)} -->`));
-    writePluginJson(tmp, { version: '1.0.0', agents: sourcePlugin.agents });
+    writePluginJson(tmp, { name: 'dhpk', version: '1.0.0', agents: sourcePlugin.agents });
 
     const { status, out } = runValidator(tmp);
     assert.strictEqual(status, 1, `stale agents/INDEX.md roster counts should fail validation:\n${out}`);
@@ -184,7 +184,12 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
   const tmp = makeTempRepo();
   try {
     const sourcePlugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-    for (const declaredPath of sourcePlugin.agents) {
+    // Module agents are registered by the dhpk-stacks manifest, not the core one.
+    const stacksPath = path.join('distribution', 'stacks-plugin', 'plugin.json');
+    const stacksPlugin = JSON.parse(fs.readFileSync(path.join(ROOT, stacksPath), 'utf8'));
+    fs.mkdirSync(path.join(tmp, path.dirname(stacksPath)), { recursive: true });
+    fs.writeFileSync(path.join(tmp, stacksPath), JSON.stringify({ ...stacksPlugin, userConfig: {}, commands: [] }));
+    for (const declaredPath of [...sourcePlugin.agents, ...stacksPlugin.agents]) {
       const relative = declaredPath.replace(/^\.\//, '');
       const source = path.join(ROOT, relative);
       const target = path.join(tmp, relative);
@@ -195,7 +200,7 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
     fs.mkdirSync(path.dirname(indexPath), { recursive: true });
     const sourceIndex = fs.readFileSync(path.join(ROOT, 'agents', 'INDEX.md'), 'utf8');
     fs.writeFileSync(indexPath, sourceIndex.replace(/^> .*$/m, '> Roster details are maintained with the plugin manifest.'));
-    writePluginJson(tmp, { version: '1.0.0', agents: sourcePlugin.agents });
+    writePluginJson(tmp, { name: 'dhpk', version: '1.0.0', agents: sourcePlugin.agents });
 
     const { status, out } = runValidator(tmp);
     assert.strictEqual(status, 0, `prose wording should not control roster validation:\n${out}`);
@@ -316,9 +321,10 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
   });
 
   test('canonical commands retire the approved aliases and retain supported adapters', () => {
-    const read = (name) => fs.readFileSync(path.join(ROOT, 'commands', name), 'utf8');
-    assert.match(read('precommit.md'), /--fast/);
-    assert.match(read('setup.md'), /--install hooks\|rules\|scripts\|all/);
+    const readSkill = (name) => fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf8');
+    assert.match(readSkill('precommit'), /--fast/);
+    assert.match(readSkill('harness-setup'), /--install=<group>/);
+    assert.equal(fs.existsSync(path.join(ROOT, 'commands')), false, 'the plugin ships skills only');
 
     for (const name of [
       'check-skill.md', 'create-dev.md', 'do.md', 'codex-review.md',
@@ -338,16 +344,13 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
   test('flow-guide routing, flow-drive implementation, and setup installation have deterministic executable contracts', () => {
     const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
     const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
-    const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
     const setupProcedure = fs.readFileSync(path.join(ROOT, 'skills', 'harness-setup', 'references', 'claude-setup.md'), 'utf8');
     assert.match(guide, /route --go/);
     assert.match(guide, /advisory|does not execute|without `--go`/i);
     assert.match(drive, /confirmed specification|confirmed work/i);
     assert.doesNotMatch(drive, /--route-only|flow-drive:author/);
-    assert.match(setup, /canonical `\$harness-setup` Skill/);
     assert.match(setupProcedure, /scripts\/setup\/install-assets\.sh/);
     assert.match(setupProcedure, /--source.*--target.*--dry-run.*--force/is);
-    assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
   });
 
 
@@ -358,7 +361,7 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
     ];
 
     function assertCurrentCommandSurface(commandsDir, inventory) {
-      const currentNames = new Set(fs.readdirSync(commandsDir)
+      const currentNames = new Set((fs.existsSync(commandsDir) ? fs.readdirSync(commandsDir) : [])
         .filter((name) => name.endsWith('.md') && name !== 'INDEX.md')
         .map((name) => name.slice(0, -3)));
       const historicalNames = new Set(inventory.commands.map((entry) => entry.name));
@@ -385,7 +388,8 @@ test('agents/INDEX.md prose wording may change without changing roster validatio
       const tmp = makeTempRepo();
       try {
         const mutatedCommands = path.join(tmp, 'commands');
-        fs.cpSync(commandsDir, mutatedCommands, { recursive: true });
+        fs.mkdirSync(mutatedCommands, { recursive: true });
+        if (fs.existsSync(commandsDir)) fs.cpSync(commandsDir, mutatedCommands, { recursive: true });
         fs.writeFileSync(path.join(mutatedCommands, 'do.md'), '---\ndescription: retired alias mutation\n---\nbody\n');
         const structurallyValid = runValidator(tmp);
         assert.strictEqual(structurallyValid.status, 0, structurallyValid.out);

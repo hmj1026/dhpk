@@ -10,7 +10,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { runNodeTest } = require('../scripts/lib/bounded-child-process');
 const { validateAssertionSummary } = require('../scripts/lib/assertion-evidence');
 
@@ -103,6 +103,9 @@ const TIMEOUT_HINTS = Object.freeze({
   // Bash hooks. The single file hit 480s (ETIMEDOUT) in CI against the 10-minute job limit, so the
   // hint cannot grow; each half now needs about half of the former runtime.
   'hook-bypass-git-gate.test.js': 480000,
+  // About 48s alone; after #1506 it shares CI shard 1 with xargs-batched hook suites and ran
+  // 158-180s there, timing out three times against the 180s default.
+  'hook-differential.test.js': 300000,
   // Crash and failure sweeps re-run the installer once per step: 130-155s
   // alone; 180s overran under the four-way local publish gate for 0.73.0.
   'install-codex-adapter-journal.test.js': 300000,
@@ -146,11 +149,25 @@ function parseNonNegativeInteger(value, label, { maximum = Number.MAX_SAFE_INTEG
   return parsed;
 }
 
+// Local default: parallel up to four workers. CI pins DHPK_TEST_JOBS explicitly.
+function defaultJobs() {
+  const cpus = typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
+  return Math.max(1, Math.min(cpus, 4));
+}
+
+// Each run-all worker runs batched hook suites that fan out through xargs -P
+// (tests/_lib/hookbatch.js). Split the cpus across the workers so the fan-out
+// does not nest on top of them; a user-set DHPK_HOOK_BATCH_JOBS is kept.
+function hookBatchJobsFor(cpus, workerCount, env = process.env) {
+  if (env.DHPK_HOOK_BATCH_JOBS) return env.DHPK_HOOK_BATCH_JOBS;
+  return String(Math.max(1, Math.floor(cpus / Math.max(1, workerCount))));
+}
+
 function parseOptions(argv = process.argv.slice(2), sourceEnv = process.env) {
   const options = {
     shardIndex: 0,
     shardCount: 1,
-    jobs: parsePositiveInteger(sourceEnv.DHPK_TEST_JOBS || '1', 'jobs', { maximum: MAX_JOBS }),
+    jobs: parsePositiveInteger(sourceEnv.DHPK_TEST_JOBS || String(defaultJobs()), 'jobs', { maximum: MAX_JOBS }),
     worker: false,
     files: [],
   };
@@ -199,6 +216,37 @@ function parseOptions(argv = process.argv.slice(2), sourceEnv = process.env) {
     options.jobs = 1;
   }
   return options;
+}
+
+// Scratch dirs that tests create inside the checkout (non-relocatable mode).
+// Sessions and worktrees can share one checkout, so a sweep must never delete a
+// dir a live run owns. The longest per-file timeout is 480 s, so a live run
+// touches its scratch dir well inside this window; anything older is stale.
+const SCRATCH_PREFIX = '.dhpk-test-scratch-';
+const SCRATCH_MAX_AGE_MS = 60 * 60 * 1000;
+
+function sweepStaleScratch(root, { now = Date.now(), maxAgeMs = SCRATCH_MAX_AGE_MS } = {}) {
+  let entries;
+  try {
+    entries = fs.readdirSync(root);
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+  const removed = [];
+  for (const name of entries) {
+    if (!name.startsWith(SCRATCH_PREFIX)) continue;
+    const target = path.join(root, name);
+    try {
+      const stat = fs.lstatSync(target);
+      if (!stat.isDirectory() || now - stat.mtimeMs < maxAgeMs) continue;
+      fs.rmSync(target, { recursive: true, force: true });
+      removed.push(name);
+    } catch {
+      // Best effort: a concurrent run may remove or reuse the entry.
+    }
+  }
+  return removed;
 }
 
 function assignShard(file, shardCount) {
@@ -468,6 +516,11 @@ function runWorker(files, workerIndex, workerCount, env, progress) {
     const childEnv = {
       ...env,
       DHPK_TEST_JOBS: '1',
+      DHPK_HOOK_BATCH_JOBS: hookBatchJobsFor(
+        typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length,
+        workerCount,
+        env,
+      ),
       ...(timingRequested ? { DHPK_TEST_TIMING_CHILD: '1' } : {}),
     };
     const startedAt = process.hrtime.bigint();
@@ -639,10 +692,30 @@ function writeTimingReport(file, report) {
   fs.writeFileSync(target, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
 }
 
+// Host packages built on demand (ADR 0040) are not committed, yet package and
+// consumer-gate suites read them from dist/on-demand. A fresh checkout (a CI
+// shard, a new worktree) has none, so build the missing ones before the full
+// suite. Trees without the on-demand library (copied fixtures) are skipped.
+function ensureOnDemandPackages(root, env) {
+  const libFile = path.join(root, 'scripts', 'lib', 'on-demand-packages.js');
+  const launcher = path.join(root, 'bin', 'dhpk');
+  if (!fs.existsSync(libFile) || !fs.existsSync(launcher)) return;
+  const { ON_DEMAND_SURFACES, onDemandPackageDir } = require(libFile);
+  for (const surface of ON_DEMAND_SURFACES) {
+    if (fs.existsSync(onDemandPackageDir(root, surface))) continue;
+    const built = spawnSync('bash', [launcher, 'distribution', 'build', surface, '--json'], { cwd: root, env, encoding: 'utf8' });
+    if (built.status !== 0) {
+      throw new Error(`on-demand ${surface} build failed before the test run: ${String(built.stderr || built.stdout).trim()}`);
+    }
+  }
+}
+
 async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
   const options = parseOptions(argv, sourceEnv);
   const env = prepareEnv(sourceEnv);
   const timeoutMs = readTimeoutMs(env);
+  if (!options.worker) sweepStaleScratch(path.resolve(TESTS_DIR, '..'));
+  if (!options.worker && options.files.length === 0) ensureOnDemandPackages(path.resolve(TESTS_DIR, '..'), env);
   let ownedTmpRoot = null;
   if (!env.DHPK_TEST_TMP_ROOT) {
     ownedTmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-test-run-'));
@@ -709,6 +782,10 @@ module.exports = {
   assignShard,
   findTests,
   parseOptions,
+  defaultJobs,
+  hookBatchJobsFor,
+  sweepStaleScratch,
+  ensureOnDemandPackages,
   partitionFiles,
   fileTimeoutMs,
   createTimingReport,

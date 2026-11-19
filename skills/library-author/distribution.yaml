@@ -84,28 +84,5 @@
         "summary": "Run the selected mode"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "matrix-cell-onboard",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:matrix-cell-onboard",
-      "argument_contract": "\"<php-version> <laravel-version> [phpunit] [monolog]\"  e.g. \"8.3 12 11 3\"",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/matrix-cell-onboard.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/matrix-cell-onboard.md"
-      ],
-      "reason": "Stable Claude front door forwards normalized arguments to library-author mode cell-onboard.",
-      "mode": "cell-onboard",
-      "description": "Alias of $library-author cell-onboard; same contract."
-    }
-  ]
+  }
 }

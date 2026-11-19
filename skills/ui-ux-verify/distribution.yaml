@@ -56,26 +56,5 @@
         "summary": "Use ui ux verify with its declared interface"
       }
     ]
-  },
-  "commands": [
-    {
-      "id": "ui-ux-verify",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:ui-ux-verify",
-      "argument_contract": "[<url>] [spec:<path>]",
-      "authority": "workspace-write",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $ui-ux-verify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/ui-ux-verify.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/ui-ux-verify.md"
-      ]
-    }
-  ]
+  }
 }

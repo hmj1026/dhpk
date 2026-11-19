@@ -121,7 +121,7 @@ Bundle generation SHALL emit structural evidence bound to profile, selected stab
 
 ### Requirement: Default Claude marketplace publication uses the shared catalog
 
-The existing `dhpk@dhpk` marketplace entry SHALL publish `generated/claude-marketplace/package`, derived from the reviewed shared catalog's fifteen common public entries and bundled children, with necessary `claude-core` Host resources selected separately. Catalog provenance SHALL record actual selection and resource ownership, paths, kinds, and hashes. Publication MUST NOT introduce a separate common variant or retain tracked minimal/full/compat-v1 artifacts. Generation MUST NOT claim native runtime acceptance or live activation.
+The existing `dhpk@dhpk` marketplace entry SHALL publish `dist/claude-marketplace/package`, derived from the reviewed shared catalog's fifteen common public entries and bundled children, with necessary `claude-core` Host resources selected separately. Catalog provenance SHALL record actual selection and resource ownership, paths, kinds, and hashes. Publication MUST NOT introduce a separate common variant or retain tracked minimal/full/compat-v1 artifacts. Generation MUST NOT claim native runtime acceptance or live activation.
 
 #### Scenario: Main catalog package is generated
 

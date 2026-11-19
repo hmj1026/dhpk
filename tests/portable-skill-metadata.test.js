@@ -309,24 +309,44 @@ test('Cursor output serializes bundled child metadata', () => {
   }
 });
 
-test('OpenAI submission output serializes owner metadata', () => {
+// Public Plugin (#1497): internal dhpk-* metadata is not shipped; unrelated
+// frontmatter and the body survive, and nested reference entry files are
+// renamed so only top-level skills are SKILL.md.
+function assertPublicSkillFile(markdown, name, label) {
+  const block = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  assert.ok(block, `${label} must retain a complete frontmatter block`);
+  assert.ok(!/^metadata:/m.test(block[1]), `${label} must carry no metadata block`);
+  assert.ok(!/dhpk-/.test(block[1]), `${label} must carry no dhpk-* keys`);
+  assert.ok(!/retained/.test(block[1]), `${label} must drop unlisted frontmatter keys`);
+  assert.match(block[1], /^name:\s*\S+/m, `${label} must keep name`);
+  assert.match(block[1], /^license:\s*(?:MIT|"MIT")$/m, `${label} must preserve unrelated license frontmatter`);
+  assert.match(block[1], /^compatibility:\s*(?:"Portable package source"|'Portable package source')$/m,
+    `${label} must preserve unrelated compatibility frontmatter`);
+  assert.strictEqual(markdown.slice(block[0].length), skillBody(name), `${label} must preserve the body`);
+}
+
+test('OpenAI submission output strips internal metadata from owner skills', () => {
   const root = temporaryRoot('dhpk-portable-metadata-openai-owner-');
   try {
     const result = compileOpenaiSubmissionPackage(openaiFixture(root));
     assert.strictEqual(result.ok, true, result.errors.join('\n'));
-    assertPortableMetadata(openaiFile(result, 'skills/package-owner/SKILL.md'), 'package-owner', 'OpenAI owner output');
+    assertPublicSkillFile(openaiFile(result, 'skills/package-owner/SKILL.md'), 'package-owner', 'OpenAI owner output');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('OpenAI submission output serializes bundled child metadata', () => {
+test('OpenAI submission output renames bundled child entry and strips its metadata', () => {
   const root = temporaryRoot('dhpk-portable-metadata-openai-child-');
   try {
     const result = compileOpenaiSubmissionPackage(openaiFixture(root));
     assert.strictEqual(result.ok, true, result.errors.join('\n'));
-    assertPortableMetadata(
-      openaiFile(result, 'skills/package-owner/references/child-guide/SKILL.md'),
+    assert.ok(
+      !result.files.some((entry) => /^skills\/[^/]+\/.+\/SKILL\.md$/.test(entry.path)),
+      'no nested SKILL.md may remain in the Public Plugin',
+    );
+    assertPublicSkillFile(
+      openaiFile(result, 'skills/package-owner/references/child-guide/REFERENCE.md'),
       'child-guide',
       'OpenAI bundled child output',
     );
