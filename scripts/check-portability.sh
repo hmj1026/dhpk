@@ -35,24 +35,33 @@ while IFS= read -r f; do
     # bash-4-only / GNU-only idioms. Comments are stripped first so prose
     # mentions (like this header) don't trip the gate.
     stripped="$(sed 's/[[:space:]]*#.*$//' "$f")"
-    for pattern in 'declare -A' 'mapfile' 'readarray' 'grep -P' 'grep -[a-zA-Z]*P[a-zA-Z]* ' 'date -d ' 'readlink -f' 'sort -V'; do
-        if printf '%s' "$stripped" | grep -q -- "$pattern"; then
+    for pattern in 'declare -A' 'grep -P' 'grep -[a-zA-Z]*P[a-zA-Z]* ' 'date -d ' 'readlink -f' 'sort -V'; do
+        if grep -q -- "$pattern" <<<"$stripped"; then
             # 'date -d' is fine as the GNU-first attempt when a BSD 'date -j'
             # fallback exists in the same file.
-            if [ "$pattern" = 'date -d ' ] && printf '%s' "$stripped" | grep -q -- 'date -j'; then
+            if [ "$pattern" = 'date -d ' ] && grep -q -- 'date -j' <<<"$stripped"; then
                 continue
             fi
             echo "[portability] NON-PORTABLE IDIOM '$pattern' in: $f" >&2
             fail=1
         fi
     done
-    # ${var,,} / ${var^^} case conversion (bash 4+).
-    if printf '%s' "$stripped" | grep -Eq '\$\{[A-Za-z_][A-Za-z0-9_]*(,,|\^\^)\}'; then
+    # mapfile / readarray as a command. A builtin name inside a case pattern or
+    # a regex of builtin names is data (the hook inspector lists them).
+    if grep -Eq '(^|[;&|({]|[[:space:]]then|[[:space:]]do|[[:space:]]else)[[:space:]]*(mapfile|readarray)([[:space:]]|$)' <<<"$stripped"; then
+        echo "[portability] NON-PORTABLE IDIOM 'mapfile/readarray' in: $f" >&2
+        fail=1
+    fi
+    # ${var,,} / ${var^^} case conversion (bash 4+), including ${1,,} and
+    # ${!name,,}. Piping a large file into grep -q would let grep exit early,
+    # SIGPIPE the writer, and fail the pipeline under pipefail: a false
+    # negative. Read the text through a here-string instead.
+    if grep -Eq '\$\{!?[A-Za-z0-9_]+(,,|\^\^)\}' <<<"$stripped"; then
         echo "[portability] NON-PORTABLE IDIOM '\${var,,}/\${var^^}' in: $f" >&2
         fail=1
     fi
     # find -printf needs a Darwin branch (stat -f) in the same file.
-    if printf '%s' "$stripped" | grep -q -- '-printf'; then
+    if grep -q -- '-printf' <<<"$stripped"; then
         if ! grep -q "Darwin" "$f"; then
             echo "[portability] 'find -printf' without a Darwin branch in: $f" >&2
             fail=1
