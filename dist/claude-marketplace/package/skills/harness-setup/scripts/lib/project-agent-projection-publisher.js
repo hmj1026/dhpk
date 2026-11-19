@@ -40,8 +40,6 @@ const {
   SimulatedCrash,
   isSimulatedCrash,
   recordTransientDirectory,
-  recordParents,
-  recordRename,
   recordRemoveEmptyDirectories,
   validateJournalRecords,
   recoverJournal,
@@ -1992,14 +1990,19 @@ function publishManagedCandidate({
     tx.setPhase('publishing');
     const backupSteps = [];
     const planBackup = (source, target, label, { before = null, after = null } = {}) => {
-      assertPhysicalAncestors(path.dirname(target), label, backup);
+      const checkBackupAncestors = () => assertPhysicalAncestors(path.dirname(target), label, backup);
+      checkBackupAncestors();
       const from = effectRelative(roots, source);
       const to = effectRelative(roots, target);
       backupSteps.push({
         kind: 'rename',
         args: { from, to },
         inverse: { kind: 'rename', args: { from: to, to: from } },
-        ...(before ? { before } : {}),
+        // Re-check at run time: batching moved planning ahead of earlier renames.
+        before: () => {
+          checkBackupAncestors();
+          if (before) before();
+        },
         ...(after ? { after } : {}),
       });
     };
@@ -2110,6 +2113,9 @@ function publishManagedCandidate({
         });
         if (hasMode) {
           const mode = sourceStat.mode & 0o7777;
+          // The inverse is a digest gate, not a mode restore: the copy-tree
+          // inverse removes this file afterwards, so rollback only needs the
+          // digest to fail closed on foreign or post-crash edited content.
           publishFileSteps.push({
             kind: 'chmod',
             args: { path: to, mode },

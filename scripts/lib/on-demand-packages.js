@@ -17,6 +17,18 @@ const ON_DEMAND_LOCK_POLL_MS = 25;
 // has not landed yet (e.g., under heavy CPU/I/O loadavg 5-20), while staying
 // well below ON_DEMAND_LOCK_TIMEOUT_MS so crashed empty locks still recover.
 const ON_DEMAND_LOCK_STALE_GRACE_MS = 10_000;
+// Bounded retry: one attempt, plus one retry after retiring a stale guard.
+const RECLAIM_GUARD_ATTEMPTS = 2;
+const LOCK_FILE_MODE = 0o600;
+// Filesystems that cannot hard-link fall back to an exclusive `wx` write.
+const LINK_UNSUPPORTED_CODES = new Set(['EPERM', 'ENOTSUP', 'ENOSYS']);
+const TOMBSTONE = Object.freeze({
+  CHANGED: 'changed',
+  TOMBSTONED: 'tombstoned',
+  EXISTS: 'exists',
+  ABSENT: 'absent',
+});
+const RECLAIM = Object.freeze({ GONE: 'gone', LIVE: 'live', RETIRE: 'retire' });
 const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 const HELD_LOCKS = new Set();
 const ON_DEMAND_PACKAGES = Object.freeze({
@@ -65,6 +77,70 @@ function sameDirectory(left, right) {
   return left.dev === right.dev && left.ino === right.ino;
 }
 
+function bestEffort(action) {
+  try {
+    action();
+  } catch (_) {
+    // Cleanup and restore steps must not mask the primary outcome.
+  }
+}
+
+function uniqueSibling(dir, label) {
+  return `${dir}.${label}-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+}
+
+// Moves `dir` aside, then deletes it unless shouldRestore(asidePath) asks to
+// put it back. Returns 'absent' when `dir` vanished, 'restored', or 'removed'.
+// Rename errors other than ENOENT propagate to the caller.
+function retireDirectory(dir, label, shouldRestore) {
+  const aside = uniqueSibling(dir, label);
+  try {
+    fs.renameSync(dir, aside);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return 'absent';
+    throw error;
+  }
+  if (shouldRestore(aside)) {
+    bestEffort(() => fs.renameSync(aside, dir));
+    return 'restored';
+  }
+  fs.rmSync(aside, { recursive: true, force: true });
+  return 'removed';
+}
+
+// Retires a stale lock-shaped directory. Defense-in-depth: if an external
+// actor replaced it with a live or freshly created lock outside the reclaim
+// protocol, it is restored instead of destroyed. Returns true when it is gone.
+function retireStaleDirectory(dir, staleGraceMs) {
+  try {
+    return retireDirectory(dir, 'stale', (aside) => isLockDirectoryStale(aside, staleGraceMs) === false) !== 'restored';
+  } catch (_) {
+    return false;
+  }
+}
+
+// Writes `payload` to `tmpPath`, then publishes it at `destPath` with an
+// exclusive hard link (or an exclusive `wx` write where links are not
+// supported). Returns false, without publishing, when isStillTarget() reports
+// that the target directory was replaced. EEXIST and ENOENT propagate.
+function publishExclusively(tmpPath, destPath, payload, isStillTarget) {
+  fs.writeFileSync(tmpPath, payload, { mode: LOCK_FILE_MODE });
+  if (!isStillTarget()) return false;
+  try {
+    fs.linkSync(tmpPath, destPath);
+    return true;
+  } catch (error) {
+    if (!(error && LINK_UNSUPPORTED_CODES.has(error.code))) throw error;
+    if (!isStillTarget()) return false;
+    fs.writeFileSync(destPath, payload, { flag: 'wx', mode: LOCK_FILE_MODE });
+    return true;
+  }
+}
+
+// Liveness uses `kill(pid, 0)`, so it holds only within one PID namespace.
+// Processes in another container sharing this mount look dead and their locks
+// look stale; concurrent builders must share a PID namespace (one host, one
+// container, or one CI job).
 function processIsAlive(pid) {
   try {
     process.kill(pid, 0);
@@ -113,28 +189,12 @@ function isLockDirectoryStale(lockDir, staleGraceMs) {
 function tryRetireStaleGuard(reclaimDir, staleGraceMs) {
   const stale = isLockDirectoryStale(reclaimDir, staleGraceMs);
   if (stale !== true) return stale === null;
-  const retiring = `${reclaimDir}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
-  try {
-    fs.renameSync(reclaimDir, retiring);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return true;
-    return false;
-  }
-  if (isLockDirectoryStale(retiring, staleGraceMs) === false) {
-    try {
-      fs.renameSync(retiring, reclaimDir);
-    } catch (_) {
-      // Best-effort restore if another reclaimer already claimed the guard.
-    }
-    return false;
-  }
-  fs.rmSync(retiring, { recursive: true, force: true });
-  return true;
+  return retireStaleDirectory(reclaimDir, staleGraceMs);
 }
 
 function acquireReclaimGuard(lockDir, staleGraceMs) {
   const reclaimDir = `${lockDir}.reclaim`;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < RECLAIM_GUARD_ATTEMPTS; attempt += 1) {
     let acquiredStat;
     try {
       fs.mkdirSync(reclaimDir);
@@ -169,35 +229,49 @@ function releaseReclaimGuard(guard) {
 // owner.json before retiring it, so a slow original acquirer waking up right
 // at the grace boundary cannot claim owner.json concurrently with reclamation.
 function tombstoneOwnerlessLock(lockDir, expectedStat, reclaimDir) {
-  if (!sameDirectory(expectedStat, lstatOrNull(lockDir))) return 'changed';
+  const isStillTarget = () => sameDirectory(expectedStat, lstatOrNull(lockDir));
+  if (!isStillTarget()) return TOMBSTONE.CHANGED;
   const ownerPath = path.join(lockDir, 'owner.json');
   const tombstoneTmp = path.join(reclaimDir, `.tombstone-${process.pid}-${crypto.randomBytes(4).toString('hex')}.tmp`);
   const payload = `${JSON.stringify({ tombstone: true, reclaimedBy: process.pid, reclaimedAt: Date.now() })}\n`;
   try {
-    fs.writeFileSync(tombstoneTmp, payload, { mode: 0o600 });
-    if (!sameDirectory(expectedStat, lstatOrNull(lockDir))) return 'changed';
-    try {
-      fs.linkSync(tombstoneTmp, ownerPath);
-      return 'tombstoned';
-    } catch (error) {
-      if (error && (error.code === 'EPERM' || error.code === 'ENOTSUP' || error.code === 'ENOSYS')) {
-        if (!sameDirectory(expectedStat, lstatOrNull(lockDir))) return 'changed';
-        fs.writeFileSync(ownerPath, payload, { flag: 'wx', mode: 0o600 });
-        return 'tombstoned';
-      }
-      throw error;
-    }
+    return publishExclusively(tombstoneTmp, ownerPath, payload, isStillTarget) ? TOMBSTONE.TOMBSTONED : TOMBSTONE.CHANGED;
   } catch (error) {
-    if (error && error.code === 'EEXIST') return 'exists';
-    if (error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return 'absent';
+    if (error && error.code === 'EEXIST') return TOMBSTONE.EXISTS;
+    if (error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return TOMBSTONE.ABSENT;
     throw error;
   } finally {
-    try {
-      fs.unlinkSync(tombstoneTmp);
-    } catch (_) {
-      // Ignore cleanup errors on the tombstone temp file.
-    }
+    bestEffort(() => fs.unlinkSync(tombstoneTmp));
   }
+}
+
+// An owner.json appeared while sealing: keep a live owner or a record still
+// within its grace window; retire anything else.
+function assessRacedOwnerFile(lockDir, staleGraceMs) {
+  const state = readLockState(lockDir);
+  if (state.kind === 'owner') return processIsAlive(state.owner.pid) ? RECLAIM.LIVE : RECLAIM.RETIRE;
+  if (state.kind !== 'missing') return RECLAIM.RETIRE;
+  const ownerStat = lstatOrNull(path.join(lockDir, 'owner.json'));
+  if (!ownerStat) return RECLAIM.LIVE;
+  return (Date.now() - ownerStat.mtimeMs) < staleGraceMs ? RECLAIM.LIVE : RECLAIM.RETIRE;
+}
+
+function assessOwnerlessLock(lockDir, targetStat, reclaimDir, staleGraceMs) {
+  if ((Date.now() - targetStat.mtimeMs) < staleGraceMs) return RECLAIM.LIVE;
+  const outcome = tombstoneOwnerlessLock(lockDir, targetStat, reclaimDir);
+  if (outcome === TOMBSTONE.ABSENT) return RECLAIM.GONE;
+  if (outcome === TOMBSTONE.CHANGED) return RECLAIM.LIVE;
+  if (outcome === TOMBSTONE.EXISTS) return assessRacedOwnerFile(lockDir, staleGraceMs);
+  return RECLAIM.RETIRE;
+}
+
+// Decides, under the reclaim guard, whether a lock that looked stale may be
+// retired: a dead owner or a tombstone is retired; a live owner is kept.
+function assessLockForReclaim(lockDir, targetStat, reclaimDir, staleGraceMs) {
+  const state = readLockState(lockDir);
+  if (state.kind === 'owner') return processIsAlive(state.owner.pid) ? RECLAIM.LIVE : RECLAIM.RETIRE;
+  if (state.kind === 'missing') return assessOwnerlessLock(lockDir, targetStat, reclaimDir, staleGraceMs);
+  return RECLAIM.RETIRE;
 }
 
 function tryReclaimStaleLock(lockDir, staleGraceMs) {
@@ -209,94 +283,38 @@ function tryReclaimStaleLock(lockDir, staleGraceMs) {
   try {
     const targetStat = lstatOrNull(lockDir);
     if (!targetStat) return true;
-    const state = readLockState(lockDir);
-    if (state.kind === 'owner') {
-      if (processIsAlive(state.owner.pid)) return false;
-    } else if (state.kind === 'missing') {
-      if ((Date.now() - targetStat.mtimeMs) < staleGraceMs) return false;
-      const outcome = tombstoneOwnerlessLock(lockDir, targetStat, guard.reclaimDir);
-      if (outcome === 'absent') return true;
-      if (outcome === 'changed') return false;
-      if (outcome === 'exists') {
-        const afterState = readLockState(lockDir);
-        if (afterState.kind === 'owner' && processIsAlive(afterState.owner.pid)) return false;
-        if (afterState.kind === 'missing') {
-          const ownerStat = lstatOrNull(path.join(lockDir, 'owner.json'));
-          if (!ownerStat || (Date.now() - ownerStat.mtimeMs) < staleGraceMs) return false;
-        }
-      }
-    }
+    const verdict = assessLockForReclaim(lockDir, targetStat, guard.reclaimDir, staleGraceMs);
+    if (verdict !== RECLAIM.RETIRE) return verdict === RECLAIM.GONE;
     if (!sameDirectory(targetStat, lstatOrNull(lockDir))) return false;
-    const retiring = `${lockDir}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
-    try {
-      fs.renameSync(lockDir, retiring);
-    } catch (error) {
-      if (error && error.code === 'ENOENT') return true;
-      return false;
-    }
-    // Defense-in-depth: if an external actor replaced lockDir with a live or
-    // freshly created lock outside the reclaim protocol, restore it instead of
-    // destroying it.
-    if (isLockDirectoryStale(retiring, staleGraceMs) === false) {
-      try {
-        fs.renameSync(retiring, lockDir);
-      } catch (_) {
-        // Best-effort restore if another process already claimed the slot.
-      }
-      return false;
-    }
-    fs.rmSync(retiring, { recursive: true, force: true });
-    return true;
+    return retireStaleDirectory(lockDir, staleGraceMs);
   } finally {
     releaseReclaimGuard(guard);
   }
 }
 
-function claimLockOwnership(lockDir, acquiredStat, ownerRecord) {
-  if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
-  const ownerPath = path.join(lockDir, 'owner.json');
+// Returns true when owner.json now holds `ownerRecord`, false when the lock
+// directory was replaced or claimed first. Unexpected errors remove the
+// still-empty directory we created and propagate.
+function writeOwnerRecord(lockDir, acquiredStat, ownerRecord) {
+  const isStillTarget = () => sameDirectory(acquiredStat, lstatOrNull(lockDir));
   const ownerTmp = path.join(lockDir, `.owner-${process.pid}-${ownerRecord.token}.tmp`);
-  const payload = `${JSON.stringify(ownerRecord)}\n`;
-  let wroteOwnerFile = false;
   try {
-    fs.writeFileSync(ownerTmp, payload, { mode: 0o600 });
-    if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
-    try {
-      fs.linkSync(ownerTmp, ownerPath);
-      wroteOwnerFile = true;
-    } catch (error) {
-      if (error && (error.code === 'EPERM' || error.code === 'ENOTSUP' || error.code === 'ENOSYS')) {
-        if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
-        fs.writeFileSync(ownerPath, payload, { flag: 'wx', mode: 0o600 });
-        wroteOwnerFile = true;
-      } else {
-        throw error;
-      }
-    }
+    return publishExclusively(ownerTmp, path.join(lockDir, 'owner.json'), `${JSON.stringify(ownerRecord)}\n`, isStillTarget);
   } catch (error) {
-    if (error && (error.code === 'ENOENT' || error.code === 'EEXIST' || error.code === 'ENOTDIR')) {
-      return false;
-    }
-    try {
-      fs.unlinkSync(ownerTmp);
-    } catch (_) {
-      // Ignore cleanup errors on the error path.
-    }
-    if (sameDirectory(acquiredStat, lstatOrNull(lockDir))) {
-      try {
-        fs.rmdirSync(lockDir);
-      } catch (_) {
-        // Only removes the directory if it is still empty and ours.
-      }
-    }
+    if (error && (error.code === 'ENOENT' || error.code === 'EEXIST' || error.code === 'ENOTDIR')) return false;
+    bestEffort(() => fs.unlinkSync(ownerTmp));
+    // Only removes the directory if it is still empty and ours.
+    if (isStillTarget()) bestEffort(() => fs.rmdirSync(lockDir));
     throw error;
   } finally {
-    try {
-      fs.unlinkSync(ownerTmp);
-    } catch (_) {
-      // Already removed or lock directory was retired.
-    }
+    bestEffort(() => fs.unlinkSync(ownerTmp));
   }
+}
+
+function claimLockOwnership(lockDir, acquiredStat, ownerRecord) {
+  if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
+  const wroteOwnerFile = writeOwnerRecord(lockDir, acquiredStat, ownerRecord);
+  if (!wroteOwnerFile) return false;
   const currentStat = lstatOrNull(lockDir);
   const currentOwner = readLockOwner(lockDir);
   if (sameDirectory(acquiredStat, currentStat) && isMatchingOwner(currentOwner, ownerRecord)) {
@@ -305,7 +323,7 @@ function claimLockOwnership(lockDir, acquiredStat, ownerRecord) {
   // If a fallback `flag: 'wx'` write landed in a replacement lock directory
   // with our own unique token, release that misplaced claim so we never leave
   // our live PID stranded in another process's lock directory.
-  if (wroteOwnerFile && isMatchingOwner(currentOwner, ownerRecord)) {
+  if (isMatchingOwner(currentOwner, ownerRecord)) {
     releaseOnDemandSurfaceLock(lockDir, ownerRecord);
   }
   return false;
@@ -314,23 +332,8 @@ function claimLockOwnership(lockDir, acquiredStat, ownerRecord) {
 function releaseOnDemandSurfaceLock(lockDir, ownerRecord, acquiredStat = null) {
   if (acquiredStat && !sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
   if (!isMatchingOwner(readLockOwner(lockDir), ownerRecord)) return false;
-  const releasing = `${lockDir}.release-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
-  try {
-    fs.renameSync(lockDir, releasing);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return false;
-    throw error;
-  }
-  if (!isMatchingOwner(readLockOwner(releasing), ownerRecord)) {
-    try {
-      fs.renameSync(releasing, lockDir);
-    } catch (_) {
-      // Best-effort restore if another process already claimed the slot.
-    }
-    return false;
-  }
-  fs.rmSync(releasing, { recursive: true, force: true });
-  return true;
+  const outcome = retireDirectory(lockDir, 'release', (aside) => !isMatchingOwner(readLockOwner(aside), ownerRecord));
+  return outcome === 'removed';
 }
 
 // Serializes concurrent on-demand builds and verifiers targeting the same

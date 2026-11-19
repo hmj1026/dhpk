@@ -204,15 +204,19 @@ test('ensureOnDemandPackages ignores inherited GIT_DIR and GIT_WORK_TREE overrid
   }
 });
 
-test('ensureOnDemandPackages skips both missing and stale builds on a dirty checkout', () => {
+test('ensureOnDemandPackages skips and warns about missing and stale builds on a dirty checkout', () => {
   const { root, writeReceipt } = provenanceFixtureRoot({ gitInit: true });
   try {
     writeReceipt('agent-plugin');
     writeReceipt('cursor-plugin', { inventoryDigest: '0'.repeat(64) });
     // agy-plugin is intentionally missing.
     fs.writeFileSync(path.join(root, 'dirty.txt'), 'uncommitted\n');
-    ensureOnDemandPackages(root, process.env);
+    const warnings = [];
+    ensureOnDemandPackages(root, process.env, { warn: (message) => warnings.push(message) });
     assert.deepStrictEqual(calls(root), []);
+    assert.strictEqual(warnings.length, 2, warnings.join('\n'));
+    assert.match(warnings.find((w) => w.includes('cursor-plugin')) || '', /package is stale and the checkout has uncommitted changes/);
+    assert.match(warnings.find((w) => w.includes('agy-plugin')) || '', /package is missing and the checkout has uncommitted changes/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

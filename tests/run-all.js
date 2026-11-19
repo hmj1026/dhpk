@@ -10,7 +10,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn, spawnSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const { runNodeTest } = require('../scripts/lib/bounded-child-process');
 const { validateAssertionSummary } = require('../scripts/lib/assertion-evidence');
 
@@ -308,15 +308,8 @@ function partitionFiles(files, bucketCount) {
   return buckets;
 }
 
-const GIT_ENV_OVERRIDES = Object.freeze([
-  'GIT_DIR',
-  'GIT_WORK_TREE',
-  'GIT_INDEX_FILE',
-  'GIT_OBJECT_DIRECTORY',
-  'GIT_COMMON_DIR',
-  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
-  'GIT_PREFIX',
-]);
+const GIT_ENV_OVERRIDES = Object.freeze(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY', 'GIT_COMMON_DIR', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_PREFIX']);
 
 function stripGitEnv(sourceEnv = process.env) {
   const env = { ...sourceEnv };
@@ -707,84 +700,12 @@ function writeTimingReport(file, report) {
   fs.writeFileSync(target, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
 }
 
-function loadProvenanceLib(root) {
-  for (const candidate of [
-    path.join(root, 'scripts', 'lib', 'platform-provenance.js'),
-    path.join(__dirname, '..', 'scripts', 'lib', 'platform-provenance.js'),
-  ]) {
-    if (!fs.existsSync(candidate)) continue;
-    try {
-      return require(candidate);
-    } catch (_) {
-      // Fixture copied only part of scripts/lib; fall back to the next candidate.
-    }
-  }
-  return null;
-}
-
-function isCheckoutClean(root, env) {
-  const cleanEnv = stripGitEnv(env);
-  const probe = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
-  if (probe.status !== 0 || probe.stdout.trim() !== 'true') return true;
-  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
-  return status.status === 0 && status.stdout.trim() === '';
-}
-
-function isOnDemandPackageFresh(root, surface, packageDir, env) {
-  const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
-  const manifestPath = path.join(root, '.claude-plugin', 'plugin.json');
-  if (!fs.existsSync(inventoryPath) || !fs.existsSync(manifestPath)) return true;
-  const provenanceLib = loadProvenanceLib(root);
-  if (!provenanceLib || typeof provenanceLib.packageInventoryDigest !== 'function') return true;
-  const receiptPath = path.join(packageDir, 'provenance.json');
-  if (!fs.existsSync(receiptPath)) return false;
-  let inventory;
-  let manifest;
-  let receipt;
-  try {
-    inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-  } catch (_) {
-    return false;
-  }
-  if (receipt.sourceVersion !== manifest.version) return false;
-  if (receipt.inventoryDigest !== provenanceLib.packageInventoryDigest(surface, inventory)) return false;
-  const cleanEnv = stripGitEnv(env);
-  const head = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
-  if (head.status === 0 && head.stdout.trim()) {
-    const commit = receipt.generatedFromCommit || receipt.sourceCommit;
-    if (typeof commit !== 'string' || !/^[a-f0-9]{40}$/i.test(commit)) return false;
-    if (commit.toLowerCase() !== head.stdout.trim().toLowerCase()) return false;
-  }
-  return true;
-}
-
-// Host packages built on demand (ADR 0040) are not committed, yet package and
-// consumer-gate suites read them from dist/on-demand. A fresh checkout (a CI
-// shard, a new worktree) has none, and an older local checkout may hold stale
-// packages from a previous commit, version, or inventory, so build missing or
-// stale surfaces before the full suite on a clean checkout. Trees without the
-// on-demand library (copied fixtures) are skipped; dirty git checkouts are also
-// skipped because `distribution build` fails closed on uncommitted changes.
-function ensureOnDemandPackages(root, env) {
-  const libFile = path.join(root, 'scripts', 'lib', 'on-demand-packages.js');
-  const launcher = path.join(root, 'bin', 'dhpk');
-  if (!fs.existsSync(libFile) || !fs.existsSync(launcher)) return;
-  const cleanEnv = stripGitEnv(env);
-  const { ON_DEMAND_SURFACES, onDemandPackageDir } = require(libFile);
-  let cleanCheckout = null;
-  for (const surface of ON_DEMAND_SURFACES) {
-    const packageDir = onDemandPackageDir(root, surface);
-    const exists = fs.existsSync(packageDir);
-    if (exists && isOnDemandPackageFresh(root, surface, packageDir, cleanEnv)) continue;
-    if (cleanCheckout === null) cleanCheckout = isCheckoutClean(root, cleanEnv);
-    if (!cleanCheckout) continue;
-    const built = spawnSync('bash', [launcher, 'distribution', 'build', surface, '--json'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
-    if (built.status !== 0) {
-      throw new Error(`on-demand ${surface} build failed before the test run: ${String(built.stderr || built.stdout).trim()}`);
-    }
-  }
+// The prebuild lives in tests/_lib/on-demand-prebuild.js. Fixture trees that
+// copy only this runner have no sibling _lib and skip the prebuild.
+function ensureOnDemandPackages(root, env, options) {
+  const prebuild = path.join(__dirname, '_lib', 'on-demand-prebuild.js');
+  if (!fs.existsSync(prebuild)) return;
+  require(prebuild).ensureOnDemandPackages(root, stripGitEnv(env), options);
 }
 
 async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
