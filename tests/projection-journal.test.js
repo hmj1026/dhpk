@@ -729,4 +729,65 @@ test('testEffectBatch_crashedChmodRollbackPreservesForeignAndEditedPermissionsWh
   }
 });
 
+test('testChmodRollback_creatorLookupStopsAtAncestorDirectoryRenameAndTreeRemove', () => {
+  // An intervening ancestor rename or tree remove must break creator lookup so
+  // a later chmod inverse without an explicit digest is not bound to an earlier
+  // copy-tree from before the directory was moved or removed.
+  for (const barrier of ['rename', 'remove-tree']) {
+    withProject(({ projectRoot }, at) => {
+      seed(at);
+      fs.mkdirSync(at('.agents/managed/sub'), { recursive: true });
+      const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+      journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+      fs.writeFileSync(at('.agents/.stage/a.md'), 'staged-original\n');
+      const digestStage = digest('staged-original\n');
+      journal.journal.effects.push(
+        {
+          id: 2,
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/a.md', to: '.agents/managed/sub/a.md', digest: digestStage },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/sub/a.md'], mode: 'file', digest: digestStage } },
+          state: 'planned',
+        },
+        barrier === 'rename'
+          ? {
+            id: 3,
+            kind: 'rename',
+            args: { from: '.agents/managed/sub', to: '.agents/managed/sub-moved' },
+            inverse: { kind: 'rename', args: { from: '.agents/managed/sub-moved', to: '.agents/managed/sub' } },
+            state: 'planned',
+          }
+          : {
+            id: 3,
+            kind: 'remove',
+            args: { paths: ['.agents/managed/sub'], mode: 'tree' },
+            inverse: { kind: 'mkdir', args: { paths: ['.agents/managed/sub'] } },
+            state: 'planned',
+          },
+        {
+          id: 4,
+          kind: 'chmod',
+          args: { path: '.agents/managed/sub/a.md', mode: 0o600 },
+          inverse: { kind: 'chmod', args: { path: '.agents/managed/sub/a.md', mode: 0o644 } },
+          state: 'planned',
+        },
+      );
+      journal.flush();
+      fs.writeFileSync(at('.agents/managed/sub/a.md'), 'independent-content\n', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/sub/a.md'), 0o600);
+      // Record 4's chmod inverse restores 0644 (not falsely rejected by record 2's
+      // digest), then record 2's file removal fails closed with RECOVERY_CONFLICT.
+      const saved = JSON.parse(fs.readFileSync(at(JOURNAL), 'utf8'));
+      const baseScope = scopeFor(projectRoot);
+      const testScope = barrier === 'remove-tree'
+        ? { ...baseScope, transient: new Set([...baseScope.transient, at('.agents/managed/sub')]) }
+        : baseScope;
+      journalCore.validateJournalRecords(saved, { projectRoot, scope: testScope });
+      throwsCode(() => journalCore.recoverJournal(saved, { projectRoot, journalPath: at(JOURNAL) }), 'RECOVERY_CONFLICT');
+      assert.strictEqual(fs.statSync(at('.agents/managed/sub/a.md')).mode & 0o777, 0o644, `barrier=${barrier}`);
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/sub/a.md'), 'utf8'), 'independent-content\n');
+    });
+  }
+});
+
 run('projection-journal');

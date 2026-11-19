@@ -40,6 +40,7 @@ const {
   ON_DEMAND_SURFACES,
   isOnDemandSurface,
   onDemandRelativeDir,
+  onDemandPackageDir,
   archiveOnDemandPackage,
   withOnDemandSurfaceLock,
 } = require('./on-demand-packages');
@@ -440,24 +441,43 @@ function execute(argv, root) {
         options: Object.freeze({ ...request.options, output }),
       };
     }
-    const context = runtime(snapshot ? snapshot.root : root, effectiveRequest);
-    if (request.operation === 'generate') assertOwnedGenerationTarget(request.surface, context.output);
-    if (snapshot) {
-      context.allowPreview = true;
-      context.publication = {
-        publicationMode: 'preview',
-        releaseEligible: false,
-        origin: {
-          baseCommit: snapshot.baseCommit,
-          baseTree: snapshot.baseTree,
-          snapshotCommit: snapshot.snapshotCommit,
-          snapshotTree: snapshot.snapshotTree,
-          changeCounts: snapshot.changeCounts,
-        },
-      };
-    }
     const surface = SURFACES[request.surface];
-    const result = surface.run(request.operation === 'preview' ? 'preview' : request.operation, context);
+    const targetOutput = path.resolve(
+      snapshot ? snapshot.root : root,
+      effectiveRequest.options.output || surface.output,
+    );
+    const lockBeforeRuntime = isOnDemandSurface(request.surface)
+      && (request.operation === 'validate' || request.operation === 'verify')
+      && targetOutput === path.resolve(onDemandPackageDir(root, request.surface))
+      && fs.existsSync(path.dirname(targetOutput));
+    const runDistribution = () => {
+      const context = runtime(snapshot ? snapshot.root : root, effectiveRequest);
+      if (snapshot) {
+        context.allowPreview = true;
+        context.publication = {
+          publicationMode: 'preview',
+          releaseEligible: false,
+          origin: {
+            baseCommit: snapshot.baseCommit,
+            baseTree: snapshot.baseTree,
+            snapshotCommit: snapshot.snapshotCommit,
+            snapshotTree: snapshot.snapshotTree,
+            changeCounts: snapshot.changeCounts,
+          },
+        };
+      }
+      const runOperation = () => {
+        if (request.operation === 'generate') assertOwnedGenerationTarget(request.surface, context.output);
+        return surface.run(request.operation === 'preview' ? 'preview' : request.operation, context);
+      };
+      const result = isOnDemandSurface(request.surface) && request.operation === 'generate'
+        ? withOnDemandSurfaceLock(context.output, runOperation)
+        : runOperation();
+      return { context, result };
+    };
+    const { context, result } = lockBeforeRuntime
+      ? withOnDemandSurfaceLock(targetOutput, runDistribution)
+      : runDistribution();
     const evidence = {
       stage: 'structural',
       runtime: 'NOT_RUN',

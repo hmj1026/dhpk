@@ -155,11 +155,16 @@ function isPartialCopyFile(projectRoot, record) {
   return targetBytes.length < sourceBytes.length && sourceBytes.subarray(0, targetBytes.length).equals(targetBytes);
 }
 
+function pathMatchesOrContains(ancestorOrExact, targetPath) {
+  return ancestorOrExact === targetPath || targetPath.startsWith(`${ancestorOrExact}/`);
+}
+
 // Finds the most recent earlier non-undone file-creating record (`copy-tree` or
 // `write-file`) for `targetPath`, stopping if an intervening rename, remove,
-// or symlink replaced that path. Used during rollback so a trailing `chmod`
-// inverse verifies content ownership before touching permissions (and skips
-// partial copies that `copy-tree`'s inverse is about to clean up).
+// or symlink replaced that path or an ancestor directory. Used during rollback
+// so a trailing `chmod` inverse verifies content ownership before touching
+// permissions (and skips partial copies that `copy-tree`'s inverse is about to
+// clean up).
 function findFileCreatorRecord(effects, beforeIndex, targetPath) {
   for (let index = beforeIndex - 1; index >= 0; index -= 1) {
     const candidate = effects[index];
@@ -168,9 +173,14 @@ function findFileCreatorRecord(effects, beforeIndex, targetPath) {
     if (!args) continue;
     if (kind === 'copy-tree' && args.to === targetPath) return candidate;
     if (kind === 'write-file' && args.path === targetPath) return candidate;
-    if (kind === 'rename' && (args.from === targetPath || args.to === targetPath)) return null;
-    if (kind === 'remove' && Array.isArray(args.paths) && args.paths.includes(targetPath)) return null;
-    if (kind === 'symlink' && args.path === targetPath) return null;
+    if (kind === 'rename' && (
+      (typeof args.from === 'string' && pathMatchesOrContains(args.from, targetPath))
+      || (typeof args.to === 'string' && pathMatchesOrContains(args.to, targetPath))
+    )) return null;
+    if (kind === 'remove' && Array.isArray(args.paths) && args.paths.some((removed) => (
+      typeof removed === 'string' && (args.mode === 'tree' ? pathMatchesOrContains(removed, targetPath) : removed === targetPath)
+    ))) return null;
+    if (kind === 'symlink' && typeof args.path === 'string' && pathMatchesOrContains(args.path, targetPath)) return null;
   }
   return null;
 }

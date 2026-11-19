@@ -30,6 +30,27 @@ function sleepMs(milliseconds) {
   Atomics.wait(SLEEP_BUFFER, 0, 0, milliseconds);
 }
 
+function resolveLockDir(packageDir) {
+  const resolved = path.resolve(packageDir);
+  const parentDir = path.dirname(resolved);
+  fs.mkdirSync(parentDir, { recursive: true });
+  const canonicalParent = fs.realpathSync(parentDir);
+  return {
+    parentDir: canonicalParent,
+    lockDir: path.join(canonicalParent, `.${path.basename(resolved)}.build-lock`),
+  };
+}
+
+function canonicalPackagePath(packageDir) {
+  const resolved = path.resolve(packageDir);
+  const parentDir = path.dirname(resolved);
+  try {
+    return path.join(fs.realpathSync(parentDir), path.basename(resolved));
+  } catch (_) {
+    return resolved;
+  }
+}
+
 function lstatOrNull(target) {
   try {
     return fs.lstatSync(target);
@@ -53,16 +74,26 @@ function processIsAlive(pid) {
   }
 }
 
-function readLockOwner(lockDir) {
+// Returns:
+// - { kind: 'owner', owner } for a valid owner record (positive integer pid)
+// - { kind: 'tombstone' } for an owner.json explicitly sealed for reclamation
+// - { kind: 'missing' } when owner.json is absent, partial, or invalid
+function readLockState(lockDir) {
   try {
-    const owner = JSON.parse(fs.readFileSync(path.join(lockDir, 'owner.json'), 'utf8'));
-    if (owner && typeof owner === 'object' && Number.isSafeInteger(owner.pid) && owner.pid > 0) {
-      return owner;
+    const parsed = JSON.parse(fs.readFileSync(path.join(lockDir, 'owner.json'), 'utf8'));
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.tombstone === true) return { kind: 'tombstone' };
+      if (Number.isSafeInteger(parsed.pid) && parsed.pid > 0) return { kind: 'owner', owner: parsed };
     }
   } catch (_) {
     // Missing, partial, or invalid owner.json is treated as ownerless.
   }
-  return null;
+  return { kind: 'missing' };
+}
+
+function readLockOwner(lockDir) {
+  const state = readLockState(lockDir);
+  return state.kind === 'owner' ? state.owner : null;
 }
 
 function isMatchingOwner(owner, expected) {
@@ -71,31 +102,29 @@ function isMatchingOwner(owner, expected) {
 
 // Returns true when stale, false when live/within grace, or null when absent.
 function isLockDirectoryStale(lockDir, staleGraceMs) {
-  const owner = readLockOwner(lockDir);
-  if (owner) return !processIsAlive(owner.pid);
+  const state = readLockState(lockDir);
+  if (state.kind === 'tombstone') return true;
+  if (state.kind === 'owner') return !processIsAlive(state.owner.pid);
   const stat = lstatOrNull(lockDir);
   if (!stat) return null;
   return (Date.now() - stat.mtimeMs) >= staleGraceMs;
 }
 
-function tryReclaimStaleLock(lockDir, staleGraceMs) {
-  const initial = isLockDirectoryStale(lockDir, staleGraceMs);
-  if (initial === null) return true;
-  if (!initial) return false;
-  const retiring = `${lockDir}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+function tryRetireStaleGuard(reclaimDir, staleGraceMs) {
+  const stale = isLockDirectoryStale(reclaimDir, staleGraceMs);
+  if (stale !== true) return stale === null;
+  const retiring = `${reclaimDir}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
   try {
-    fs.renameSync(lockDir, retiring);
+    fs.renameSync(reclaimDir, retiring);
   } catch (error) {
     if (error && error.code === 'ENOENT') return true;
     return false;
   }
-  // Re-verify the moved lock so a live or freshly created lock that replaced
-  // the stale slot before renameSync is restored instead of destroyed.
   if (isLockDirectoryStale(retiring, staleGraceMs) === false) {
     try {
-      fs.renameSync(retiring, lockDir);
+      fs.renameSync(retiring, reclaimDir);
     } catch (_) {
-      // Best-effort restore if another process already claimed the slot.
+      // Best-effort restore if another reclaimer already claimed the guard.
     }
     return false;
   }
@@ -103,19 +132,143 @@ function tryReclaimStaleLock(lockDir, staleGraceMs) {
   return true;
 }
 
+function acquireReclaimGuard(lockDir, staleGraceMs) {
+  const reclaimDir = `${lockDir}.reclaim`;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let acquiredStat;
+    try {
+      fs.mkdirSync(reclaimDir);
+      acquiredStat = fs.lstatSync(reclaimDir);
+    } catch (error) {
+      if (error && error.code === 'EEXIST') {
+        if (attempt === 0 && tryRetireStaleGuard(reclaimDir, staleGraceMs)) continue;
+        return null;
+      }
+      if (error && error.code === 'ENOENT') return null;
+      throw error;
+    }
+    const ownerRecord = {
+      pid: process.pid,
+      token: crypto.randomBytes(12).toString('hex'),
+      createdAt: Date.now(),
+    };
+    if (claimLockOwnership(reclaimDir, acquiredStat, ownerRecord)) {
+      return { reclaimDir, ownerRecord, acquiredStat };
+    }
+    return null;
+  }
+  return null;
+}
+
+function releaseReclaimGuard(guard) {
+  if (!guard) return;
+  releaseOnDemandSurfaceLock(guard.reclaimDir, guard.ownerRecord, guard.acquiredStat);
+}
+
+// Atomically seals an expired ownerless lock directory with a tombstone
+// owner.json before retiring it, so a slow original acquirer waking up right
+// at the grace boundary cannot claim owner.json concurrently with reclamation.
+function tombstoneOwnerlessLock(lockDir, expectedStat, reclaimDir) {
+  if (!sameDirectory(expectedStat, lstatOrNull(lockDir))) return 'changed';
+  const ownerPath = path.join(lockDir, 'owner.json');
+  const tombstoneTmp = path.join(reclaimDir, `.tombstone-${process.pid}-${crypto.randomBytes(4).toString('hex')}.tmp`);
+  const payload = `${JSON.stringify({ tombstone: true, reclaimedBy: process.pid, reclaimedAt: Date.now() })}\n`;
+  try {
+    fs.writeFileSync(tombstoneTmp, payload, { mode: 0o600 });
+    if (!sameDirectory(expectedStat, lstatOrNull(lockDir))) return 'changed';
+    try {
+      fs.linkSync(tombstoneTmp, ownerPath);
+      return 'tombstoned';
+    } catch (error) {
+      if (error && (error.code === 'EPERM' || error.code === 'ENOTSUP' || error.code === 'ENOSYS')) {
+        if (!sameDirectory(expectedStat, lstatOrNull(lockDir))) return 'changed';
+        fs.writeFileSync(ownerPath, payload, { flag: 'wx', mode: 0o600 });
+        return 'tombstoned';
+      }
+      throw error;
+    }
+  } catch (error) {
+    if (error && error.code === 'EEXIST') return 'exists';
+    if (error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return 'absent';
+    throw error;
+  } finally {
+    try {
+      fs.unlinkSync(tombstoneTmp);
+    } catch (_) {
+      // Ignore cleanup errors on the tombstone temp file.
+    }
+  }
+}
+
+function tryReclaimStaleLock(lockDir, staleGraceMs) {
+  const initial = isLockDirectoryStale(lockDir, staleGraceMs);
+  if (initial === null) return true;
+  if (!initial) return false;
+  const guard = acquireReclaimGuard(lockDir, staleGraceMs);
+  if (!guard) return false;
+  try {
+    const targetStat = lstatOrNull(lockDir);
+    if (!targetStat) return true;
+    const state = readLockState(lockDir);
+    if (state.kind === 'owner') {
+      if (processIsAlive(state.owner.pid)) return false;
+    } else if (state.kind === 'missing') {
+      if ((Date.now() - targetStat.mtimeMs) < staleGraceMs) return false;
+      const outcome = tombstoneOwnerlessLock(lockDir, targetStat, guard.reclaimDir);
+      if (outcome === 'absent') return true;
+      if (outcome === 'changed') return false;
+      if (outcome === 'exists') {
+        const afterState = readLockState(lockDir);
+        if (afterState.kind === 'owner' && processIsAlive(afterState.owner.pid)) return false;
+        if (afterState.kind === 'missing') {
+          const ownerStat = lstatOrNull(path.join(lockDir, 'owner.json'));
+          if (!ownerStat || (Date.now() - ownerStat.mtimeMs) < staleGraceMs) return false;
+        }
+      }
+    }
+    if (!sameDirectory(targetStat, lstatOrNull(lockDir))) return false;
+    const retiring = `${lockDir}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+    try {
+      fs.renameSync(lockDir, retiring);
+    } catch (error) {
+      if (error && error.code === 'ENOENT') return true;
+      return false;
+    }
+    // Defense-in-depth: if an external actor replaced lockDir with a live or
+    // freshly created lock outside the reclaim protocol, restore it instead of
+    // destroying it.
+    if (isLockDirectoryStale(retiring, staleGraceMs) === false) {
+      try {
+        fs.renameSync(retiring, lockDir);
+      } catch (_) {
+        // Best-effort restore if another process already claimed the slot.
+      }
+      return false;
+    }
+    fs.rmSync(retiring, { recursive: true, force: true });
+    return true;
+  } finally {
+    releaseReclaimGuard(guard);
+  }
+}
+
 function claimLockOwnership(lockDir, acquiredStat, ownerRecord) {
   if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
   const ownerPath = path.join(lockDir, 'owner.json');
   const ownerTmp = path.join(lockDir, `.owner-${process.pid}-${ownerRecord.token}.tmp`);
   const payload = `${JSON.stringify(ownerRecord)}\n`;
+  let wroteOwnerFile = false;
   try {
     fs.writeFileSync(ownerTmp, payload, { mode: 0o600 });
     if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
     try {
       fs.linkSync(ownerTmp, ownerPath);
+      wroteOwnerFile = true;
     } catch (error) {
       if (error && (error.code === 'EPERM' || error.code === 'ENOTSUP' || error.code === 'ENOSYS')) {
+        if (!sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
         fs.writeFileSync(ownerPath, payload, { flag: 'wx', mode: 0o600 });
+        wroteOwnerFile = true;
       } else {
         throw error;
       }
@@ -144,11 +297,22 @@ function claimLockOwnership(lockDir, acquiredStat, ownerRecord) {
       // Already removed or lock directory was retired.
     }
   }
-  return sameDirectory(acquiredStat, lstatOrNull(lockDir))
-    && isMatchingOwner(readLockOwner(lockDir), ownerRecord);
+  const currentStat = lstatOrNull(lockDir);
+  const currentOwner = readLockOwner(lockDir);
+  if (sameDirectory(acquiredStat, currentStat) && isMatchingOwner(currentOwner, ownerRecord)) {
+    return true;
+  }
+  // If a fallback `flag: 'wx'` write landed in a replacement lock directory
+  // with our own unique token, release that misplaced claim so we never leave
+  // our live PID stranded in another process's lock directory.
+  if (wroteOwnerFile && isMatchingOwner(currentOwner, ownerRecord)) {
+    releaseOnDemandSurfaceLock(lockDir, ownerRecord);
+  }
+  return false;
 }
 
-function releaseOnDemandSurfaceLock(lockDir, ownerRecord) {
+function releaseOnDemandSurfaceLock(lockDir, ownerRecord, acquiredStat = null) {
+  if (acquiredStat && !sameDirectory(acquiredStat, lstatOrNull(lockDir))) return false;
   if (!isMatchingOwner(readLockOwner(lockDir), ownerRecord)) return false;
   const releasing = `${lockDir}.release-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
   try {
@@ -177,18 +341,16 @@ function withOnDemandSurfaceLock(packageDir, fn, {
   pollMs = ON_DEMAND_LOCK_POLL_MS,
   staleGraceMs = ON_DEMAND_LOCK_STALE_GRACE_MS,
 } = {}) {
-  const resolved = path.resolve(packageDir);
-  const parentDir = path.dirname(resolved);
-  const lockDir = path.join(parentDir, `.${path.basename(resolved)}.build-lock`);
+  const { lockDir } = resolveLockDir(packageDir);
   if (HELD_LOCKS.has(lockDir)) return fn();
-  fs.mkdirSync(parentDir, { recursive: true });
   const deadline = Date.now() + timeoutMs;
   let ownerRecord = null;
+  let acquiredStat = null;
   while (true) {
-    let acquiredStat;
+    let candidateStat;
     try {
       fs.mkdirSync(lockDir);
-      acquiredStat = fs.lstatSync(lockDir);
+      candidateStat = fs.lstatSync(lockDir);
     } catch (error) {
       if (error && error.code === 'EEXIST') {
         if (tryReclaimStaleLock(lockDir, staleGraceMs)) continue;
@@ -212,8 +374,9 @@ function withOnDemandSurfaceLock(packageDir, fn, {
       token: crypto.randomBytes(12).toString('hex'),
       createdAt: Date.now(),
     };
-    if (claimLockOwnership(lockDir, acquiredStat, candidate)) {
+    if (claimLockOwnership(lockDir, candidateStat, candidate)) {
       ownerRecord = candidate;
+      acquiredStat = candidateStat;
       break;
     }
     if (Date.now() >= deadline) {
@@ -226,14 +389,14 @@ function withOnDemandSurfaceLock(packageDir, fn, {
     return fn();
   } finally {
     HELD_LOCKS.delete(lockDir);
-    releaseOnDemandSurfaceLock(lockDir, ownerRecord);
+    releaseOnDemandSurfaceLock(lockDir, ownerRecord, acquiredStat);
   }
 }
 
 // Acquires locks for several package directories in canonical sorted order so
 // multi-surface callers never deadlock against one another.
 function withOnDemandLocks(packageDirs, fn, options) {
-  const unique = [...new Set(packageDirs.map((dir) => path.resolve(dir)))].sort();
+  const unique = [...new Set(packageDirs.map((dir) => canonicalPackagePath(dir)))].sort();
   const acquire = (index) => (
     index >= unique.length
       ? fn()

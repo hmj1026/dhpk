@@ -20,7 +20,7 @@ const {
   withOnDemandSurfaceLock,
   withOnDemandLocks,
 } = require('../scripts/lib/on-demand-packages');
-const { parseRequest, SURFACES } = require('../scripts/lib/dhpk-distribution');
+const { parseRequest, SURFACES, execute } = require('../scripts/lib/dhpk-distribution');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -270,6 +270,217 @@ test('withOnDemandSurfaceLock serializes concurrent processes without overlappin
     assert.strictEqual(fs.existsSync(lockDir), false, 'lock directory must be cleaned up after concurrent workers finish');
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('withOnDemandSurfaceLock canonicalizes symlinked parent paths for re-entrancy', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-symlink-')));
+  try {
+    const realParent = path.join(root, 'real');
+    const linkParent = path.join(root, 'link');
+    fs.mkdirSync(realParent);
+    fs.symlinkSync(realParent, linkParent, 'dir');
+    const result = withOnDemandSurfaceLock(path.join(linkParent, 'dhpk-cursor'), () => (
+      withOnDemandLocks(
+        [path.join(realParent, 'dhpk-cursor'), path.join(linkParent, 'dhpk-cursor')],
+        () => 'reentrant-across-symlink',
+        { timeoutMs: 250, pollMs: 25 },
+      )
+    ), { timeoutMs: 250, pollMs: 25 });
+    assert.strictEqual(result, 'reentrant-across-symlink');
+    assert.strictEqual(fs.existsSync(path.join(realParent, '.dhpk-cursor.build-lock')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('withOnDemandSurfaceLock handles ENOTSUP link fallback and stale-reclaim races without deadlock or live-lock yank', () => {
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-race-')));
+  try {
+    const packageDir = path.join(parent, 'dhpk-cursor');
+    const lockDir = path.join(parent, '.dhpk-cursor.build-lock');
+
+    // Case 1: ENOTSUP fallback where lockDir is swapped to a distinct inode right as wx runs
+    // must release its misplaced token claim instead of self-deadlocking on its own live PID.
+    const origLink = fs.linkSync;
+    const origWrite = fs.writeFileSync;
+    let swapped = false;
+    fs.linkSync = (src, dst) => {
+      if (!swapped && dst === path.join(lockDir, 'owner.json')) {
+        const err = new Error('Operation not supported');
+        err.code = 'ENOTSUP';
+        throw err;
+      }
+      return origLink.call(fs, src, dst);
+    };
+    fs.writeFileSync = (file, data, opts) => {
+      if (!swapped && file === path.join(lockDir, 'owner.json') && opts && opts.flag === 'wx') {
+        swapped = true;
+        fs.renameSync(lockDir, path.join(parent, '.held-original'));
+        fs.mkdirSync(lockDir);
+      }
+      return origWrite.call(fs, file, data, opts);
+    };
+    try {
+      const result = withOnDemandSurfaceLock(packageDir, () => 'recovered-wx', { timeoutMs: 500, pollMs: 25 });
+      assert.strictEqual(result, 'recovered-wx');
+      assert.strictEqual(fs.existsSync(lockDir), false);
+    } finally {
+      fs.linkSync = origLink;
+      fs.writeFileSync = origWrite;
+      fs.rmSync(path.join(parent, '.held-original'), { recursive: true, force: true });
+    }
+
+    // Case 2: Slow live acquirer finishes writing owner.json right before tombstone links
+    // -> reclaimer must abort without ever renaming or removing the live lock.
+    fs.mkdirSync(lockDir);
+    const expiredAt = new Date(Date.now() - ON_DEMAND_LOCK_STALE_GRACE_MS - 1000);
+    fs.utimesSync(lockDir, expiredAt, expiredAt);
+    const origRename = fs.renameSync;
+    let injectedLiveOwner = false;
+    let renamedLiveLock = false;
+    fs.linkSync = (src, dst) => {
+      if (!injectedLiveOwner && String(src).includes('.tombstone-') && dst === path.join(lockDir, 'owner.json')) {
+        injectedLiveOwner = true;
+        fs.writeFileSync(path.join(lockDir, 'owner.json'), `${JSON.stringify({ pid: process.pid, token: 'live-acquirer', createdAt: Date.now() })}\n`);
+      }
+      return origLink.call(fs, src, dst);
+    };
+    fs.renameSync = (from, to) => {
+      if (from === lockDir && String(to).includes('.stale-')) renamedLiveLock = true;
+      return origRename.call(fs, from, to);
+    };
+    try {
+      assert.throws(
+        () => withOnDemandSurfaceLock(packageDir, () => 'should-not-run', { timeoutMs: 150, pollMs: 25 }),
+        /timed out waiting for on-demand package lock/,
+      );
+      assert.strictEqual(injectedLiveOwner, true);
+      assert.strictEqual(renamedLiveLock, false, 'live lock must never be moved during stale reclaim');
+      assert.strictEqual(JSON.parse(fs.readFileSync(path.join(lockDir, 'owner.json'), 'utf8')).token, 'live-acquirer');
+      assert.deepStrictEqual(
+        fs.readdirSync(parent).filter((name) => name.includes('.stale-') || name.includes('.reclaim')),
+        [],
+      );
+    } finally {
+      fs.linkSync = origLink;
+      fs.renameSync = origRename;
+      fs.rmSync(lockDir, { recursive: true, force: true });
+    }
+
+    // Case 3: Corrupted/truncated owner.json older than staleGraceMs is still reclaimed cleanly.
+    fs.mkdirSync(lockDir);
+    const corruptOwner = path.join(lockDir, 'owner.json');
+    fs.writeFileSync(corruptOwner, '{truncated');
+    fs.utimesSync(corruptOwner, expiredAt, expiredAt);
+    fs.utimesSync(lockDir, expiredAt, expiredAt);
+    assert.strictEqual(withOnDemandSurfaceLock(packageDir, () => 'reclaimed-corrupt'), 'reclaimed-corrupt');
+    assert.deepStrictEqual(fs.readdirSync(parent), []);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('withOnDemandSurfaceLock serializes concurrent stale-lock reclamation across workers without overlaps or strays', async () => {
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-mp-reclaim-')));
+  try {
+    const packageDir = path.join(parent, 'dhpk-cursor');
+    const lockDir = path.join(parent, '.dhpk-cursor.build-lock');
+    const libPath = path.join(ROOT, 'scripts', 'lib', 'on-demand-packages.js');
+    const workerScript = [
+      'const fs = require("node:fs");',
+      'const { withOnDemandSurfaceLock } = require(process.argv[1]);',
+      'const buf = new Int32Array(new SharedArrayBuffer(4));',
+      'withOnDemandSurfaceLock(process.argv[2], () => {',
+      '  fs.appendFileSync(process.argv[3], `enter:${process.argv[4]}\\n`);',
+      '  Atomics.wait(buf, 0, 0, 20);',
+      '  fs.appendFileSync(process.argv[3], `exit:${process.argv[4]}\\n`);',
+      '}, { timeoutMs: 15000, pollMs: 10, staleGraceMs: 500 });',
+    ].join('\n');
+
+    for (const kind of ['expired-ownerless', 'dead-pid']) {
+      const traceFile = path.join(parent, `trace-${kind}.log`);
+      fs.rmSync(lockDir, { recursive: true, force: true });
+      fs.mkdirSync(lockDir);
+      if (kind === 'expired-ownerless') {
+        const old = new Date(Date.now() - 10_000);
+        fs.utimesSync(lockDir, old, old);
+      } else {
+        const exited = spawnSync(process.execPath, ['-e', ''], { encoding: 'utf8' });
+        assert.strictEqual(exited.status, 0);
+        fs.writeFileSync(path.join(lockDir, 'owner.json'), JSON.stringify({ pid: exited.pid, token: 'dead', createdAt: 1 }));
+      }
+      const workers = ['w1', 'w2', 'w3', 'w4', 'w5'].map((id) => new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, ['-e', workerScript, libPath, packageDir, traceFile, id], { stdio: ['ignore', 'pipe', 'pipe'] });
+        let stderr = '';
+        child.stderr.on('data', (chunk) => { stderr += chunk; });
+        child.on('error', reject);
+        child.on('close', (code) => resolve({ id, code, stderr }));
+      }));
+      const results = await Promise.all(workers);
+      for (const res of results) {
+        assert.strictEqual(res.code, 0, `${kind} ${res.id} failed: ${res.stderr}`);
+      }
+      const lines = fs.readFileSync(traceFile, 'utf8').trim().split('\n');
+      assert.strictEqual(lines.length, 10, `${kind}: expected 10 trace lines, got ${JSON.stringify(lines)}`);
+      for (let index = 0; index < lines.length; index += 2) {
+        const entered = lines[index].match(/^enter:(w\d)$/);
+        assert.ok(entered, `${kind}: expected enter at ${index}, got ${lines[index]}`);
+        assert.strictEqual(lines[index + 1], `exit:${entered[1]}`, `${kind}: critical sections overlapped: ${JSON.stringify(lines)}`);
+      }
+      assert.deepStrictEqual(
+        fs.readdirSync(parent).filter((name) => name.startsWith('.dhpk-cursor')),
+        [],
+        `${kind}: no stray lock/reclaim/stale dirs may remain`,
+      );
+    }
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('distribution validate serializes against an active on-demand surface lock before reading provenance', async () => {
+  const tempRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-dist-lock-')));
+  try {
+    const onDemandDir = path.join(tempRoot, 'dist', 'on-demand');
+    fs.mkdirSync(onDemandDir, { recursive: true });
+    const packageDir = path.join(onDemandDir, 'dhpk-cursor');
+    const releasedFile = path.join(tempRoot, 'released.txt');
+    const libPath = path.join(ROOT, 'scripts', 'lib', 'on-demand-packages.js');
+    const holderScript = [
+      'const fs = require("node:fs");',
+      'const { withOnDemandSurfaceLock } = require(process.argv[1]);',
+      'const buf = new Int32Array(new SharedArrayBuffer(4));',
+      'withOnDemandSurfaceLock(process.argv[2], () => {',
+      '  process.stdout.write("LOCKED\\n");',
+      '  Atomics.wait(buf, 0, 0, 180);',
+      '  fs.writeFileSync(process.argv[3], String(Date.now()));',
+      '});',
+    ].join('\n');
+
+    const child = spawn(process.execPath, ['-e', holderScript, libPath, packageDir, releasedFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    await new Promise((resolve, reject) => {
+      let stdout = '';
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk;
+        if (stdout.includes('LOCKED')) resolve();
+      });
+      child.on('error', reject);
+      child.on('close', (code) => reject(new Error(`holder exited early (${code}): ${stderr}`)));
+    });
+
+    const exitPromise = new Promise((resolve) => child.on('close', (code) => resolve(code)));
+    execute(['cursor-plugin', 'validate', '--json'], tempRoot);
+    const finishedAt = Date.now();
+    const exitCode = await exitPromise;
+    assert.strictEqual(exitCode, 0, stderr);
+    assert.strictEqual(fs.existsSync(releasedFile), true, 'distribution validate must wait until the active surface lock releases');
+    const releasedAt = Number(fs.readFileSync(releasedFile, 'utf8'));
+    assert.ok(finishedAt >= releasedAt, `validate finished (${finishedAt}) before holder released (${releasedAt})`);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 
