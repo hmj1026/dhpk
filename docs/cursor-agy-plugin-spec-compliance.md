@@ -7,9 +7,9 @@ Parent: #1491. Consumer: #1512 (conformance checks). Research date: 2026-11-18.
 > `BREAKING.drop-same-name-command-forwarders`), the repository has no
 > `commands/` source directory, and `scripts/lib/cursor-plugin-package.js` emits
 > a `commands` component only when that source has files, so the Cursor package
-> ships none. `manifests/distribution-inventory.json` still lists `commands/` as
-> a `source_paths` entry for the Cursor surfaces; that listing is stale metadata
-> and does not add files. The rows are kept as the 2026-11-18 record.
+> ships none because no `commands/` source exists. The leftover `commands/`
+> `source_paths` entries in `manifests/distribution-inventory.json` are removed
+> by #1521. The rows are kept as the 2026-11-18 record.
 
 Scope: `dist/on-demand/dhpk-cursor` (Cursor Plugin) and `dist/on-demand/dhpk-agy` (AGY / Antigravity CLI plugin) at the
 head of `feature/1491-published-packages` (package version 0.78.0).
