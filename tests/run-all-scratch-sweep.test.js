@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { sweepStaleScratch, defaultJobs, parseOptions } = require('./run-all');
+const { sweepStaleScratch, defaultJobs, parseOptions, hookBatchJobsFor } = require('./run-all');
 
 const HOUR = 60 * 60 * 1000;
 
@@ -63,6 +63,14 @@ test('default jobs is min(cpus, 4) and DHPK_TEST_JOBS overrides it', () => {
   assert.strictEqual(defaultJobs(), Math.max(1, Math.min(os.availableParallelism(), 4)));
   assert.strictEqual(parseOptions([], {}).jobs, defaultJobs());
   assert.strictEqual(parseOptions([], { DHPK_TEST_JOBS: '2' }).jobs, 2);
+});
+
+test('hookBatchJobsFor splits the cpus across run-all workers and keeps a user value', () => {
+  assert.strictEqual(hookBatchJobsFor(4, 4, {}), '1');
+  assert.strictEqual(hookBatchJobsFor(4, 2, {}), '2');
+  assert.strictEqual(hookBatchJobsFor(2, 4, {}), '1');
+  assert.strictEqual(hookBatchJobsFor(4, 4, { DHPK_HOOK_BATCH_JOBS: '' }), '1');
+  assert.strictEqual(hookBatchJobsFor(4, 4, { DHPK_HOOK_BATCH_JOBS: '3' }), '3');
 });
 
 run('run-all-scratch-sweep');

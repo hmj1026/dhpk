@@ -103,6 +103,9 @@ const TIMEOUT_HINTS = Object.freeze({
   // Bash hooks. The single file hit 480s (ETIMEDOUT) in CI against the 10-minute job limit, so the
   // hint cannot grow; each half now needs about half of the former runtime.
   'hook-bypass-git-gate.test.js': 480000,
+  // About 48s alone; after #1506 it shares CI shard 1 with xargs-batched hook suites and ran
+  // 158-180s there, timing out three times against the 180s default.
+  'hook-differential.test.js': 300000,
   // Crash and failure sweeps re-run the installer once per step: 130-155s
   // alone; 180s overran under the four-way local publish gate for 0.73.0.
   'install-codex-adapter-journal.test.js': 300000,
@@ -150,6 +153,14 @@ function parseNonNegativeInteger(value, label, { maximum = Number.MAX_SAFE_INTEG
 function defaultJobs() {
   const cpus = typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
   return Math.max(1, Math.min(cpus, 4));
+}
+
+// Each run-all worker runs batched hook suites that fan out through xargs -P
+// (tests/_lib/hookbatch.js). Split the cpus across the workers so the fan-out
+// does not nest on top of them; a user-set DHPK_HOOK_BATCH_JOBS is kept.
+function hookBatchJobsFor(cpus, workerCount, env = process.env) {
+  if (env.DHPK_HOOK_BATCH_JOBS) return env.DHPK_HOOK_BATCH_JOBS;
+  return String(Math.max(1, Math.floor(cpus / Math.max(1, workerCount))));
 }
 
 function parseOptions(argv = process.argv.slice(2), sourceEnv = process.env) {
@@ -505,6 +516,11 @@ function runWorker(files, workerIndex, workerCount, env, progress) {
     const childEnv = {
       ...env,
       DHPK_TEST_JOBS: '1',
+      DHPK_HOOK_BATCH_JOBS: hookBatchJobsFor(
+        typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length,
+        workerCount,
+        env,
+      ),
       ...(timingRequested ? { DHPK_TEST_TIMING_CHILD: '1' } : {}),
     };
     const startedAt = process.hrtime.bigint();
@@ -767,6 +783,7 @@ module.exports = {
   findTests,
   parseOptions,
   defaultJobs,
+  hookBatchJobsFor,
   sweepStaleScratch,
   ensureOnDemandPackages,
   partitionFiles,
