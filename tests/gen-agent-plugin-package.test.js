@@ -9,6 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const {
   normalizePortableFrontmatter,
   AGENT_PLUGIN_SCHEMA,
@@ -719,7 +720,7 @@ test('default Agent Plugin generation publishes the canonical owner catalog', ()
   try {
     const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
     const sourceManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-    const priorReceipt = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
+    const priorReceipt = JSON.parse(fs.readFileSync(path.join(builtPackage('agent-plugin'), 'provenance.json'), 'utf8'));
     materializeAgentPluginPackage({
       inventory,
       root: ROOT,
@@ -825,7 +826,7 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
   try {
     const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
     const sourceManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-    const priorReceipt = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
+    const priorReceipt = JSON.parse(fs.readFileSync(path.join(builtPackage('agent-plugin'), 'provenance.json'), 'utf8'));
     const requiredCoreIds = inventory.profile_policy.required_core_ids.slice().sort();
     const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
     const resolved = resolveCapabilitySelection({
@@ -866,7 +867,7 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
   const ROOT = path.join(__dirname, '..');
 
   test('tracked Agent Plugin package has independent structural and provenance gates', () => {
-    const packageRoot = path.join(ROOT, 'plugins', 'dhpk-agent');
+    const packageRoot = path.join(builtPackage('agent-plugin'));
     const result = validateAgentPluginPackage(packageRoot);
     assert.strictEqual(result.ok, true, result.errors.join('\n'));
     const cli = spawnSync(process.execPath, [
@@ -951,7 +952,7 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
   test('Agent Plugin validator emits structural PASS and provenance PASS', () => {
     const result = spawnSync(process.execPath, [
       path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'),
-      path.join(ROOT, 'plugins', 'dhpk-agent'),
+      path.join(builtPackage('agent-plugin')),
     ], { encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
     const report = JSON.parse(result.stdout);
@@ -962,7 +963,7 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
   test('Agent Plugin validator preserves the --package-root compatibility alias', () => {
     const result = spawnSync(process.execPath, [
       path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'),
-      '--package-root', path.join(ROOT, 'plugins', 'dhpk-agent'),
+      '--package-root', path.join(builtPackage('agent-plugin')),
     ], { encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
     const report = JSON.parse(result.stdout);
@@ -995,7 +996,7 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
   test('Agent Plugin validator still fails when provenance.json is unreadable and fails closed as unreadable', () => {
     const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-unreadable-'));
     try {
-      fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-agent'), packageRoot, { recursive: true });
+      fs.cpSync(path.join(builtPackage('agent-plugin')), packageRoot, { recursive: true });
       fs.writeFileSync(path.join(packageRoot, 'provenance.json'), '{ not json');
       const result = spawnSync(process.execPath, [
         path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'), packageRoot,

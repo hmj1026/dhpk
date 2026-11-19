@@ -17,6 +17,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const { loadPrivateFunction } = require('./_lib/private-function');
 const receipts = require('../scripts/lib/receipt-primitives');
 const { fingerprintDir: codexFingerprintDir } = require('../scripts/lib/codex-native-package');
@@ -69,7 +70,10 @@ function readJson(file) {
 
 // Recipe named by the tracked package's provenance marker.
 function packageAlgorithm(packageName) {
-  return resolveFingerprintAlgorithm(readJson(path.join(ROOT, 'plugins', packageName, 'provenance.json')));
+  const packageRoot = packageName === 'dhpk'
+    ? path.join(ROOT, 'plugins', 'dhpk')
+    : builtPackage({ 'dhpk-agent': 'agent-plugin', 'dhpk-cursor': 'cursor-plugin', 'dhpk-agy': 'agy-plugin' }[packageName]);
+  return resolveFingerprintAlgorithm(readJson(path.join(packageRoot, 'provenance.json')));
 }
 
 function tempDir(label) {
@@ -132,26 +136,26 @@ test('rows 2-3: Codex fingerprintDir reproduces every plugins/dhpk fingerprints.
 });
 
 test('rows 4-5: Agent fingerprintDir reproduces every plugins/dhpk-agent fingerprints.json entry', () => {
-  const recorded = readJson(path.join(ROOT, 'plugins', 'dhpk-agent', 'fingerprints.json')).skills;
+  const recorded = readJson(path.join(builtPackage('agent-plugin'), 'fingerprints.json')).skills;
   const algorithm = packageAlgorithm('dhpk-agent');
   assert.ok(Object.keys(recorded).length > 0);
   for (const [name, value] of Object.entries(recorded)) {
-    assert.strictEqual(agentFingerprintDir(path.join(ROOT, 'plugins', 'dhpk-agent', 'skills', name), { algorithm }), value, name);
+    assert.strictEqual(agentFingerprintDir(path.join(builtPackage('agent-plugin'), 'skills', name), { algorithm }), value, name);
   }
 });
 
 test('rows 6-7: Cursor fingerprintPath reproduces every plugins/dhpk-cursor fingerprints.json entry', () => {
-  const recorded = readJson(path.join(ROOT, 'plugins', 'dhpk-cursor', 'fingerprints.json'));
+  const recorded = readJson(path.join(builtPackage('cursor-plugin'), 'fingerprints.json'));
   assert.ok(Object.keys(recorded).length > 0);
   for (const [key, value] of Object.entries(recorded)) {
-    assert.strictEqual(cursorFingerprintPath(path.join(ROOT, 'plugins', 'dhpk-cursor', key), { algorithm: 'tree-merkle-v1' }), value, key);
+    assert.strictEqual(cursorFingerprintPath(path.join(builtPackage('cursor-plugin'), key), { algorithm: 'tree-merkle-v1' }), value, key);
   }
 });
 
 test('row 17: the AGY provenance fingerprints hold no directory-level entry', () => {
-  const recorded = readJson(path.join(ROOT, 'plugins', 'dhpk-agy', 'fingerprints.json')).files;
+  const recorded = readJson(path.join(builtPackage('agy-plugin'), 'fingerprints.json')).files;
   for (const relative of Object.keys(recorded)) {
-    assert.ok(fs.statSync(path.join(ROOT, 'plugins', 'dhpk-agy', relative)).isFile(), relative);
+    assert.ok(fs.statSync(path.join(builtPackage('agy-plugin'), relative)).isFile(), relative);
   }
 });
 

@@ -49,7 +49,7 @@ test('stack skills leave the core selection and map to top-level dhpk-stacks ski
 
 // A dropped module that a shipped script still requires would crash at runtime.
 test('every relative require in the committed Directory Plugin resolves inside the package', () => {
-  const root = path.join(__dirname, '..', 'generated', 'claude-marketplace', 'package');
+  const root = path.join(__dirname, '..', 'dist', 'claude-marketplace', 'package');
   const files = new Set();
   const visit = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((entry) => {
     const full = path.join(dir, entry.name);

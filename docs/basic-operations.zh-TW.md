@@ -149,7 +149,7 @@ node scripts/ci/validate-skills.js --strict
 ```
 
 這些指令只驗證 repository source，不代表 official consumer。Claude marketplace 指向
-`generated/claude-marketplace/package` 這個實體 package；它在進入 marketplace cache 前排除
+`dist/claude-marketplace/package` 這個實體 package；它在進入 marketplace cache 前排除
 development-only 的 root `CLAUDE.md`。請用以下指令確認生成物沒有 drift：
 
 ```bash

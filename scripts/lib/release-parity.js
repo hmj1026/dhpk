@@ -31,7 +31,7 @@ const AGY_GENERATOR_DOC_PATHS = [
   'docs/platform-installation.zh-TW.md',
 ];
 
-const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution agy-plugin generate --output plugins\/dhpk-agy --version=(\d+\.\d+\.\d+) --json/g;
+const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution build agy-plugin --version=(\d+\.\d+\.\d+) --json/g;
 
 // Directories that `prepare-release.js write` regenerates wholesale, and the
 // fragment directory whose promoted entries it deletes. Together with the
@@ -39,11 +39,8 @@ const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution agy-plugin generate --outpu
 // set of paths a release-preparation commit may touch.
 const REGENERATED_RELEASE_DIRS = [
   'plugins/dhpk/',
-  'plugins/dhpk-agent/',
-  'plugins/dhpk-cursor/',
-  'plugins/dhpk-agy/',
-  'generated/claude-marketplace/package/',
-  'generated/claude-marketplace/stacks-package/',
+  'dist/claude-marketplace/package/',
+  'dist/claude-marketplace/stacks-package/',
 ];
 
 const CHANGELOG_FRAGMENT_DIR = 'changelog.d/';
@@ -62,7 +59,7 @@ function releaseScope() {
 }
 
 function agyGeneratorCommand(version) {
-  return `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json`;
+  return `bin/dhpk distribution build agy-plugin --version=${version} --json`;
 }
 
 function findAgyGeneratorPins(text) {

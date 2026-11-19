@@ -51,7 +51,7 @@ Completion criterion: `impact` resolves a known symbol in the new worktree.
 
 Merging `origin/develop` into a feature branch usually conflicts only in
 generated provenance and fingerprint files. For every conflicted file under
-`generated/` or `plugins/*/`, take develop's side and commit the merge. Then
+`dist/` or `plugins/*/`, take develop's side and commit the merge. Then
 regenerate and check as described in
 [plugin development](plugin-development.md#ci-preflight-for-generated-and-release-shaped-changes).
 

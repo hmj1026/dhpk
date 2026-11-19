@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const fingerprint = require('../scripts/lib/content-fingerprint');
 const receipts = require('../scripts/lib/receipt-primitives');
 const { packageFingerprints } = require('../scripts/lib/release-artifact-manifest');
@@ -52,7 +53,7 @@ function legacyPackageFingerprints(root) {
 }
 
 test('release packageFingerprints matches the removed walker on the adversarial tree and a real package', () => {
-  for (const root of [ADVERSARIAL, path.join(ROOT, 'plugins', 'dhpk-cursor')]) {
+  for (const root of [ADVERSARIAL, path.join(builtPackage('cursor-plugin'))]) {
     assert.deepStrictEqual(packageFingerprints(root), legacyPackageFingerprints(root));
   }
 });

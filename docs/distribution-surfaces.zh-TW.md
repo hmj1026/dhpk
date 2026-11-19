@@ -141,11 +141,11 @@ fingerprint 或其他套件專屬輸出。可用 `git ls-files generated plugins
 
 | Surface | tracked 檔案 | 位元組相同 | 套件專屬 | 決策 |
 | --- | ---: | ---: | ---: | --- |
-| `generated/claude-marketplace/package` | 1,141 | 1,128 | 13 | 保留；需先以 clean-checkout materializer 與 relocation probe 取代直接路徑，才能評估移除。 |
+| `dist/claude-marketplace/package` | 1,141 | 1,128 | 13 | 保留；需先以 clean-checkout materializer 與 relocation probe 取代直接路徑，才能評估移除。 |
 | `plugins/dhpk`（Codex native） | 435 | 415 | 20 | 保留；native 實驗路徑與 package gate 直接使用此根目錄及其 provenance/fingerprint。 |
-| `plugins/dhpk-agent` | 389 | 364 | 25 | 保留；Agent 發佈擁有此共享 skill 實體樹與 package manifest。 |
-| `plugins/dhpk-cursor` | 67 | 32 | 35 | 保留；Cursor-native 規則、agent、command、hook 是 Host 專屬，與 `dhpk-agent` 分開。 |
-| `plugins/dhpk-agy` | 426 | 375 | 51 | 保留；AGY 安裝與 receipt 檢查使用準備好的 package root。 |
+| `dist/on-demand/dhpk-agent` | 不追蹤（commit 時為 389） | 364 | 25 | 以 `bin/dhpk distribution build agent-plugin` 需要時才建置並附在 GitHub Release；擁有此共享 skill 實體樹與 package manifest。 |
+| `dist/on-demand/dhpk-cursor` | 不追蹤（commit 時為 67） | 32 | 35 | 以 `bin/dhpk distribution build cursor-plugin` 需要時才建置並附在 GitHub Release；Cursor-native 規則、agent、command、hook 是 Host 專屬，與 `dhpk-agent` 分開。 |
+| `dist/on-demand/dhpk-agy` | 不追蹤（commit 時為 426） | 375 | 51 | 以 `bin/dhpk distribution build agy-plugin` 需要時才建置並附在 GitHub Release；AGY 安裝與 receipt 檢查使用建置出的 package root。 |
 
 安全的後續工作是針對選定的位元組相同 helper／reference 類別進行有界的
 packaging-only 實驗：先加入明確 materializer 輸入、每個直接 consumer 的
@@ -157,10 +157,10 @@ skill、execution bundle 或 checkout 安裝缺檔。實驗不得改變 release 
 ## Standard Agent Plugin 與 Cursor native ownership
 
 Platform capability matrix 讓相同的 portable skill 只有一個 physical publication
-owner：`plugins/dhpk-agent/skills/`。Standard Agent Plugin 擁有這份 generated tree；
-`plugins/dhpk-cursor/` 預設只放 Cursor-native rules、agents、commands、hooks 與
+owner：`dist/on-demand/dhpk-agent/skills/`。Standard Agent Plugin 擁有這份 generated tree；
+`dist/on-demand/dhpk-cursor/` 預設只放 Cursor-native rules、agents、commands、hooks 與
 variables。Cursor provenance 會記錄 shared stable IDs 與
-`plugins/dhpk-agent/skills/` source，但不建立第二份 `skills/`。只有明確 matrix row
+`dist/on-demand/dhpk-agent/skills/` source，但不建立第二份 `skills/`。只有明確 matrix row
 使用 `projection_mode: overlay`、指定 stable IDs，並記錄 transform、fallback 與獨立
 fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills 只有一個
 更新／rollback owner，而 Cursor-native files 由另一個 owner 獨立管理。
@@ -182,7 +182,7 @@ reference。它不會把 canonical skill 改成新 owner，也不會把 `.agents
 
 Source checkout 是 authoring tree；`scripts/ci/gen-claude-manifest.js` 從 inventory
 產生註冊的 skill roots，這些 roots 不代表安裝後的 discovery catalog。主
-`dhpk@dhpk` marketplace 指向 `generated/claude-marketplace/package`，由
+`dhpk@dhpk` marketplace 指向 `dist/claude-marketplace/package`，由
 `scripts/ci/gen-claude-marketplace-package.js` 依 shared catalog 產生。
 
 Catalog 擁有 15 個 common 公開入口、folded branches/references 與必要 Host support。

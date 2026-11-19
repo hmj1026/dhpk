@@ -21,12 +21,12 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `codex/` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
 | Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | OpenAI Public Plugin Directory（Codex 與 ChatGPT Work） | 公開 listing 出現後，在產品 Plugins Directory 搜尋 DHPK | 使用該產品的 plugin manager | 核准的公開 listing，以及每個 Host 的 fresh-session workflow probe | 目前僅為 candidate，狀態 `NOT_PUBLISHED`；local/repository marketplace 僅供開發 |
-| Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
+| Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `dist/on-demand/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
-| Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
+| Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `dist/on-demand/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `cursor/` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；release probe 使用隔離的 shared-network bubblewrap namespace，不得 unrestricted 執行 |
-| AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`、明確的 `migrate`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
+| AGY native plugin | 產生 `dist/on-demand/dhpk-agy/`，再由 receipt-owned installer 安裝至 inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`、明確的 `migrate`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
 只需要 Flow Drive 的 Codex 使用者，可將完整且固定版本的 canonical skill
 安裝到目前專案。安裝、明確更新／移除，以及 managed installation 切換方式，請見
@@ -246,13 +246,20 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.78.0 --json
+bin/dhpk distribution build agy-plugin --version=0.78.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
-上述 generate 指令是 maintainer／distribution preparation。從 clone 安裝的
-consumer 應使用下方 platform section 的 prepared package，不要在原地重新
-generate tracked package。
+只有 Published Package 會 commit：`dist/claude-marketplace/` 下的 Directory
+Plugin 與 dhpk-stacks，以及 `plugins/dhpk/` 的 Public Plugin（`codex-native`）。
+Agent、Cursor 與 AGY package 改為需要時才建置：
+`bin/dhpk distribution build <surface>` 會把 package 產生到被 gitignore 的
+`dist/on-demand/<name>/`、驗證，並在旁邊寫出
+`dist/on-demand/<name>-<version>.tar.gz`。release workflow 對這三個 surface 執行
+同一指令並把 archive 附在 GitHub Release，consumer 可直接下載而不必自行建置。
+`build` 與 `generate` 一樣需要乾淨的 source checkout，且只接受 `agent-plugin`、
+`cursor-plugin` 與 `agy-plugin`。解開下載的 archive 時，請讓 `dhpk-cursor` 與
+`dhpk-agent` 位於同一個目錄。
 
 要檢查尚未提交的來源，可用 `preview` 將 `HEAD` 加上未忽略的工作目錄變更
 寫入 checkout 外的暫存輸出。Receipt 會記錄
@@ -266,21 +273,15 @@ bin/dhpk distribution agent-plugin preview \
 # JSON 回傳的輸出路徑是暫存的；正式驗證會拒絕 preview receipt。
 ```
 
-正式 package 的每次 `generate` 都要求 clean checkout。從同一個 clean commit
-將四個 package 依序生成到 checkout 外的新目錄，再複製各自 owner 的輸出並
-一次提交；第一個 package 若生成在 tracked path，checkout 變髒後下一個命令
-就會被阻擋：
+提交的 Public Plugin 以 `generate` 產生時要求 clean checkout。從 clean commit
+將它生成到 checkout 外的新目錄，再複製到 `plugins/dhpk/` 並一次提交：
 
 ```bash
 packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
-bin/dhpk distribution agent-plugin generate --output "$packages/dhpk-agent" --version=<version> --json
-bin/dhpk distribution cursor-plugin generate --output "$packages/dhpk-cursor" --version=<version> --json
 bin/dhpk distribution codex-native generate --output "$packages/dhpk" --version=<version> --json
-bin/dhpk distribution agy-plugin generate --output "$packages/dhpk-agy" --version=<version> --json
 ```
 
-任一命令失敗就停止；替換前先驗證 tracked target，複製四個 owner directory
-時保留 bytes 與 mode。
+失敗就停止；替換前先驗證 tracked target，複製 owner directory 時保留 bytes 與 mode。
 
 `openai-submission` surface 會從公開 catalog 建立另一份完整 skills-only
 candidate。Manifest、checkout 外輸出目錄、receipt 檢查與 submission gate 見
@@ -517,7 +518,7 @@ project-local sync。legacy manifest 不得視為 Agent Plugins conformance proo
 Prerequisites：實作 Agent Plugins 1.0.0 schema 且有已驗證 loader route 的
 client；本 repository 尚未驗證最低 client version。
 
-`plugins/dhpk-agent/` 具有 Agent Plugins 1.0.0 root `plugin.json`、
+`dist/on-demand/dhpk-agent/` 具有 Agent Plugins 1.0.0 root `plugin.json`、
 immediate-child `skills/` 及 optional schema-versioned `mcp.json`。Claude/Codex
 invocation policy 留在 client-owned metadata；portable skill frontmatter 只含
 standard fields 與 nested metadata。
@@ -763,7 +764,7 @@ receipt 完整性。英文版的 [復原程序](platform-installation.md#recover
 Prerequisites：具 local plugin loader 的 Cursor desktop client，以及已記錄的
 Cursor version；本 repository 尚未驗證最低版本。
 
-Cursor 可用 `plugins/dhpk-agent/` 取得 portable skills 與 optional MCP：
+Cursor 可用 `dist/on-demand/dhpk-agent/` 取得 portable skills 與 optional MCP：
 
 1. 在 Cursor **Customize → Plugins** 選 reviewed local package，或複製到
    `~/.cursor/plugins/local/dhpk-agent`。
@@ -880,8 +881,8 @@ path，更新後重開 Cursor desktop/session：
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
-ln -s /absolute/path/to/dhpk/plugins/dhpk-agent ~/.cursor/plugins/local/dhpk-agent
-ln -s /absolute/path/to/dhpk/plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+ln -s /absolute/path/to/dhpk/dist/on-demand/dhpk-agent ~/.cursor/plugins/local/dhpk-agent
+ln -s /absolute/path/to/dhpk/dist/on-demand/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 ```
 
 建立 link 前先確認 target 不存在；不可覆蓋 user-owned plugin。Rollback 只移除
@@ -892,12 +893,12 @@ ln -s /absolute/path/to/dhpk/plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cu
 Prerequisites：loader 支援 native manifest/components 的 Cursor desktop client，
 以及已記錄的 Cursor version；本 repository 尚未驗證最低版本。
 
-native projection 是 `plugins/dhpk-cursor/`，manifest 為
+native projection 是 `dist/on-demand/dhpk-cursor/`，manifest 為
 `.cursor-plugin/plugin.json`。local 測試：
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
-cp -R plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+cp -R dist/on-demand/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 ```
 
 也可使用 reviewed `.cursor-plugin/marketplace.json` source。Reload Cursor，
@@ -907,7 +908,7 @@ cp -R plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 project-local `.cursor/dhpk/`。外部 worker adapter 透過並排安裝的
 `dhpk-agent` skill store 定位
 （`${CURSOR_PLUGIN_ROOT}/../dhpk-agent/skills/...`）。portable skills 不會複製到這個 native
-package：請安裝 `plugins/dhpk-agent/` 作為專案唯一的 physical skill store，
+package：請安裝 `dist/on-demand/dhpk-agent/` 作為專案唯一的 physical skill store，
 再以兩份 provenance 的 stable IDs 互相比對。不要手動建立第二份 `skills/`。
 只有明確的 environment-specific matrix overlay 可以加入 Cursor `skills/`，
 且該 overlay 必須記錄 transform 與獨立 fingerprint。不支援的 component
@@ -924,7 +925,7 @@ Prerequisites：Cursor project-local loader、POSIX shell，以及上表 Cursor
 project-local 列的 schema-v3 receipt contract。client version 必須等 release
 evidence 記錄後才算已建立。
 
-此路徑與 `plugins/dhpk-cursor/`（marketplace／user-scoped plugin）分開。
+此路徑與 `dist/on-demand/dhpk-cursor/`（marketplace／user-scoped plugin）分開。
 project-local 檔案只在 installer 執行後出現於 consumer `.cursor/`。native
 `.cursor/hooks.json` mapping 不在 v1；此 installer 不會寫入 `hooks.json`。
 若 Third-party skills 開啟，Cursor 仍可能從 `.claude/settings.json` 載入
@@ -1016,14 +1017,14 @@ Rollback 使用 `--uninstall` 或還原已儲存的 `.cursor/` receipt。不要�
 AGY projection 是獨立的 owner-scoped package。它把 canonical agent
 frontmatter 轉進 package，不改 canonical `agents/`。產生出的 agents 以
 package 內的 plugin-relative `agent-traps/` 路徑定位 prompt-defense 與 trap
-sheet，不使用 `${CLAUDE_PLUGIN_ROOT}`。已追蹤的 `plugins/dhpk-agy/` 目錄已是可供
-consumer 從 clone 直接安裝的 prepared distribution package。請直接安裝該
-package；consumer 安裝流程不要在 tracked path 重新 generate，因為 generate
-會改寫 provenance metadata 並弄髒 checkout：
+sheet，不使用 `${CLAUDE_PLUGIN_ROOT}`。此 package 不再 commit：請從 GitHub Release 下載並解開
+`dhpk-agy-<version>.tar.gz`，或在乾淨 clone 執行
+`bin/dhpk distribution build agy-plugin`，會寫出被 gitignore 的
+`dist/on-demand/dhpk-agy/` 目錄。請直接安裝建置出的 package：
 
 ```bash
 node scripts/ci/install-agy-plugin.js install \
-  --source plugins/dhpk-agy \
+  --source dist/on-demand/dhpk-agy \
   --json
 ```
 
@@ -1047,8 +1048,8 @@ path contract 版本固定在 `manifests/distribution-inventory.json`。AGY 1.2.
 `BLOCKED`／`AMBIGUOUS_TARGETS`。唯讀命令不會 adoption、刪除或覆寫 target：
 
 ```bash
-node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json
-node scripts/ci/install-agy-plugin.js status --source plugins/dhpk-agy --json
+node scripts/ci/install-agy-plugin.js plan --source dist/on-demand/dhpk-agy --json
+node scripts/ci/install-agy-plugin.js status --source dist/on-demand/dhpk-agy --json
 ```
 
 要搬移 receipt-owned legacy installation，必須明確使用 transactional
@@ -1057,7 +1058,7 @@ receipt-owned files；promotion 或移除失敗時會 rollback canonical，保�
 
 ```bash
 node scripts/ci/install-agy-plugin.js migrate \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 ```
 
 只有 owner 明確操作特定 target 時才使用 `--target <dir>`。explicit target
@@ -1068,7 +1069,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.78.0 --json
+bin/dhpk distribution build agy-plugin --version=0.78.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1090,13 +1091,13 @@ node scripts/ci/install-agy-plugin.js install \
 
 ```bash
 node scripts/ci/install-agy-plugin.js install \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js update \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js plan \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js status \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js rollback \
   --json
 ```

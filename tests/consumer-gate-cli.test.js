@@ -28,6 +28,7 @@ const {
 const { inspectCodexDiscovery } = require('../scripts/lib/codex-discovery-registry');
 const { normalizeConsumerEvidence } = require('../scripts/lib/release-evidence');
 const { materializeAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
+const { installBuiltPackage } = require('./_lib/on-demand-packages-fixture');
 const { materializeAgentsSkillsProjection } = require('../scripts/lib/agents-skills-package');
 
 function mkBinStub(dir, name, body) {
@@ -397,7 +398,7 @@ function makeProjectedPackageRoot({ includeAgent = true, includeCursor = true } 
     ...(includeCursor ? ['dhpk-cursor'] : []),
   ];
   for (const packageName of packageNames) {
-    fs.cpSync(path.join(ROOT, 'plugins', packageName), path.join(pluginsDirectory, packageName), { recursive: true });
+    installBuiltPackage(root, packageName === 'dhpk-agent' ? 'agent-plugin' : 'cursor-plugin');
   }
   fs.copyFileSync(
     path.join(ROOT, 'manifests', 'distribution-inventory.json'),
@@ -440,7 +441,7 @@ function makeAgyGateRoot() {
   materializeAgyPluginPackage({
     root,
     inventory,
-    outDir: path.join(root, 'plugins', 'dhpk-agy'),
+    outDir: path.join(root, 'dist', 'on-demand', 'dhpk-agy'),
     version: REAL_VERSION,
     sourceVersion: REAL_VERSION,
     sourceCommit: 'b'.repeat(40),
@@ -784,7 +785,7 @@ test('configured AGY package is selected with the AGY executable absent from PAT
 test('a corrupt AGY package fails the selected installation requirement', () => {
   const root = makeAgyGateRoot();
   try {
-    fs.appendFileSync(path.join(root, 'plugins', 'dhpk-agy', 'agents', 'sample.md'), '\n# Tampered after packaging\n');
+    fs.appendFileSync(path.join(root, 'dist', 'on-demand', 'dhpk-agy', 'agents', 'sample.md'), '\n# Tampered after packaging\n');
     const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'agy-plugin']);
 
     assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
@@ -826,7 +827,7 @@ test('an unsafe physical AGY receipt cannot fall back to the valid package route
     const agents = path.join(root, '.agents');
     fs.mkdirSync(agents, { recursive: true });
     fs.symlinkSync(
-      path.join(root, 'plugins', 'dhpk-agy', 'plugin.json'),
+      path.join(root, 'dist', 'on-demand', 'dhpk-agy', 'plugin.json'),
       path.join(agents, '.dhpk-installed.json'),
     );
     const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'agy-plugin']);
@@ -988,9 +989,9 @@ test('default installation acceptance passes configured contracts while runtime 
   const root = makeConfiguredScopeRoot([
     '.claude-plugin', 'skills', 'agents', 'modules',
     'rules', 'cursor', 'scripts', 'manifests', 'docs',
-    'plugins/dhpk-agent', 'plugins/dhpk-cursor', 'plugins/dhpk-agy',
     'AGENTS.md',
   ]);
+  for (const surface of ['agent-plugin', 'cursor-plugin', 'agy-plugin']) installBuiltPackage(root, surface);
   try {
     withConsumerGateBin((bin) => {
       mkBinStub(bin, 'claude', `#!/bin/sh

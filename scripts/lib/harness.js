@@ -751,12 +751,12 @@ const PROBE_ADAPTERS = Object.freeze({
   'agent-plugin': Object.freeze({
     platform: 'agent-plugin',
     consumerSurface: 'agent-plugin',
-    packagePath: ['plugins', 'dhpk-agent'],
+    packagePath: ['dist', 'on-demand', 'dhpk-agent'],
   }),
   'cursor-plugin': Object.freeze({
     platform: 'cursor',
     consumerSurface: 'cursor-plugin',
-    packagePath: ['plugins', 'dhpk-cursor'],
+    packagePath: ['dist', 'on-demand', 'dhpk-cursor'],
   }),
 });
 
@@ -836,7 +836,6 @@ function failedProbeRow(
 
 function releaseVersion(root) {
   for (const relative of [
-    path.join('plugins', 'dhpk-agent', 'plugin.json'),
     path.join('plugins', 'dhpk', '.codex-plugin', 'plugin.json'),
     path.join('.claude-plugin', 'plugin.json'),
   ]) {

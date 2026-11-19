@@ -17,8 +17,8 @@ const { compileMarketplaceSkillContent } = require('../lib/marketplace-skill-con
 const { selectRuntimeFiles, stackSkillDestination } = require('../lib/directory-plugin-runtime');
 
 const ROOT = path.join(__dirname, '..', '..');
-const DEFAULT_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
-const DEFAULT_STACKS_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'stacks-package');
+const DEFAULT_OUTPUT = path.join(ROOT, 'dist', 'claude-marketplace', 'package');
+const DEFAULT_STACKS_OUTPUT = path.join(ROOT, 'dist', 'claude-marketplace', 'stacks-package');
 const PROVENANCE_SCHEMA = 'dhpk.claude-marketplace-catalog.v1';
 const STACKS_PROVENANCE_SCHEMA = 'dhpk.claude-stacks-package.v1';
 const PACKAGE_PATHS = [

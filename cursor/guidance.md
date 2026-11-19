@@ -8,7 +8,7 @@ the in-repo `cursor/` tree; a consumer project receives files only after
 `install-cursor-harness.sh` materializes them into `.cursor/`.
 
 The marketplace / `~/.cursor/plugins/local/dhpk-cursor` package remains a
-separate route. Do not copy `plugins/dhpk-cursor/` into a project `.cursor/`
+separate route. Do not copy `dist/on-demand/dhpk-cursor/` into a project `.cursor/`
 directory: project rules must be `.mdc`, and that package has no `skills/`.
 
 ## Dual route
@@ -16,7 +16,7 @@ directory: project rules must be `.mdc`, and that package has no `skills/`.
 | Route | Owner | What it is for |
 |-------|-------|----------------|
 | Cursor project-local sync | `.cursor/.dhpk-installed.json` | Supported write path. Installs skills, subagents, `.mdc` rules, commands, and `.cursor/dhpk/` support files into the consumer project. |
-| Cursor Plugin package | `plugins/dhpk-cursor/` | Marketplace or `~/.cursor/plugins/local/` install. Native components only; portable skills stay on `plugins/dhpk-agent/`. |
+| Cursor Plugin package | `dist/on-demand/dhpk-cursor/` | Marketplace or `~/.cursor/plugins/local/` install. Native components only; portable skills stay on `dist/on-demand/dhpk-agent/`. |
 
 Canonical skill, agent, command, and rule **bodies** stay in `skills/`,
 `agents/`, `commands/`, and `rules/`. `cursor/skills/` is symlink-only.

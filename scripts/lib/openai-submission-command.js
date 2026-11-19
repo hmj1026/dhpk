@@ -131,7 +131,7 @@ function publish(output, bytes, receipt, selectedSkillNames, previousDigest) {
 
 function executeOpenaiSubmission(request, sourceRoot) {
   const root = physicalPath(sourceRoot);
-  const output = physicalPath(path.resolve(root, request.options.output || 'generated/openai-submission'));
+  const output = physicalPath(path.resolve(root, request.options.output || 'dist/openai-submission'));
   if (output === root || root.startsWith(`${output}${path.sep}`)
     || output === path.join(root, 'skills') || output.startsWith(`${path.join(root, 'skills')}${path.sep}`)
     || output === path.join(root, 'manifests') || output.startsWith(`${path.join(root, 'manifests')}${path.sep}`)) {

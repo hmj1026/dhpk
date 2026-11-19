@@ -60,6 +60,10 @@ function makeFixture({ preflightOutcome = 'PASS', preflightExit = 0 } = {}) {
   fs.writeFileSync(path.join(repo, 'bin', 'dhpk'), `#!/usr/bin/env bash
 printf 'dhpk %s\\n' "$*" >> "$CALL_LOG"
 if [ "$1" = "harness" ]; then echo '{"outcome":"${preflightOutcome}"}'; exit ${preflightExit}; fi
+if [ "$1" = "distribution" ] && [ "$2" = "build" ]; then
+  archive="$CALL_LOG.$3.tar.gz"; echo archive > "$archive"
+  printf '{"archive":"%s"}\\n' "$archive"; exit 0
+fi
 echo '{}'
 `, { mode: 0o755 });
   fs.writeFileSync(path.join(stubs, 'node'), NODE_STUB, { mode: 0o755 });
@@ -113,6 +117,12 @@ test('dry-run verifies the publication bundle with a verifier copied outside the
   assert.match(verifyCall, /--expected-tag v1\.2\.3 .*--expected-version 1\.2\.3/);
   assert.strictEqual(stages[stages.length - 1], 'standalone-verify');
   assert.ok(!stages.includes('provenance'), 'dry-run has no tag to prove');
+  assert.ok(stages.indexOf('host-packages') > stages.indexOf('packages') && stages.indexOf('host-packages') < stages.indexOf('manifest'),
+    `host-packages must build between packages and manifest: ${stages.join(',')}`);
+  for (const surface of ['agent-plugin', 'cursor-plugin', 'agy-plugin']) {
+    assert.match(calls, new RegExp(`dhpk distribution build ${surface} --version 1\\.2\\.3 --json`));
+  }
+  assert.strictEqual(fs.readdirSync(path.join(out, 'host-packages')).length, 3, 'one archive per on-demand surface');
   for (const name of ['dhpk-release-notes.txt', 'dhpk-release-artifact-manifest.json', 'dhpk-release-publication-bundle.json', 'dhpk-release-publication-notes-digest.json']) {
     assert.ok(fs.existsSync(path.join(out, name)), `missing ${name}`);
   }
@@ -164,7 +174,7 @@ test('the two modes run the same stages apart from tag provenance and the standa
     tagRun.stages.filter((name) => name !== 'provenance'),
     dryRun.stages.filter((name) => name !== 'standalone-verify'),
   );
-  assert.deepStrictEqual(dryRun.stages, ['parity', 'preflight', 'packages', 'manifest', 'notes', 'bundle', 'verifier-digest', 'standalone-verify']);
+  assert.deepStrictEqual(dryRun.stages, ['parity', 'preflight', 'packages', 'host-packages', 'manifest', 'notes', 'bundle', 'verifier-digest', 'standalone-verify']);
 }));
 
 test('tag mode rejects a tag that is not vX.Y.Z before any stage runs', () => withFixture({}, (fixture) => {
