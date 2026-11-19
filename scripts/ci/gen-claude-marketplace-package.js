@@ -136,6 +136,18 @@ function collectPhysicalEntry(source, destination, root, files) {
   addFile(files, destination, fs.readFileSync(source), (stat.mode & 0o111) !== 0);
 }
 
+// A release stages the package at the target version before the source manifests
+// are rewritten.  Applying the version here keeps provenance (which hashes the
+// manifest) computed from the bytes that ship.
+function withManifestVersion(files, version) {
+  if (!version) return;
+  const manifest = '.claude-plugin/plugin.json';
+  const entry = files.get(manifest);
+  if (!entry) throw new Error(`canonical Claude package has no ${manifest} to version`);
+  const data = JSON.parse(entry.content.toString('utf8'));
+  files.set(manifest, { ...entry, content: Buffer.from(`${JSON.stringify({ ...data, version }, null, 2)}\n`) });
+}
+
 function relocateText(files, content) {
   const relocations = content.files
     .filter((file) => file.kind !== 'dependency' && file.sourcePath.endsWith('/SKILL.md'))
@@ -195,7 +207,7 @@ function compileSkillContent(sourceRoot) {
   return { publicationView, content };
 }
 
-function planCanonicalTree(root) {
+function planCanonicalTree(root, { version } = {}) {
   const sourceRoot = fs.realpathSync(root);
   const { publicationView, content } = compileSkillContent(sourceRoot);
   const files = new Map();
@@ -207,6 +219,7 @@ function planCanonicalTree(root) {
     } else collectPhysicalEntry(source, relative, sourceRoot, files);
   }
   if (content) relocateText(files, content);
+  withManifestVersion(files, version);
   const runtime = selectRuntimeFiles(files);
   for (const [destination, source] of DIRECTORY_ROOT_FILES) {
     addFile(runtime, destination, fs.readFileSync(path.join(sourceRoot, source)), false);
@@ -245,7 +258,7 @@ function addStackSkills(files, sourceRoot) {
 
 // The dhpk-stacks package: stack modules, its own manifest and hooks, and the
 // core hook libraries those modules source.  Plans like the core package.
-function planStacksTree(root) {
+function planStacksTree(root, { version } = {}) {
   const sourceRoot = fs.realpathSync(root);
   const files = new Map();
   for (const relative of STACKS_PACKAGE_PATHS) {
@@ -265,6 +278,7 @@ function planStacksTree(root) {
     if (!fs.existsSync(absolute)) throw new Error(`canonical dhpk-stacks package source is missing: ${source}`);
     addFile(files, source, fs.readFileSync(absolute), (fs.statSync(absolute).mode & 0o111) !== 0);
   }
+  withManifestVersion(files, version);
   const runtime = selectRuntimeFiles(files);
   addFile(runtime, 'provenance.json', Buffer.from(stacksProvenanceDocument(runtime)), false);
   return planOutputs([...runtime.values()]);
@@ -307,8 +321,8 @@ const PACKAGES = {
   stacks: { plan: planStacksTree, verifyOwner: verifyStacksOwnership, sourcePaths: [...STACKS_PACKAGE_PATHS, STACKS_SOURCE] },
 };
 
-function publishPackage({ root, storeRoot, publishRoot, kind = 'core' }) {
-  const { plan, outputs } = PACKAGES[kind].plan(root);
+function publishPackage({ root, storeRoot, publishRoot, kind = 'core', version }) {
+  const { plan, outputs } = PACKAGES[kind].plan(root, { version });
   const store = new ProjectionArtifactStore({
     root: storeRoot, sourceRoot: fs.realpathSync(root), publishRoot,
     ownership: { verify: PACKAGES[kind].verifyOwner },
@@ -385,12 +399,12 @@ function temporaryPackage(parent) {
   return fs.mkdtempSync(path.join(parent, '.dhpk-claude-marketplace-'));
 }
 
-function materialize({ root = ROOT, out = DEFAULT_OUTPUT, kind = 'core' } = {}) {
+function materialize({ root = ROOT, out = DEFAULT_OUTPUT, kind = 'core', version } = {}) {
   const output = path.resolve(out);
   assertSafeOutput(root, output, kind);
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
-  publishPackage({ root, storeRoot: parent, publishRoot: output, kind });
+  publishPackage({ root, storeRoot: parent, publishRoot: output, kind, version });
   assertPhysicalPackage(output);
   return { output, fingerprint: fingerprint(output) };
 }
