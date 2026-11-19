@@ -9,12 +9,15 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { installBuiltPackage } = require('./_lib/on-demand-packages-fixture');
 const receipts = require('../scripts/lib/harness-receipt');
 const harness = require('../scripts/lib/harness');
 
 const ROOT = path.join(__dirname, '..');
 const { NODE_BASH_ONLY_PATH } = require('./_lib/node-only-path');
-const DEFAULT_INVOKE_TIMEOUT_MS = 30_000;
+// scripts/lib/harness.js bounds child commands at 60s; match that floor so
+// loaded hosts do not kill a live probe/preflight child before harness does.
+const DEFAULT_INVOKE_TIMEOUT_MS = 60_000;
 
 // Simulated developer machine: an ambient `cursor-agent` is first on the
 // parent PATH.  Every invocation is recorded and creates the log directory the
@@ -1087,13 +1090,61 @@ test('dirty-at-start receipt remains DIRTY when phase execution restores a clean
   }
 });
 
+function temporaryCursorProbeRoot() {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-cursor-probe-')));
+  fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
+  fs.mkdirSync(path.join(root, '.claude-plugin'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'scripts', 'release'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(root, '.claude-plugin', 'plugin.json'));
+  fs.copyFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), path.join(root, 'manifests', 'distribution-inventory.json'));
+  for (const scriptName of ['consumer-gate.js', 'consumer-platform-probe.js']) {
+    const realScript = path.join(ROOT, 'scripts', 'release', scriptName);
+    fs.writeFileSync(path.join(root, 'scripts', 'release', scriptName), [
+      "'use strict';",
+      "const { spawnSync } = require('node:child_process');",
+      `const result = spawnSync(process.execPath, [${JSON.stringify(realScript)}, ...process.argv.slice(2)], { encoding: 'utf8' });`,
+      'process.stdout.write(result.stdout || "");',
+      'process.stderr.write(result.stderr || "");',
+      'process.exitCode = result.status === null ? 1 : result.status;',
+      '',
+    ].join('\n'));
+  }
+  fs.writeFileSync(path.join(root, 'harness-entry.js'), [
+    "'use strict';",
+    `const { execute } = require(${JSON.stringify(path.join(ROOT, 'scripts', 'lib', 'harness'))});`,
+    'const invocation = execute(process.argv.slice(2), { root: __dirname });',
+    "process.stdout.write(`${JSON.stringify(invocation.result || { phase: null, outcome: 'INTERNAL_ERROR' })}\\n`);",
+    'process.exit(invocation.status);',
+  ].join('\n') + '\n');
+  fs.writeFileSync(path.join(root, 'bin', 'dhpk'), [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    'root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"',
+    'case "${1:-}" in',
+    '  harness) shift; exec node "$root/harness-entry.js" "$@" ;;',
+    '  *) exit 64 ;;',
+    'esac',
+  ].join('\n') + '\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(root, '.gitignore'), '/dist/on-demand/\n');
+  git(root, ['init', '-q']);
+  git(root, ['config', 'user.email', 'harness-test@example.invalid']);
+  git(root, ['config', 'user.name', 'Harness Test']);
+  git(root, ['add', '.']);
+  git(root, ['commit', '-qm', 'cursor probe root']);
+  installBuiltPackage(root, 'agent-plugin');
+  installBuiltPackage(root, 'cursor-plugin');
+  return root;
+}
+
 test('probe acceptance stays separate from a runtime-unavailable surface observation', () => {
   const receiptRoot = temporaryReceiptRoot();
+  const root = temporaryCursorProbeRoot();
   try {
-    const result = invoke(['probe', '--surface', 'cursor-plugin', '--task-id', 'facade-cursor-probe', '--json'], {
+    const result = invokeAt(root, ['probe', '--surface', 'cursor-plugin', '--task-id', 'facade-cursor-probe', '--json'], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
     });
-    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
     const payload = parseSingleJson(result.stdout);
     assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
     assert.strictEqual(payload.outcome, 'PASS');
@@ -1113,6 +1164,7 @@ test('probe acceptance stays separate from a runtime-unavailable surface observa
     assert.strictEqual(attempt.stage, 'CONSUMER');
     assert.strictEqual(attempt.producer, 'consumer-gate');
   } finally {
+    fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(receiptRoot, { recursive: true, force: true });
   }
 });
@@ -1123,7 +1175,7 @@ test('probe facade delegates the Cursor project-local sync route to the consumer
     const result = invoke(['probe', '--surface', 'cursor-sync', '--task-id', 'facade-cursor-sync-probe', '--json'], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
     });
-    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
     const payload = parseSingleJson(result.stdout);
     assert.strictEqual(payload.outcome, 'PASS');
     assert.strictEqual(payload.acceptance.verdict, 'PASS');
@@ -2153,7 +2205,9 @@ test('requirements files reject FIFOs, symlinks, and non-regular files without i
   execFileSync('mkfifo', [fifo]);
   fs.mkdirSync(directory);
   const invalidPaths = [
-    { path: fifo, timeout: 2000, kind: 'FIFO' },
+    // Still catches an infinite FIFO open hang while giving bash+node startup
+    // enough headroom under heavy machine load.
+    { path: fifo, timeout: 10_000, kind: 'FIFO' },
     { path: symlink, timeout: DEFAULT_INVOKE_TIMEOUT_MS, kind: 'symlink' },
     { path: directory, timeout: DEFAULT_INVOKE_TIMEOUT_MS, kind: 'directory' },
   ];

@@ -46,14 +46,17 @@ test('test scratch directories under the repo root are ignored and every ROOT mk
   assert.strictEqual(checkIgnore('.dhpk-test-scratch-x/skills/flow-guide.md').status, 0,
     'projected skill files under test scratch must be ignored');
   const fs = require('node:fs');
-  for (const file of ['gen-agents-skills.test.js', 'validate-agents-behavior.test.js']) {
+  let scanned = 0;
+  for (const file of fs.readdirSync(__dirname).filter((name) => name.endsWith('.test.js')).sort()) {
     const text = fs.readFileSync(path.join(__dirname, file), 'utf8');
     const prefixes = [...text.matchAll(/mkdtempSync\(path\.join\(ROOT,\s*'([^']*)'/g)].map((m) => m[1]);
-    assert.ok(prefixes.length > 0, `${file} must create ROOT scratch dirs`);
+    if (prefixes.length === 0) continue;
+    scanned += 1;
     for (const prefix of prefixes) {
       assert.ok(prefix.startsWith('.dhpk-test-scratch-'), `${file}: ${prefix} must use .dhpk-test-scratch- prefix`);
     }
   }
+  assert.ok(scanned >= 3, `expected at least 3 suites creating ROOT scratch dirs, found ${scanned}`);
 });
 
 run('openspec-gitignore');

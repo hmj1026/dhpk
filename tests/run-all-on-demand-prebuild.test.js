@@ -9,8 +9,10 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { ensureOnDemandPackages } = require('./run-all');
+const { packageInventoryDigest } = require('../scripts/lib/platform-provenance');
 
 const REPO = path.resolve(__dirname, '..');
 
@@ -80,6 +82,93 @@ test('ensureOnDemandPackages fails loudly when a build fails', () => {
   const root = fixtureRoot({ launcher: LAUNCHER_FAIL });
   try {
     assert.throws(() => ensureOnDemandPackages(root, process.env), /build failed before the test run: boom/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function provenanceFixtureRoot({ version = '1.2.3', inventory = { schema: 'v1', skills: ['a'] }, gitInit = false } = {}) {
+  const root = fixtureRoot();
+  fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
+  fs.mkdirSync(path.join(root, '.claude-plugin'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory)}\n`);
+  fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), `${JSON.stringify({ name: 'dhpk', version })}\n`);
+  let head = '1'.repeat(40);
+  if (gitInit) {
+    fs.writeFileSync(path.join(root, '.gitignore'), '/dist/on-demand/\n/calls.log\n');
+    const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+    git(['init', '-q']);
+    git(['config', 'user.email', 'prebuild-test@example.invalid']);
+    git(['config', 'user.name', 'Prebuild Test']);
+    git(['add', '.']);
+    git(['commit', '-qm', 'initial']);
+    head = git(['rev-parse', 'HEAD']).trim();
+  }
+  const writeReceipt = (surface, overrides = {}) => {
+    const dirName = { 'agent-plugin': 'dhpk-agent', 'cursor-plugin': 'dhpk-cursor', 'agy-plugin': 'dhpk-agy' }[surface];
+    const dir = path.join(root, 'dist', 'on-demand', dirName);
+    fs.mkdirSync(dir, { recursive: true });
+    if (overrides === null) return;
+    fs.writeFileSync(path.join(dir, 'provenance.json'), JSON.stringify({
+      surface,
+      sourceVersion: version,
+      sourceCommit: head,
+      generatedFromCommit: head,
+      inventoryDigest: packageInventoryDigest(surface, inventory),
+      ...overrides,
+    }));
+  };
+  return { root, head, writeReceipt };
+}
+
+test('ensureOnDemandPackages skips fresh surfaces and rebuilds stale inventory, version, or missing receipt', () => {
+  const { root, writeReceipt } = provenanceFixtureRoot();
+  try {
+    writeReceipt('agent-plugin');
+    writeReceipt('cursor-plugin', { inventoryDigest: '0'.repeat(64) });
+    writeReceipt('agy-plugin', { sourceVersion: '1.2.2' });
+    ensureOnDemandPackages(root, process.env);
+    assert.deepStrictEqual(calls(root).sort(), ['agy-plugin', 'cursor-plugin']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('ensureOnDemandPackages rebuilds a surface whose provenance.json is missing', () => {
+  const { root, writeReceipt } = provenanceFixtureRoot();
+  try {
+    writeReceipt('agent-plugin');
+    writeReceipt('cursor-plugin', null);
+    writeReceipt('agy-plugin');
+    ensureOnDemandPackages(root, process.env);
+    assert.deepStrictEqual(calls(root), ['cursor-plugin']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('ensureOnDemandPackages rebuilds a surface from a non-ancestor commit on a clean checkout', () => {
+  const { root, writeReceipt } = provenanceFixtureRoot({ gitInit: true });
+  try {
+    writeReceipt('agent-plugin');
+    writeReceipt('cursor-plugin', { generatedFromCommit: 'a'.repeat(40), sourceCommit: 'a'.repeat(40) });
+    writeReceipt('agy-plugin');
+    ensureOnDemandPackages(root, process.env);
+    assert.deepStrictEqual(calls(root), ['cursor-plugin']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('ensureOnDemandPackages skips stale rebuilds on a dirty checkout while still building missing surfaces', () => {
+  const { root, writeReceipt } = provenanceFixtureRoot({ gitInit: true });
+  try {
+    writeReceipt('agent-plugin');
+    writeReceipt('cursor-plugin', { inventoryDigest: '0'.repeat(64) });
+    // agy-plugin is intentionally missing.
+    fs.writeFileSync(path.join(root, 'dirty.txt'), 'uncommitted\n');
+    ensureOnDemandPackages(root, process.env);
+    assert.deepStrictEqual(calls(root), ['agy-plugin']);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

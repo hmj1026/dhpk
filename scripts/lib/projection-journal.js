@@ -249,6 +249,7 @@ class ProjectionJournal {
     this.step = 0;
     this.finished = false;
     this.committed = false;
+    this.unstarted = new WeakSet();
   }
 
   // Starts a journal from its header; refuses to replace an existing one.
@@ -268,15 +269,16 @@ class ProjectionJournal {
     if (this.afterStep) this.afterStep(this.step, record);
   }
 
-  settleLast() {
-    const last = this.journal.effects[this.journal.effects.length - 1];
-    if (last && last.state === 'planned') last.state = 'done';
+  settlePlanned() {
+    for (const record of this.journal.effects) {
+      if (record.state === 'planned') record.state = 'done';
+    }
   }
 
   // Records the effect and its inverse, flushes the journal, then runs it.
   effect(kind, args, inverse, perform = null) {
     if (!EFFECT_KINDS.includes(kind) || (inverse && !EFFECT_KINDS.includes(inverse.kind))) throw fail('UNSAFE_TRANSACTION', `unknown transaction effect kind: ${kind}`);
-    this.settleLast();
+    this.settlePlanned();
     const record = { id: this.journal.effects.length + 1, kind, args, inverse: inverse || null, state: 'planned' };
     this.journal.effects.push(record);
     this.flush();
@@ -287,8 +289,40 @@ class ProjectionJournal {
     return record;
   }
 
+  // Records a batch of planned effects and their inverses in one journal flush,
+  // then executes each step in order. Every effect is durable on disk before
+  // any step runs (REQ-7), and every step still fires midStep/afterStep so
+  // crash sweeps cover every boundary (REQ-8).
+  effectBatch(steps) {
+    if (!Array.isArray(steps) || steps.length === 0) return [];
+    for (const step of steps) {
+      if (!step || !EFFECT_KINDS.includes(step.kind) || (step.inverse && !EFFECT_KINDS.includes(step.inverse.kind))) {
+        throw fail('UNSAFE_TRANSACTION', `unknown transaction effect kind: ${step && step.kind}`);
+      }
+    }
+    this.settlePlanned();
+    const planned = steps.map((step) => {
+      const record = { id: this.journal.effects.length + 1, kind: step.kind, args: step.args, inverse: step.inverse || null, state: 'planned' };
+      this.journal.effects.push(record);
+      this.unstarted.add(record);
+      return { record, step };
+    });
+    this.flush();
+    for (const { record, step } of planned) {
+      if (this.midStep) this.midStep(this.step + 1, record);
+      if (step.before) step.before();
+      this.unstarted.delete(record);
+      if (step.perform) step.perform();
+      else applyEffect(this.projectRoot, record, { forward: true });
+      record.state = 'done';
+      this.tick(record);
+      if (step.after) step.after();
+    }
+    return planned.map(({ record }) => record);
+  }
+
   setPhase(phase) {
-    this.settleLast();
+    this.settlePlanned();
     this.journal.phase = phase;
     this.flush();
   }
@@ -297,7 +331,7 @@ class ProjectionJournal {
   // The in-memory journal changes only after the flush succeeds, so a failed
   // flush still rolls back from the phase before it.
   publish(cleanups) {
-    this.settleLast();
+    this.settlePlanned();
     const effects = this.journal.effects.slice();
     for (const cleanup of cleanups) effects.push({ id: effects.length + 1, ...cleanup, inverse: null, state: 'planned' });
     const next = { ...this.journal, phase: 'published', effects };
@@ -317,9 +351,11 @@ class ProjectionJournal {
     this.close();
   }
 
-  // Undoes every effect that may have run, newest first. Only the last record
-  // can still be `planned` while its effect already ran. Returns the phase the
-  // transaction was in when the rollback started.
+  // Undoes every effect that may have run, newest first. Every recorded
+  // `planned` effect in a recovered journal may have run (both single effects
+  // and pre-flushed batches), and every inverse is idempotent so an effect that
+  // never ran is a safe no-op. In-process, steps still in `this.unstarted`
+  // threw before mutating disk and are marked undone without running inverses.
   rollBack() {
     // Past the commit point only roll-forward is allowed (REQ-4).
     if (this.committed || this.journal.phase === 'published') throw fail('TRANSACTION_COMMITTED', 'project projection transaction is published and can only be finished, not rolled back');
@@ -333,7 +369,11 @@ class ProjectionJournal {
     const effects = this.journal.effects;
     for (let index = effects.length - 1; index >= 0; index -= 1) {
       const record = effects[index];
-      if (record.state === 'undone' || (record.state === 'planned' && index !== effects.length - 1)) continue;
+      if (record.state === 'undone') continue;
+      if (this.unstarted.has(record)) {
+        record.state = 'undone';
+        continue;
+      }
       if (!record.inverse) throw fail('UNSAFE_TRANSACTION', `project projection transaction effect ${record.id} (${record.kind}) cannot be undone`);
       // An interrupted copy may leave a partial file. Its target was absent
       // when the record was planned, so the file is this transaction's even

@@ -341,4 +341,163 @@ test('testCoreValidation_rejectsRecordsOutsideScope', () => {
   });
 });
 
+function runBatchedTransaction(projectRoot, afterStep) {
+  const at = (relative) => path.join(projectRoot, relative);
+  const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), afterStep, journal: { schema: 'test.v1', phase: 'prepared' } });
+  journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+  fs.writeFileSync(at('.agents/.stage/new.md'), 'new\n', { mode: 0o644 });
+  journal.setPhase('publishing');
+  const digestNew = digest('new\n');
+  journal.effectBatch([
+    {
+      kind: 'rename',
+      args: { from: '.agents/managed/old.md', to: '.agents/.stage/backup/old.md' },
+      inverse: { kind: 'rename', args: { from: '.agents/.stage/backup/old.md', to: '.agents/managed/old.md' } },
+    },
+    {
+      kind: 'mkdir',
+      args: { paths: ['.agents/managed/deep'] },
+      inverse: { kind: 'remove', args: { paths: ['.agents/managed/deep'], mode: 'empty' } },
+    },
+    {
+      kind: 'copy-tree',
+      args: { from: '.agents/.stage/new.md', to: '.agents/managed/deep/new.md', digest: digestNew },
+      inverse: { kind: 'remove', args: { paths: ['.agents/managed/deep/new.md'], mode: 'file', digest: digestNew } },
+    },
+    {
+      kind: 'chmod',
+      args: { path: '.agents/managed/deep/new.md', mode: 0o600 },
+      inverse: { kind: 'chmod', args: { path: '.agents/managed/deep/new.md', mode: 0o644 } },
+    },
+    {
+      kind: 'mkdir',
+      args: { paths: ['.codex', '.codex/skills'] },
+      inverse: { kind: 'remove', args: { paths: ['.codex/skills', '.codex'], mode: 'empty' } },
+    },
+    {
+      kind: 'symlink',
+      args: { path: '.codex/skills/new', target: '../../.agents/managed/deep' },
+      inverse: { kind: 'remove', args: { paths: ['.codex/skills/new'], mode: 'link', target: '../../.agents/managed/deep' } },
+    },
+  ]);
+  journal.publish([{ kind: 'remove', args: { paths: ['.agents/.stage'], mode: 'tree' } }]);
+  journal.finish();
+}
+
+test('testEffectBatch_flushesAllEffectsBeforeExecutingFirst', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/a.md'), 'a\n');
+    const digestA = digest('a\n');
+    let onDiskBeforeFirstStep = null;
+    journal.effectBatch([
+      {
+        kind: 'mkdir',
+        args: { paths: ['.agents/managed/batch'] },
+        inverse: { kind: 'remove', args: { paths: ['.agents/managed/batch'], mode: 'empty' } },
+        before: () => {
+          onDiskBeforeFirstStep = JSON.parse(fs.readFileSync(at(JOURNAL), 'utf8'));
+        },
+      },
+      {
+        kind: 'copy-tree',
+        args: { from: '.agents/.stage/a.md', to: '.agents/managed/batch/a.md', digest: digestA },
+        inverse: { kind: 'remove', args: { paths: ['.agents/managed/batch/a.md'], mode: 'file', digest: digestA } },
+      },
+    ]);
+    assert.ok(onDiskBeforeFirstStep, 'before hook must run');
+    const batchRecords = onDiskBeforeFirstStep.effects.slice(-2);
+    assert.deepStrictEqual(batchRecords.map((r) => [r.kind, r.state]), [
+      ['mkdir', 'planned'],
+      ['copy-tree', 'planned'],
+    ]);
+    assert.strictEqual(fs.existsSync(at('.agents/managed/batch/a.md')), true);
+    journal.publish([{ kind: 'remove', args: { paths: ['.agents/.stage'], mode: 'tree' } }]);
+    journal.finish();
+  });
+});
+
+for (const when of ['after', 'mid']) {
+  test(`testEffectBatchCrash_${when}EachStep_recoversToBeforeOrAfter`, () => {
+    const { before, after } = expectedStates();
+    let crashes = 0;
+    for (let target = 1; target < 100; target += 1) {
+      let done = false;
+      withProject(({ projectRoot }, at) => {
+        seed(at);
+        try {
+          runBatchedTransaction(projectRoot, { [when]: (step) => { if (step === target) throw new SimulatedCrash(step); } });
+          done = true;
+          return;
+        } catch (error) {
+          if (!(error instanceof SimulatedCrash)) throw error;
+        }
+        crashes += 1;
+        recover(projectRoot);
+        const state = tree(projectRoot);
+        const expected = JSON.stringify(state) === JSON.stringify(before) ? before : after;
+        assert.deepStrictEqual(state, expected, `batched crash ${when} step ${target}`);
+      });
+      if (done) {
+        assert.ok(crashes >= 7, `only ${crashes} batched crash points`);
+        return;
+      }
+    }
+    assert.fail('batched transaction did not finish');
+  });
+}
+
+test('testEffectBatch_beforeThrowSkipsUnstartedAndPreservesCollidingFile', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/ok.md'), 'ok\n');
+    fs.writeFileSync(at('.agents/.stage/collide.md'), 'candidate\n');
+    fs.writeFileSync(at('.agents/managed/user.md'), 'user-owned\n');
+    const digestOk = digest('ok\n');
+    const digestCollide = digest('candidate\n');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/ok.md', to: '.agents/managed/ok.md', digest: digestOk },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/ok.md'], mode: 'file', digest: digestOk } },
+        },
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/collide.md', to: '.agents/managed/user.md', digest: digestCollide },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/user.md'], mode: 'file', digest: digestCollide } },
+          before: () => {
+            const error = new Error('collision');
+            error.projectionCode = 'PUBLISH_COLLISION';
+            throw error;
+          },
+        },
+      ]);
+    }, (error) => error.projectionCode === 'PUBLISH_COLLISION');
+    assert.strictEqual(fs.existsSync(at('.agents/managed/ok.md')), true, 'first step ran before second threw');
+    journal.rollBack();
+    assert.strictEqual(fs.existsSync(at('.agents/managed/ok.md')), false, 'started step must be rolled back');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/user.md'), 'utf8'), 'user-owned\n', 'unstarted colliding file must not be removed');
+    assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+  });
+});
+
+test('testEffectBatch_rejectsUnknownKindBeforeFlushing', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+    throwsCode(() => journal.effectBatch([
+      { kind: 'mkdir', args: { paths: ['.agents/managed/a'] }, inverse: { kind: 'remove', args: { paths: ['.agents/managed/a'], mode: 'empty' } } },
+      { kind: 'unlink', args: {}, inverse: null },
+    ]), 'UNSAFE_TRANSACTION');
+    assert.strictEqual(fs.existsSync(at('.agents/managed/a')), false);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(at(JOURNAL), 'utf8')).effects, []);
+    journal.rollBack();
+  });
+});
+
 run('projection-journal');

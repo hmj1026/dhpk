@@ -2669,7 +2669,7 @@
       "sourcePath": "scripts/lib/project-agent-projection-publisher.js",
       "destination": "skills/harness-setup/scripts/lib/project-agent-projection-publisher.js",
       "kind": "packaging-resource",
-      "sha256": "256a607b1f8326311c8734da6b183daeb142dba362da521ec1e98b821e3b91d4"
+      "sha256": "7eaa217efb5d8907ac4d2d955bbb305009e6ecffc8d38e1826a5050649c023bb"
     },
     {
       "skillId": "harness-setup",
@@ -2693,7 +2693,7 @@
       "sourcePath": "scripts/lib/projection-journal.js",
       "destination": "skills/harness-setup/scripts/lib/projection-journal.js",
       "kind": "packaging-resource",
-      "sha256": "079b2cf3cc8e59659be6c063b12b01c08e65f2ff88b751b4db3e3a71f86d6b21"
+      "sha256": "6c2f206e9de12d1fda457280ed2408b7ca0cd7e2cc73fa2b048c3039178fa9e6"
     },
     {
       "skillId": "harness-setup",
