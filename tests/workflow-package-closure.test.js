@@ -133,11 +133,8 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
   const { test, assert } = require('./_lib/tinytest');
 
   const ROOT = path.join(__dirname, '..');
-  // The Public Plugin ships portable frontmatter without dhpk-* metadata
-  // (#1497), so it declares no next edges; the other surfaces keep them.
-  const PUBLIC_SURFACE = 'plugins/dhpk';
   const SURFACES = [
-    PUBLIC_SURFACE,
+    'plugins/dhpk',
     'plugins/dhpk-agent',
     'plugins/dhpk-agy',
     'generated/claude-marketplace/package',
@@ -203,17 +200,12 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
         cwd: __dirname, env: isolatedEnvironment(), encoding: 'utf8',
       });
       assert.strictEqual(result.status, 0, result.stdout + '\n' + result.stderr);
-      const [update, ...rest] = JSON.parse(result.stdout);
-      let terminal = rest;
-      if (surface === PUBLIC_SURFACE) {
-        terminal = [update, ...rest];
-      } else {
-        assert.strictEqual(update.skill, 'git-smart-commit');
-        assert.strictEqual(update.command, '$git-smart-commit');
-        assert.strictEqual(update.handoff.schema, 'dhpk.flow.handoff.v1');
-        assert.strictEqual(update.handoff.disposition, 'explicit-required');
-        assert.strictEqual(update.handoff.execution, 'not-started');
-      }
+      const [update, ...terminal] = JSON.parse(result.stdout);
+      assert.strictEqual(update.skill, 'git-smart-commit');
+      assert.strictEqual(update.command, '$git-smart-commit');
+      assert.strictEqual(update.handoff.schema, 'dhpk.flow.handoff.v1');
+      assert.strictEqual(update.handoff.disposition, 'explicit-required');
+      assert.strictEqual(update.handoff.execution, 'not-started');
       for (const action of terminal) {
         assert.strictEqual(action.skill, null);
         assert.strictEqual(action.handoff.execution, 'not-started');
