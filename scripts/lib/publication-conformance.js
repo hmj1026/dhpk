@@ -5,6 +5,7 @@
 // compiled tree, an extracted ZIP, or a directory read.  Later tickets add rules.
 
 const { findInternalPathReferences } = require('./public-plugin-paths');
+const { unquote } = require('./agent-frontmatter');
 
 const MANIFEST_PATHS = Object.freeze(['plugin.json', '.codex-plugin/plugin.json']);
 
@@ -227,4 +228,271 @@ function runClaudeValidate(directory, run = defaultValidateRunner) {
   return [];
 }
 
-module.exports = { checkPublicPlugin, checkDirectoryPlugin, runClaudeValidate };
+// ---------------------------------------------------------------------------
+// Cursor and AGY package rules (research table: docs/cursor-agy-plugin-spec-compliance.md).
+// Basic structural rules only.  Listing-only rules (C-15, A-04, A-05) are
+// documented gaps, not checks; A-17 (install path) is UNVERIFIED and not checked;
+// C-06 (Cursor shipping its own skills) is out of scope.  Rule ids are in the messages.
+// ---------------------------------------------------------------------------
+
+const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const TEXT_FILE = /\.(?:md|mdc|markdown|txt|json)$/;
+const FOREIGN_ROOT_TOKEN = '${' + 'CLAUDE_PLUGIN_ROOT}';
+
+// Top-level `key: value` pairs of a Markdown frontmatter block, or null when absent.
+function topLevelFrontmatter(buffer) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(buffer.toString('utf8').replace(/^﻿/, ''));
+  if (!match) return null;
+  const fields = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const pair = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
+    if (pair) fields[pair[1]] = unquote(pair[2]);
+  }
+  return fields;
+}
+
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const stem = (file) => file.split('/').pop().replace(/\.[^.]+$/, '');
+const filesUnder = (files, directory) => [...files.keys()].filter((file) => file.startsWith(`${directory}/`)).sort();
+
+function extensionOf(file) {
+  const base = file.split('/').pop();
+  const dot = base.lastIndexOf('.');
+  return dot < 0 ? '' : base.slice(dot);
+}
+
+function readJsonFile(files, file, errors, label) {
+  if (!files.has(file)) return null;
+  try {
+    return JSON.parse(files.get(file).toString('utf8'));
+  } catch {
+    errors.push(`${label} ${file} is not valid JSON`);
+    return null;
+  }
+}
+
+function unknownKeyErrors(label, file, fields, allowed) {
+  return Object.keys(fields).filter((key) => !allowed.includes(key)).map((key) => `${label} ${file} has undocumented frontmatter key ${key}`);
+}
+
+// C-14 / A-18: the Claude plugin-root token is meaningless to another host.
+function foreignTokenErrors(files, label) {
+  const errors = [];
+  for (const [file, bytes] of files) {
+    if (TEXT_FILE.test(file) && bytes.toString('utf8').includes(FOREIGN_ROOT_TOKEN)) {
+      errors.push(`${label} ${file} contains ${FOREIGN_ROOT_TOKEN}, a Claude token that this host does not expand`);
+    }
+  }
+  return errors;
+}
+
+const CURSOR_LABEL = 'Cursor Plugin';
+const CURSOR_MANIFEST = '.cursor-plugin/plugin.json';
+const CURSOR_NAME = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/;
+const CURSOR_KEYS = Object.freeze(['name', 'description', 'version', 'author', 'homepage', 'repository', 'license', 'keywords', 'logo', 'rules', 'agents', 'skills', 'commands', 'hooks', 'mcpServers', 'variables']);
+const CURSOR_PATH_KEYS = Object.freeze(['logo', 'rules', 'agents', 'skills', 'commands', 'hooks']);
+const CURSOR_AGENT_KEYS = Object.freeze(['name', 'description', 'model', 'readonly', 'is_background']);
+// The docs say "lowercase letters and hyphens"; the canonical agent e2e-runner has a digit, so digits are allowed.
+const CURSOR_AGENT_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const CURSOR_DOC_EXTENSIONS = Object.freeze({ rules: ['.mdc', '.md', '.markdown'], agents: ['.md', '.mdc', '.markdown'], commands: ['.md', '.mdc', '.markdown', '.txt'] });
+const CURSOR_HOOK_EVENTS = Object.freeze([
+  'sessionStart', 'sessionEnd', 'preToolUse', 'postToolUse', 'postToolUseFailure', 'subagentStart', 'subagentStop',
+  'beforeShellExecution', 'afterShellExecution', 'beforeMCPExecution', 'afterMCPExecution', 'beforeReadFile', 'afterFileEdit',
+  'beforeSubmitPrompt', 'preCompact', 'stop', 'afterAgentResponse', 'afterAgentThought', 'beforeTabFileRead', 'afterTabFileEdit', 'workspaceOpen',
+]);
+
+function cursorManifestErrors(manifest, version) {
+  const errors = [];
+  const label = `${CURSOR_LABEL} ${CURSOR_MANIFEST}`;
+  if (typeof manifest.name !== 'string' || !CURSOR_NAME.test(manifest.name)) errors.push(`${label} name must be lowercase kebab-case (C-02)`);
+  for (const key of Object.keys(manifest).filter((candidate) => !CURSOR_KEYS.includes(candidate))) errors.push(`${label} has undocumented key ${key} (C-03)`);
+  if (typeof manifest.version !== 'string' || !SEMVER.test(manifest.version)) errors.push(`${label} version must be semver (C-03)`);
+  if (manifest.version !== version) errors.push(`${label} version ${manifest.version} must equal package.json version ${version}`);
+  if (Object.prototype.hasOwnProperty.call(manifest, 'variables')) {
+    const variables = manifest.variables;
+    if (!isPlainObject(variables) || variables.type !== 'object' || !isPlainObject(variables.properties)) {
+      errors.push(`${label} variables must be { "type": "object", "properties": { ... } } (C-13)`);
+    }
+  }
+  return errors;
+}
+
+function cursorPathErrors(manifest, files) {
+  const errors = [];
+  for (const key of CURSOR_PATH_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(manifest, key)) continue;
+    const values = Array.isArray(manifest[key]) ? manifest[key] : [manifest[key]];
+    for (const value of values) {
+      if (typeof value !== 'string' || value === '') {
+        errors.push(`${CURSOR_LABEL} manifest ${key} must be a relative path string (C-04)`);
+        continue;
+      }
+      const relative = value.replace(/^\.\//, '').replace(/\/+$/, '');
+      if (value.startsWith('/') || /^[A-Za-z]:/.test(value) || relative.split('/').includes('..') || relative === '') {
+        errors.push(`${CURSOR_LABEL} manifest ${key} path ${value} must be relative and stay inside the package (C-04)`);
+      } else if (!files.has(relative) && filesUnder(files, relative).length === 0) {
+        errors.push(`${CURSOR_LABEL} manifest ${key} path ${value} does not exist in the package (C-04)`);
+      }
+    }
+  }
+  return errors;
+}
+
+function cursorRuleErrors(files) {
+  const errors = [];
+  for (const file of filesUnder(files, 'rules')) {
+    if (!CURSOR_DOC_EXTENSIONS.rules.includes(extensionOf(file))) continue;
+    const fields = topLevelFrontmatter(files.get(file));
+    if (!fields) errors.push(`${CURSOR_LABEL} ${file} needs frontmatter (C-07)`);
+    else if (!['true', 'false'].includes(fields.alwaysApply)) errors.push(`${CURSOR_LABEL} ${file} alwaysApply must be a boolean (C-07)`);
+  }
+  return errors;
+}
+
+function cursorAgentErrors(files) {
+  const errors = [];
+  for (const file of filesUnder(files, 'agents')) {
+    if (!CURSOR_DOC_EXTENSIONS.agents.includes(extensionOf(file))) {
+      errors.push(`${CURSOR_LABEL} ${file} has an extension Cursor does not load as an agent (C-08)`);
+      continue;
+    }
+    const fields = topLevelFrontmatter(files.get(file));
+    if (!fields || !fields.name || !fields.description) {
+      errors.push(`${CURSOR_LABEL} ${file} needs frontmatter name and description (C-08)`);
+      continue;
+    }
+    if (!CURSOR_AGENT_NAME.test(fields.name)) errors.push(`${CURSOR_LABEL} ${file} name ${fields.name} must use lowercase letters and hyphens (C-08)`);
+    if (fields.name !== stem(file)) errors.push(`${CURSOR_LABEL} ${file} name ${fields.name} must equal the file name (C-08)`);
+    errors.push(...unknownKeyErrors(CURSOR_LABEL, file, fields, CURSOR_AGENT_KEYS).map((error) => `${error} (C-08)`));
+  }
+  return errors;
+}
+
+function cursorCommandErrors(files) {
+  return filesUnder(files, 'commands')
+    .filter((file) => !CURSOR_DOC_EXTENSIONS.commands.includes(extensionOf(file)))
+    .map((file) => `${CURSOR_LABEL} ${file} has an extension Cursor does not load as a command (C-10)`);
+}
+
+function cursorHookErrors(manifest, files) {
+  const hooksPath = typeof manifest.hooks === 'string' ? manifest.hooks.replace(/^\.\//, '') : 'hooks/hooks.json';
+  const errors = [];
+  const config = readJsonFile(files, hooksPath, errors, CURSOR_LABEL);
+  if (!config) return errors;
+  if (!Number.isInteger(config.version) || config.version < 1) errors.push(`${CURSOR_LABEL} ${hooksPath} version must be a positive integer (C-11)`);
+  if (!isPlainObject(config.hooks)) return [...errors, `${CURSOR_LABEL} ${hooksPath} hooks must be an object (C-11)`];
+  for (const [event, entries] of Object.entries(config.hooks)) {
+    if (!CURSOR_HOOK_EVENTS.includes(event)) errors.push(`${CURSOR_LABEL} ${hooksPath} has undocumented hook event ${event} (C-11)`);
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      const command = isPlainObject(entry) ? entry.command : null;
+      if (typeof command !== 'string' || command === '') errors.push(`${CURSOR_LABEL} ${hooksPath} ${event} entry needs a command (C-11)`);
+      else if (/^\s*(?:[A-Za-z]:|\/)/.test(command) && !command.includes('CURSOR_PLUGIN_ROOT')) {
+        errors.push(`${CURSOR_LABEL} ${hooksPath} ${event} command must be relative or use CURSOR_PLUGIN_ROOT (C-12)`);
+      }
+    }
+  }
+  return errors;
+}
+
+function cursorMarketplaceErrors(manifest, files) {
+  const errors = [];
+  const marketplace = readJsonFile(files, '.cursor-plugin/marketplace.json', errors, CURSOR_LABEL);
+  if (!marketplace) return errors;
+  const names = (Array.isArray(marketplace.plugins) ? marketplace.plugins : []).map((entry) => entry && entry.name);
+  if (new Set(names).size !== names.length) errors.push(`${CURSOR_LABEL} marketplace entry names must be unique (C-16)`);
+  if (names.length > 0 && !names.includes(manifest.name)) errors.push(`${CURSOR_LABEL} marketplace entry name must equal manifest name ${manifest.name} (C-16)`);
+  return errors;
+}
+
+// Cursor Plugin: manifest at .cursor-plugin/plugin.json, documented keys only,
+// version equal to package.json, valid component files, no Claude tokens.
+function checkCursorPlugin(files, { version } = {}) {
+  if (!(files instanceof Map)) return [`${CURSOR_LABEL} files must be a Map of path to Buffer`];
+  const errors = [];
+  if (files.has('plugin.json')) errors.push(`${CURSOR_LABEL} must not carry a root plugin.json; that is the Agent Plugin manifest (C-01)`);
+  if (!files.has(CURSOR_MANIFEST)) return [...errors, `${CURSOR_LABEL} is missing ${CURSOR_MANIFEST} (C-01)`];
+  const manifest = readJsonFile(files, CURSOR_MANIFEST, errors, CURSOR_LABEL);
+  if (!isPlainObject(manifest)) return errors;
+  errors.push(...cursorManifestErrors(manifest, version), ...cursorPathErrors(manifest, files));
+  errors.push(...cursorRuleErrors(files), ...cursorAgentErrors(files), ...cursorCommandErrors(files));
+  errors.push(...cursorHookErrors(manifest, files), ...cursorMarketplaceErrors(manifest, files));
+  if (!files.has('README.md')) errors.push(`${CURSOR_LABEL} is missing README.md (C-17)`);
+  if (typeof manifest.license !== 'string' || manifest.license === '') errors.push(`${CURSOR_LABEL} manifest must set license (C-17)`);
+  return [...errors, ...foreignTokenErrors(files, CURSOR_LABEL)];
+}
+
+const AGY_LABEL = 'AGY Plugin';
+const AGY_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const AGY_KEYS = Object.freeze(['name', 'displayName', 'display_name', 'description', 'version', 'homepage', 'repository', 'license', 'keywords', 'disabled', 'logo', 'suggestedPrompts', 'suggested_prompts', 'skills', 'author', 'extensions']);
+const AGY_AGENT_KEYS = Object.freeze(['name', 'description', 'mainAgent', 'subagent', 'model', 'tools', 'commandExecutionPolicy', 'skills', 'inheritMcp', 'inheritCustomizations']);
+const AGY_MODELS = Object.freeze(['inherit', 'flash_lite', 'flash', 'pro']);
+const AGY_RULE_TRIGGERS = Object.freeze(['always_on', 'model_decision', 'glob', 'manual']);
+const AGY_ALWAYS_ON_RULES = Object.freeze(['rules/AGENTS.md', 'rules/GEMINI.md']);
+const AGY_SKILL_NAME_LIMIT = 64;
+const AGY_SKILL_DESCRIPTION_LIMIT = 1024;
+
+function agyManifestErrors(manifest, version) {
+  const errors = [];
+  const label = `${AGY_LABEL} plugin.json`;
+  if (typeof manifest.name !== 'string' || !AGY_NAME.test(manifest.name)) errors.push(`${label} name must be lowercase kebab-case (A-02)`);
+  for (const key of Object.keys(manifest).filter((candidate) => !AGY_KEYS.includes(candidate))) errors.push(`${label} has undocumented key ${key} (A-03)`);
+  if (Object.prototype.hasOwnProperty.call(manifest, 'skills')) {
+    const skills = manifest.skills;
+    if (!Array.isArray(skills) || !skills.every((entry) => typeof entry === 'string')) errors.push(`${label} skills must be a list of paths (A-03)`);
+  }
+  if (Object.prototype.hasOwnProperty.call(manifest, 'version') && typeof manifest.version !== 'string') errors.push(`${label} version must be a string (A-03)`);
+  if (manifest.version !== version) errors.push(`${label} version ${manifest.version} must equal package.json version ${version}`);
+  return errors;
+}
+
+function agySkillErrors(files) {
+  const errors = [];
+  for (const file of [...files.keys()].filter((candidate) => TOP_LEVEL_SKILL.test(candidate)).sort()) {
+    const fields = topLevelFrontmatter(files.get(file)) || {};
+    const directory = file.split('/')[1];
+    if (fields.name !== directory) errors.push(`${AGY_LABEL} ${file} name ${fields.name} must match the parent directory ${directory} (A-07)`);
+    if (!fields.name || fields.name.length > AGY_SKILL_NAME_LIMIT || !AGY_NAME.test(fields.name)) errors.push(`${AGY_LABEL} ${file} name must be kebab-case, 1-${AGY_SKILL_NAME_LIMIT} characters (A-07)`);
+    const length = (fields.description || '').length;
+    if (length < 1 || length > AGY_SKILL_DESCRIPTION_LIMIT) errors.push(`${AGY_LABEL} ${file} description must be 1-${AGY_SKILL_DESCRIPTION_LIMIT} characters, has ${length} (A-07)`);
+  }
+  return errors;
+}
+
+function agyAgentErrors(files) {
+  const errors = [];
+  for (const file of filesUnder(files, 'agents').filter((candidate) => candidate.endsWith('.md'))) {
+    const fields = topLevelFrontmatter(files.get(file));
+    if (!fields || !fields.name || !fields.description) {
+      errors.push(`${AGY_LABEL} ${file} needs frontmatter name and description (A-10)`);
+      continue;
+    }
+    if (fields.name !== stem(file)) errors.push(`${AGY_LABEL} ${file} name ${fields.name} must equal the file name (A-10)`);
+    errors.push(...unknownKeyErrors(AGY_LABEL, file, fields, AGY_AGENT_KEYS).map((error) => `${error} (A-10)`));
+    if (fields.model !== undefined && !AGY_MODELS.includes(fields.model)) errors.push(`${AGY_LABEL} ${file} model ${fields.model} must be one of ${AGY_MODELS.join(', ')} (A-11)`);
+  }
+  return errors;
+}
+
+function agyRuleErrors(files) {
+  const errors = [];
+  for (const file of filesUnder(files, 'rules').filter((candidate) => candidate.endsWith('.md') && !AGY_ALWAYS_ON_RULES.includes(candidate))) {
+    const fields = topLevelFrontmatter(files.get(file));
+    if (!fields || !AGY_RULE_TRIGGERS.includes(fields.trigger)) errors.push(`${AGY_LABEL} ${file} trigger must be one of ${AGY_RULE_TRIGGERS.join(', ')} (A-14)`);
+    else if (fields.trigger === 'glob' && !fields.globs) errors.push(`${AGY_LABEL} ${file} trigger glob needs a globs string (A-14)`);
+  }
+  return errors;
+}
+
+// AGY Plugin: manifest at the package root, documented keys only, version equal
+// to package.json, valid skills, agents and rules, no Claude tokens.
+function checkAgyPlugin(files, { version } = {}) {
+  if (!(files instanceof Map)) return [`${AGY_LABEL} files must be a Map of path to Buffer`];
+  const errors = [];
+  if (!files.has('plugin.json')) return [`${AGY_LABEL} is missing plugin.json (A-01)`];
+  const manifest = readJsonFile(files, 'plugin.json', errors, AGY_LABEL);
+  if (!isPlainObject(manifest)) return errors;
+  errors.push(...agyManifestErrors(manifest, version), ...agySkillErrors(files), ...agyAgentErrors(files), ...agyRuleErrors(files));
+  return [...errors, ...foreignTokenErrors(files, AGY_LABEL)];
+}
+
+module.exports = { checkPublicPlugin, checkDirectoryPlugin, checkCursorPlugin, checkAgyPlugin, runClaudeValidate };
