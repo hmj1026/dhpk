@@ -312,6 +312,22 @@ test('public Cursor selection builds and verifies its Agent owner dependency', (
     assert.strictEqual(report.verdict, 'PASS');
     assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin', 'cursor-plugin']);
     assert.deepStrictEqual(report.selection, { requested: ['cursor-plugin'], resolved: ['agent-plugin', 'cursor-plugin'] });
+    assert.strictEqual(report.surfaces['cursor-plugin'].conformance, 'PASS');
+  } finally {
+    // the clone is removed by the last test below
+  }
+});
+
+test('public AGY selection runs the AGY conformance rules on the built package', () => {
+  try {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+      '--surface', 'agy-plugin', '--repo-root', cloneFixture.clone,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.verdict, 'PASS');
+    assert.strictEqual(report.surfaces['agy-plugin'].conformance, 'PASS');
   } finally {
     fs.rmSync(cloneFixture.root, { recursive: true, force: true });
   }

@@ -1,7 +1,7 @@
 'use strict';
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { checkPublicPlugin, checkDirectoryPlugin, runClaudeValidate } = require('../scripts/lib/publication-conformance');
+const { checkPublicPlugin, checkDirectoryPlugin, checkCursorPlugin, checkAgyPlugin, runClaudeValidate } = require('../scripts/lib/publication-conformance');
 
 const VERSION = '1.2.3';
 const LISTING = {
@@ -247,6 +247,126 @@ test('Public Plugin harness path allowance is per file for shipped scripts', () 
   const comment = Buffer.from('# see .claude/rules/dev-workflow-project.md\n');
   assert.deepStrictEqual(run1(tree({ 'skills/a/scripts/prepare_dev_scope.py': comment })), []);
   assert.ok(run1(tree({ 'skills/a/scripts/other.py': comment })).length > 0);
+});
+
+const CLAUDE_TOKEN = '${' + 'CLAUDE_PLUGIN_ROOT}';
+const buf = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value));
+const cursorManifest = (extra = {}) => buf({
+  name: 'dhpk-cursor', version: VERSION, description: 'd', license: 'MIT',
+  rules: './rules/', agents: './agents/', hooks: './hooks/hooks.json',
+  variables: { type: 'object', properties: {} }, ...extra,
+});
+const cursorTree = (overrides = {}) => new Map(Object.entries({
+  '.cursor-plugin/plugin.json': cursorManifest(),
+  '.cursor-plugin/marketplace.json': buf({ name: 'dhpk', owner: { name: 'o' }, plugins: [{ name: 'dhpk-cursor', source: '.' }] }),
+  'rules/a.mdc': buf('---\ndescription: "x"\nalwaysApply: false\n---\nbody'),
+  'agents/e2e-runner.md': buf('---\nname: "e2e-runner"\ndescription: "x"\nmodel: "inherit"\nreadonly: true\n---\nbody'),
+  'hooks/hooks.json': buf({ version: 1, hooks: {} }),
+  'README.md': buf('readme'),
+  ...overrides,
+}));
+const cursorErrors = (files) => checkCursorPlugin(files, { version: VERSION });
+
+test('conformant Cursor Plugin passes', () => {
+  assert.deepStrictEqual(cursorErrors(cursorTree()), []);
+});
+
+test('Cursor Plugin manifest schema violations fail', () => {
+  const cases = [
+    [{ name: 'Bad_Name' }, /C-02/], [{ unknownKey: 1 }, /C-03/], [{ variables: { type: 'array' } }, /C-13/],
+    [{ rules: '../outside/' }, /C-04/], [{ agents: '/abs/agents' }, /C-04/], [{ rules: './missing/' }, /C-04/],
+  ];
+  for (const [extra, pattern] of cases) {
+    const errors = cursorErrors(cursorTree({ '.cursor-plugin/plugin.json': cursorManifest(extra) }));
+    assert.ok(mentions(errors, pattern), `${JSON.stringify(extra)}: ${errors.join('; ')}`);
+  }
+});
+
+test('Cursor Plugin version differing from package.json fails', () => {
+  const errors = cursorErrors(cursorTree({ '.cursor-plugin/plugin.json': cursorManifest({ version: '0.1.0' }) }));
+  assert.ok(mentions(errors, /0\.1\.0.*1\.2\.3/), errors.join('; '));
+});
+
+test('Cursor Plugin without its manifest, or with a root plugin.json, fails', () => {
+  const files = cursorTree();
+  files.delete('.cursor-plugin/plugin.json');
+  assert.ok(mentions(cursorErrors(files), /C-01/));
+  assert.ok(mentions(cursorErrors(cursorTree({ 'plugin.json': buf({}) })), /C-01/));
+});
+
+test('Cursor Plugin component files are checked', () => {
+  const badAgent = (name, extra = '') => buf(`---\nname: ${name}\ndescription: x\n${extra}---\n`);
+  assert.ok(mentions(cursorErrors(cursorTree({ 'agents/other.md': badAgent('mismatch') })), /file name.*C-08/));
+  assert.ok(mentions(cursorErrors(cursorTree({ 'agents/other.md': badAgent('other', 'tools: []\n') })), /tools.*C-08/));
+  assert.ok(mentions(cursorErrors(cursorTree({ 'rules/b.mdc': buf('---\nalwaysApply: yes\n---\n') })), /C-07/));
+  assert.ok(mentions(cursorErrors(cursorTree({ 'hooks/hooks.json': buf({ version: 0, hooks: {} }) })), /C-11/));
+  assert.ok(mentions(cursorErrors(cursorTree({ 'hooks/hooks.json': buf({ version: 1, hooks: { nonsense: [] } }) })), /C-11/));
+  assert.ok(mentions(cursorErrors(cursorTree({ 'hooks/hooks.json': buf({ version: 1, hooks: { stop: [{ command: '/usr/bin/x' }] } }) })), /C-12/));
+  assert.ok(mentions(cursorErrors(cursorTree({ 'commands/x.exe': buf('x') })), /C-10/));
+});
+
+test('Cursor Plugin marketplace entry must match the manifest name', () => {
+  const marketplace = buf({ name: 'dhpk', owner: { name: 'o' }, plugins: [{ name: 'other', source: '.' }] });
+  assert.ok(mentions(cursorErrors(cursorTree({ '.cursor-plugin/marketplace.json': marketplace })), /C-16/));
+});
+
+test('Cursor Plugin needs a README and a license', () => {
+  const files = cursorTree();
+  files.delete('README.md');
+  assert.ok(mentions(cursorErrors(files), /C-17/));
+  assert.ok(mentions(cursorErrors(cursorTree({ '.cursor-plugin/plugin.json': cursorManifest({ license: '' }) })), /C-17/));
+});
+
+const agyManifest = (extra = {}) => buf({ name: 'dhpk', version: VERSION, description: 'd', skills: ['./skills/'], ...extra });
+const agyTree = (overrides = {}) => new Map(Object.entries({
+  'plugin.json': agyManifest(),
+  'skills/repo-verify/SKILL.md': buf('---\nname: repo-verify\ndescription: "Verify."\n---\n'),
+  'agents/architect.md': buf('---\nname: architect\ndescription: "x"\ntools: ["view_file"]\nmodel: pro\n---\n'),
+  'rules/tool-routing.md': buf('---\ntrigger: model_decision\ndescription: x\n---\n'),
+  ...overrides,
+}));
+const agyErrors = (files) => checkAgyPlugin(files, { version: VERSION });
+
+test('Cursor Plugin and AGY Plugin containing the Claude plugin-root token fail', () => {
+  const trap = buf(`Read ${CLAUDE_TOKEN}/agent-traps/x.md`);
+  assert.ok(mentions(cursorErrors(cursorTree({ 'agent-traps/_common/a.md': trap })), /Claude token/));
+  assert.ok(mentions(agyErrors(agyTree({ 'agent-traps/_common/a.md': trap })), /Claude token/));
+});
+
+test('conformant AGY Plugin passes', () => {
+  assert.deepStrictEqual(agyErrors(agyTree()), []);
+});
+
+test('AGY Plugin manifest schema violations fail', () => {
+  const cases = [
+    [{ name: 'Bad_Name' }, /A-02/], [{ extra: 1 }, /A-03/], [{ skills: 'skills' }, /A-03/], [{ version: 1 }, /A-03/],
+  ];
+  for (const [extra, pattern] of cases) {
+    const errors = agyErrors(agyTree({ 'plugin.json': agyManifest(extra) }));
+    assert.ok(mentions(errors, pattern), `${JSON.stringify(extra)}: ${errors.join('; ')}`);
+  }
+});
+
+test('AGY Plugin version differing from package.json fails', () => {
+  const errors = agyErrors(agyTree({ 'plugin.json': agyManifest({ version: '0.1.0' }) }));
+  assert.ok(mentions(errors, /0\.1\.0.*1\.2\.3/), errors.join('; '));
+});
+
+test('AGY Plugin without plugin.json fails', () => {
+  const files = agyTree();
+  files.delete('plugin.json');
+  assert.ok(mentions(agyErrors(files), /A-01/));
+});
+
+test('AGY Plugin skill, agent and rule files are checked', () => {
+  const longDescription = 'x'.repeat(1025);
+  assert.ok(mentions(agyErrors(agyTree({ 'skills/repo-verify/SKILL.md': buf('---\nname: other\ndescription: x\n---\n') })), /parent directory.*A-07/));
+  assert.ok(mentions(agyErrors(agyTree({ 'skills/repo-verify/SKILL.md': buf(`---\nname: repo-verify\ndescription: ${longDescription}\n---\n`) })), /1024.*A-07/));
+  assert.ok(mentions(agyErrors(agyTree({ 'agents/architect.md': buf('---\nname: architect\ndescription: x\nmodel: gpt\n---\n') })), /A-11/));
+  assert.ok(mentions(agyErrors(agyTree({ 'agents/architect.md': buf('---\nname: architect\ndescription: x\nbogus: 1\n---\n') })), /bogus.*A-10/));
+  assert.ok(mentions(agyErrors(agyTree({ 'rules/tool-routing.md': buf('---\ntrigger: sometimes\n---\n') })), /A-14/));
+  assert.ok(mentions(agyErrors(agyTree({ 'rules/tool-routing.md': buf('---\ntrigger: glob\n---\n') })), /globs.*A-14/));
+  assert.deepStrictEqual(agyErrors(agyTree({ 'rules/AGENTS.md': buf('no frontmatter') })), []);
 });
 
 run('publication-conformance');

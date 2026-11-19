@@ -53,7 +53,7 @@ const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { RULE_ACTIVATION_MAP, canonicalRulePath } = require('./rule-activation-map');
 const { collectStandalonePackageAssets, collectNativeAgentTrapAssets } = require('./standalone-package-assets');
-const { cursorNativeAgentClosureErrors } = require('./native-agent-support');
+const { cursorNativeAgentClosureErrors, rewriteCursorNativeSupportBody } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 const {
@@ -835,11 +835,15 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   for (const asset of standaloneAssets) {
     if (existingDestinations.has(asset.destination)) continue;
     existingDestinations.add(asset.destination);
-    traversalBudget.accountBytes(asset.content.byteLength, asset.destination);
+    const isTrapSupport = String(asset.stableId || '').startsWith('native-agent-trap:');
+    const content = isTrapSupport && asset.destination.endsWith('.md')
+      ? Buffer.from(rewriteCursorNativeSupportBody(asset.content.toString('utf8')))
+      : asset.content;
+    traversalBudget.accountBytes(content.byteLength, asset.destination);
     files.push({
       source: asset.source,
       destination: asset.destination,
-      content: asset.content,
+      content,
       mode: asset.mode,
       transform: {
         id: String(asset.stableId || '').startsWith('native-agent-trap:')

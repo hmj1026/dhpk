@@ -87,3 +87,21 @@ Unverifiable: A-08, A-09, A-12, A-13, A-19, A-20.
 1. Does the `antigravity-cli/plugins` path come from observed agy behavior? If yes, record that evidence next to A-17.
 2. Is a Marketplace listing for either host a goal? C-15, A-04 and A-05 only matter if yes.
 3. Should the Cursor package carry skills itself (C-06)?
+
+## Conformance coverage (#1512)
+
+`scripts/lib/publication-conformance.js` (`checkCursorPlugin`, `checkAgyPlugin`) runs the basic structural rules on the
+on-demand builds; `scripts/ci/verify-platform-packages.js` runs it for each built Cursor and AGY package, and the release
+package gate calls that verifier. Error messages carry the rule id.
+
+Checked: C-01 to C-04, C-07, C-08, C-10 to C-14 (Claude token only), C-16, C-17 (README and `license`), A-01 to A-03, A-07,
+A-10, A-11, A-14, A-18, plus manifest version equal to `package.json`. C-08 allows digits in the agent name because the
+canonical `e2e-runner` has one.
+
+Documented gaps, not checked: C-15, A-04, A-05 (marketplace listing only); C-06 (Cursor shipping its own skills, out of scope);
+A-17 (install path, UNVERIFIED); C-09, C-12 beyond absolute paths, A-06, A-08, A-09, A-12, A-13, A-19, A-20 (UNVERIFIED or need
+the vendor CLI).
+
+Build fixes made for these rules: the Cursor and AGY `agent-traps/_common/*` support files no longer contain
+`${CLAUDE_PLUGIN_ROOT}` (C-14, A-18). Cursor rewrites it to `${CURSOR_PLUGIN_ROOT}` (and `rules/execution-policy.md` to `.mdc`);
+AGY rewrites it to the documented `${PLUGIN_ROOT}` and relative paths.
