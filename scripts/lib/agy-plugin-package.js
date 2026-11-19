@@ -42,7 +42,7 @@ const { containsSecret } = require('./secret-patterns');
 const { sanitizeMarkdownLinks } = require('./markdown-link-sanitizer');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { NATIVE_AGENT_TRAP_FILES, collectStandalonePackageAssets } = require('./standalone-package-assets');
-const { NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
+const { NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, rewriteAgyNativeSupportBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
 const { physicalSkillTree } = require('./workflow-package-closure');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
@@ -441,7 +441,7 @@ function compileAgyPluginPackage({
     const source = path.join(sourceRoot, ...relative.split('/'));
     if (!lstatOrNull(source)) continue;
     if (emission.has(relative)) continue;
-    emission.copy(relative, source, sourceRoot);
+    emission.copy(relative, source, sourceRoot, { transform: rewriteAgyNativeSupportBody });
   }
   for (const asset of standaloneAssets) {
     if (emission.has(asset.destination)) continue;

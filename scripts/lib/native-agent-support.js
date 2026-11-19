@@ -56,6 +56,19 @@ function rewriteAgyNativeAgentBody(body) {
     .split(`${CLAUDE_PLUGIN_ROOT_TOKEN}/scripts/`).join('scripts/');
 }
 
+// Agent trap support files are copied into the Agent-facing packages. Any Claude
+// plugin-root token left in their prose is meaningless to the host: AGY uses its
+// documented ${PLUGIN_ROOT} token (#1512 rules A-18), Cursor its own root token.
+function rewriteAgyNativeSupportBody(body) {
+  return rewriteAgyNativeAgentBody(body).split(CLAUDE_PLUGIN_ROOT_TOKEN).join('${' + 'PLUGIN_ROOT}');
+}
+
+function rewriteCursorNativeSupportBody(body) {
+  return String(body || '')
+    .split(`${CLAUDE_PLUGIN_ROOT_TOKEN}/rules/execution-policy.md`).join(`${CURSOR_PLUGIN_ROOT_TOKEN}/rules/execution-policy.mdc`)
+    .split(CLAUDE_PLUGIN_ROOT_TOKEN).join(CURSOR_PLUGIN_ROOT_TOKEN);
+}
+
 function cursorCases() {
   return [
     {
@@ -260,6 +273,8 @@ module.exports = {
   AGY_SUPPORT_FILES,
   NATIVE_AGENT_SUPPORT_FILES,
   rewriteAgyNativeAgentBody,
+  rewriteAgyNativeSupportBody,
+  rewriteCursorNativeSupportBody,
   cursorNativeAgentClosureErrors,
   agyNativeAgentClosureErrors,
 };

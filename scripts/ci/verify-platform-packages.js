@@ -45,7 +45,9 @@ const { sha256Hex } = require('../lib/content-fingerprint');
 const { compileMarketplacePublicationView } = require('../lib/marketplace-selection');
 const { compileOpenaiSubmissionPackage } = require('../lib/openai-submission-package');
 const { renderOpenaiSubmissionManifest, readSourceVersion } = require('../lib/host-manifests');
-const { checkPublicPlugin, checkDirectoryPlugin, runClaudeValidate } = require('../lib/publication-conformance');
+const {
+  checkPublicPlugin, checkDirectoryPlugin, checkCursorPlugin, checkAgyPlugin, runClaudeValidate,
+} = require('../lib/publication-conformance');
 const { NATIVE_RECEIPT_FILES, publicPluginTreeDrift } = require('../lib/public-plugin-tree');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 const { isOnDemandSurface, onDemandPackageDir, onDemandRelativeDir } = require('../lib/on-demand-packages');
@@ -224,17 +226,19 @@ function verifyCursor({ root, targetCommit, targetTree, inventory, profiles, mod
   const structural = validateCursorPackage({ packageRoot: temp, inventory });
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'cursor-plugin', { root, targetCommit, targetTree });
   const fingerprintMatches = fingerprintCursor(temp) === fingerprintCursor(tracked);
+  const conformanceErrors = checkCursorPlugin(readDirectoryTree(tracked), { version });
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
     receipt: receipt.ok ? 'PASS' : 'FAIL',
     deterministic: fingerprintMatches ? 'PASS' : 'FAIL',
+    conformance: conformanceErrors.length === 0 ? 'PASS' : 'FAIL',
     selectedSkills: generated.skillNames.length,
     selectedSkillIds: generated.skillIds,
     sharedSkillIds: generated.provenance.sharedSkillIds || [],
     runtimeSupportStableIds: generated.provenance.runtimeSupportStableIds || [],
     sharedSkillSurface: generated.provenance.sharedSkillSurface || null,
     sharedSkillSource: generated.provenance.sharedSkillSource || null,
-    errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked Cursor Plugin fingerprint drifted'])],
+    errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked Cursor Plugin fingerprint drifted']), ...conformanceErrors],
   };
 }
 
@@ -290,13 +294,15 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, module
     { root, targetCommit, targetTree },
   );
   const fingerprintMatches = fingerprintDirectory(temp) === fingerprintDirectory(tracked);
+  const conformanceErrors = checkAgyPlugin(readDirectoryTree(tracked), { version });
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
     receipt: receipt.ok ? 'PASS' : 'FAIL',
     deterministic: fingerprintMatches ? 'PASS' : 'FAIL',
+    conformance: conformanceErrors.length === 0 ? 'PASS' : 'FAIL',
     selectedSkills: generated.selected.skills.length,
     selectedSkillIds: generated.selected.skills.map((skill) => skill.id),
-    errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked AGY package fingerprint drifted'])],
+    errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked AGY package fingerprint drifted']), ...conformanceErrors],
   };
 }
 

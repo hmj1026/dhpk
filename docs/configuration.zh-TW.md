@@ -2,7 +2,7 @@
 
 > **語言**: [English](./configuration.md) · **繁體中文**
 
-dhpk 在 `.claude-plugin/plugin.json` 中暴露 **74 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
+`dhpk` plugin 暴露 **18 個 `userConfig` 旋鈕**，`dhpk-stacks` 暴露 **19 個**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
 `manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
 舊 `minimal`、`full` 與 `compat-v1` 選擇只保留作為歷史 receipt metadata，不是

@@ -1,4 +1,4 @@
-# plugins/dhpk — Codex Native Marketplace 發布 package
+# plugins/dhpk — Public Plugin（Codex Native Marketplace package）
 
 > **語言**：[English](./README.md) · **繁體中文**
 
@@ -6,8 +6,9 @@
 `source.path` 直接指向 marketplace root (`./`) 的 local plugin，因此 marketplace
 entry 必須指向具體 plugin subdirectory。
 
-本目錄是保留的 Experimental legacy/native surface；standard Agent Plugin 與
-Cursor 路徑請見[平台安裝 SSOT](../../docs/platform-installation.zh-TW.md)。
+本目錄是 Public Plugin：發布到 OpenAI 目錄、僅含 skill 且不含 hook 的 package，
+也是 Experimental Codex native 路徑安裝的內容。standard Agent Plugin 與 Cursor
+package 在需要時才建置，並附在每個 GitHub Release；請見[平台安裝 SSOT](../../docs/platform-installation.zh-TW.md)。
 
 ## 追蹤中的實體發布 artifact
 
@@ -21,8 +22,8 @@ node scripts/ci/gen-codex-native-package.js plugins/dhpk --version=X.Y.Z
 ```
 
 `skills/` 下每個檔案都是實體檔，零 symlink；即使刪除產生它的 source checkout，
-乾淨 marketplace cache install 仍能運作。Root `.codex-plugin/plugin.json` 與此
-folder 的 wrapper manifest 都解析到同一份 physical tree，不會維護第二份 copy。
+乾淨 marketplace cache install 仍能運作。此 folder 的 `.codex-plugin/plugin.json`
+解析到這份 physical tree。
 
 | 檔案 | 用途 |
 |---|---|
@@ -31,8 +32,8 @@ folder 的 wrapper manifest 都解析到同一份 physical tree，不會維護�
 | `provenance.json` | Source version/commit、inventory digest、generator version、selected stable id 與 public name。 |
 
 重新產生與提交此目錄是 release PR 的一部分。CI 會執行
-`verify-codex-native-package.js` 驗證，但不會自動 commit。Claude/Codex manifest、
-provenance 與 marketplace 版本必須一致，並由 release-parity tests 強制。
+`verify-codex-native-package.js` 驗證，但不會自動 commit。`package.json` 是唯一版本來源；此 folder 的
+`.codex-plugin/plugin.json` 與 `provenance.json` 都由它產生，並由 release-parity tests 強制。
 
 ## 目前 Codex plugin-mode 狀態
 

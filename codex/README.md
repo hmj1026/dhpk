@@ -4,7 +4,7 @@
 
 Claude Code **does not** load anything under this `codex/` directory. The content here mirrors the plugin's Claude-side skills and agents in Codex CLI format, so projects using both Claude Code and the Codex CLI can keep their assistant configurations in sync without maintaining a separate repo.
 
-For the complete Supported project-local, legacy/native, and standard Agent
+For the complete Supported project-local, native Public Plugin, and standard Agent
 Plugin routes, see the [platform installation SSOT](../docs/platform-installation.md).
 
 > **Layout note**: every entry under `codex/skills/` is an in-repo relative
