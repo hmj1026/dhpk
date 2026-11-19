@@ -38,8 +38,9 @@ verification remains `NOT_RUN`. The privacy and support
 URLs point at GitHub Pages (`https://hmj1026.github.io/dhpk/privacy.html` and
 `.../support.html`), published by `.github/workflows/pages.yml` from
 `docs/privacy.md` and `docs/support.md`. The repository's Pages source must be
-set to "GitHub Actions"; public reachability remains `NOT_RUN` until the
-workflow has deployed and the URLs resolve.
+set to "GitHub Actions". Public reachability is `PASS`: after the v0.79.0
+release, Pages run 44490296699 deployed from `main`, and on 2026-11-19 both
+URLs returned HTTP 200.
 
 | Evidence | Current status |
 |---|---|
@@ -153,9 +154,9 @@ prerequisite. Its current status is `NOT_VERIFIED` (`NOT_RUN`); it is not part
 of Codex candidate acceptance. Do not claim ChatGPT Work support or acceptance
 until that verification passes.
 
-At the current checkpoint, steps 1–6 are `NOT_RUN` for the release candidate;
-the Pages URLs have not been verified as publicly reachable, and the candidate is
-`NOT_PUBLISHED`. Do not mark those gates complete based on a generated ZIP,
+At the current checkpoint, steps 1–6 are `NOT_RUN` for the release candidate,
+except that the privacy and support URLs in step 5 are verified as publicly
+reachable (HTTP 200 on 2026-11-19); the candidate is `NOT_PUBLISHED`. Do not mark those gates complete based on a generated ZIP,
 local marketplace entry, catalog count, or package validator.
 
 ## Official references
