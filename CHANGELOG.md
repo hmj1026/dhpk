@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.79.1 — 2026-11-19 — Serialize on-demand package builds and batch projection-journal flushes
+
+- **fix(distribution)** — Serialize concurrent on-demand package builds, and validation of the same package directory (default or custom `--output`), and write release archives atomically so parallel test and package-verification runs do not race on dist/on-demand outputs. Validation of a package in a read-only directory still works without a lock.
+- **perf(projection-journal)** — Batch project-agent projection journal effects per publish phase to cut fsync overhead during installs and updates while preserving per-step crash recovery; recovery never deletes a user file at a publish target the crashed run had not reached.
+- **docs(docs)** — Record that the GitHub Pages privacy and support URLs are publicly reachable after the 0.79.0 release.
+
 ## 0.79.0 — 2026-11-19 — Two published packages: Public Plugin and Directory Plugin, skills only
 
 - **BREAKING(commands)** — Removed the 11 remaining slash commands, so the plugin ships skills only; replace /dhpk:verify with /dhpk:repo-verify, /dhpk:setup with /dhpk:harness-setup, /dhpk:smart-commit with /dhpk:git-smart-commit, /dhpk:create-release with /dhpk:release-creator, /dhpk:deep-analyze with /dhpk:proposal-analyze, /dhpk:simplify with /dhpk:code-simplify, /dhpk:matrix-cell-onboard with /dhpk:library-author cell-onboard, /dhpk:doc-refactor with /dhpk:doc-maintain refactor, /dhpk:update-codemaps with /dhpk:doc-maintain codemap, /dhpk:update-docs with /dhpk:doc-maintain update, and /dhpk:ts-check-status with /dhpk:js-static-checks status.
