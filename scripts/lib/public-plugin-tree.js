@@ -120,7 +120,11 @@ function preparePublicPlugin({ content, inventory, publicationView, manifest }) 
     },
   });
   if (!laidOut.ok) return laidOut;
-  return { ...laidOut, bundleProvenance: remapBundleProvenance(content.bundleProvenance, laidOut.pathMap) };
+  return {
+    ...laidOut,
+    runtimeData: buildRuntimeDataFile(content.files),
+    bundleProvenance: remapBundleProvenance(content.bundleProvenance, laidOut.pathMap),
+  };
 }
 
 // Public Plugin tree files for a publication view: normalized skills plus both
@@ -141,7 +145,7 @@ function compilePublicPluginTree({ root, inventory, publicationView, manifest, s
     }
   }
   files.push(...manifests);
-  const runtimeData = buildRuntimeDataFile(content.files);
+  const runtimeData = prepared.runtimeData;
   if (runtimeData) {
     if (files.some((existing) => existing.path === runtimeData.path)) {
       return { ok: false, errors: [`package path collision at ${runtimeData.path}`], files: [], content: null };

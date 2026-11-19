@@ -590,6 +590,19 @@ function compileNativePackage({
     ));
   }
 
+  if (publicLayout && publicLayout.runtimeData) {
+    const data = publicLayout.runtimeData;
+    traversalBudget.accountBytes(data.bytes.byteLength, data.path);
+    files.push(nativeOutputRecord(
+      `runtime-data:${data.path}`,
+      `generated/${data.path}`,
+      data.path,
+      data.bytes,
+      undefined,
+      data.mode,
+    ));
+  }
+
   const standaloneAssets = collectStandalonePackageAssets({ root: resolvedRoot, inventory, profileSelection });
   const existingDestinations = new Set(files.map((file) => file.destination));
   for (const asset of standaloneAssets) {
