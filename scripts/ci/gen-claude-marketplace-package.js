@@ -19,7 +19,6 @@ const { selectRuntimeFiles, stackSkillDestination } = require('../lib/directory-
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'dist', 'claude-marketplace', 'package');
 const DEFAULT_STACKS_OUTPUT = path.join(ROOT, 'dist', 'claude-marketplace', 'stacks-package');
-// Test-only switch: a fixture tree with no marketplace selection may plan dhpk-stacks without stack skills.
 const PROVENANCE_SCHEMA = 'dhpk.claude-marketplace-catalog.v1';
 const STACKS_PROVENANCE_SCHEMA = 'dhpk.claude-stacks-package.v1';
 const PACKAGE_PATHS = [
