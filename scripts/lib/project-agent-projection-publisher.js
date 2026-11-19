@@ -40,8 +40,6 @@ const {
   SimulatedCrash,
   isSimulatedCrash,
   recordTransientDirectory,
-  recordParents,
-  recordRename,
   recordRemoveEmptyDirectories,
   validateJournalRecords,
   recoverJournal,
@@ -1492,6 +1490,7 @@ function externalTransaction(roots, journal) {
       return journal.projectRoot;
     },
     effect: (...args) => journal.effect(...args),
+    effectBatch: (...args) => journal.effectBatch(...args),
     flush: () => journal.flush(),
     setPhase(phase) {
       header.phase = phase;
@@ -1733,25 +1732,59 @@ function transactionToken() {
   return `${process.pid.toString(36)}-${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}`;
 }
 
+function planParentStep(projectRoot, target, boundary, plannedDirs, mode = null) {
+  if (!isInside(boundary, target) || !isInside(projectRoot, boundary)) {
+    throw fail('PATH_ESCAPE', `transaction target escapes its root: ${target}`, { paths: [target] });
+  }
+  const missing = [];
+  let current = path.dirname(target);
+  while (current !== projectRoot && isInside(projectRoot, current) && !lstatOrNull(current) && !plannedDirs.has(current)) {
+    missing.unshift(current);
+    current = path.dirname(current);
+  }
+  if (missing.length === 0) return null;
+  for (const directory of missing) plannedDirs.add(directory);
+  const relatives = missing.map((directory) => journalCore.effectRelative(projectRoot, directory));
+  return {
+    kind: 'mkdir',
+    args: { paths: relatives, ...(Number.isInteger(mode) ? { mode } : {}) },
+    inverse: { kind: 'remove', args: { paths: relatives.slice().reverse(), mode: 'empty' } },
+  };
+}
+
+function planSymlinkSteps(roots, destination, target, label, plannedDirs, { before = null, after = null } = {}) {
+  const steps = [];
+  const parentStep = planParentStep(roots.projectRoot, destination, roots.projectRoot, plannedDirs);
+  if (parentStep) steps.push(parentStep);
+  const relative = effectRelative(roots, destination);
+  steps.push({
+    kind: 'symlink',
+    args: { path: relative, target },
+    inverse: { kind: 'remove', args: { paths: [relative], mode: 'link', target } },
+    before: () => {
+      if (before) before();
+      assertPhysicalAncestors(path.dirname(destination), label, roots.projectRoot);
+    },
+    ...(after ? { after } : {}),
+  });
+  return steps;
+}
+
 // Bindings that a rollback hands back to their pre-adoption, unmanaged state.
 // They are journaled as new bindings so an interrupted rollback removes them,
 // but no receipt records them. Their target may legitimately be absent.
-function installRestoredBindings(transaction, restoredBindingPaths) {
-  const { roots } = transaction;
+function planRestoredBindingSteps(roots, restoredBindingPaths, plannedDirs) {
+  const steps = [];
   for (const binding of flattenBindingPaths(restoredBindingPaths)) {
     const destination = bindingDestinationIn(roots, binding.path, 'rollback adopted binding');
     if (lstatOrNull(destination)) throw fail('PUBLISH_COLLISION', `rollback adopted binding appeared during publication: ${binding.path}`, { paths: [binding.path] });
-    recordSymlink(transaction, destination, binding.target, 'rollback adopted binding parent');
+    steps.push(...planSymlinkSteps(roots, destination, binding.target, 'rollback adopted binding parent', plannedDirs, {
+      before: () => {
+        if (lstatOrNull(destination)) throw fail('PUBLISH_COLLISION', `rollback adopted binding appeared during publication: ${binding.path}`, { paths: [binding.path] });
+      },
+    }));
   }
-}
-
-// Records a Host Binding symlink and its parents before creating it.
-function recordSymlink(transaction, destination, target, label) {
-  const { roots } = transaction;
-  recordParents(transaction, destination, roots.projectRoot);
-  assertPhysicalAncestors(path.dirname(destination), label, roots.projectRoot);
-  const relative = effectRelative(roots, destination);
-  transaction.effect('symlink', { path: relative, target }, { kind: 'remove', args: { paths: [relative], mode: 'link', target } });
+  return steps;
 }
 
 function checkCollisions(roots, previous, candidateFiles, rootId = 'managed') {
@@ -1863,8 +1896,8 @@ function observeAdoption(roots, candidateFiles, claudeCandidateFiles, candidateB
   return { schema: PROJECT_RECEIPT_SCHEMA, managedPaths: Object.keys(generatedFingerprints), generatedFingerprints, claudeManagedPaths: Object.keys(claudeGeneratedFingerprints), claudeGeneratedFingerprints, bindingPaths };
 }
 
-function installBindingPaths(transaction, bindingPaths, { allowClaudeRoot = false } = {}) {
-  const { roots } = transaction;
+function planBindingPathSteps(roots, bindingPaths, plannedDirs, { allowClaudeRoot = false } = {}) {
+  const steps = [];
   for (const binding of flattenBindingPaths(normalizeBindingPaths(bindingPaths || {}, roots, 'publish project projection binding paths', { allowClaudeRoot }))) {
     const resolved = bindingTargetIn(roots, binding, `publish ${binding.hostId} binding`, { allowClaudeRoot });
     const targetStat = lstatOrNull(resolved.resolvedTarget);
@@ -1872,11 +1905,18 @@ function installBindingPaths(transaction, bindingPaths, { allowClaudeRoot = fals
       throw fail('PUBLISH_TARGET_MISSING', `Host binding target is missing or unsafe: ${binding.target}`, { paths: [binding.path, binding.target] });
     }
     if (lstatOrNull(resolved.destination)) throw fail('PUBLISH_COLLISION', `publish binding target appeared after collision check: ${binding.path}`, { paths: [binding.path] });
-    recordSymlink(transaction, resolved.destination, binding.target, 'publish binding parent');
-    if (fs.readlinkSync(resolved.destination) !== binding.target) {
-      throw fail('PUBLISH_FINGERPRINT_DRIFT', `published Host binding target drifted: ${binding.path}`, { paths: [binding.path] });
-    }
+    steps.push(...planSymlinkSteps(roots, resolved.destination, binding.target, 'publish binding parent', plannedDirs, {
+      before: () => {
+        if (lstatOrNull(resolved.destination)) throw fail('PUBLISH_COLLISION', `publish binding target appeared after collision check: ${binding.path}`, { paths: [binding.path] });
+      },
+      after: () => {
+        if (fs.readlinkSync(resolved.destination) !== binding.target) {
+          throw fail('PUBLISH_FINGERPRINT_DRIFT', `published Host binding target drifted: ${binding.path}`, { paths: [binding.path] });
+        }
+      },
+    }));
   }
+  return steps;
 }
 
 function publishManagedCandidate({
@@ -1948,30 +1988,60 @@ function publishManagedCandidate({
       writeRollbackStage(roots, rollback);
     }
     tx.setPhase('publishing');
-    const backUp = (source, target, label) => {
-      assertPhysicalAncestors(path.dirname(target), label, backup);
-      recordRename(tx, source, target);
+    const backupSteps = [];
+    const planBackup = (source, target, label, { before = null, after = null } = {}) => {
+      const checkBackupAncestors = () => assertPhysicalAncestors(path.dirname(target), label, backup);
+      checkBackupAncestors();
+      const from = effectRelative(roots, source);
+      const to = effectRelative(roots, target);
+      backupSteps.push({
+        kind: 'rename',
+        args: { from, to },
+        inverse: { kind: 'rename', args: { from: to, to: from } },
+        // Re-check at run time: batching moved planning ahead of earlier renames.
+        before: () => {
+          checkBackupAncestors();
+          if (before) before();
+        },
+        ...(after ? { after } : {}),
+      });
     };
     if (previous) {
       for (const relative of previous.managedPaths.slice().sort()) {
         const source = pathIn(roots.managedRoot, relative, 'transaction backup source');
         const target = path.join(backup, 'managed', relative);
-        if (adoption && sha256Hex(readPhysicalFile(source, 'adoption source')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption source changed: ${relative}`);
-        backUp(source, target, 'transaction backup target');
-        if (adoption && sha256Hex(readPhysicalFile(target, 'adoption backup')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption backup changed: ${relative}`);
+        planBackup(source, target, 'transaction backup target', {
+          before: adoption ? () => {
+            if (sha256Hex(readPhysicalFile(source, 'adoption source')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption source changed: ${relative}`);
+          } : null,
+          after: adoption ? () => {
+            if (sha256Hex(readPhysicalFile(target, 'adoption backup')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption backup changed: ${relative}`);
+          } : null,
+        });
       }
       for (const relative of (previous.claudeManagedPaths || []).slice().sort()) {
         const source = pathIn(roots.claudeManagedRoot, relative, 'transaction Claude backup source');
         const target = path.join(backup, 'claude-managed', relative);
-        if (adoption && sha256Hex(readPhysicalFile(source, 'adoption Claude source')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude source changed: ${relative}`);
-        backUp(source, target, 'transaction Claude backup target');
-        if (adoption && sha256Hex(readPhysicalFile(target, 'adoption Claude backup')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude backup changed: ${relative}`);
+        planBackup(source, target, 'transaction Claude backup target', {
+          before: adoption ? () => {
+            if (sha256Hex(readPhysicalFile(source, 'adoption Claude source')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude source changed: ${relative}`);
+          } : null,
+          after: adoption ? () => {
+            if (sha256Hex(readPhysicalFile(target, 'adoption Claude backup')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude backup changed: ${relative}`);
+          } : null,
+        });
       }
     }
     if (lstatOrNull(roots.receiptPath)) {
-      if (adoption && sha256Hex(readPhysicalFile(roots.receiptPath, 'adoption receipt')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
-      backUp(roots.receiptPath, path.join(backup, 'receipt.json'), 'transaction receipt backup');
-      if (adoption && sha256Hex(readPhysicalFile(path.join(backup, 'receipt.json'), 'adoption receipt backup')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
+      const target = path.join(backup, 'receipt.json');
+      planBackup(roots.receiptPath, target, 'transaction receipt backup', {
+        before: adoption ? () => {
+          if (sha256Hex(readPhysicalFile(roots.receiptPath, 'adoption receipt')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
+        } : null,
+        after: adoption ? () => {
+          if (sha256Hex(readPhysicalFile(target, 'adoption receipt backup')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
+        } : null,
+      });
     } else if (adoption && oldReceiptDigest !== null) throw fail('RECEIPT_CHANGED', 'receipt disappeared during adoption');
     for (const binding of flattenBindingPaths(previousBindingPaths)) {
       const source = bindingDestinationIn(roots, binding.path, 'transaction binding backup source');
@@ -1979,55 +2049,112 @@ function publishManagedCandidate({
         if (adoption) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding disappeared: ${binding.path}`);
         continue;
       }
-      if (adoption && (!lstatOrNull(source).isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding changed: ${binding.path}`);
-      // A binding that leaves the candidate set (withdrawn or deselected) is
-      // renamed away; prove right before the rename that it is still the owned link.
-      if (!adoption && !candidateBindingSet.has(binding.path)
-        && (!lstatOrNull(source).isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) {
-        throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned Host binding changed before removal: ${binding.path}`, { paths: [binding.path] });
-      }
+      const verifyBinding = adoption || !candidateBindingSet.has(binding.path);
       const target = path.join(backup, 'bindings', binding.path);
-      backUp(source, target, 'transaction binding backup target');
-      if ((adoption || !candidateBindingSet.has(binding.path))
-        && (!lstatOrNull(target) || !lstatOrNull(target).isSymbolicLink() || fs.readlinkSync(target) !== binding.target)) {
-        // Rolling back below puts the moved entry back where it was.
-        throw fail('MANAGED_CONTENT_CHANGED', `${adoption ? 'adoption' : 'receipt-owned'} binding backup changed: ${binding.path}`, { paths: [binding.path] });
-      }
+      planBackup(source, target, 'transaction binding backup target', {
+        before: verifyBinding ? () => {
+          const stat = lstatOrNull(source);
+          if (adoption && (!stat || !stat.isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding changed: ${binding.path}`);
+          // A binding that leaves the candidate set (withdrawn or deselected) is
+          // renamed away; prove right before the rename that it is still the owned link.
+          if (!adoption && !candidateBindingSet.has(binding.path)
+            && (!stat || !stat.isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) {
+            throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned Host binding changed before removal: ${binding.path}`, { paths: [binding.path] });
+          }
+        } : null,
+        after: verifyBinding ? () => {
+          const stat = lstatOrNull(target);
+          if (!stat || !stat.isSymbolicLink() || fs.readlinkSync(target) !== binding.target) {
+            // Rolling back below puts the moved entry back where it was.
+            throw fail('MANAGED_CONTENT_CHANGED', `${adoption ? 'adoption' : 'receipt-owned'} binding backup changed: ${binding.path}`, { paths: [binding.path] });
+          }
+        } : null,
+      });
     }
-    if (oldRollback) recordRename(tx, rollbackRoot, path.join(backup, 'rollback'));
+    if (oldRollback) {
+      const from = effectRelative(roots, rollbackRoot);
+      const to = effectRelative(roots, path.join(backup, 'rollback'));
+      backupSteps.push({
+        kind: 'rename',
+        args: { from, to },
+        inverse: { kind: 'rename', args: { from: to, to: from } },
+      });
+    }
+    tx.effectBatch(backupSteps);
     recordRemoveEmptyDirectories(tx, roots.managedRoot);
     recordRemoveEmptyDirectories(tx, roots.claudeManagedRoot);
-    const publishFiles = (files, sourcePrefix, targetRoot, fingerprints, label) => {
+    const publishFileSteps = [];
+    const plannedFileDirs = new Set();
+    const planPublishFiles = (files, sourcePrefix, targetRoot, fingerprints, label) => {
       for (const relative of files.slice().sort()) {
         const source = pathIn(candidateRoot, `${sourcePrefix}${relative}`, `${label} candidate source`);
         const target = pathIn(targetRoot, relative, `${label} publish target`);
         if (lstatOrNull(target)) throw fail('PUBLISH_COLLISION', `${label} publish target appeared after collision check: ${relative}`, { paths: [relative] });
-        recordParents(tx, target, targetRoot);
-        assertPhysicalAncestors(target, `${label} publish target`, targetRoot);
+        const parentStep = planParentStep(roots.projectRoot, target, targetRoot, plannedFileDirs);
+        if (parentStep) publishFileSteps.push(parentStep);
         const to = effectRelative(roots, target);
-        tx.effect('copy-tree', { from: effectRelative(roots, source), to, digest: fingerprints[relative] }, { kind: 'remove', args: { paths: [to], mode: 'file', digest: fingerprints[relative] } }, () => {
-          fs.copyFileSync(source, target);
-        });
         const sourceStat = lstatOrNull(source);
-        if (sourceStat && sourceStat.isFile()) {
-          const before = lstatOrNull(target).mode & 0o7777;
-          tx.effect('chmod', { path: to, mode: sourceStat.mode & 0o7777 }, { kind: 'chmod', args: { path: to, mode: before } });
+        const hasMode = Boolean(sourceStat && sourceStat.isFile());
+        const checkFingerprint = () => {
+          if (sha256Hex(fs.readFileSync(target)) !== fingerprints[relative]) throw fail('PUBLISH_FINGERPRINT_DRIFT', `published ${label} file fingerprint drifted: ${relative}`, { paths: [relative] });
+        };
+        publishFileSteps.push({
+          kind: 'copy-tree',
+          args: { from: effectRelative(roots, source), to, digest: fingerprints[relative] },
+          inverse: { kind: 'remove', args: { paths: [to], mode: 'file', digest: fingerprints[relative] } },
+          before: () => {
+            if (lstatOrNull(target)) throw fail('PUBLISH_COLLISION', `${label} publish target appeared after collision check: ${relative}`, { paths: [relative] });
+            assertPhysicalAncestors(target, `${label} publish target`, targetRoot);
+          },
+          perform: () => {
+            fs.copyFileSync(source, target);
+          },
+          ...(hasMode ? {} : { after: checkFingerprint }),
+        });
+        if (hasMode) {
+          const mode = sourceStat.mode & 0o7777;
+          // The inverse is a digest gate, not a mode restore: the copy-tree
+          // inverse removes this file afterwards, so rollback only needs the
+          // digest to fail closed on foreign or post-crash edited content.
+          publishFileSteps.push({
+            kind: 'chmod',
+            args: { path: to, mode },
+            inverse: { kind: 'chmod', args: { path: to, mode, digest: fingerprints[relative] } },
+            after: checkFingerprint,
+          });
         }
-        if (sha256Hex(fs.readFileSync(target)) !== fingerprints[relative]) throw fail('PUBLISH_FINGERPRINT_DRIFT', `published ${label} file fingerprint drifted: ${relative}`, { paths: [relative] });
       }
     };
-    publishFiles(candidateFiles, '', roots.managedRoot, candidateFingerprints, 'managed');
-    publishFiles(claudeCandidateFiles, `${CLAUDE_ARTIFACT_ROOT}/`, roots.claudeManagedRoot, claudeCandidateFingerprints, 'Claude');
-    installBindingPaths(tx, candidateBindingPaths, { allowClaudeRoot: Boolean(nextReceipt && nextReceipt.schema === PROJECT_RECEIPT_SCHEMA) });
-    installRestoredBindings(tx, restoredBindings);
-    if (rollback) recordRename(tx, rollback.stage, rollbackRoot);
+    planPublishFiles(candidateFiles, '', roots.managedRoot, candidateFingerprints, 'managed');
+    planPublishFiles(claudeCandidateFiles, `${CLAUDE_ARTIFACT_ROOT}/`, roots.claudeManagedRoot, claudeCandidateFingerprints, 'Claude');
+    tx.effectBatch(publishFileSteps);
+    const plannedBindingDirs = new Set();
+    const finalSteps = [
+      ...planBindingPathSteps(roots, candidateBindingPaths, plannedBindingDirs, { allowClaudeRoot: Boolean(nextReceipt && nextReceipt.schema === PROJECT_RECEIPT_SCHEMA) }),
+      ...planRestoredBindingSteps(roots, restoredBindings, plannedBindingDirs),
+    ];
+    if (rollback) {
+      const from = effectRelative(roots, rollback.stage);
+      const to = effectRelative(roots, rollbackRoot);
+      finalSteps.push({
+        kind: 'rename',
+        args: { from, to },
+        inverse: { kind: 'rename', args: { from: to, to: from } },
+      });
+    }
     if (receipt) {
       const relative = effectRelative(roots, roots.receiptPath);
       const digest = receiptFileDigest(receipt);
-      tx.effect('write-file', { path: relative, digest }, { kind: 'remove', args: { paths: [relative], mode: 'file', digest } }, () => {
-        writeAtomicJson(roots.receiptPath, receipt, roots.projectRoot);
+      finalSteps.push({
+        kind: 'write-file',
+        args: { path: relative, digest },
+        inverse: { kind: 'remove', args: { paths: [relative], mode: 'file', digest } },
+        perform: () => {
+          writeAtomicJson(roots.receiptPath, receipt, roots.projectRoot);
+        },
       });
     }
+    tx.effectBatch(finalSteps);
     const outcome = {
       receipt,
       managedPaths: candidateFiles.slice().sort(),

@@ -10,7 +10,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn, spawnSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const { runNodeTest } = require('../scripts/lib/bounded-child-process');
 const { validateAssertionSummary } = require('../scripts/lib/assertion-evidence');
 
@@ -62,7 +62,7 @@ const WEIGHT_HINTS = Object.freeze({
   'hook-bypass.test.js': 124,
   'hook-bypass-git-gate.test.js': 106,
   'credential-read-policy.test.js': 92,
-  'gen-agents-skills.test.js': 80,
+  'gen-agents-skills.test.js': 10,
   'project-agent-projection-journal-crash.test.js': 60,
   'install-codex-adapter-journal.test.js': 54,
   'dhpk-install-lifecycle.test.js': 45,
@@ -308,11 +308,19 @@ function partitionFiles(files, bucketCount) {
   return buckets;
 }
 
-function prepareEnv(sourceEnv = process.env) {
+const GIT_ENV_OVERRIDES = Object.freeze(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY', 'GIT_COMMON_DIR', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_PREFIX']);
+
+function stripGitEnv(sourceEnv = process.env) {
   const env = { ...sourceEnv };
-  for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY']) {
+  for (const key of GIT_ENV_OVERRIDES) {
     delete env[key];
   }
+  return env;
+}
+
+function prepareEnv(sourceEnv = process.env) {
+  const env = stripGitEnv(sourceEnv);
   if (!env.NODE_OPTIONS || !env.NODE_OPTIONS.includes('--max-old-space-size')) {
     env.NODE_OPTIONS = `--max-old-space-size=2048 ${env.NODE_OPTIONS || ''}`.trim();
   }
@@ -692,22 +700,12 @@ function writeTimingReport(file, report) {
   fs.writeFileSync(target, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
 }
 
-// Host packages built on demand (ADR 0040) are not committed, yet package and
-// consumer-gate suites read them from dist/on-demand. A fresh checkout (a CI
-// shard, a new worktree) has none, so build the missing ones before the full
-// suite. Trees without the on-demand library (copied fixtures) are skipped.
-function ensureOnDemandPackages(root, env) {
-  const libFile = path.join(root, 'scripts', 'lib', 'on-demand-packages.js');
-  const launcher = path.join(root, 'bin', 'dhpk');
-  if (!fs.existsSync(libFile) || !fs.existsSync(launcher)) return;
-  const { ON_DEMAND_SURFACES, onDemandPackageDir } = require(libFile);
-  for (const surface of ON_DEMAND_SURFACES) {
-    if (fs.existsSync(onDemandPackageDir(root, surface))) continue;
-    const built = spawnSync('bash', [launcher, 'distribution', 'build', surface, '--json'], { cwd: root, env, encoding: 'utf8' });
-    if (built.status !== 0) {
-      throw new Error(`on-demand ${surface} build failed before the test run: ${String(built.stderr || built.stdout).trim()}`);
-    }
-  }
+// The prebuild lives in tests/_lib/on-demand-prebuild.js. Fixture trees that
+// copy only this runner have no sibling _lib and skip the prebuild.
+function ensureOnDemandPackages(root, env, options) {
+  const prebuild = path.join(__dirname, '_lib', 'on-demand-prebuild.js');
+  if (!fs.existsSync(prebuild)) return;
+  require(prebuild).ensureOnDemandPackages(root, stripGitEnv(env), options);
 }
 
 async function main(argv = process.argv.slice(2), sourceEnv = process.env) {

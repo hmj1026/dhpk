@@ -31,7 +31,8 @@ listing 來源）；建置器由它產生送審 manifest，版本一律取自 `p
 Privacy 與 support URL 指向 GitHub Pages（`https://hmj1026.github.io/dhpk/privacy.html`
 與 `.../support.html`），由 `.github/workflows/pages.yml` 從 `docs/privacy.md` 與
 `docs/support.md` 發布。Repository 的 Pages source 必須設為「GitHub Actions」；在 workflow
-部署且 URL 可解析之前，公開可達性維持 `NOT_RUN`。
+公開可達性為 `PASS`：v0.79.0 release 後，Pages run 44490296699 從 `main` 部署，
+2026-11-19 兩個 URL 皆回應 HTTP 200。
 
 | 證據 | 目前狀態 |
 |---|---|
@@ -125,8 +126,9 @@ ChatGPT Work consumer verification 是之後發布前的獨立必要條件，目
 `NOT_VERIFIED`（`NOT_RUN`）；它不屬於目前的 Codex candidate acceptance。通過驗證前，
 不可宣稱 ChatGPT Work 已支援或已通過發布驗收。
 
-目前 checkpoint 的第 1–6 項對此 release candidate 都是 `NOT_RUN`；Privacy policy
-URL 尚未驗證為可公開存取，候選版狀態為 `NOT_PUBLISHED`。不可用生成的 ZIP、本機
+目前 checkpoint 的第 1–6 項對此 release candidate 都是 `NOT_RUN`，唯第 5 項的
+privacy 與 support URL 已驗證可公開存取（2026-11-19 HTTP 200）；候選版狀態為
+`NOT_PUBLISHED`。不可用生成的 ZIP、本機
 marketplace entry、catalog count 或 package validator 代替這些 gate。
 
 ## 官方參考資料

@@ -151,14 +151,20 @@ test('rejects preview for the formal OpenAI submission surface', () => {
 });
 
 test('validates every retained package surface through one JSON command contract', () => {
-  for (const surface of SURFACES) {
-    const result = invoke([surface, 'validate', '--json']);
-    assert.strictEqual(result.status, 0, `${surface}: ${result.stderr}`);
-    const payload = report(result);
-    assert.strictEqual(payload.surface, surface);
-    assert.strictEqual(payload.operation, 'validate');
-    assert.strictEqual(payload.verdict, 'PASS', JSON.stringify(payload));
-  }
+  withCleanWorktree((worktreeRoot) => {
+    for (const surface of SURFACES) {
+      if (ON_DEMAND.includes(surface)) {
+        const built = invoke(['build', surface, '--json'], worktreeRoot);
+        assert.strictEqual(built.status, 0, `${surface} build: ${built.stderr || built.stdout}`);
+      }
+      const result = invoke([surface, 'validate', '--json'], worktreeRoot);
+      assert.strictEqual(result.status, 0, `${surface}: ${result.stderr || result.stdout}`);
+      const payload = report(result);
+      assert.strictEqual(payload.surface, surface);
+      assert.strictEqual(payload.operation, 'validate');
+      assert.strictEqual(payload.verdict, 'PASS', JSON.stringify(payload));
+    }
+  });
 });
 
 test('new distribution previews use the common collection by default', () => {
@@ -174,7 +180,7 @@ test('new distribution previews use the common collection by default', () => {
 test('a failed default-output preview removes its dhpk-preview-output directory (#1323)', () => {
   // A TMPDIR inside the checkout makes the "output must be outside the source
   // checkout" guard reject the preview after the default directory was created.
-  const privateTmp = fs.mkdtempSync(path.join(ROOT, '.dhpk-1323-tmp-'));
+  const privateTmp = fs.mkdtempSync(path.join(ROOT, '.dhpk-test-scratch-1323-tmp-'));
   try {
     const result = spawnSync('bash', [path.join(ROOT, 'bin', 'dhpk'), 'distribution', 'agent-plugin', 'preview', '--json'], {
       cwd: ROOT, encoding: 'utf8', timeout: DISTRIBUTION_CHILD_TIMEOUT_MS, env: { ...process.env, TMPDIR: privateTmp },

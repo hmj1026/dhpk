@@ -150,6 +150,21 @@ test('testChmod_restoresModeAndSkipsAnAbsentFile', () => {
   });
 });
 
+test('testChmod_withDigestRefusesModifiedFileWithoutMutatingMode', () => {
+  withProject((roots, at) => {
+    fs.writeFileSync(at('script'), '#!/bin/sh\n', { mode: 0o600 });
+    fs.chmodSync(at('script'), 0o600);
+    const matching = { kind: 'chmod', args: { path: 'script', mode: 0o755, digest: digest('#!/bin/sh\n') } };
+    applyEffect(roots, matching);
+    assert.strictEqual(fs.statSync(at('script')).mode & 0o777, 0o755);
+
+    fs.writeFileSync(at('script'), '#!/bin/sh\necho user-edit\n');
+    fs.chmodSync(at('script'), 0o600);
+    throwsCode(() => applyEffect(roots, matching), 'RECOVERY_CONFLICT');
+    assert.strictEqual(fs.statSync(at('script')).mode & 0o777, 0o600, 'mismatched file permissions must stay untouched');
+  });
+});
+
 test('testCopyTree_copiesOnceAndRefusesOtherContent', () => {
   withProject((roots, at) => {
     fs.mkdirSync(at('stage'));
@@ -339,6 +354,471 @@ test('testCoreValidation_rejectsRecordsOutsideScope', () => {
     rejects({ phase: 'unknown', effects: [] });
     journalCore.validateJournalRecords(journal([{ kind: 'remove', args: { paths: ['.agents/.stage'], mode: 'tree' }, state: 'planned' }], 'published'), { projectRoot, scope });
   });
+});
+
+function runBatchedTransaction(projectRoot, afterStep) {
+  const at = (relative) => path.join(projectRoot, relative);
+  const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), afterStep, journal: { schema: 'test.v1', phase: 'prepared' } });
+  journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+  fs.writeFileSync(at('.agents/.stage/new.md'), 'new\n', { mode: 0o644 });
+  journal.setPhase('publishing');
+  const digestNew = digest('new\n');
+  journal.effectBatch([
+    {
+      kind: 'rename',
+      args: { from: '.agents/managed/old.md', to: '.agents/.stage/backup/old.md' },
+      inverse: { kind: 'rename', args: { from: '.agents/.stage/backup/old.md', to: '.agents/managed/old.md' } },
+    },
+    {
+      kind: 'mkdir',
+      args: { paths: ['.agents/managed/deep'] },
+      inverse: { kind: 'remove', args: { paths: ['.agents/managed/deep'], mode: 'empty' } },
+    },
+    {
+      kind: 'copy-tree',
+      args: { from: '.agents/.stage/new.md', to: '.agents/managed/deep/new.md', digest: digestNew },
+      inverse: { kind: 'remove', args: { paths: ['.agents/managed/deep/new.md'], mode: 'file', digest: digestNew } },
+    },
+    {
+      kind: 'chmod',
+      args: { path: '.agents/managed/deep/new.md', mode: 0o600 },
+      inverse: { kind: 'chmod', args: { path: '.agents/managed/deep/new.md', mode: 0o644 } },
+    },
+    {
+      kind: 'mkdir',
+      args: { paths: ['.codex', '.codex/skills'] },
+      inverse: { kind: 'remove', args: { paths: ['.codex/skills', '.codex'], mode: 'empty' } },
+    },
+    {
+      kind: 'symlink',
+      args: { path: '.codex/skills/new', target: '../../.agents/managed/deep' },
+      inverse: { kind: 'remove', args: { paths: ['.codex/skills/new'], mode: 'link', target: '../../.agents/managed/deep' } },
+    },
+  ]);
+  journal.publish([{ kind: 'remove', args: { paths: ['.agents/.stage'], mode: 'tree' } }]);
+  journal.finish();
+}
+
+test('testEffectBatch_flushesAllEffectsBeforeExecutingFirst', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/a.md'), 'a\n');
+    const digestA = digest('a\n');
+    let onDiskBeforeFirstStep = null;
+    journal.effectBatch([
+      {
+        kind: 'mkdir',
+        args: { paths: ['.agents/managed/batch'] },
+        inverse: { kind: 'remove', args: { paths: ['.agents/managed/batch'], mode: 'empty' } },
+        before: () => {
+          onDiskBeforeFirstStep = JSON.parse(fs.readFileSync(at(JOURNAL), 'utf8'));
+        },
+      },
+      {
+        kind: 'copy-tree',
+        args: { from: '.agents/.stage/a.md', to: '.agents/managed/batch/a.md', digest: digestA },
+        inverse: { kind: 'remove', args: { paths: ['.agents/managed/batch/a.md'], mode: 'file', digest: digestA } },
+      },
+    ]);
+    assert.ok(onDiskBeforeFirstStep, 'before hook must run');
+    const batchRecords = onDiskBeforeFirstStep.effects.slice(-2);
+    assert.deepStrictEqual(batchRecords.map((r) => [r.kind, r.state]), [
+      ['mkdir', 'planned'],
+      ['copy-tree', 'planned'],
+    ]);
+    assert.strictEqual(fs.existsSync(at('.agents/managed/batch/a.md')), true);
+    journal.publish([{ kind: 'remove', args: { paths: ['.agents/.stage'], mode: 'tree' } }]);
+    journal.finish();
+  });
+});
+
+for (const when of ['after', 'mid']) {
+  test(`testEffectBatchCrash_${when}EachStep_recoversToBeforeOrAfter`, () => {
+    const { before, after } = expectedStates();
+    let crashes = 0;
+    for (let target = 1; target < 100; target += 1) {
+      let done = false;
+      withProject(({ projectRoot }, at) => {
+        seed(at);
+        try {
+          runBatchedTransaction(projectRoot, { [when]: (step) => { if (step === target) throw new SimulatedCrash(step); } });
+          done = true;
+          return;
+        } catch (error) {
+          if (!(error instanceof SimulatedCrash)) throw error;
+        }
+        crashes += 1;
+        recover(projectRoot);
+        const state = tree(projectRoot);
+        const expected = JSON.stringify(state) === JSON.stringify(before) ? before : after;
+        assert.deepStrictEqual(state, expected, `batched crash ${when} step ${target}`);
+      });
+      if (done) {
+        assert.ok(crashes >= 7, `only ${crashes} batched crash points`);
+        return;
+      }
+    }
+    assert.fail('batched transaction did not finish');
+  });
+}
+
+test('testEffectBatch_beforeThrowSkipsUnstartedAndPreservesCollidingFile', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/ok.md'), 'ok\n');
+    fs.writeFileSync(at('.agents/.stage/collide.md'), 'candidate\n');
+    fs.writeFileSync(at('.agents/managed/user.md'), 'user-owned\n');
+    const digestOk = digest('ok\n');
+    const digestCollide = digest('candidate\n');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/ok.md', to: '.agents/managed/ok.md', digest: digestOk },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/ok.md'], mode: 'file', digest: digestOk } },
+        },
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/collide.md', to: '.agents/managed/user.md', digest: digestCollide },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/user.md'], mode: 'file', digest: digestCollide } },
+          before: () => {
+            const error = new Error('collision');
+            error.projectionCode = 'PUBLISH_COLLISION';
+            throw error;
+          },
+        },
+      ]);
+    }, (error) => error.projectionCode === 'PUBLISH_COLLISION');
+    assert.strictEqual(fs.existsSync(at('.agents/managed/ok.md')), true, 'first step ran before second threw');
+    journal.rollBack();
+    assert.strictEqual(fs.existsSync(at('.agents/managed/ok.md')), false, 'started step must be rolled back');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/user.md'), 'utf8'), 'user-owned\n', 'unstarted colliding file must not be removed');
+    assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+  });
+});
+
+test('testEffectBatch_rejectsUnknownKindBeforeFlushing', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+    throwsCode(() => journal.effectBatch([
+      { kind: 'mkdir', args: { paths: ['.agents/managed/a'] }, inverse: { kind: 'remove', args: { paths: ['.agents/managed/a'], mode: 'empty' } } },
+      { kind: 'unlink', args: {}, inverse: null },
+    ]), 'UNSAFE_TRANSACTION');
+    assert.strictEqual(fs.existsSync(at('.agents/managed/a')), false);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(at(JOURNAL), 'utf8')).effects, []);
+    journal.rollBack();
+  });
+});
+
+test('testEffectBatch_crashedRecoveryPreservesForeignAndEditedFilesWhileCleaningPartialPrefix', () => {
+  // Post-crash user edit on a completed file and foreign file at an unstarted
+  // target must fail closed with RECOVERY_CONFLICT instead of silent deletion.
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (step === 3) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/a.md'), 'from-tx-a\n');
+    fs.writeFileSync(at('.agents/.stage/b.md'), 'from-tx-b\n');
+    journal.setPhase('publishing');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/a.md', to: '.agents/managed/a.md', digest: digest('from-tx-a\n') },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/a.md'], mode: 'file', digest: digest('from-tx-a\n') } },
+        },
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/b.md', to: '.agents/managed/b.md', digest: digest('from-tx-b\n') },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/b.md'], mode: 'file', digest: digest('from-tx-b\n') } },
+        },
+      ]);
+    }, (error) => error instanceof SimulatedCrash);
+
+    fs.writeFileSync(at('.agents/managed/a.md'), 'user-edited-a\n');
+    fs.writeFileSync(at('.agents/managed/b.md'), 'user-created-b\n');
+    throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/b.md'), 'utf8'), 'user-created-b\n');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/a.md'), 'utf8'), 'user-edited-a\n');
+  });
+
+  // A genuine truncated prefix of the staged source is still cleaned up.
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (step === 2) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/partial.md'), 'full-content-from-stage\n');
+    journal.setPhase('publishing');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/partial.md', to: '.agents/managed/partial.md', digest: digest('full-content-from-stage\n') },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/partial.md'], mode: 'file', digest: digest('full-content-from-stage\n') } },
+        },
+      ]);
+    }, (error) => error instanceof SimulatedCrash);
+
+    fs.writeFileSync(at('.agents/managed/partial.md'), 'full-con');
+    recover(projectRoot);
+    assert.strictEqual(fs.existsSync(at('.agents/managed/partial.md')), false);
+    assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+  });
+});
+
+test('testEffectBatch_crashedRecoveryKeepsUserFilesAtUnstartedTargetsEvenWhenTheyArePrefixes', () => {
+  // Steps run in order, so after the first incomplete copy (b) nothing later
+  // ran. A user file at a later target (c) is foreign even when it happens to
+  // be a byte prefix of the staged source, such as an empty file.
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (step === 3) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    for (const name of ['a', 'b', 'c']) fs.writeFileSync(at(`.agents/.stage/${name}.md`), `from-tx-${name}\n`);
+    journal.setPhase('publishing');
+    assert.throws(() => {
+      journal.effectBatch(['a', 'b', 'c'].map((name) => ({
+        kind: 'copy-tree',
+        args: { from: `.agents/.stage/${name}.md`, to: `.agents/managed/${name}.md`, digest: digest(`from-tx-${name}\n`) },
+        inverse: { kind: 'remove', args: { paths: [`.agents/managed/${name}.md`], mode: 'file', digest: digest(`from-tx-${name}\n`) } },
+      })));
+    }, (error) => error instanceof SimulatedCrash);
+
+    fs.writeFileSync(at('.agents/managed/a.md'), 'from-tx-a\n');
+    fs.rmSync(at('.agents/managed/b.md'), { force: true });
+    fs.writeFileSync(at('.agents/managed/c.md'), '');
+    throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/c.md'), 'utf8'), '', 'user file at an unstarted target must survive');
+  });
+});
+
+test('testEffectBatch_interruptedRollbackAfterBeforeThrowPreservesCollidingFile', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    let crashDuringRollback = false;
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (crashDuringRollback) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/ok.md'), 'ok\n');
+    fs.writeFileSync(at('.agents/.stage/collide.md'), 'candidate\n');
+    fs.writeFileSync(at('.agents/managed/user.md'), 'precious-user-file\n');
+    const digestOk = digest('ok\n');
+    const digestCollide = digest('candidate\n');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/ok.md', to: '.agents/managed/ok.md', digest: digestOk },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/ok.md'], mode: 'file', digest: digestOk } },
+        },
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/collide.md', to: '.agents/managed/user.md', digest: digestCollide },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/user.md'], mode: 'file', digest: digestCollide } },
+          before: () => {
+            const error = new Error('collision');
+            error.projectionCode = 'PUBLISH_COLLISION';
+            throw error;
+          },
+        },
+      ]);
+    }, (error) => error.projectionCode === 'PUBLISH_COLLISION');
+
+    crashDuringRollback = true;
+    assert.throws(() => journal.rollBack(), (error) => error instanceof SimulatedCrash);
+    // Second process recovers from the persisted rolling-back journal.
+    recover(projectRoot);
+    assert.strictEqual(fs.existsSync(at('.agents/managed/ok.md')), false);
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/user.md'), 'utf8'), 'precious-user-file\n');
+    assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+  });
+});
+
+test('testEffectBatch_crashedChmodRollbackPreservesForeignAndEditedPermissionsWhileCleaningPartialCopy', () => {
+  // Both explicit-digest chmod inverses and legacy/caller chmod inverses that
+  // omit digest must preserve foreign/edited permissions on crashed recovery.
+  for (const includeChmodDigest of [false, true]) {
+    withProject(({ projectRoot }, at) => {
+      seed(at);
+      const journal = ProjectionJournal.begin({
+        projectRoot,
+        journalPath: at(JOURNAL),
+        afterStep: { mid: (step) => { if (step === 4) throw new SimulatedCrash(step); } },
+        journal: { schema: 'test.v1', phase: 'prepared' },
+      });
+      journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+      fs.writeFileSync(at('.agents/.stage/a.md'), 'from-tx-a\n');
+      fs.writeFileSync(at('.agents/.stage/b.md'), 'from-tx-b\n');
+      const digestA = digest('from-tx-a\n');
+      const digestB = digest('from-tx-b\n');
+      journal.setPhase('publishing');
+      assert.throws(() => {
+        journal.effectBatch([
+          {
+            kind: 'copy-tree',
+            args: { from: '.agents/.stage/a.md', to: '.agents/managed/a.md', digest: digestA },
+            inverse: { kind: 'remove', args: { paths: ['.agents/managed/a.md'], mode: 'file', digest: digestA } },
+          },
+          {
+            kind: 'chmod',
+            args: { path: '.agents/managed/a.md', mode: 0o644 },
+            inverse: { kind: 'chmod', args: { path: '.agents/managed/a.md', mode: 0o644, ...(includeChmodDigest ? { digest: digestA } : {}) } },
+          },
+          {
+            kind: 'copy-tree',
+            args: { from: '.agents/.stage/b.md', to: '.agents/managed/b.md', digest: digestB },
+            inverse: { kind: 'remove', args: { paths: ['.agents/managed/b.md'], mode: 'file', digest: digestB } },
+          },
+          {
+            kind: 'chmod',
+            args: { path: '.agents/managed/b.md', mode: 0o644 },
+            inverse: { kind: 'chmod', args: { path: '.agents/managed/b.md', mode: 0o644, ...(includeChmodDigest ? { digest: digestB } : {}) } },
+          },
+        ]);
+      }, (error) => error instanceof SimulatedCrash);
+
+      // Foreign non-empty file with custom permissions at unstarted b.md.
+      fs.writeFileSync(at('.agents/managed/b.md'), 'foreign-secret\n', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/b.md'), 0o600);
+      // Post-crash user edit with custom permissions at completed a.md.
+      fs.writeFileSync(at('.agents/managed/a.md'), 'user-edited-a\n', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/a.md'), 0o600);
+
+      throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/b.md'), 'utf8'), 'foreign-secret\n');
+      assert.strictEqual(fs.statSync(at('.agents/managed/b.md')).mode & 0o777, 0o600, `foreign file mode must remain 0600 (includeChmodDigest=${includeChmodDigest})`);
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/a.md'), 'utf8'), 'user-edited-a\n');
+      assert.strictEqual(fs.statSync(at('.agents/managed/a.md')).mode & 0o777, 0o600, `edited file mode must remain 0600 (includeChmodDigest=${includeChmodDigest})`);
+
+      // Even after the foreign b.md is cleared by the user, recovery still
+      // refuses to mutate the user-edited a.md permissions.
+      fs.rmSync(at('.agents/managed/b.md'));
+      throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/a.md'), 'utf8'), 'user-edited-a\n');
+      assert.strictEqual(fs.statSync(at('.agents/managed/a.md')).mode & 0o777, 0o600);
+    });
+
+    // A genuine truncated prefix of the staged source at a copy-tree + chmod
+    // pair is still cleaned up cleanly instead of blocking on chmod digest.
+    withProject(({ projectRoot }, at) => {
+      seed(at);
+      const journal = ProjectionJournal.begin({
+        projectRoot,
+        journalPath: at(JOURNAL),
+        afterStep: { mid: (step) => { if (step === 2) throw new SimulatedCrash(step); } },
+        journal: { schema: 'test.v1', phase: 'prepared' },
+      });
+      journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+      fs.writeFileSync(at('.agents/.stage/partial.md'), 'full-content-from-stage\n');
+      const digestPartial = digest('full-content-from-stage\n');
+      journal.setPhase('publishing');
+      assert.throws(() => {
+        journal.effectBatch([
+          {
+            kind: 'copy-tree',
+            args: { from: '.agents/.stage/partial.md', to: '.agents/managed/partial.md', digest: digestPartial },
+            inverse: { kind: 'remove', args: { paths: ['.agents/managed/partial.md'], mode: 'file', digest: digestPartial } },
+          },
+          {
+            kind: 'chmod',
+            args: { path: '.agents/managed/partial.md', mode: 0o644 },
+            inverse: { kind: 'chmod', args: { path: '.agents/managed/partial.md', mode: 0o644, ...(includeChmodDigest ? { digest: digestPartial } : {}) } },
+          },
+        ]);
+      }, (error) => error instanceof SimulatedCrash);
+
+      fs.writeFileSync(at('.agents/managed/partial.md'), 'full-con', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/partial.md'), 0o600);
+      recover(projectRoot);
+      assert.strictEqual(fs.existsSync(at('.agents/managed/partial.md')), false, `partial copy must still be cleaned up (includeChmodDigest=${includeChmodDigest})`);
+      assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+    });
+  }
+});
+
+test('testChmodRollback_creatorLookupStopsAtAncestorDirectoryRenameAndTreeRemove', () => {
+  // An intervening ancestor rename or tree remove must break creator lookup so
+  // a later chmod inverse without an explicit digest is not bound to an earlier
+  // copy-tree from before the directory was moved or removed.
+  for (const barrier of ['rename', 'remove-tree']) {
+    withProject(({ projectRoot }, at) => {
+      seed(at);
+      fs.mkdirSync(at('.agents/managed/sub'), { recursive: true });
+      const journal = ProjectionJournal.begin({ projectRoot, journalPath: at(JOURNAL), journal: { schema: 'test.v1', phase: 'prepared' } });
+      journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+      fs.writeFileSync(at('.agents/.stage/a.md'), 'staged-original\n');
+      const digestStage = digest('staged-original\n');
+      journal.journal.effects.push(
+        {
+          id: 2,
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/a.md', to: '.agents/managed/sub/a.md', digest: digestStage },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/sub/a.md'], mode: 'file', digest: digestStage } },
+          state: 'planned',
+        },
+        barrier === 'rename'
+          ? {
+            id: 3,
+            kind: 'rename',
+            args: { from: '.agents/managed/sub', to: '.agents/managed/sub-moved' },
+            inverse: { kind: 'rename', args: { from: '.agents/managed/sub-moved', to: '.agents/managed/sub' } },
+            state: 'planned',
+          }
+          : {
+            id: 3,
+            kind: 'remove',
+            args: { paths: ['.agents/managed/sub'], mode: 'tree' },
+            inverse: { kind: 'mkdir', args: { paths: ['.agents/managed/sub'] } },
+            state: 'planned',
+          },
+        {
+          id: 4,
+          kind: 'chmod',
+          args: { path: '.agents/managed/sub/a.md', mode: 0o600 },
+          inverse: { kind: 'chmod', args: { path: '.agents/managed/sub/a.md', mode: 0o644 } },
+          state: 'planned',
+        },
+      );
+      journal.flush();
+      fs.writeFileSync(at('.agents/managed/sub/a.md'), 'independent-content\n', { mode: 0o600 });
+      fs.chmodSync(at('.agents/managed/sub/a.md'), 0o600);
+      // Record 4's chmod inverse restores 0644 (not falsely rejected by record 2's
+      // digest), then record 2's file removal fails closed with RECOVERY_CONFLICT.
+      const saved = JSON.parse(fs.readFileSync(at(JOURNAL), 'utf8'));
+      const baseScope = scopeFor(projectRoot);
+      const testScope = barrier === 'remove-tree'
+        ? { ...baseScope, transient: new Set([...baseScope.transient, at('.agents/managed/sub')]) }
+        : baseScope;
+      journalCore.validateJournalRecords(saved, { projectRoot, scope: testScope });
+      throwsCode(() => journalCore.recoverJournal(saved, { projectRoot, journalPath: at(JOURNAL) }), 'RECOVERY_CONFLICT');
+      assert.strictEqual(fs.statSync(at('.agents/managed/sub/a.md')).mode & 0o777, 0o644, `barrier=${barrier}`);
+      assert.strictEqual(fs.readFileSync(at('.agents/managed/sub/a.md'), 'utf8'), 'independent-content\n');
+    });
+  }
 });
 
 run('projection-journal');
