@@ -9,14 +9,22 @@ const { unquote } = require('./agent-frontmatter');
 
 const MANIFEST_PATHS = Object.freeze(['plugin.json', '.codex-plugin/plugin.json']);
 
-function readManifest(files, manifestPath, errors) {
-  if (!files.has(manifestPath)) return null;
+// Parsed JSON of a package file, or null when it is absent or invalid (the
+// invalid case adds an error, prefixed with `label` when one is given).
+function readJsonFile(files, file, errors, label = '') {
+  if (!files.has(file)) return null;
   try {
-    return JSON.parse(files.get(manifestPath).toString('utf8'));
+    return JSON.parse(files.get(file).toString('utf8'));
   } catch {
-    errors.push(`${manifestPath} is not valid JSON`);
+    errors.push(`${label ? `${label} ` : ''}${file} is not valid JSON`);
     return null;
   }
+}
+
+// Raw text of a Markdown frontmatter block, or null when the file has none.
+function frontmatterBlock(buffer) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(buffer.toString('utf8').replace(/^\uFEFF/, ''));
+  return match ? match[1] : null;
 }
 
 function hookPaths(files) {
@@ -42,16 +50,11 @@ function internalFileErrors(files) {
   return errors;
 }
 
-function frontmatterOf(buffer) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(buffer.toString('utf8'));
-  return match ? match[1] : '';
-}
-
 function metadataErrors(files) {
   const errors = [];
   for (const [file, bytes] of files) {
     if (!/(^|\/)(SKILL|REFERENCE)\.md$/.test(file)) continue;
-    const keys = frontmatterOf(bytes).split(/\r?\n/).map((line) => /^\s+(dhpk-[\w-]+)\s*:/.exec(line)).filter(Boolean);
+    const keys = (frontmatterBlock(bytes) || '').split(/\r?\n/).map((line) => /^\s+(dhpk-[\w-]+)\s*:/.exec(line)).filter(Boolean);
     for (const [, key] of keys) errors.push(`Public Plugin ${file} must not carry ${key} metadata`);
   }
   return errors;
@@ -125,7 +128,7 @@ function checkPublicPlugin(files, { version } = {}) {
   for (const file of hookPaths(files)) errors.push(`Public Plugin must not contain hooks: ${file}`);
 
   for (const manifestPath of MANIFEST_PATHS) {
-    const manifest = readManifest(files, manifestPath, errors);
+    const manifest = readJsonFile(files, manifestPath, errors);
     if (!manifest || typeof manifest !== 'object') continue;
     if (Object.prototype.hasOwnProperty.call(manifest, 'hooks')) {
       errors.push(`Public Plugin must not declare hooks in ${manifestPath}`);
@@ -165,7 +168,8 @@ function sizeErrors(files) {
 const isHttpsUrl = (value) => typeof value === 'string' && /^https:\/\/\S+$/.test(value);
 const wordCount = (buffer) => buffer.toString('utf8').split(/\s+/).filter(Boolean).length;
 
-function checkDirectoryManifest(manifest, files, version, errors) {
+function checkDirectoryManifest(manifest, files, version) {
+  const errors = [];
   if (manifest.version !== version) {
     errors.push(`${DIRECTORY_MANIFEST} version ${manifest.version} must equal package.json version ${version}`);
   }
@@ -173,11 +177,11 @@ function checkDirectoryManifest(manifest, files, version, errors) {
     if (!isHttpsUrl(manifest[field])) errors.push(`${DIRECTORY_MANIFEST} must set ${field} to an https URL`);
   }
   if (typeof manifest.icon !== 'string' || manifest.icon === '') {
-    errors.push(`${DIRECTORY_MANIFEST} must set icon`);
-    return;
+    return [...errors, `${DIRECTORY_MANIFEST} must set icon`];
   }
   const iconPath = manifest.icon.replace(/^\.\//, '');
   if (!files.has(iconPath)) errors.push(`${DIRECTORY_MANIFEST} icon ${manifest.icon} is not in the package`);
+  return errors;
 }
 
 // Directory Plugin: Claude package. Runtime files only, README and LICENSE
@@ -205,9 +209,9 @@ function checkDirectoryPlugin(files, { version } = {}) {
     errors.push(`Directory Plugin is missing ${DIRECTORY_MANIFEST}`);
     return errors;
   }
-  const manifest = readManifest(files, DIRECTORY_MANIFEST, errors);
-  if (manifest && typeof manifest === 'object') checkDirectoryManifest(manifest, files, version, errors);
-  return errors;
+  const manifest = readJsonFile(files, DIRECTORY_MANIFEST, errors);
+  if (!manifest || typeof manifest !== 'object') return errors;
+  return [...errors, ...checkDirectoryManifest(manifest, files, version)];
 }
 
 function defaultValidateRunner(directory) {
@@ -241,10 +245,10 @@ const FOREIGN_ROOT_TOKEN = '${' + 'CLAUDE_PLUGIN_ROOT}';
 
 // Top-level `key: value` pairs of a Markdown frontmatter block, or null when absent.
 function topLevelFrontmatter(buffer) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(buffer.toString('utf8').replace(/^﻿/, ''));
-  if (!match) return null;
+  const block = frontmatterBlock(buffer);
+  if (block === null) return null;
   const fields = {};
-  for (const line of match[1].split(/\r?\n/)) {
+  for (const line of block.split(/\r?\n/)) {
     const pair = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
     if (pair) fields[pair[1]] = unquote(pair[2]);
   }
@@ -259,16 +263,6 @@ function extensionOf(file) {
   const base = file.split('/').pop();
   const dot = base.lastIndexOf('.');
   return dot < 0 ? '' : base.slice(dot);
-}
-
-function readJsonFile(files, file, errors, label) {
-  if (!files.has(file)) return null;
-  try {
-    return JSON.parse(files.get(file).toString('utf8'));
-  } catch {
-    errors.push(`${label} ${file} is not valid JSON`);
-    return null;
-  }
 }
 
 function unknownKeyErrors(label, file, fields, allowed) {

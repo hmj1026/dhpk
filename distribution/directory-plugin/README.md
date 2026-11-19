@@ -23,7 +23,7 @@ The plugin registers four hooks in `hooks/hooks.json`. They run local shell scri
 
 ## Setup writes files
 
-The `/dhpk:harness-setup` command (the `harness-setup` skill) is explicit-only. When you run it with `--install`, it copies selected hooks, rules, or scripts into the project's `.claude/` directory and writes a project rules stub at `.claude/rules/dhpk-overrides.md`. It never overwrites a differing file without `--force`, and `--dry-run` prints the plan without writing. It does not run unless you invoke it.
+The `harness-setup` skill (run it as `/dhpk:harness-setup`) is explicit-only. When you run it with `--install`, it copies selected hooks, rules, or scripts into the project's `.claude/` directory and writes a project rules stub at `.claude/rules/dhpk-overrides.md`. It never overwrites a differing file without `--force`, and `--dry-run` prints the plan without writing. It does not run unless you invoke it.
 
 ## External tools
 

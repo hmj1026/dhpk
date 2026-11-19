@@ -861,7 +861,7 @@ deletes the source checkout, and verifies every allowlisted native skill
 materialized as a real (non-symlink) file — the exact failure mode
 [issue #88](https://github.com/hmj1026/dhpk/issues/88) tracked is closed at
 the manifest level (`plugins/dhpk/.codex-plugin/plugin.json` resolves to the
-tracked physical tree; the repo root is not a Codex plugin root). This proof runs as part of the release CONSUMER gate
+tracked physical tree, and the Codex plugin root is `plugins/dhpk/`: the repository root carries no `.codex-plugin/` or root `plugin.json`). This proof runs as part of the release CONSUMER gate
 whenever a `codex` CLI is available; see
 [`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package)
 for the full gate model.

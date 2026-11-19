@@ -45,6 +45,7 @@ const { sha256Hex } = require('../lib/content-fingerprint');
 const { compileMarketplacePublicationView } = require('../lib/marketplace-selection');
 const { compileOpenaiSubmissionPackage } = require('../lib/openai-submission-package');
 const { renderOpenaiSubmissionManifest, readSourceVersion } = require('../lib/host-manifests');
+const { readTree, listTrackedFiles } = require('../lib/file-tree');
 const {
   checkPublicPlugin, checkDirectoryPlugin, checkCursorPlugin, checkAgyPlugin, runClaudeValidate,
 } = require('../lib/publication-conformance');
@@ -307,19 +308,10 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, module
 }
 
 // Committed Public Plugin tree (plugins/dhpk): path -> bytes, receipt files excluded.
-function readCommittedPublicPlugin(dir) {
-  const files = new Map();
-  const visit = (current, prefix) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) visit(path.join(current, entry.name), relative);
-      else if (!prefix && NATIVE_RECEIPT_FILES.includes(entry.name)) continue;
-      else files.set(relative, fs.readFileSync(path.join(current, entry.name)));
-    }
-  };
-  visit(dir, '');
-  return files;
-}
+const readCommittedPublicPlugin = (dir) => readTree(dir, (relative) => !NATIVE_RECEIPT_FILES.includes(relative));
+
+// A committed package directory: path -> bytes for its regular files.
+const readDirectoryTree = (dir) => readTree(dir, (relative, entry) => entry.isFile());
 
 // Public Plugin: build the skills-only tree in memory from the committed
 // sources, run the publication conformance rules on it, and require the
@@ -330,15 +322,15 @@ function verifyPublicPlugin({ root, inventory }) {
   const selection = readJson(path.join(root, 'manifests', 'marketplace-selection.json'));
   const view = compileMarketplacePublicationView({ inventory, selection });
   if (view.errors.length > 0) return publicPluginResult([`marketplace selection: ${view.errors.join('; ')}`]);
-  const tracked = spawnSync('git', ['-C', root, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (tracked.status !== 0) return publicPluginResult(['git ls-files failed; cannot build the Public Plugin']);
+  const tracked = listTrackedFiles(root);
+  if (tracked === null) return publicPluginResult(['git ls-files failed; cannot build the Public Plugin']);
   const compiled = compileOpenaiSubmissionPackage({
     root,
     inventory,
     selection,
     manifest: renderOpenaiSubmissionManifest(root, version),
     sourceIdentity: { version, commit: sourceCommit(root, 'unknown') },
-    sourceFileAllowlist: new Set(tracked.stdout.split('\0').filter(Boolean)),
+    sourceFileAllowlist: new Set(tracked),
   });
   if (!compiled.ok) return publicPluginResult(compiled.errors);
   const files = new Map(compiled.files.map((file) => [file.path, file.bytes]));
@@ -349,19 +341,6 @@ function verifyPublicPlugin({ root, inventory }) {
     ...(committed ? publicPluginTreeDrift(files, committed) : ['committed Public Plugin plugins/dhpk is missing']),
   ];
   return publicPluginResult(errors, compiled.files.length);
-}
-
-function readDirectoryTree(directory) {
-  const files = new Map();
-  const visit = (current, relative) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const child = relative ? `${relative}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) visit(path.join(current, entry.name), child);
-      else if (entry.isFile()) files.set(child, fs.readFileSync(path.join(current, entry.name)));
-    }
-  };
-  visit(directory, '');
-  return files;
 }
 
 // Directory Plugin: read each committed Claude package (core and dhpk-stacks),

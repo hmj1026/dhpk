@@ -60,7 +60,7 @@ const BUILD_ONLY_FILES = Object.freeze([
     'codex-discovery-registry', 'codex-native-activation', 'codex-native-package', 'codex-role-neighbors',
     'command-namespace', 'cross-cli-parity', 'cursor-harness-adapt', 'cursor-plugin-package',
     'cursor-session-home', 'cursor-sync-package', 'dhpk-distribution', 'directory-plugin-runtime',
-    'discovery-budget', 'dispatch-projection', 'distribution-preview', 'gate-runner', 'host-manifests',
+    'discovery-budget', 'dispatch-projection', 'distribution-preview', 'file-tree', 'gate-runner', 'host-manifests',
     'host-package-pipeline', 'markdown-link-sanitizer', 'marketplace-host-publication',
     'marketplace-runtime-acceptance', 'marketplace-selection', 'native-agent-support',
     'openai-submission-assets', 'openai-submission-command', 'openai-submission-package',

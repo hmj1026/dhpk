@@ -3,7 +3,7 @@
   "name": "dhpk-stacks",
   "displayName": "DHPK Stack Modules",
   "version": "0.78.0",
-  "description": "Stack modules for the dhpk harness: PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift hooks, references, and reviewers. Requires the dhpk core plugin.",
+  "description": "Stack modules and stack skills for the dhpk harness: PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift hooks, references, reviewers, and skills. Requires the dhpk core plugin.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"

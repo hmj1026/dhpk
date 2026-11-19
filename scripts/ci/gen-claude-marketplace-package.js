@@ -19,6 +19,8 @@ const { selectRuntimeFiles, stackSkillDestination } = require('../lib/directory-
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'dist', 'claude-marketplace', 'package');
 const DEFAULT_STACKS_OUTPUT = path.join(ROOT, 'dist', 'claude-marketplace', 'stacks-package');
+// Test-only switch: a fixture tree with no marketplace selection may plan dhpk-stacks without stack skills.
+const FIXTURE_WITHOUT_STACK_SKILLS_ENV = 'DHPK_FIXTURE_STACKS_WITHOUT_STACK_SKILLS';
 const PROVENANCE_SCHEMA = 'dhpk.claude-marketplace-catalog.v1';
 const STACKS_PROVENANCE_SCHEMA = 'dhpk.claude-stacks-package.v1';
 const PACKAGE_PATHS = [
@@ -231,10 +233,13 @@ function stacksProvenanceDocument(runtime) {
 // Claude discovers them in dhpk-stacks.
 function addStackSkills(files, sourceRoot) {
   const { content } = compileSkillContent(sourceRoot);
-  // Without a marketplace selection there is no compiled skill tree and so no stack skills,
-  // the same way the core package falls back to a plain copy.  The committed-package tests
-  // (tests/stacks-plugin-package.test.js) fail if the real checkout ever lands here.
-  if (!content) return;
+  // The stack skills exist only in the compiled skill tree, which needs the distribution inventory
+  // and the marketplace selection. Without them the package would silently lack every stack skill,
+  // so the real checkout fails loudly. Release fixtures that carry neither opt out explicitly.
+  if (!content) {
+    if (process.env[FIXTURE_WITHOUT_STACK_SKILLS_ENV] === '1') return;
+    throw new Error(`dhpk-stacks needs manifests/distribution-inventory.json and manifests/marketplace-selection.json to compile its stack skills; set ${FIXTURE_WITHOUT_STACK_SKILLS_ENV}=1 only for a fixture tree`);
+  }
   for (const file of content.files) {
     const destination = stackSkillDestination(file.path);
     if (destination) addFile(files, destination, Buffer.from(file.bytes), (file.mode & 0o111) !== 0);
@@ -450,6 +455,7 @@ if (require.main === module) process.exit(main());
 module.exports = {
   DEFAULT_OUTPUT,
   DEFAULT_STACKS_OUTPUT,
+  FIXTURE_WITHOUT_STACK_SKILLS_ENV,
   PACKAGE_PATHS,
   STACKS_SHARED_HOOK_LIBS,
   check,

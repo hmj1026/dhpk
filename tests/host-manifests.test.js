@@ -36,6 +36,22 @@ test('the OpenAI listing interface exists in one source file only', () => {
   assert.strictEqual(fs.existsSync(path.join(ROOT, 'manifests/openai-submission.json')), false);
 });
 
+test('the OpenAI submission manifest carries no Claude package listing entries', () => {
+  assert.strictEqual(renderOpenaiSubmissionManifest(ROOT).packages, undefined);
+});
+
+test('Claude listing text names no removed commands and places stack skills in dhpk-stacks', () => {
+  const { packages } = JSON.parse(fs.readFileSync(path.join(ROOT, LISTING_METADATA), 'utf8'));
+  const texts = [
+    packages['claude-core'].description,
+    packages['claude-stacks'].description,
+    ...Object.values(packages['claude-marketplace'].plugins),
+  ];
+  for (const text of texts) assert.ok(!/routed command/i.test(text), text);
+  assert.match(packages['claude-core'].description, /stack skills ship separately in dhpk-stacks/);
+  assert.match(packages['claude-stacks'].description, /stack skills/);
+});
+
 test('every manifest file in the repository is declared by a generator', () => {
   assert.deepStrictEqual(undeclaredManifests(ROOT), []);
 });

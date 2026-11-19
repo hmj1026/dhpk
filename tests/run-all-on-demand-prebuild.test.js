@@ -1,5 +1,11 @@
 'use strict';
 
+// Separate file by design (CODING_STANDARDS.md, Tests): the subject is the
+// tests/run-all.js on-demand package prebuild, not shard verification, and the
+// owner suite tests/verify-test-shards.test.js is already past 1600 lines, twice
+// the 800-line ceiling. Each case needs its own fixture root with a stand-in
+// bin/ launcher script, which the owner suite has no use for.
+
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');

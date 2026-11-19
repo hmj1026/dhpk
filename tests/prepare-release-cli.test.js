@@ -13,7 +13,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { writeVersionManifests } = require('./_lib/release-manifest-fixtures');
-const { STACKS_SHARED_HOOK_LIBS } = require('../scripts/ci/gen-claude-marketplace-package');
+const { STACKS_SHARED_HOOK_LIBS, FIXTURE_WITHOUT_STACK_SKILLS_ENV } = require('../scripts/ci/gen-claude-marketplace-package');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
@@ -116,7 +116,7 @@ function runCli(repo, args, extraEnv = {}) {
   return spawnSync('node', [CLI, '--repo-root', repo, ...args], {
     cwd: repo,
     encoding: 'utf8',
-    env: { ...process.env, ...extraEnv },
+    env: { ...process.env, [FIXTURE_WITHOUT_STACK_SKILLS_ENV]: '1', ...extraEnv },
   });
 }
 

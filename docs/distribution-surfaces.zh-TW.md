@@ -267,8 +267,8 @@ bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 
 已安裝的 Claude plugin 不含 `codex/`；sync 需使用 repository checkout。
 
-目前 `codex/skills/` 有 16 個指向 canonical `skills/` 的相對 symlink（14 個可呼叫 skill
-加上內部 `cli-transport` 與 `cli-dispatch-context` runtime）。專案同步可
+目前 `codex/skills/` 有 24 個指向 canonical `skills/` 的相對 symlink（皆為可呼叫 skill；內部 `cli-transport` 與
+`cli-dispatch-context` runtime 已於 0.66.2 退役）。專案同步可
 選預設 symlink 或 `--copy` 實體檔，並以 schema-v3 receipt 管理 `--update`、
 `--migrate` 與 `--uninstall`。`--force` 只略過 project-root heuristic，不會繞過
 ownership 或 filesystem safety。完整操作見
