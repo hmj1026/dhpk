@@ -316,7 +316,7 @@ Release, so consumers can download them instead of building:
 ```bash
 bin/dhpk distribution build agent-plugin --json
 bin/dhpk distribution build cursor-plugin --json
-bin/dhpk distribution build agy-plugin --version=0.78.0 --json
+bin/dhpk distribution build agy-plugin --version=0.79.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1259,7 +1259,7 @@ Maintainers may build and validate the package from a clean checkout (the build
 also writes the release archive beside it):
 
 ```bash
-bin/dhpk distribution build agy-plugin --version=0.78.0 --json
+bin/dhpk distribution build agy-plugin --version=0.79.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

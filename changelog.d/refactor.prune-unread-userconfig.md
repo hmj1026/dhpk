@@ -1,2 +1,0 @@
-scope: config
-note: Removed 14 userConfig options that no default hook reads or that need explicit consumer hook registration (subagent_quality_gate, docker_containers, swiftlint_bin, reap_stale_mcp_processes, skill_hint_enabled, learning_db_enabled, graduation_scan_enabled, lockfile_sync_commands, php_bin, completion_evidence_enabled, agent_warmstart_enabled, harness_restore_hint, sentinel_commit_gate, hot_tables); the installer no longer asks for Docker container names.

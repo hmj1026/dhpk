@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## 0.79.0 — 2026-11-19 — Two published packages: Public Plugin and Directory Plugin, skills only
+
+- **BREAKING(commands)** — Removed the 11 remaining slash commands, so the plugin ships skills only; replace /dhpk:verify with /dhpk:repo-verify, /dhpk:setup with /dhpk:harness-setup, /dhpk:smart-commit with /dhpk:git-smart-commit, /dhpk:create-release with /dhpk:release-creator, /dhpk:deep-analyze with /dhpk:proposal-analyze, /dhpk:simplify with /dhpk:code-simplify, /dhpk:matrix-cell-onboard with /dhpk:library-author cell-onboard, /dhpk:doc-refactor with /dhpk:doc-maintain refactor, /dhpk:update-codemaps with /dhpk:doc-maintain codemap, /dhpk:update-docs with /dhpk:doc-maintain update, and /dhpk:ts-check-status with /dhpk:js-static-checks status.
+- **BREAKING(commands)** — Removed the 10 command forwarders that only called a same-name skill (create-pr, flow-drive, flow-guide, git-worktree, merge-prep, opsx-apply-resume, pr-summary, precommit, project-brief, ui-ux-verify); the skills keep the same /dhpk:<name> invocation.
+- **BREAKING(distribution)** — Migration: the committed `generated/` directory is renamed `dist/`, so the Claude marketplace `source` paths are now `./dist/claude-marketplace/package` and `./dist/claude-marketplace/stacks-package` (update or re-add the marketplace), and the Cursor, AGY and dhpk-agent packages are no longer committed under `plugins/`; build them with `bin/dhpk distribution build <agent-plugin|cursor-plugin|agy-plugin>` or download the `dhpk-agent`, `dhpk-cursor` and `dhpk-agy` archives from the GitHub Release.
+- **feat(codex)** — Codex agent TOMLs no longer pin a model, so every dhpk agent runs on the default model configured in Codex.
+- **feat(distribution)** — Publication conformance checks the on-demand Cursor and AGY packages for manifest schema, version, component files and foreign tokens, and their agent-trap files no longer carry the Claude plugin-root token.
+- **feat(distribution)** — Split stack modules into a second marketplace plugin, dhpk-stacks, which requires dhpk and owns the modules setting and module tool settings; harness-setup tells you to install it when it detects a stack, and existing users move their modules setting as described in docs/configuration.md.
+- **feat(distribution)** — Ship only runtime files in the Claude Directory Plugin, add a README and LICENSE, set icon, repository, and URL manifest fields, and check them with `claude plugin validate --strict --profile directory`.
+- **feat(distribution)** — Drop build-only libraries, per-skill build metadata, and eval fixtures from the Claude Directory Plugin and enforce Claude's 512-file and 256 KiB non-image limits in publication conformance.
+- **feat(distribution)** — Clean the Public Plugin for review: no internal distribution metadata or dhpk-* skill metadata, nested reference entries renamed to REFERENCE.md, the listing icon under ./assets/, listing counts computed from the catalog, and conformance rules that enforce each.
+- **feat(codex-native)** — Codex native package is now built from the Public Plugin tree and exposes exactly the 14 public skills, the same tree as the OpenAI submission ZIP.
+- **feat(publication)** — Add a publication conformance check that fails a Public Plugin carrying hooks or a version that differs from package.json.
+- **feat(codex)** — Retire the repo-root Codex plugin manifest so no Codex install loads the Claude hooks beside it, and drop the per-entry version from the Codex marketplace listing.
+- **feat(distribution)** — Stack skills (swift, php, laravel, yii1, js-static-checks, python, react, nextjs) now live in the dhpk-stacks plugin as top-level skills; install `dhpk-stacks@dhpk` to keep them, and the core plugin stays under Claude's 512-file limit.
+- **feat(tests)** — The local test runner now defaults to min(cpus,4) parallel jobs and sweeps stale .dhpk-test-scratch-* directories at start.
+- **fix(release)** — The Claude core, dhpk-stacks, and marketplace descriptions are now generated from manifests/listing-metadata.json (check:host-manifests catches drift) and no longer mention routed commands or stack modules in core.
+- **fix(hooks)** — Fold case in the command inspector without bash 4 expansions so the Bash hook works on macOS bash 3.2, and make the portability gate read large scripts without a SIGPIPE false negative.
+- **fix(hooks)** — Fix pre-edit-guard (and other hooks) failing open under pipefail when an early-exiting grep -q ended a pipe, which let a multi-line .env path through under load.
+- **fix(distribution)** — Keep the flow-guide next-action edges working in the Public Plugin by shipping them as runtime data instead of skill frontmatter.
+- **fix(packaging)** — Remove the leftover commands/ package entry, the inventory command source paths, the idle command validator and forwarder generator, and refresh the Codex and Cursor Docker setup guide that still described the removed docker_containers option.
+- **fix(ci)** — The marketplace package generator no longer accepts a test-only environment variable that skipped the stack-skills manifest check.
+- **fix(release)** — Host manifests now take their version from package.json and the OpenAI submission manifest is rendered from one listing metadata file; release parity checks generator-declared manifests and fails on undeclared ones.
+- **refactor(installer)** — Ship the Codex installer in the harness-setup skill as readable source modules instead of one 702 KB generated bundle.
+- **refactor(config)** — Removed 14 userConfig options that no default hook reads or that need explicit consumer hook registration (subagent_quality_gate, docker_containers, swiftlint_bin, reap_stale_mcp_processes, skill_hint_enabled, learning_db_enabled, graduation_scan_enabled, lockfile_sync_commands, php_bin, completion_evidence_enabled, agent_warmstart_enabled, harness_restore_hint, sentinel_commit_gate, hot_tables); the installer no longer asks for Docker container names.
+- **refactor(hooks)** — Split command-inspect.sh into sourced modules under 256 KiB with no behavior change and lower the Bash PreToolUse timeout from 2100 to 1800 seconds.
+- **docs(docs)** — Corrected the documented local test runner defaults (min(cpus,4) jobs, per-worker DHPK_HOOK_BATCH_JOBS), added a dated supersession note to the Cursor and AGY research record, and clarified that dhpk ships no slash commands.
+- **docs(docs)** — Install and distribution docs now describe only the two Published Packages, dhpk-stacks, and the on-demand Cursor, AGY and dhpk-agent builds, with a migration note for marketplaces that pointed at generated/claude-marketplace/package (run /plugin marketplace update dhpk, then reload or reinstall).
+- **docs(privacy)** — Publish the privacy policy and support page on GitHub Pages and point the listing metadata at them.
+- **docs(docs)** — Refreshed install, Cursor, Codex, and migration docs for the skills-only plugin (no commands/ directory, Cursor uses synced skills) and corrected the canonical skill count in the repository layout.
+- **ci(ci)** — CI runs the installer bundle, Claude manifest, and Claude marketplace --check steps in every mode.
+
 ## 0.78.0 — 2026-11-18 — 新增 quick-worker 低成本層、子代理改檔紀律與中斷偵測，並修正選用 hook 設定說明
 
 - **feat(agents)** — 新增 quick-worker 角色（Claude haiku／Codex gpt-6-luna／Cursor composer-2.5-fast），專責字面明確的機械式修改，需判斷時退回 fast-worker。
