@@ -47,7 +47,7 @@ install default in [`manifests/install-profiles.json`](./manifests/install-profi
 | Claude Code | `bash scripts/install.sh` (`--dry-run` first) | Start a new session and run `/dhpk:flow-guide help` | The selected default is maintained in the install-profile SSOT; detailed routes and receipt behavior are in the [platform installation guide](./docs/platform-installation.md) |
 | Codex CLI | `bash scripts/hooks/install-codex-skills.sh --plan --json`, then install/update | `$flow-guide help` | Supported project-local route; unavailable CLI/runtime stays `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE` |
 | Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`, then install/update | Inspect `.cursor/.dhpk-installed.json` and reload Cursor | Supported project-local route; native plugin/runtime evidence is separate |
-| AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`, then the receipt-owned adapter | `agy agents` when the CLI is available | Experimental; structural install is not runtime `PASS` |
+| AGY | `node scripts/ci/install-agy-plugin.js plan --source dist/on-demand/dhpk-agy --json`, then the receipt-owned adapter | `agy agents` when the CLI is available | Experimental; structural install is not runtime `PASS` |
 
 For scripted or CI use, the Claude route also accepts non-interactive flags
 (the `claude` CLI is required):
@@ -323,7 +323,7 @@ node scripts/ci/validate-skills.js --strict
 ```
 
 These checks cover repository source. The marketplace uses the generated
-physical package at `generated/claude-marketplace/package`, which excludes the
+physical package at `dist/claude-marketplace/package`, which excludes the
 development-only root `CLAUDE.md`. For official Claude CLI evidence, validate
 the installed cache directly with:
 
@@ -395,7 +395,7 @@ the supported path is `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.s
 Sync requires a repository checkout; an installed Claude plugin does not include
 `cursor/`. Cursor retains its all-symlink default; `--copy` is the portable fallback. The
 installer writes a schema-v3 receipt at `.cursor/.dhpk-installed.json` and does
-not write `.cursor/hooks.json`. Keep `plugins/dhpk-cursor/` for the marketplace
+not write `.cursor/hooks.json`. Keep `dist/on-demand/dhpk-cursor/` for the marketplace
 / user-plugin route. Full policy: **[`docs/platform-installation.md`](./docs/platform-installation.md)**.
 
 ## Migrating an existing project

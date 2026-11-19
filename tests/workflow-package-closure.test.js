@@ -135,9 +135,7 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
   const ROOT = path.join(__dirname, '..');
   const SURFACES = [
     'plugins/dhpk',
-    'plugins/dhpk-agent',
-    'plugins/dhpk-agy',
-    'generated/claude-marketplace/package',
+    'dist/claude-marketplace/package',
   ];
 
   function isolatedEnvironment() {

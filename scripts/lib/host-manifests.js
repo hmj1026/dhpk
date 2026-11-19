@@ -48,16 +48,16 @@ const GENERATORS = Object.freeze([
     id: 'claude-marketplace-package',
     command: 'node scripts/ci/gen-claude-marketplace-package.js',
     outputs: [
-      { path: 'generated/claude-marketplace/package/.claude-plugin/plugin.json', read: 'version' },
-      { path: 'generated/claude-marketplace/package/provenance.json', read: null },
+      { path: 'dist/claude-marketplace/package/.claude-plugin/plugin.json', read: 'version' },
+      { path: 'dist/claude-marketplace/package/provenance.json', read: null },
     ],
   },
   {
     id: 'claude-stacks-package',
     command: 'node scripts/ci/gen-claude-marketplace-package.js',
     outputs: [
-      { path: 'generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json', read: 'version' },
-      { path: 'generated/claude-marketplace/stacks-package/provenance.json', read: null },
+      { path: 'dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json', read: 'version' },
+      { path: 'dist/claude-marketplace/stacks-package/provenance.json', read: null },
     ],
   },
   {
@@ -69,38 +69,15 @@ const GENERATORS = Object.freeze([
       { path: 'plugins/dhpk/provenance.json', read: 'sourceVersion' },
     ],
   },
-  {
-    id: 'agent-plugin-package',
-    command: 'bin/dhpk distribution agent-plugin generate',
-    outputs: [
-      { path: 'plugins/dhpk-agent/plugin.json', read: 'version' },
-      { path: 'plugins/dhpk-agent/provenance.json', read: 'sourceVersion' },
-    ],
-  },
-  {
-    id: 'agy-plugin-package',
-    command: 'bin/dhpk distribution agy-plugin generate',
-    outputs: [
-      { path: 'plugins/dhpk-agy/plugin.json', read: 'version' },
-      { path: 'plugins/dhpk-agy/provenance.json', read: 'sourceVersion' },
-    ],
-  },
-  {
-    id: 'cursor-plugin-package',
-    command: 'bin/dhpk distribution cursor-plugin generate',
-    outputs: [
-      { path: 'plugins/dhpk-cursor/.cursor-plugin/plugin.json', read: 'version' },
-      { path: 'plugins/dhpk-cursor/.cursor-plugin/marketplace.json', read: 'metadataVersion' },
-      { path: 'plugins/dhpk-cursor/provenance.json', read: 'sourceVersion' },
-    ],
-  },
 ]);
 
 // Manifest file names a generator must declare when found anywhere in the tree.
 const MANIFEST_BASENAMES = new Set(['plugin.json', 'marketplace.json', 'provenance.json']);
 const SCAN_SKIP_DIRS = new Set(['.git', 'node_modules', '.gitnexus', '.claude', 'tests', 'docs', 'openspec', 'changelog.d']);
 // Retired outputs that may linger untracked in a working tree.
-const SCAN_SKIP_PREFIXES = ['generated/claude-profiles/'];
+// The on-demand host packages (Agent, Cursor, AGY) are built into dist/on-demand/
+// and never committed, so they declare no version-bearing manifest.
+const SCAN_SKIP_PREFIXES = ['dist/claude-profiles/', 'dist/on-demand/'];
 
 function declaredOutputs() {
   return GENERATORS.flatMap((g) => g.outputs.map((o) => ({ ...o, generator: g.id })));

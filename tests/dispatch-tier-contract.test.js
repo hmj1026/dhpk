@@ -16,7 +16,7 @@ const modelOf = (rel) => (/^model:\s*(\S+)/m.exec(read(rel)) || [])[1];
 // Claude-model projections are compared here.
 const PROJECTIONS = [
   'agents',
-  'generated/claude-marketplace/package/agents',
+  'dist/claude-marketplace/package/agents',
 ];
 
 for (const agent of ['doc-updater', 'qa-executor']) {

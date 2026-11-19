@@ -36,14 +36,15 @@ const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheck
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { createPreviewSourceSnapshot } = require('./distribution-preview');
 const { lstatOrNull } = require('./bounded-filesystem');
+const { ON_DEMAND_SURFACES, isOnDemandSurface, onDemandRelativeDir, archiveOnDemandPackage } = require('./on-demand-packages');
 
 const OPERATIONS = Object.freeze(['generate', 'preview', 'validate', 'verify']);
 const SURFACES = Object.freeze({
-  'openai-submission': Object.freeze({ output: 'generated/openai-submission', adapter: 'openai-submission-package', runtimeProbe: 'OpenAI consumer execution' }),
-  'agent-plugin': Object.freeze({ output: 'plugins/dhpk-agent', adapter: 'agent-plugin-package', runtimeProbe: 'Agent Plugin client discovery', run: runAgent }),
-  'cursor-plugin': Object.freeze({ output: 'plugins/dhpk-cursor', adapter: 'cursor-plugin-package', runtimeProbe: 'Cursor client discovery', run: runCursor }),
+  'openai-submission': Object.freeze({ output: 'dist/openai-submission', adapter: 'openai-submission-package', runtimeProbe: 'OpenAI consumer execution' }),
+  'agent-plugin': Object.freeze({ output: onDemandRelativeDir('agent-plugin'), adapter: 'agent-plugin-package', runtimeProbe: 'Agent Plugin client discovery', run: runAgent }),
+  'cursor-plugin': Object.freeze({ output: onDemandRelativeDir('cursor-plugin'), adapter: 'cursor-plugin-package', runtimeProbe: 'Cursor client discovery', run: runCursor }),
   'codex-native': Object.freeze({ output: 'plugins/dhpk', adapter: 'codex-native-package', runtimeProbe: 'Codex native client discovery', run: runCodex }),
-  'agy-plugin': Object.freeze({ output: 'plugins/dhpk-agy', adapter: 'agy-plugin-package', runtimeProbe: 'AGY native client discovery', run: runAgy }),
+  'agy-plugin': Object.freeze({ output: onDemandRelativeDir('agy-plugin'), adapter: 'agy-plugin-package', runtimeProbe: 'AGY native client discovery', run: runAgy }),
 });
 
 function readJson(file) {
@@ -119,10 +120,15 @@ function parseRequest(argv) {
     else if (arg.startsWith('--')) return { ok: false, status: 64, error: `unknown option '${arg}'` };
     else positional.push(arg);
   }
-  const [surface, operation] = positional;
+  // `build <surface>` is the on-demand form: generate, validate, archive.
+  const building = positional[0] === 'build';
+  const [surface, operation] = building ? [positional[1], 'build'] : positional;
+  if (building && !isOnDemandSurface(surface)) {
+    return { ok: false, status: 64, error: `build is supported only for ${ON_DEMAND_SURFACES.join(', ')}; other surfaces use generate` };
+  }
   if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface || ''}'` };
-  if (!OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
-  if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|preview|validate|verify> [--output <dir>] [--version <version>] [--json]' };
+  if (!building && !OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
+  if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|preview|validate|verify> | build <surface> [--output <dir>] [--version <version>] [--json]' };
   if (surface === 'openai-submission') {
     if (operation === 'preview') {
       return { ok: false, status: 64, error: 'preview is supported only for agent-plugin, cursor-plugin, codex-native, and agy-plugin' };
@@ -351,9 +357,43 @@ function runAgy(operation, context) {
   return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } }, context);
 }
 
+// On-demand build: generate the package into its (gitignored) output, require
+// it to validate, then archive it for the GitHub Release.
+function executeBuild(request, root) {
+  try {
+    const context = runtime(root, { ...request, operation: 'generate' });
+    assertOwnedGenerationTarget(request.surface, context.output);
+    const surface = SURFACES[request.surface];
+    const result = surface.run('generate', context);
+    const archive = result.ok
+      ? archiveOnDemandPackage({ surface: request.surface, packageDir: context.output, version: context.version })
+      : null;
+    return {
+      ok: result.ok,
+      status: result.ok ? 0 : 1,
+      payload: {
+        surface: request.surface,
+        operation: 'build',
+        verdict: result.ok ? 'PASS' : 'FAIL',
+        output: context.output,
+        ...(archive ? { archive: archive.archivePath, archiveSha256: archive.sha256 } : {}),
+        evidence: {
+          stage: 'structural',
+          runtime: 'NOT_RUN',
+          reason: `This command builds and verifies deterministic package structure; ${surface.runtimeProbe} is a separate evidence-bound probe.`,
+        },
+        ...result.details,
+      },
+    };
+  } catch (error) {
+    return { ok: false, status: 1, error: error.message };
+  }
+}
+
 function execute(argv, root) {
   const request = parseRequest(argv);
   if (!request.ok) return request;
+  if (request.operation === 'build') return executeBuild(request, root);
   let snapshot = null;
   let previewOutput = null;
   // The mkdtemp parent of a default preview output; ours to remove on failure.

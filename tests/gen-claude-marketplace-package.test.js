@@ -96,7 +96,7 @@ function makeHarnessPackageRoot(parent) {
 
 test('Claude marketplace points at a physical package without root project context', () => {
   assert.ok(ENTRY, 'Claude marketplace must declare the dhpk plugin');
-  assert.strictEqual(ENTRY.source, './generated/claude-marketplace/package', 'marketplace must publish the canonical physical package path');
+  assert.strictEqual(ENTRY.source, './dist/claude-marketplace/package', 'marketplace must publish the canonical physical package path');
 
   const packageRoot = resolvePackagePath(ENTRY.source);
   assert.ok(fs.existsSync(path.join(packageRoot, '.claude-plugin', 'plugin.json')),

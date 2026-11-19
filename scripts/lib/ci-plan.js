@@ -39,7 +39,7 @@ const SHARED_CORE_FILES = Object.freeze([
 const LIGHT_GENERATED_CHECKS = Object.freeze([...FULL_GENERATED_CHECKS].sort());
 const RESOURCE_COMPANIONS = Object.freeze([
   'manifests/skill-resource-copies.json',
-  'generated/claude-marketplace/package/manifests/skill-resource-copies.json',
+  'dist/claude-marketplace/package/manifests/skill-resource-copies.json',
 ]);
 const CANONICAL_PROSE = [
   /^(?:README(?:\.zh-TW)?|AGENTS|CONTEXT|CODING_STANDARDS|RELEASE(?:\.zh-TW)?|CHANGELOG)\.md$/i,
@@ -49,7 +49,7 @@ const CANONICAL_PROSE = [
 
 function isCanonicalProse(file) {
   return CANONICAL_PROSE.some((pattern) => pattern.test(file))
-    && !/(?:generated|plugins|\.codex(?:-plugin)?\/|\.agents\/|cursor\/generated|symlink)/i.test(file);
+    && !/(?:generated|dist\/|plugins|\.codex(?:-plugin)?\/|\.agents\/|cursor\/generated|symlink)/i.test(file);
 }
 
 function categoryFor(file) {
@@ -59,7 +59,7 @@ function categoryFor(file) {
   if (/^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex)\/.*\.(?:json|ya?ml|toml)$/i.test(file)) return 'metadata';
   if (/^(?:\.github\/actions|scripts\/hooks|scripts\/install|install)/i.test(file)) return 'installer';
   if (/^(?:scripts|bin|tests)\//i.test(file)) return 'script';
-  if (/^(?:plugins|generated|manifests|\.claude-plugin)\//i.test(file)) return 'package';
+  if (/^(?:plugins|dist|manifests|\.claude-plugin)\//i.test(file)) return 'package';
   return 'unknown';
 }
 
@@ -170,14 +170,14 @@ function selectedOwners(files, availableTests, classification, companionRouting)
 function packageSurfacesForFiles(files) {
   const surfaces = new Set();
   for (const file of files) {
-    if (/^(?:generated\/|manifests\/|\.claude-plugin\/|scripts\/ci\/verify-platform-packages\.js$)/i.test(file)) {
+    if (/^(?:dist\/|manifests\/|\.claude-plugin\/|scripts\/ci\/verify-platform-packages\.js$)/i.test(file)) {
       PACKAGE_SURFACES.forEach((surface) => surfaces.add(surface));
       continue;
     }
-    if (/^(?:plugins\/dhpk-agent\/|scripts\/lib\/agent(?:s)?-.*package|scripts\/ci\/(?:gen-agent-plugin-package|validate-agent-plugin-package)\.js$)/i.test(file)) surfaces.add('agent-plugin');
-    if (/^(?:plugins\/dhpk-cursor\/|scripts\/lib\/cursor-.*package|scripts\/ci\/gen-cursor-plugin-package\.js$)/i.test(file)) surfaces.add('cursor-plugin');
+    if (/^(?:scripts\/lib\/agent(?:s)?-.*package|scripts\/ci\/(?:gen-agent-plugin-package|validate-agent-plugin-package)\.js$)/i.test(file)) surfaces.add('agent-plugin');
+    if (/^(?:scripts\/lib\/cursor-.*package|scripts\/ci\/gen-cursor-plugin-package\.js$)/i.test(file)) surfaces.add('cursor-plugin');
     if (/^(?:plugins\/dhpk\/|scripts\/lib\/codex-native-.*package|scripts\/ci\/(?:gen|verify)-codex-native-package\.js$)/i.test(file)) surfaces.add('codex-native');
-    if (/^(?:plugins\/dhpk-agy\/|scripts\/lib\/agy-.*package|scripts\/ci\/(?:gen|validate)-agy-plugin-package\.js$)/i.test(file)) surfaces.add('agy-plugin');
+    if (/^(?:scripts\/lib\/agy-.*package|scripts\/ci\/(?:gen|validate)-agy-plugin-package\.js$)/i.test(file)) surfaces.add('agy-plugin');
   }
   return PACKAGE_SURFACES.filter((surface) => surfaces.has(surface));
 }
@@ -190,7 +190,7 @@ function companionRoutingForFiles(files) {
   const surfaces = new Set();
   const generatedChecks = new Set();
   for (const file of files) {
-    if (/^(?:plugins|generated)\//i.test(file)) hasOutputSpace = true;
+    if (/^(?:plugins|dist)\//i.test(file)) hasOutputSpace = true;
     if (isCanonicalProse(file)) {
       canonical = true;
       continue;
@@ -205,7 +205,7 @@ function companionRoutingForFiles(files) {
         companion = true;
       }
     }
-    if (file === 'generated/claude-marketplace/package/provenance.json' || (file.startsWith('generated/claude-marketplace/package/') && file.endsWith('.md'))) {
+    if (file === 'dist/claude-marketplace/package/provenance.json' || (file.startsWith('dist/claude-marketplace/package/') && file.endsWith('.md'))) {
       generatedChecks.add('claude-marketplace');
       hasCompanion = true;
       companion = true;
@@ -213,7 +213,7 @@ function companionRoutingForFiles(files) {
     if (RESOURCE_COMPANIONS.includes(file)) {
       companion = true;
       hasCompanion = true;
-      if (file.startsWith('generated/claude-marketplace/')) generatedChecks.add('claude-marketplace');
+      if (file.startsWith('dist/claude-marketplace/')) generatedChecks.add('claude-marketplace');
     }
     if (!companion) eligible = false;
   }

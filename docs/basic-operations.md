@@ -151,7 +151,7 @@ node scripts/ci/validate-skills.js --strict
 
 These commands validate repository source and are not proof of the official
 consumer. The Claude marketplace points at the generated physical package
-under `generated/claude-marketplace/package`; it excludes the development-only
+under `dist/claude-marketplace/package`; it excludes the development-only
 root `CLAUDE.md` before the package enters the marketplace cache. Verify that
 projection is current with:
 

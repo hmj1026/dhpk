@@ -314,7 +314,7 @@ test('a wording edit with its required .none marker and generated companion rema
   withChangedFiles([
     'skills/flow-drive/SKILL.md',
     'changelog.d/1113-none.none',
-    'generated/claude-marketplace/package/skills/flow-drive/SKILL.md',
+    'dist/claude-marketplace/package/skills/flow-drive/SKILL.md',
   ], (plan) => {
     assert.strictEqual(plan.mode, 'light');
     assert.strictEqual(plan.classification.status, 'accepted');

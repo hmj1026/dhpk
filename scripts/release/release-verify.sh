@@ -7,8 +7,8 @@
 # that used to execute only after an immutable tag existed are exercised
 # before merge. See docs/adr/0021-three-proof-release-model.md (addendum).
 #
-# Stages (both modes, in order): parity, preflight, packages, manifest,
-# notes, bundle, verifier-digest.
+# Stages (both modes, in order): parity, preflight, packages, host-packages,
+# manifest, notes, bundle, verifier-digest.
 #   tag mode adds `provenance` first (tag shape + contained in origin/main).
 #   dry-run adds `standalone-verify` last: the downloaded-verifier check the
 #   no-checkout publish job performs, run from a directory outside the
@@ -17,7 +17,7 @@
 # Writes into DIR (names match the release.yml upload steps):
 #   dhpk-release-notes.txt, dhpk-release-artifact-manifest.json,
 #   dhpk-release-publication-bundle.json,
-#   dhpk-release-publication-notes-digest.json
+#   dhpk-release-publication-notes-digest.json, host-packages/*.tar.gz
 # Emits target_commit, target_tree, notes_sha256 and verifier_sha256 to
 # $GITHUB_OUTPUT when set. The full test suite is NOT run here: the tag
 # workflow runs it as its own step and the release PR's validate job already
@@ -163,7 +163,22 @@ esac
 stage packages
 node scripts/ci/verify-platform-packages.js
 
-# Bind the exact tracked package bytes that passed the package gate to this
+# The Agent, Cursor and AGY packages are not committed. Build each on demand
+# and keep its archive in DIR/host-packages/ for the release workflow to attach
+# to the GitHub Release. The manifest below binds the tree each archive holds.
+stage host-packages
+host_packages_dir="$out_dir/host-packages"
+rm -rf "$host_packages_dir"
+mkdir -p "$host_packages_dir"
+for surface in agent-plugin cursor-plugin agy-plugin; do
+    build_result="$(bin/dhpk distribution build "$surface" --version "$version" --json)"
+    echo "$build_result"
+    archive="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).archive || "")' "$build_result")"
+    [ -f "$archive" ] || { echo "release-verify: build of $surface produced no archive" >&2; exit 1; }
+    cp "$archive" "$host_packages_dir/"
+done
+
+# Bind the exact package bytes that passed the package gate to this
 # run; consumer verification checks this manifest against the target before
 # any probe and never treats a generic cache hit as evidence.
 stage manifest

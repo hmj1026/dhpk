@@ -46,7 +46,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | Claude Code | 先執行 `bash scripts/install.sh --dry-run`，再執行安裝 | 重開 session 後執行 `/dhpk:flow-guide help` | 預設選擇以 install-profile SSOT 為準；詳細路徑與 receipt 行為見[平台安裝指南](./docs/platform-installation.zh-TW.md) |
 | Codex CLI | `bash scripts/hooks/install-codex-skills.sh --plan --json`，再 install/update | `$flow-guide help` | 支援的 project-local route；CLI/runtime 缺少時維持 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE` |
 | Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`，再 install/update | 檢查 `.cursor/.dhpk-installed.json` 並 reload Cursor | 支援的 project-local route；native plugin/runtime 證據分開 |
-| AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`，再使用 receipt-owned adapter | CLI 可用時執行 `agy agents` | Experimental；結構安裝不等於 runtime `PASS` |
+| AGY | `node scripts/ci/install-agy-plugin.js plan --source dist/on-demand/dhpk-agy --json`，再使用 receipt-owned adapter | CLI 可用時執行 `agy agents` | Experimental；結構安裝不等於 runtime `PASS` |
 
 腳本或 CI 情境下，Claude 路徑也支援非互動旗標（需要 `claude` CLI）：
 
@@ -369,7 +369,7 @@ materialization 驗證目前已對正式實體 package 通過；Codex Plugin Mar
 repository checkout；已安裝的 Claude plugin 不含 `cursor/`。預設
 仍採全 symlink 預設；`--copy` 是可攜 fallback。installer 會寫入
 schema-v3 receipt `.cursor/.dhpk-installed.json`，且不會寫入
-`.cursor/hooks.json`。`plugins/dhpk-cursor/` 仍留給 marketplace／user-plugin
+`.cursor/hooks.json`。`dist/on-demand/dhpk-cursor/` 仍留給 marketplace／user-plugin
 路徑。完整政策見 **[`docs/platform-installation.zh-TW.md`](./docs/platform-installation.zh-TW.md)**。
 
 ## 遷移現有專案

@@ -126,11 +126,8 @@ function isCanonicalReleaseTarget(root, target) {
   ]);
   const canonicalDirectories = new Set([
     path.join(resolvedRoot, 'plugins', 'dhpk'),
-    path.join(resolvedRoot, 'plugins', 'dhpk-agent'),
-    path.join(resolvedRoot, 'plugins', 'dhpk-cursor'),
-    path.join(resolvedRoot, 'plugins', 'dhpk-agy'),
-    path.join(resolvedRoot, 'generated', 'claude-marketplace', 'package'),
-    path.join(resolvedRoot, 'generated', 'claude-marketplace', 'stacks-package'),
+    path.join(resolvedRoot, 'dist', 'claude-marketplace', 'package'),
+    path.join(resolvedRoot, 'dist', 'claude-marketplace', 'stacks-package'),
   ]);
   if (canonicalFiles.has(resolvedTarget) || canonicalDirectories.has(resolvedTarget)) return true;
   const fragmentDirectory = path.join(resolvedRoot, 'changelog.d');
@@ -697,11 +694,8 @@ function main() {
         source: path.join(stagedFiles, relPath),
       })),
       { target: path.join(args.root, 'plugins', 'dhpk'), source: stagedNative },
-      { target: path.join(args.root, 'plugins', 'dhpk-agent'), source: stagedAgent },
-      { target: path.join(args.root, 'plugins', 'dhpk-cursor'), source: stagedCursor },
-      { target: path.join(args.root, 'plugins', 'dhpk-agy'), source: stagedAgy },
-      { target: path.join(args.root, 'generated', 'claude-marketplace', 'package'), source: stagedClaude },
-      { target: path.join(args.root, 'generated', 'claude-marketplace', 'stacks-package'), source: stagedStacks },
+      { target: path.join(args.root, 'dist', 'claude-marketplace', 'package'), source: stagedClaude },
+      { target: path.join(args.root, 'dist', 'claude-marketplace', 'stacks-package'), source: stagedStacks },
       ...promoted.consumed.map((relative) => ({ target: path.join(fragmentDir, relative), source: null })),
     ];
     const operationKey = args.operationKey || `release-${args.version}-${Date.now()}`;
@@ -711,11 +705,8 @@ function main() {
       root: args.root,
     });
     changed.push('plugins/dhpk/ (regenerated codex-native package: manifest, skills/, fingerprints.json, provenance.json)');
-    changed.push('plugins/dhpk-agent/ (regenerated standard Agent Plugin package)');
-    changed.push('plugins/dhpk-cursor/ (regenerated Cursor Plugin package)');
-    changed.push('plugins/dhpk-agy/ (regenerated native AGY package)');
-    changed.push('generated/claude-marketplace/package/ (regenerated Claude marketplace package)');
-    changed.push('generated/claude-marketplace/stacks-package/ (regenerated dhpk-stacks package)');
+    changed.push('dist/claude-marketplace/package/ (regenerated Claude marketplace package)');
+    changed.push('dist/claude-marketplace/stacks-package/ (regenerated dhpk-stacks package)');
 
     console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
     for (const f of changed) console.log(`  - ${f}`);

@@ -34,6 +34,13 @@ We decided:
   release parity checks the files the generators declare, not a hand list.
 - `generated/` is renamed `dist/` only in the same change that stops committing
   the on-demand trees, so consumers see one path move.
+  Done in #1510: the Agent, Cursor and AGY packages build into the ignored
+  `dist/on-demand/` with `bin/dhpk distribution build <surface>`, and the release
+  workflow attaches their archives to the GitHub Release. The Claude marketplace
+  `source` paths are `./dist/claude-marketplace/package` and
+  `./dist/claude-marketplace/stacks-package`; Claude Code resolves a relative
+  `source` from the marketplace root and only forbids `..`, so the directory name
+  carries no restriction.
 
 ## Considered Options
 

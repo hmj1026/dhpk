@@ -5,6 +5,7 @@
 // leakage, and malformed family routing all fail closed.
 
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const fs = require('node:fs');
 const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
@@ -879,35 +880,35 @@ test('checked-in inventory owns the seven canonical required surfaces and projec
 });
 
 test('generated Agent and Cursor manifests and provenance match inventory selections', () => {
-  const agent = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-agent/plugin.json'), 'utf8'));
-  const cursor = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/.cursor-plugin/plugin.json'), 'utf8'));
-  const marketplace = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/.cursor-plugin/marketplace.json'), 'utf8'));
+  const agent = JSON.parse(fs.readFileSync(path.join(builtPackage('agent-plugin'), 'plugin.json'), 'utf8'));
+  const cursor = JSON.parse(fs.readFileSync(path.join(builtPackage('cursor-plugin'), '.cursor-plugin/plugin.json'), 'utf8'));
+  const marketplace = JSON.parse(fs.readFileSync(path.join(builtPackage('cursor-plugin'), '.cursor-plugin/marketplace.json'), 'utf8'));
   assert.strictEqual(agent.name, 'dhpk');
   assert.strictEqual(cursor.name, 'dhpk-cursor');
   assert.strictEqual(cursor.hooks, './hooks/hooks.json');
-  const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/provenance.json'), 'utf8'));
+  const cursorProvenance = JSON.parse(fs.readFileSync(path.join(builtPackage('cursor-plugin'), 'provenance.json'), 'utf8'));
   assert.strictEqual(cursorProvenance.skillProjectionMode, 'shared');
   assert.deepStrictEqual(cursorProvenance.selectedSkillIds, []);
   assert.strictEqual(cursor.skills, undefined);
-  assert.ok(!fs.existsSync(path.join(ROOT, 'plugins/dhpk-cursor/skills')));
+  assert.ok(!fs.existsSync(path.join(builtPackage('cursor-plugin'), 'skills')));
   assert.strictEqual(cursorProvenance.sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(cursorProvenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
-  const agentProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-agent/provenance.json'), 'utf8'));
+  const agentProvenance = JSON.parse(fs.readFileSync(path.join(builtPackage('agent-plugin'), 'provenance.json'), 'utf8'));
   assert.deepStrictEqual(cursorProvenance.sharedSkillIds, agentProvenance.marketplacePublication.publicEntryIds);
   for (const name of cursorProvenance.sharedSkillNames) {
-    assert.ok(fs.existsSync(path.join(ROOT, cursorProvenance.sharedSkillSource, name, 'SKILL.md')), name);
+    assert.ok(fs.existsSync(path.join(builtPackage('agent-plugin'), 'skills', name, 'SKILL.md')), name);
   }
   assert.strictEqual(marketplace.plugins.length, 1);
   assert.strictEqual(marketplace.plugins[0].source, '.');
 });
 
 test('generated Agent, Cursor, and AGY package Markdown links resolve within their packages', () => {
-  for (const packageRoot of ['plugins/dhpk-agent', 'plugins/dhpk-cursor', 'plugins/dhpk-agy']) {
+  for (const packageRoot of [builtPackage('agent-plugin'), builtPackage('cursor-plugin'), builtPackage('agy-plugin')]) {
     const broken = [];
     const walk = (directory) => {
-      for (const entry of fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true })) {
+      for (const entry of fs.readdirSync(path.resolve(ROOT, directory), { withFileTypes: true })) {
         const relative = path.join(directory, entry.name);
-        const absolute = path.join(ROOT, relative);
+        const absolute = path.resolve(ROOT, relative);
         if (entry.isDirectory()) walk(relative);
         else if (/\.md$/i.test(entry.name)) {
           const content = fs.readFileSync(absolute, 'utf8');

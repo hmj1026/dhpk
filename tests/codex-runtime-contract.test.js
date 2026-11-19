@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CODEX_STUB_BIN = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-runtime-stub-')));
@@ -58,8 +59,11 @@ const CODEX_BRIDGE_SURFACES = [
   'agent-traps/_common/cli-prompt-composition.md',
   'rules/execution-policy.md',
   'cursor/rules/execution-policy.mdc',
-  'plugins/dhpk-agy/rules/execution-policy.md',
-  'plugins/dhpk-cursor/rules/execution-policy.mdc',
+];
+// Built on demand (never committed): checked inside their own package root.
+const ON_DEMAND_BRIDGE_SURFACES = [
+  { surface: 'agy-plugin', relative: 'rules/execution-policy.md' },
+  { surface: 'cursor-plugin', relative: 'rules/execution-policy.mdc' },
 ];
 
 function tmpRoot(prefix) {
@@ -213,14 +217,20 @@ test('all committed direct roles match the approved runtime map and global defau
 });
 
 test('every active Codex bridge surface selects only the GPT-6 family', () => {
-  for (const relative of CODEX_BRIDGE_SURFACES) {
-    const surfacePath = path.join(ROOT, relative);
+  const bridgeSurfaces = [
+    ...CODEX_BRIDGE_SURFACES.map((relative) => ({ label: relative, root: ROOT, relative })),
+    ...ON_DEMAND_BRIDGE_SURFACES.map(({ surface, relative }) => ({
+      label: `${surface}/${relative}`, root: builtPackage(surface), relative,
+    })),
+  ];
+  for (const { label: relative, root: surfaceRoot, relative: surfaceRelative } of bridgeSurfaces) {
+    const surfacePath = path.join(surfaceRoot, surfaceRelative);
     let source = fs.readFileSync(surfacePath, 'utf8');
     const selectedPolicy = source.match(/\[full execution policy\]\(([^)]+)\)/);
     if (selectedPolicy) {
       assert.ok(!path.isAbsolute(selectedPolicy[1]), `${relative}: selected policy link must be relative`);
       const selectedPath = path.resolve(path.dirname(surfacePath), selectedPolicy[1]);
-      const fromRoot = path.relative(ROOT, selectedPath);
+      const fromRoot = path.relative(surfaceRoot, selectedPath);
       assert.ok(
         fromRoot !== '..' && fromRoot !== '' && !fromRoot.startsWith(`..${path.sep}`) && !path.isAbsolute(fromRoot),
         `${relative}: selected policy escapes the checkout`,

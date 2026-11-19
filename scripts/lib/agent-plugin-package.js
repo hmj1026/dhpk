@@ -591,7 +591,7 @@ function packageReadmeContents() {
       '# dhpk Agent Plugin package',
       '',
       'This physical package is generated from the canonical inventory. Install and',
-      'verify it using the [platform installation guide](../../docs/platform-installation.md).',
+      'verify it using the [platform installation guide](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.md).',
       'It is the physical owner of portable skills shared with the Cursor-native package;',
       'Cursor receives a separate skills tree only when an explicit environment overlay is selected.',
       'Structural validation is not runtime client proof; use the documented consumer',
@@ -601,7 +601,7 @@ function packageReadmeContents() {
     'README.zh-TW.md': [
       '# dhpk Agent Plugin 套件',
       '',
-      '此 physical package 由 canonical inventory 產生，並且是與 Cursor-native package 共用的 portable skills 唯一 physical owner；除非明確選擇 environment overlay，Cursor 不會再複製 skills。安裝與驗證請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。結構驗證不等於 client runtime proof；請依指南執行 consumer probe，並保留本 surface 的 `provenance.json`/`fingerprints.json`。',
+      '此 physical package 由 canonical inventory 產生，並且是與 Cursor-native package 共用的 portable skills 唯一 physical owner；除非明確選擇 environment overlay，Cursor 不會再複製 skills。安裝與驗證請依照[平台安裝指南](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.zh-TW.md)。結構驗證不等於 client runtime proof；請依指南執行 consumer probe，並保留本 surface 的 `provenance.json`/`fingerprints.json`。',
       '',
     ].join('\n'),
   };

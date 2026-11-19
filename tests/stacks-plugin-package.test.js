@@ -18,8 +18,8 @@ const ROOT = path.join(__dirname, '..');
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 const readJson = (...parts) => JSON.parse(fs.readFileSync(path.join(...parts), 'utf8'));
 const MARKETPLACE = readJson(ROOT, '.claude-plugin', 'marketplace.json');
-const COMMITTED_CORE = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
-const COMMITTED_STACKS = path.join(ROOT, 'generated', 'claude-marketplace', 'stacks-package');
+const COMMITTED_CORE = path.join(ROOT, 'dist', 'claude-marketplace', 'package');
+const COMMITTED_STACKS = path.join(ROOT, 'dist', 'claude-marketplace', 'stacks-package');
 
 let builtStacks = null;
 function stacksPackage() {
@@ -47,7 +47,7 @@ test('the marketplace lists dhpk-stacks beside core and the stacks entry require
   const names = MARKETPLACE.plugins.map((plugin) => plugin.name);
   assert.deepStrictEqual(names, ['dhpk', 'dhpk-stacks']);
   const stacks = MARKETPLACE.plugins.find((plugin) => plugin.name === 'dhpk-stacks');
-  assert.strictEqual(stacks.source, './generated/claude-marketplace/stacks-package');
+  assert.strictEqual(stacks.source, './dist/claude-marketplace/stacks-package');
   assert.deepStrictEqual(stacks.dependencies, ['dhpk']);
   assert.ok(fs.existsSync(path.join(ROOT, stacks.source, '.claude-plugin', 'plugin.json')));
 });
@@ -126,7 +126,7 @@ test('the stacks package passes the Directory Plugin conformance rules', () => {
 test('the committed stacks package matches a fresh build and registers its manifests', () => {
   assert.deepStrictEqual(generator.check({ out: COMMITTED_STACKS, kind: 'stacks' }).ok, true);
   const declared = declaredOutputs().map((output) => output.path);
-  assert.ok(declared.includes('generated/claude-marketplace/stacks-package/.claude-plugin/plugin.json'));
+  assert.ok(declared.includes('dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json'));
   assert.ok(declared.includes('distribution/stacks-plugin/plugin.json'));
   assert.deepStrictEqual(undeclaredManifests(ROOT), []);
 });

@@ -32,7 +32,7 @@ function write(filePath, content) {
   fs.writeFileSync(filePath, content);
 }
 
-// Builds a plugin root shaped like generated/claude-marketplace/package:
+// Builds a plugin root shaped like dist/claude-marketplace/package:
 // .claude-plugin/plugin.json, provenance.json (catalog v1) and skills/<name>/SKILL.md.
 function buildPluginRoot(root, {
   version = '1.0.0',

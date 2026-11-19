@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { builtPackage } = require('./_lib/on-demand-packages-fixture');
 const { validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
 const { rewriteCursorHarnessBody, rewriteCursorNativeAgentBody } = require('../scripts/lib/cursor-harness-adapt');
@@ -312,9 +313,9 @@ test('AGY native-agent closure assigns dispatch locators to their owning roles',
 });
 
 test('published native packages resolve representative support without a source checkout', () => {
-  const cursorRoot = path.join(ROOT, 'plugins', 'dhpk-cursor');
-  const agyRoot = path.join(ROOT, 'plugins', 'dhpk-agy');
-  const agentRoot = path.join(ROOT, 'plugins', 'dhpk-agent');
+  const cursorRoot = path.join(builtPackage('cursor-plugin'));
+  const agyRoot = path.join(builtPackage('agy-plugin'));
+  const agentRoot = path.join(builtPackage('agent-plugin'));
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const cursor = validateCursorPackage({ packageRoot: cursorRoot, inventory });
   assert.strictEqual(cursor.ok, true, cursor.errors.join('\n'));
@@ -356,7 +357,7 @@ test('a generated AGY package carries its native agent support closure without F
   try {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const releaseVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
-    const provenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agy', 'provenance.json'), 'utf8'));
+    const provenance = JSON.parse(fs.readFileSync(path.join(builtPackage('agy-plugin'), 'provenance.json'), 'utf8'));
     materializeAgyPluginPackage({
       root: ROOT,
       inventory,

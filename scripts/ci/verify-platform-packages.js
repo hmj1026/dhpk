@@ -2,7 +2,8 @@
 'use strict';
 
 // Regenerate both physical projections in disposable roots and compare their
-// complete byte fingerprints with the tracked artifacts.  This is a package
+// complete byte fingerprints with the committed artifacts (or, for the
+// on-demand Agent, Cursor and AGY packages, with a fresh on-demand build).  This is a package
 // gate, not a consumer proof: the latter remains NOT_RUN/UNAVAILABLE unless a
 // real client is explicitly invoked.
 
@@ -47,6 +48,8 @@ const { renderOpenaiSubmissionManifest, readSourceVersion } = require('../lib/ho
 const { checkPublicPlugin, checkDirectoryPlugin, runClaudeValidate } = require('../lib/publication-conformance');
 const { NATIVE_RECEIPT_FILES, publicPluginTreeDrift } = require('../lib/public-plugin-tree');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
+const { isOnDemandSurface, onDemandPackageDir, onDemandRelativeDir } = require('../lib/on-demand-packages');
+const { execute: executeDistribution } = require('../lib/dhpk-distribution');
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -59,6 +62,23 @@ const SURFACE_DEPENDENCIES = Object.freeze({
   'public-plugin': Object.freeze([]),
   'directory-plugin': Object.freeze([]),
 });
+
+// Physical package directory relative to the checkout: committed packages live
+// at their owner path, on-demand packages in the gitignored build directory.
+function physicalPackageRelative(surface) {
+  return isOnDemandSurface(surface) ? onDemandRelativeDir(surface) : SURFACE_OWNERS[surface];
+}
+
+// On-demand packages have no committed tree: build one, then verify the build
+// (structure, receipt, and that a second generation is byte-identical).
+function buildOnDemandPackage(root, surface) {
+  const built = executeDistribution(['build', surface], root);
+  if (!built.ok) {
+    const detail = built.error || JSON.stringify((built.payload && built.payload.errors) || built.payload);
+    throw new Error(`${surface} on-demand build failed: ${detail}`);
+  }
+  return onDemandPackageDir(root, surface);
+}
 
 function resolveSurfaceSelection(requested = null, dependencyMap = SURFACE_DEPENDENCIES) {
   const values = requested === null || requested.length === 0 ? SURFACES : requested;
@@ -350,7 +370,7 @@ function verifyDirectoryPlugin({ root }) {
   const errors = [];
   let coreCount = 0;
   for (const { label, name } of DIRECTORY_PACKAGES) {
-    const directory = path.join(root, 'generated', 'claude-marketplace', name);
+    const directory = path.join(root, 'dist', 'claude-marketplace', name);
     if (!fs.existsSync(directory)) {
       errors.push(`${label} is missing: ${directory}`);
       continue;
@@ -389,9 +409,9 @@ function policyProjectionPaths(inventory) {
     claude: codex.canonical_source,
     codex: codex.source,
     agy: agyRule && agyContract && agyContract.owner === 'agy-plugin'
-      ? path.posix.join(SURFACE_OWNERS['agy-plugin'], agyRule) : null,
+      ? path.posix.join(physicalPackageRelative('agy-plugin'), agyRule) : null,
     cursor: cursorContract && cursorContract.owner === 'cursor-plugin'
-      ? path.posix.join(SURFACE_OWNERS['cursor-plugin'], 'rules', cursorDocumentDestinationName('rules', path.basename(codex.canonical_source))) : null,
+      ? path.posix.join(physicalPackageRelative('cursor-plugin'), 'rules', cursorDocumentDestinationName('rules', path.basename(codex.canonical_source))) : null,
     codexEntry: codex,
   };
 }
@@ -433,11 +453,11 @@ function verifySharedSkillParity(root, inventory, errors, selectedSurfaces = SUR
   const canonicalContent = fs.readFileSync(canonical);
   const selected = new Set(selectedSurfaces);
   const roots = {};
-  if (selected.has('agent-plugin')) roots['agent-plugin'] = SURFACE_OWNERS['agent-plugin'];
+  if (selected.has('agent-plugin')) roots['agent-plugin'] = physicalPackageRelative('agent-plugin');
   if (selected.has('codex-native')) roots['codex-native'] = SURFACE_OWNERS['codex-native'];
-  if (selected.has('agy-plugin')) roots['agy-plugin'] = SURFACE_OWNERS['agy-plugin'];
+  if (selected.has('agy-plugin')) roots['agy-plugin'] = physicalPackageRelative('agy-plugin');
   // Cursor intentionally consumes the Agent Plugin-owned shared skill tree.
-  if (selected.has('cursor-plugin')) roots['cursor-plugin'] = SURFACE_OWNERS['agent-plugin'];
+  if (selected.has('cursor-plugin')) roots['cursor-plugin'] = physicalPackageRelative('agent-plugin');
   const checked = [];
   for (const [surface, owner] of Object.entries(roots)) {
     const target = path.join(root, owner, reference);
@@ -588,10 +608,10 @@ function main(argv = process.argv.slice(2)) {
   let report;
   try {
     const surfaces = {
-      ...(selectedSurfaces.includes('agent-plugin') ? { 'agent-plugin': verifyAgent({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-agent'), temp: tempAgent }) } : {}),
-      ...(selectedSurfaces.includes('cursor-plugin') ? { 'cursor-plugin': verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-cursor'), temp: tempCursor }) } : {}),
+      ...(selectedSurfaces.includes('agent-plugin') ? { 'agent-plugin': verifyAgent({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'agent-plugin'), temp: tempAgent }) } : {}),
+      ...(selectedSurfaces.includes('cursor-plugin') ? { 'cursor-plugin': verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'cursor-plugin'), temp: tempCursor }) } : {}),
       ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
-      ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-agy'), temp: tempAgy }) } : {}),
+      ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: buildOnDemandPackage(root, 'agy-plugin'), temp: tempAgy }) } : {}),
       ...(selectedSurfaces.includes('public-plugin') ? { 'public-plugin': verifyPublicPlugin({ root, inventory }) } : {}),
       ...(selectedSurfaces.includes('directory-plugin') ? { 'directory-plugin': verifyDirectoryPlugin({ root }) } : {}),
     };

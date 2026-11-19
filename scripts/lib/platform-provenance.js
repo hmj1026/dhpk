@@ -18,6 +18,10 @@ const {
 const { readFileBounded } = require('./bounded-filesystem');
 
 const RECEIPT_SCHEMA = 'dhpk.platform-provenance.v1';
+// Logical ownership identifiers recorded in package receipts. The agent, cursor
+// and agy packages are built on demand (dist/on-demand/, see on-demand-packages.js)
+// and no longer exist under plugins/; their owner strings stay stable so receipts
+// remain comparable across the move.
 const SURFACE_OWNERS = Object.freeze({
   'agent-plugin': 'plugins/dhpk-agent',
   'cursor-plugin': 'plugins/dhpk-cursor',

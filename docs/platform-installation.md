@@ -23,12 +23,12 @@ callable only after the named consumer probe discovers the projected content.
 | Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`. Sync requires a repository checkout; an installed Claude plugin does not include `codex/` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
 | Codex legacy/native | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory (Codex and ChatGPT Work) | Search for DHPK in the product's Plugins Directory after the public listing appears | Use that product's plugin manager | Approved public listing and a fresh-session workflow probe per Host | Candidate only; currently `NOT_PUBLISHED`; local/repository marketplaces are development sources |
-| Standard Agent Plugin | Publish or install `plugins/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
+| Standard Agent Plugin | Publish or install `dist/on-demand/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
-| Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
+| Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `dist/on-demand/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`. Sync requires a repository checkout; an installed Claude plugin does not include `cursor/` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; release probes use an isolated shared-network bubblewrap namespace, never unrestricted execution |
-| AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to the inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`, explicit `migrate`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
+| AGY native plugin | Generate `dist/on-demand/dhpk-agy/`, then receipt-owned install to the inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`, explicit `migrate`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
 Codex users who need only Flow Drive can install the complete pinned canonical
 skill into the current project. Follow the [standalone Flow Drive guide](./flow-drive-standalone.md)
@@ -262,14 +262,25 @@ package boundary for the retained native package surfaces: `agent-plugin`,
 evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
+Only the Published Packages are committed: the Directory Plugin and dhpk-stacks
+under `dist/claude-marketplace/`, and the Public Plugin under `plugins/dhpk/`
+(`codex-native`). The Agent, Cursor and AGY packages are built on demand.
+`bin/dhpk distribution build <surface>` generates the package into the ignored
+`dist/on-demand/<name>/` directory, validates it, and writes
+`dist/on-demand/<name>-<version>.tar.gz` next to it. The release workflow runs
+the same command for the three surfaces and attaches the archives to the GitHub
+Release, so consumers can download them instead of building:
+
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.78.0 --json
+bin/dhpk distribution build agent-plugin --json
+bin/dhpk distribution build cursor-plugin --json
+bin/dhpk distribution build agy-plugin --version=0.78.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
-These generation commands are maintainer/distribution preparation. Consumers
-installing from a clone should use the prepared package in the platform section
-below instead of regenerating a tracked package in place.
+`build` requires a clean source checkout, like `generate`, and is accepted only
+for `agent-plugin`, `cursor-plugin` and `agy-plugin`. Extract a downloaded
+archive into one directory so that `dhpk-cursor` sits beside `dhpk-agent`.
 
 For dirty-source inspection, `preview` snapshots the tracked `HEAD` plus
 nonignored worktree changes into a disposable external output. It records
@@ -283,22 +294,17 @@ bin/dhpk distribution agent-plugin preview \
 # The JSON output path is disposable; formal validation rejects its preview receipt.
 ```
 
-When producing formal packages, every `generate` command requires a clean source
-checkout. Generate all four packages into new directories outside the checkout
-from the same clean commit, then copy the owned outputs into their tracked paths
-and commit once; generating the first package in place dirties the checkout and
-blocks the next command:
+When producing the committed Public Plugin, `generate` requires a clean source
+checkout. Generate it into a new directory outside the checkout from the clean
+commit, then copy the owned output into `plugins/dhpk/` and commit once:
 
 ```bash
 packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
-bin/dhpk distribution agent-plugin generate --output "$packages/dhpk-agent" --version=<version> --json
-bin/dhpk distribution cursor-plugin generate --output "$packages/dhpk-cursor" --version=<version> --json
 bin/dhpk distribution codex-native generate --output "$packages/dhpk" --version=<version> --json
-bin/dhpk distribution agy-plugin generate --output "$packages/dhpk-agy" --version=<version> --json
 ```
 
-Stop on any failure. Validate existing tracked targets before replacing them and
-preserve bytes and modes when copying the four owned directories.
+Stop on any failure. Validate the existing tracked target before replacing it and
+preserve bytes and modes when copying the owned directory.
 
 The `openai-submission` surface builds a separate complete skills-only
 candidate from the public catalog. Its manifest, external output directory,
@@ -564,7 +570,7 @@ The legacy manifest is never counted as proof of Agent Plugins conformance.
 Prerequisites: a client implementing the Agent Plugins 1.0.0 schema and a
 verified loader route; no minimum client version has been verified.
 
-`plugins/dhpk-agent/` has one root `plugin.json` with the Agent Plugins 1.0.0
+`dist/on-demand/dhpk-agent/` has one root `plugin.json` with the Agent Plugins 1.0.0
 schema, immediate-child `skills/` directories, and optional schema-versioned
 `mcp.json`. Claude/Codex invocation policy remains in client-owned metadata;
 portable skill frontmatter contains only standard fields and nested metadata.
@@ -869,7 +875,7 @@ alone does not restore receipt integrity.
 Prerequisites: a Cursor desktop client with the local plugin loader and a
 recorded Cursor version; no minimum version has been verified.
 
-Cursor can consume `plugins/dhpk-agent/` for portable skills and optional MCP:
+Cursor can consume `dist/on-demand/dhpk-agent/` for portable skills and optional MCP:
 
 1. Open Cursor **Customize → Plugins** and choose the reviewed local package,
    or copy it to `~/.cursor/plugins/local/dhpk-agent`.
@@ -1000,8 +1006,8 @@ restart the Cursor desktop/session after updates:
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
-ln -s /absolute/path/to/dhpk/plugins/dhpk-agent ~/.cursor/plugins/local/dhpk-agent
-ln -s /absolute/path/to/dhpk/plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+ln -s /absolute/path/to/dhpk/dist/on-demand/dhpk-agent ~/.cursor/plugins/local/dhpk-agent
+ln -s /absolute/path/to/dhpk/dist/on-demand/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 ```
 
 Check that each target is absent before creating a link; do not overwrite an
@@ -1013,12 +1019,12 @@ Prerequisites: a Cursor desktop client whose loader supports the native
 manifest/components and a recorded Cursor version; no minimum version has been
 verified.
 
-The native projection is `plugins/dhpk-cursor/` with
+The native projection is `dist/on-demand/dhpk-cursor/` with
 `.cursor-plugin/plugin.json`. For local testing:
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
-cp -R plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+cp -R dist/on-demand/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 ```
 
 Alternatively use a reviewed `.cursor-plugin/marketplace.json` source. Reload
@@ -1030,7 +1036,7 @@ package with `${CURSOR_PLUGIN_ROOT}`. They do not read a project-local
 co-installed sibling `dhpk-agent` skill store
 (`${CURSOR_PLUGIN_ROOT}/../dhpk-agent/skills/...`). Portable
 skills are deliberately not copied into this native package: install
-`plugins/dhpk-agent/` as the single physical skill store and compare its
+`dist/on-demand/dhpk-agent/` as the single physical skill store and compare its
 `provenance.json` stable IDs with the Cursor receipt. Do not hand-create a
 second `skills/` directory. Only an explicit environment-specific matrix
 overlay may add Cursor `skills/`, and that overlay records its transform and
@@ -1047,7 +1053,7 @@ Prerequisites: the Cursor project-local loader, a POSIX shell, and the
 schema-v3 receipt contract from the Cursor project-local row above. The client
 version is not established until release evidence records it.
 
-Keep this route distinct from `plugins/dhpk-cursor/` (marketplace / user-scoped
+Keep this route distinct from `dist/on-demand/dhpk-cursor/` (marketplace / user-scoped
 plugin). Project-local files live in the consumer `.cursor/` tree after the
 installer runs. Native `.cursor/hooks.json` mapping is out of v1; this
 installer never writes `hooks.json`. Cursor may still load Claude hooks from
@@ -1148,15 +1154,15 @@ The AGY projection is a separate owner-scoped package. It adapts canonical
 agent frontmatter into the package and does not edit the canonical `agents/`
 tree. Generated agents locate prompt-defense and trap sheets at
 plugin-relative `agent-traps/` paths inside this package. Those paths do not
-use `${CLAUDE_PLUGIN_ROOT}`. The tracked
-`plugins/dhpk-agy/` directory is already a prepared distribution package for
-consumers installing from a clone. Install that package directly; do not
-regenerate it into the tracked path as part of a consumer install, because
-generation rewrites provenance metadata and dirties the checkout:
+use `${CLAUDE_PLUGIN_ROOT}`. The package is not committed: download
+`dhpk-agy-<version>.tar.gz` from the GitHub Release and extract it, or build it
+from a clean clone with `bin/dhpk distribution build agy-plugin`, which writes
+the ignored `dist/on-demand/dhpk-agy/` directory. Install that built package
+directly:
 
 ```bash
 node scripts/ci/install-agy-plugin.js install \
-  --source plugins/dhpk-agy \
+  --source dist/on-demand/dhpk-agy \
   --json
 ```
 
@@ -1185,8 +1191,8 @@ the result is `BLOCKED` with `AMBIGUOUS_TARGETS`. No read-only command adopts,
 deletes, or overwrites a target:
 
 ```bash
-node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json
-node scripts/ci/install-agy-plugin.js status --source plugins/dhpk-agy --json
+node scripts/ci/install-agy-plugin.js plan --source dist/on-demand/dhpk-agy --json
+node scripts/ci/install-agy-plugin.js status --source dist/on-demand/dhpk-agy --json
 ```
 
 To move a receipt-owned legacy installation, use the explicit transactional
@@ -1196,18 +1202,18 @@ canonical target and preserves the legacy target:
 
 ```bash
 node scripts/ci/install-agy-plugin.js migrate \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 ```
 
 Use `--target <dir>` only when an owner intentionally operates on a specific
 target. Explicit targets are never inferred as canonical and still undergo the
 same receipt, collision, physical-path, and rollback checks.
 
-Maintainers preparing a new distribution may generate and validate the tracked
-package from a clean checkout:
+Maintainers may build and validate the package from a clean checkout (the build
+also writes the release archive beside it):
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.78.0 --json
+bin/dhpk distribution build agy-plugin --version=0.78.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1230,13 +1236,13 @@ collision and is left untouched:
 
 ```bash
 node scripts/ci/install-agy-plugin.js install \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js update \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js plan \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js status \
-  --source plugins/dhpk-agy --json
+  --source dist/on-demand/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js rollback \
   --json
 ```
