@@ -308,11 +308,26 @@ function partitionFiles(files, bucketCount) {
   return buckets;
 }
 
-function prepareEnv(sourceEnv = process.env) {
+const GIT_ENV_OVERRIDES = Object.freeze([
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_COMMON_DIR',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_PREFIX',
+]);
+
+function stripGitEnv(sourceEnv = process.env) {
   const env = { ...sourceEnv };
-  for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY']) {
+  for (const key of GIT_ENV_OVERRIDES) {
     delete env[key];
   }
+  return env;
+}
+
+function prepareEnv(sourceEnv = process.env) {
+  const env = stripGitEnv(sourceEnv);
   if (!env.NODE_OPTIONS || !env.NODE_OPTIONS.includes('--max-old-space-size')) {
     env.NODE_OPTIONS = `--max-old-space-size=2048 ${env.NODE_OPTIONS || ''}`.trim();
   }
@@ -708,9 +723,10 @@ function loadProvenanceLib(root) {
 }
 
 function isCheckoutClean(root, env) {
-  const probe = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: root, env, encoding: 'utf8' });
+  const cleanEnv = stripGitEnv(env);
+  const probe = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
   if (probe.status !== 0 || probe.stdout.trim() !== 'true') return true;
-  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: root, env, encoding: 'utf8' });
+  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
   return status.status === 0 && status.stdout.trim() === '';
 }
 
@@ -734,12 +750,12 @@ function isOnDemandPackageFresh(root, surface, packageDir, env) {
   }
   if (receipt.sourceVersion !== manifest.version) return false;
   if (receipt.inventoryDigest !== provenanceLib.packageInventoryDigest(surface, inventory)) return false;
-  const head = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: root, env, encoding: 'utf8' });
+  const cleanEnv = stripGitEnv(env);
+  const head = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
   if (head.status === 0 && head.stdout.trim()) {
     const commit = receipt.generatedFromCommit || receipt.sourceCommit;
     if (typeof commit !== 'string' || !/^[a-f0-9]{40}$/i.test(commit)) return false;
-    const ancestor = spawnSync('git', ['merge-base', '--is-ancestor', commit, head.stdout.trim()], { cwd: root, env, stdio: 'ignore' });
-    if (ancestor.status !== 0) return false;
+    if (commit.toLowerCase() !== head.stdout.trim().toLowerCase()) return false;
   }
   return true;
 }
@@ -747,24 +763,24 @@ function isOnDemandPackageFresh(root, surface, packageDir, env) {
 // Host packages built on demand (ADR 0040) are not committed, yet package and
 // consumer-gate suites read them from dist/on-demand. A fresh checkout (a CI
 // shard, a new worktree) has none, and an older local checkout may hold stale
-// packages from a previous version or inventory, so build missing or stale
-// surfaces before the full suite. Trees without the on-demand library (copied
-// fixtures) are skipped.
+// packages from a previous commit, version, or inventory, so build missing or
+// stale surfaces before the full suite on a clean checkout. Trees without the
+// on-demand library (copied fixtures) are skipped; dirty git checkouts are also
+// skipped because `distribution build` fails closed on uncommitted changes.
 function ensureOnDemandPackages(root, env) {
   const libFile = path.join(root, 'scripts', 'lib', 'on-demand-packages.js');
   const launcher = path.join(root, 'bin', 'dhpk');
   if (!fs.existsSync(libFile) || !fs.existsSync(launcher)) return;
+  const cleanEnv = stripGitEnv(env);
   const { ON_DEMAND_SURFACES, onDemandPackageDir } = require(libFile);
   let cleanCheckout = null;
   for (const surface of ON_DEMAND_SURFACES) {
     const packageDir = onDemandPackageDir(root, surface);
     const exists = fs.existsSync(packageDir);
-    if (exists && isOnDemandPackageFresh(root, surface, packageDir, env)) continue;
-    if (exists) {
-      if (cleanCheckout === null) cleanCheckout = isCheckoutClean(root, env);
-      if (!cleanCheckout) continue;
-    }
-    const built = spawnSync('bash', [launcher, 'distribution', 'build', surface, '--json'], { cwd: root, env, encoding: 'utf8' });
+    if (exists && isOnDemandPackageFresh(root, surface, packageDir, cleanEnv)) continue;
+    if (cleanCheckout === null) cleanCheckout = isCheckoutClean(root, cleanEnv);
+    if (!cleanCheckout) continue;
+    const built = spawnSync('bash', [launcher, 'distribution', 'build', surface, '--json'], { cwd: root, env: cleanEnv, encoding: 'utf8' });
     if (built.status !== 0) {
       throw new Error(`on-demand ${surface} build failed before the test run: ${String(built.stderr || built.stdout).trim()}`);
     }

@@ -160,7 +160,51 @@ test('ensureOnDemandPackages rebuilds a surface from a non-ancestor commit on a 
   }
 });
 
-test('ensureOnDemandPackages skips stale rebuilds on a dirty checkout while still building missing surfaces', () => {
+test('ensureOnDemandPackages rebuilds when HEAD advances past the built commit on a clean checkout', () => {
+  const { root, writeReceipt } = provenanceFixtureRoot({ gitInit: true });
+  try {
+    writeReceipt('agent-plugin');
+    writeReceipt('cursor-plugin');
+    writeReceipt('agy-plugin');
+    // Advance HEAD with a content-only commit (same version & inventoryDigest).
+    fs.writeFileSync(path.join(root, 'note.txt'), 'content change\n');
+    execFileSync('git', ['add', 'note.txt'], { cwd: root });
+    execFileSync('git', ['commit', '-qm', 'content change'], { cwd: root });
+    ensureOnDemandPackages(root, process.env);
+    assert.deepStrictEqual(calls(root).sort(), ['agent-plugin', 'agy-plugin', 'cursor-plugin']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('ensureOnDemandPackages ignores inherited GIT_DIR and GIT_WORK_TREE overrides', () => {
+  const { root, writeReceipt } = provenanceFixtureRoot({ gitInit: true });
+  const otherRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prebuild-other-git-'));
+  try {
+    execFileSync('git', ['init', '-q'], { cwd: otherRepo });
+    execFileSync('git', ['config', 'user.email', 'other@example.invalid'], { cwd: otherRepo });
+    execFileSync('git', ['config', 'user.name', 'Other'], { cwd: otherRepo });
+    fs.writeFileSync(path.join(otherRepo, 'seed.txt'), 'seed\n');
+    execFileSync('git', ['add', '.'], { cwd: otherRepo });
+    execFileSync('git', ['commit', '-qm', 'seed'], { cwd: otherRepo });
+    fs.writeFileSync(path.join(otherRepo, 'dirty.txt'), 'dirty\n');
+
+    writeReceipt('agent-plugin');
+    writeReceipt('cursor-plugin', { inventoryDigest: '0'.repeat(64) });
+    writeReceipt('agy-plugin');
+    ensureOnDemandPackages(root, {
+      ...process.env,
+      GIT_DIR: path.join(otherRepo, '.git'),
+      GIT_WORK_TREE: otherRepo,
+    });
+    assert.deepStrictEqual(calls(root), ['cursor-plugin']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(otherRepo, { recursive: true, force: true });
+  }
+});
+
+test('ensureOnDemandPackages skips both missing and stale builds on a dirty checkout', () => {
   const { root, writeReceipt } = provenanceFixtureRoot({ gitInit: true });
   try {
     writeReceipt('agent-plugin');
@@ -168,7 +212,7 @@ test('ensureOnDemandPackages skips stale rebuilds on a dirty checkout while stil
     // agy-plugin is intentionally missing.
     fs.writeFileSync(path.join(root, 'dirty.txt'), 'uncommitted\n');
     ensureOnDemandPackages(root, process.env);
-    assert.deepStrictEqual(calls(root), ['agy-plugin']);
+    assert.deepStrictEqual(calls(root), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

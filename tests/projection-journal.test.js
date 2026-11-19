@@ -500,4 +500,116 @@ test('testEffectBatch_rejectsUnknownKindBeforeFlushing', () => {
   });
 });
 
+test('testEffectBatch_crashedRecoveryPreservesForeignAndEditedFilesWhileCleaningPartialPrefix', () => {
+  // Post-crash user edit on a completed file and foreign file at an unstarted
+  // target must fail closed with RECOVERY_CONFLICT instead of silent deletion.
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (step === 3) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/a.md'), 'from-tx-a\n');
+    fs.writeFileSync(at('.agents/.stage/b.md'), 'from-tx-b\n');
+    journal.setPhase('publishing');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/a.md', to: '.agents/managed/a.md', digest: digest('from-tx-a\n') },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/a.md'], mode: 'file', digest: digest('from-tx-a\n') } },
+        },
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/b.md', to: '.agents/managed/b.md', digest: digest('from-tx-b\n') },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/b.md'], mode: 'file', digest: digest('from-tx-b\n') } },
+        },
+      ]);
+    }, (error) => error instanceof SimulatedCrash);
+
+    fs.writeFileSync(at('.agents/managed/a.md'), 'user-edited-a\n');
+    fs.writeFileSync(at('.agents/managed/b.md'), 'user-created-b\n');
+    throwsCode(() => recover(projectRoot), 'RECOVERY_CONFLICT');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/b.md'), 'utf8'), 'user-created-b\n');
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/a.md'), 'utf8'), 'user-edited-a\n');
+  });
+
+  // A genuine truncated prefix of the staged source is still cleaned up.
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (step === 2) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/partial.md'), 'full-content-from-stage\n');
+    journal.setPhase('publishing');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/partial.md', to: '.agents/managed/partial.md', digest: digest('full-content-from-stage\n') },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/partial.md'], mode: 'file', digest: digest('full-content-from-stage\n') } },
+        },
+      ]);
+    }, (error) => error instanceof SimulatedCrash);
+
+    fs.writeFileSync(at('.agents/managed/partial.md'), 'full-con');
+    recover(projectRoot);
+    assert.strictEqual(fs.existsSync(at('.agents/managed/partial.md')), false);
+    assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+  });
+});
+
+test('testEffectBatch_interruptedRollbackAfterBeforeThrowPreservesCollidingFile', () => {
+  withProject(({ projectRoot }, at) => {
+    seed(at);
+    let crashDuringRollback = false;
+    const journal = ProjectionJournal.begin({
+      projectRoot,
+      journalPath: at(JOURNAL),
+      afterStep: { mid: (step) => { if (crashDuringRollback) throw new SimulatedCrash(step); } },
+      journal: { schema: 'test.v1', phase: 'prepared' },
+    });
+    journalCore.recordTransientDirectory(journal, at('.agents/.stage'));
+    fs.writeFileSync(at('.agents/.stage/ok.md'), 'ok\n');
+    fs.writeFileSync(at('.agents/.stage/collide.md'), 'candidate\n');
+    fs.writeFileSync(at('.agents/managed/user.md'), 'precious-user-file\n');
+    const digestOk = digest('ok\n');
+    const digestCollide = digest('candidate\n');
+    assert.throws(() => {
+      journal.effectBatch([
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/ok.md', to: '.agents/managed/ok.md', digest: digestOk },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/ok.md'], mode: 'file', digest: digestOk } },
+        },
+        {
+          kind: 'copy-tree',
+          args: { from: '.agents/.stage/collide.md', to: '.agents/managed/user.md', digest: digestCollide },
+          inverse: { kind: 'remove', args: { paths: ['.agents/managed/user.md'], mode: 'file', digest: digestCollide } },
+          before: () => {
+            const error = new Error('collision');
+            error.projectionCode = 'PUBLISH_COLLISION';
+            throw error;
+          },
+        },
+      ]);
+    }, (error) => error.projectionCode === 'PUBLISH_COLLISION');
+
+    crashDuringRollback = true;
+    assert.throws(() => journal.rollBack(), (error) => error instanceof SimulatedCrash);
+    // Second process recovers from the persisted rolling-back journal.
+    recover(projectRoot);
+    assert.strictEqual(fs.existsSync(at('.agents/managed/ok.md')), false);
+    assert.strictEqual(fs.readFileSync(at('.agents/managed/user.md'), 'utf8'), 'precious-user-file\n');
+    assert.strictEqual(fs.existsSync(at(JOURNAL)), false);
+  });
+});
+
 run('projection-journal');

@@ -36,7 +36,13 @@ const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheck
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { createPreviewSourceSnapshot } = require('./distribution-preview');
 const { lstatOrNull } = require('./bounded-filesystem');
-const { ON_DEMAND_SURFACES, isOnDemandSurface, onDemandRelativeDir, archiveOnDemandPackage } = require('./on-demand-packages');
+const {
+  ON_DEMAND_SURFACES,
+  isOnDemandSurface,
+  onDemandRelativeDir,
+  archiveOnDemandPackage,
+  withOnDemandSurfaceLock,
+} = require('./on-demand-packages');
 
 const OPERATIONS = Object.freeze(['generate', 'preview', 'validate', 'verify']);
 const SURFACES = Object.freeze({
@@ -362,29 +368,31 @@ function runAgy(operation, context) {
 function executeBuild(request, root) {
   try {
     const context = runtime(root, { ...request, operation: 'generate' });
-    assertOwnedGenerationTarget(request.surface, context.output);
-    const surface = SURFACES[request.surface];
-    const result = surface.run('generate', context);
-    const archive = result.ok
-      ? archiveOnDemandPackage({ surface: request.surface, packageDir: context.output, version: context.version })
-      : null;
-    return {
-      ok: result.ok,
-      status: result.ok ? 0 : 1,
-      payload: {
-        surface: request.surface,
-        operation: 'build',
-        verdict: result.ok ? 'PASS' : 'FAIL',
-        output: context.output,
-        ...(archive ? { archive: archive.archivePath, archiveSha256: archive.sha256 } : {}),
-        evidence: {
-          stage: 'structural',
-          runtime: 'NOT_RUN',
-          reason: `This command builds and verifies deterministic package structure; ${surface.runtimeProbe} is a separate evidence-bound probe.`,
+    return withOnDemandSurfaceLock(context.output, () => {
+      assertOwnedGenerationTarget(request.surface, context.output);
+      const surface = SURFACES[request.surface];
+      const result = surface.run('generate', context);
+      const archive = result.ok
+        ? archiveOnDemandPackage({ surface: request.surface, packageDir: context.output, version: context.version })
+        : null;
+      return {
+        ok: result.ok,
+        status: result.ok ? 0 : 1,
+        payload: {
+          surface: request.surface,
+          operation: 'build',
+          verdict: result.ok ? 'PASS' : 'FAIL',
+          output: context.output,
+          ...(archive ? { archive: archive.archivePath, archiveSha256: archive.sha256 } : {}),
+          evidence: {
+            stage: 'structural',
+            runtime: 'NOT_RUN',
+            reason: `This command builds and verifies deterministic package structure; ${surface.runtimeProbe} is a separate evidence-bound probe.`,
+          },
+          ...result.details,
         },
-        ...result.details,
-      },
-    };
+      };
+    });
   } catch (error) {
     return { ok: false, status: 1, error: error.message };
   }

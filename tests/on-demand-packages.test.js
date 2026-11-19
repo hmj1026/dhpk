@@ -16,6 +16,8 @@ const {
   onDemandRelativeDir,
   onDemandArchiveName,
   archiveOnDemandPackage,
+  withOnDemandSurfaceLock,
+  withOnDemandLocks,
 } = require('../scripts/lib/on-demand-packages');
 const { parseRequest, SURFACES } = require('../scripts/lib/dhpk-distribution');
 
@@ -108,6 +110,47 @@ test('the release workflow attaches an archive for every on-demand surface', () 
   const verify = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'release-verify.sh'), 'utf8');
   for (const surface of ON_DEMAND_SURFACES) assert.ok(verify.includes(surface), `release-verify.sh must build ${surface}`);
   assert.match(verify, /bin\/dhpk distribution build "\$surface"/);
+});
+
+test('archiveOnDemandPackage writes atomically and leaves no temp files on failure', () => {
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-atomic-')));
+  try {
+    const packageDir = path.join(parent, 'dhpk-agent');
+    fs.mkdirSync(packageDir);
+    fs.writeFileSync(path.join(packageDir, 'plugin.json'), '{"v":1}\n');
+    const first = archiveOnDemandPackage({ surface: 'agent-plugin', packageDir, version: '1.2.3' });
+    assert.strictEqual(fs.readdirSync(parent).filter((name) => name.includes('.tmp-')).length, 0);
+
+    // A failed archive build must preserve the previously valid archive and leave no temp artifact.
+    fs.rmSync(packageDir, { recursive: true, force: true });
+    assert.throws(() => archiveOnDemandPackage({ surface: 'agent-plugin', packageDir, version: '1.2.3' }), /archive failed/);
+    assert.strictEqual(fs.existsSync(first.archivePath), true, 'existing archive must stay intact on failed rebuild');
+    assert.strictEqual(fs.readdirSync(parent).filter((name) => name.includes('.tmp-')).length, 0);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('withOnDemandSurfaceLock supports re-entrancy and reclaims stale dead-PID locks', () => {
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-on-demand-lock-')));
+  try {
+    const packageDir = path.join(parent, 'dhpk-cursor');
+    const lockDir = path.join(parent, '.dhpk-cursor.build-lock');
+    const exited = spawnSync(process.execPath, ['-e', ''], { encoding: 'utf8' });
+    assert.strictEqual(exited.status, 0);
+    fs.mkdirSync(lockDir);
+    fs.writeFileSync(path.join(lockDir, 'owner.json'), JSON.stringify({ pid: exited.pid, createdAt: 1 }));
+    let nestedRan = false;
+    const result = withOnDemandSurfaceLock(packageDir, () => withOnDemandLocks([packageDir, packageDir], () => {
+      nestedRan = true;
+      return 'ok';
+    }));
+    assert.strictEqual(result, 'ok');
+    assert.strictEqual(nestedRan, true);
+    assert.strictEqual(fs.existsSync(lockDir), false, 'lock directory must be cleaned up on exit');
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
 });
 
 run('on-demand-packages');

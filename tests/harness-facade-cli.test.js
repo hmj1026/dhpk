@@ -1103,9 +1103,8 @@ function temporaryCursorProbeRoot() {
     fs.writeFileSync(path.join(root, 'scripts', 'release', scriptName), [
       "'use strict';",
       "const { spawnSync } = require('node:child_process');",
-      `const result = spawnSync(process.execPath, [${JSON.stringify(realScript)}, ...process.argv.slice(2)], { encoding: 'utf8' });`,
-      'process.stdout.write(result.stdout || "");',
-      'process.stderr.write(result.stderr || "");',
+      `const result = spawnSync(process.execPath, [${JSON.stringify(realScript)}, ...process.argv.slice(2)], { stdio: 'inherit' });`,
+      'if (result.error) process.stderr.write(`${result.error.message}\\n`);',
       'process.exitCode = result.status === null ? 1 : result.status;',
       '',
     ].join('\n'));

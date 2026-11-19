@@ -2693,7 +2693,7 @@
       "sourcePath": "scripts/lib/projection-journal.js",
       "destination": "skills/harness-setup/scripts/lib/projection-journal.js",
       "kind": "packaging-resource",
-      "sha256": "6c2f206e9de12d1fda457280ed2408b7ca0cd7e2cc73fa2b048c3039178fa9e6"
+      "sha256": "bab82c456f148993ac62ad0741d499e81c12bff6c620f44dc61730af0477848b"
     },
     {
       "skillId": "harness-setup",
