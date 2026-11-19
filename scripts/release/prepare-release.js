@@ -648,11 +648,9 @@ function main() {
     if (validationErrors.length > 0) throw new Error(`generated release package validation failed: ${validationErrors.join('; ')}`);
 
     const stagedClaude = path.join(stagingRoot, 'claude-marketplace-package');
-    materialize({ root: args.root, out: stagedClaude });
-    writeManifestVersion(stagedClaude, '.claude-plugin/plugin.json', args.version);
+    materialize({ root: args.root, out: stagedClaude, version: args.version });
     const stagedStacks = path.join(stagingRoot, 'claude-stacks-package');
-    materialize({ root: args.root, out: stagedStacks, kind: 'stacks' });
-    writeManifestVersion(stagedStacks, '.claude-plugin/plugin.json', args.version);
+    materialize({ root: args.root, out: stagedStacks, kind: 'stacks', version: args.version });
 
     const stagedChangelog = path.join(stagingRoot, 'CHANGELOG.md');
     fs.copyFileSync(changelogPath, stagedChangelog);

@@ -13,7 +13,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { writeVersionManifests } = require('./_lib/release-manifest-fixtures');
-const { STACKS_SHARED_HOOK_LIBS, compileStacksPackage } = require('../scripts/ci/gen-claude-marketplace-package');
+const { STACKS_SHARED_HOOK_LIBS, compileStacksPackage, check: checkClaudePackage } = require('../scripts/ci/gen-claude-marketplace-package');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
@@ -298,6 +298,22 @@ testWithRepo('write mode regenerates a drifted Claude marketplace package', (rep
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
+});
+
+testWithRepo('write mode leaves the Claude packages fresh against the version-bumped tree', (repo) => {
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
+  assert.strictEqual(res.status, 0, res.stderr);
+
+  for (const [kind, dir] of [['core', 'package'], ['stacks', 'stacks-package']]) {
+    const out = path.join(repo, 'dist', 'claude-marketplace', dir);
+    const verdict = checkClaudePackage({ root: repo, out, kind });
+    assert.ok(verdict.ok, `${kind} package must match a fresh build of the bumped tree: ${verdict.error}`);
+  }
+  const stacksRoot = path.join(repo, 'dist', 'claude-marketplace', 'stacks-package');
+  const provenance = JSON.parse(fs.readFileSync(path.join(stacksRoot, 'provenance.json'), 'utf8'));
+  const entry = provenance.files.find((file) => file.destination === '.claude-plugin/plugin.json');
+  assert.strictEqual(entry.sha256, require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(stacksRoot, '.claude-plugin', 'plugin.json'))).digest('hex'));
 });
 
 testWithRepo('write mode retains a durable rollback manifest and rollback restores the prior release tree', (repo) => {
