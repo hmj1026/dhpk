@@ -222,6 +222,10 @@ jobs:
 
       - uses: ./.github/actions/setup-dhpk-test-env
 
+      # tests/verify-platform-packages.test.js runs `claude plugin validate`.
+      - name: Install pinned Claude CLI for package verification
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
+
       - name: Download complete CI plan
         id: ci-plan
         continue-on-error: true

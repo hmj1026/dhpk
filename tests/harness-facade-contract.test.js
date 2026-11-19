@@ -691,6 +691,7 @@ test('jobs that run the package verifier install the pinned Claude CLI first, wi
   const installName = '- name: Install pinned Claude CLI for package verification';
   const cases = [
     ['ci.yml', 'preflight', 'node scripts/ci/verify-platform-packages.js'],
+    ['ci.yml', 'tests', 'node tests/run-all.js'],
     ['ci.yml', 'release-rehearsal', 'scripts/release/release-verify.sh'],
     ['release.yml', 'release', 'scripts/release/release-verify.sh'],
   ];
