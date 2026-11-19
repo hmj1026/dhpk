@@ -60,6 +60,7 @@ const PER_SITE = [
   ['scan early git check', "l='GIT status'; x=${l/status/commit}; $x -m x"],
   ['assignment value fold (indirect expansion)', "r=l; l='GIT COMMIT -M X'; ${!r}"],
   ['printf -v build fold', "printf -v l 'GIT COMMIT --NO-VERIFY -M X'; ${l,,}"],
+  ['alias value fold', "shopt -s expand_aliases\nalias x='if true; then l=GIT; fi; if true; then ${l,,} commit --no-verify -q -m x; fi'\nx"],
   ['core.hooksPath key fold', 'git -c CORE.HOOKSPATH=x push origin x'],
 ];
 
