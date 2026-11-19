@@ -933,7 +933,8 @@ _dhpk_ci_unwrap_head() {
 _dhpk_ci_git_cfg_hooks() {
     local key="${1%%=*}"
     case "$key" in *[\$\`]*) return 0 ;; esac
-    [ "$(tr '[:upper:]' '[:lower:]' <<<"$key")" = "core.hookspath" ]
+    _dhpk_ci_lower "$key"
+    [ "$_dhpk_ci_lc" = "core.hookspath" ]
 }
 
 _dhpk_ci_record_git() {

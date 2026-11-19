@@ -326,7 +326,8 @@ _dhpk_ci_apply_set_allexport() {
 # check at the use site.
 _dhpk_ci_git_value_risky() {
     local raw="$1" val ifs="$2" i=1 n sub
-    val="$(tr '[:upper:]' '[:lower:]' <<<"$1")"
+    _dhpk_ci_lower "$1"
+    val="$_dhpk_ci_lc"
     local -a ws_a
     # Folded: ${l,,}, ${l^^}, ${l~~} and ${l@L} can rebuild git from other case.
     if [ "$ifs" = "1" ]; then
@@ -406,6 +407,36 @@ _dhpk_ci_note_git_assign() {
     fi
 }
 
+# ASCII-only lowercase of $1 into _dhpk_ci_lc. Pure bash 3.2: no child process,
+# no locale dependence and no failure path, so an unlowerable value can never
+# read as empty and allow. A non-ASCII byte passes through unchanged.
+_dhpk_ci_lower() {
+    local s="$1"
+    case "$s" in
+        *[ABCDEFGHIJKLMNOPQRSTUVWXYZ]*)
+            s="${s//A/a}"; s="${s//B/b}"; s="${s//C/c}"; s="${s//D/d}"; s="${s//E/e}"
+            s="${s//F/f}"; s="${s//G/g}"; s="${s//H/h}"; s="${s//I/i}"; s="${s//J/j}"
+            s="${s//K/k}"; s="${s//L/l}"; s="${s//M/m}"; s="${s//N/n}"; s="${s//O/o}"
+            s="${s//P/p}"; s="${s//Q/q}"; s="${s//R/r}"; s="${s//S/s}"; s="${s//T/t}"
+            s="${s//U/u}"; s="${s//V/v}"; s="${s//W/w}"; s="${s//X/x}"; s="${s//Y/y}"
+            s="${s//Z/z}"
+            ;;
+    esac
+    _dhpk_ci_lc="$s"
+}
+
+# True when $1 holds a byte above 0x7F, or an ANSI-C escape that can produce one
+# ($'\xHH', \u, \U, octal). A UTF-8 bash folds such bytes in ${l,,} (U+0130 to i),
+# which the ASCII-only fold above cannot see.
+_dhpk_ci_nonascii() {
+    local LC_ALL=C
+    case "$1" in
+        *[!$'\001'-$'\177']*) return 0 ;;
+        *\\[xuU0-7]*) return 0 ;;
+    esac
+    return 1
+}
+
 # True when a value holds a transform expansion of a variable that names git or is tainted.
 _dhpk_ci_value_transforms_git() {
     local name re
@@ -413,7 +444,7 @@ _dhpk_ci_value_transforms_git() {
         *'${'*) ;;
         *) return 1 ;;
     esac
-    for name in ${_dhpk_ci_git_named:-} ${_dhpk_ci_git_taint:-}; do
+    for name in ${_dhpk_ci_git_named:-} ${_dhpk_ci_git_taint:-} ${_dhpk_ci_nonascii_names:-}; do
         re='\$\{'$name'(\[[^]]*\])?[/#%:@^,~]'
         [[ "$1" =~ $re ]] && return 0
     done
@@ -1465,9 +1496,10 @@ _dhpk_ci_scan_git_taint() {
     case "$rest" in
         *IFS=*|*IFS+=*) _dhpk_ci_taint_ifs=1 ;;
     esac
-    case "$(tr '[:upper:]' '[:lower:]' <<<"$rest")" in
+    _dhpk_ci_lower "$rest"
+    case "$_dhpk_ci_lc" in
         *git*) ;;
-        *) return 0 ;;
+        *) _dhpk_ci_nonascii "$rest" || return 0 ;;
     esac
     _dhpk_ci_taint_gitassign=0
     local n_asg=0
@@ -1493,15 +1525,23 @@ _dhpk_ci_scan_git_taint() {
         fi
         var="_dhpk_ci_tv_$name"
         printf -v "$var" '%s %s' "${!var:-}" "$v"
-        case "$(tr '[:upper:]' '[:lower:]' <<<"$v")" in *git*) _dhpk_ci_taint_gitassign=1 ;; esac
+        _dhpk_ci_lower "$v"
+        case "$_dhpk_ci_lc" in *git*) _dhpk_ci_taint_gitassign=1 ;; esac
+        # A non-ASCII value may fold into git under a UTF-8 case conversion.
+        if _dhpk_ci_nonascii "$v"; then
+            _dhpk_ci_nonascii_names="${_dhpk_ci_nonascii_names}$name "
+        fi
         case "$names" in *" $name "*) ;; *) names="$names$name " ;; esac
     done
     for name in $names; do
         var="_dhpk_ci_tv_$name"
         if _dhpk_ci_git_value_risky "${!var}" "$_dhpk_ci_taint_ifs"; then
             _dhpk_ci_taint_add "$name"
-        elif _dhpk_ci_word_mentions_git "$(tr '[:upper:]' '[:lower:]' <<<"${!var}")"; then
-            _dhpk_ci_git_named="${_dhpk_ci_git_named}$name "
+        else
+            _dhpk_ci_lower "${!var}"
+            if _dhpk_ci_word_mentions_git "$_dhpk_ci_lc"; then
+                _dhpk_ci_git_named="${_dhpk_ci_git_named}$name "
+            fi
         fi
         case "$appended" in
             *" $name "*) _dhpk_ci_note_flag_var "$name" "${!var}" 1 ;;
@@ -1526,7 +1566,8 @@ _dhpk_ci_scan_git_taint() {
     while [[ "$rest" =~ $re_build ]]; do
         seg="${BASH_REMATCH[2]}"
         rest="${rest#*"${BASH_REMATCH[0]}"}"
-        if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "$(tr '[:upper:]' '[:lower:]' <<<"$1")"; then
+        _dhpk_ci_lower "$1"
+        if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "$_dhpk_ci_lc"; then
             read -r -a ws_a <<<"$seg"
             for w in "${ws_a[@]}"; do
                 [[ "$w" =~ $re_id ]] && _dhpk_ci_taint_add "$w"
@@ -1575,7 +1616,7 @@ _dhpk_ci_word_uses_taint() {
     fi
     # (#1456) A transformed expansion (${l/log/push}, ${l%log}, ${l:0}, ${l@P}) of a variable whose
     # visible value names git can rebuild any git command, so it is risky even when the value is read-only.
-    for name in ${_dhpk_ci_git_named:-}; do
+    for name in ${_dhpk_ci_git_named:-} ${_dhpk_ci_nonascii_names:-}; do
         re='\$\{'$name'(\[[^]]*\])?[/#%:@^,~]'
         [[ "$w" =~ $re ]] && return 0
     done
