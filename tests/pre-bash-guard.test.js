@@ -544,22 +544,84 @@ test('module hook that exits without reading stdin does not turn a later block i
   }
 });
 
-// The commit-gate envelope is documented, not computed: the per-stack inner
-// deadlines (plus one second of grace) live in separate module shell scripts.
-// Source: scripts/hooks/pre-bash-dispatch.sh comment and docs/hook-extension.md
-// ("JS 212, Python 255, Swift 842, and PHP 423, totaling 1732 seconds").
-const COMMIT_GATE_ENVELOPE_SECONDS = { js: 212, python: 255, swift: 842, php: 423 };
+// The commit-gate envelope is derived from the module gate scripts: each
+// run_with_timeout call costs its deadline plus _DHPK_TIMEOUT_GRACE seconds.
+// Documented total: scripts/hooks/pre-bash-dispatch.sh and docs/hook-extension.md.
+const DOCUMENTED_ENVELOPE_SECONDS = 1732;
+
+function readScript(relative) {
+  return fs.readFileSync(path.join(ROOT, relative), 'utf8');
+}
+
+function scriptSeconds(text, name) {
+  const match = text.match(new RegExp(`^${name}=(?:"\\$\\{[A-Z_]+:-(\\d+)\\}"|(\\d+))\\s*$`, 'm'));
+  assert.ok(match, `${name} not found`);
+  return Number(match[1] || match[2]);
+}
+
+function occurrences(text, pattern) {
+  return (text.match(pattern) || []).length;
+}
+
+// read(relative) returns script text; tests may override it to prove failure.
+function deriveCommitGateEnvelope(read = readScript) {
+  const grace = scriptSeconds(read('scripts/hooks/_lib/portable-timeout.sh'), '_DHPK_TIMEOUT_GRACE');
+  const withGrace = (secs) => secs + grace;
+
+  const js = read('modules/js/hooks/pre-commit-js-validation.sh');
+  const jsTotal = withGrace(scriptSeconds(js, 'LINT_TIMEOUT_SECS'))
+    + withGrace(scriptSeconds(js, 'TYPECHECK_TIMEOUT_SECS'));
+
+  const php = read('modules/php-7.4/hooks/pre-commit-php-validation.sh');
+  const phpTotal = ['CS_FIXER_TIMEOUT_SECS', 'PHPSTAN_TIMEOUT_SECS', 'PSALM_TIMEOUT_SECS']
+    .reduce((sum, name) => sum + withGrace(scriptSeconds(php, name)), 0);
+
+  // One path: xcodebuild or swift build, then its test phase; defaults from ${VAR:-N}.
+  const swift = read('modules/xcode-tooling/hooks/pre-commit-swift-build.sh');
+  const swiftTotal = withGrace(scriptSeconds(swift, 'BUILD_TIMEOUT_SECS'))
+    + withGrace(scriptSeconds(swift, 'TEST_TIMEOUT_SECS'));
+
+  // Python: ruff check + ruff format (2 run_tool calls), one typecheck call,
+  // and two version probes (ruff, typecheck), each probe a run_with_timeout.
+  const py = read('modules/python/hooks/pre-commit-python-validation.sh');
+  const probe = scriptSeconds(read('modules/python/hooks/_lib/python-env.sh'), 'PY_TOOL_PROBE_SECS');
+  const ruffCalls = occurrences(py, /run_tool "\$pdir" "\$RUFF_BIN" "\$RUFF_TIMEOUT_SECS"/g);
+  const typecheckCalls = occurrences(py, /run_tool "\$pdir" "\$tcbin" "\$TYPECHECK_TIMEOUT_SECS"/g);
+  const probeCalls = occurrences(py, /version probe timed out after \$\{PY_TOOL_PROBE_SECS\}s/g);
+  assert.deepStrictEqual([ruffCalls, typecheckCalls, probeCalls], [2, 1, 2], 'python gate call counts changed');
+  const pyTotal = ruffCalls * withGrace(scriptSeconds(py, 'RUFF_TIMEOUT_SECS'))
+    + typecheckCalls * withGrace(scriptSeconds(py, 'TYPECHECK_TIMEOUT_SECS'))
+    + probeCalls * withGrace(probe);
+
+  return { js: jsTotal, python: pyTotal, swift: swiftTotal, php: phpTotal,
+    total: jsTotal + pyTotal + swiftTotal + phpTotal };
+}
+
+test('commit-gate envelope derived from gate scripts matches the documented total', () => {
+  const envelope = deriveCommitGateEnvelope();
+  assert.deepStrictEqual(
+    { js: envelope.js, python: envelope.python, swift: envelope.swift, php: envelope.php },
+    { js: 212, python: 255, swift: 842, php: 423 }
+  );
+  assert.strictEqual(envelope.total, DOCUMENTED_ENVELOPE_SECONDS);
+});
+
+test('envelope derivation reacts to a raised gate deadline', () => {
+  const bumped = (relative) => readScript(relative).replace('PSALM_TIMEOUT_SECS=240', 'PSALM_TIMEOUT_SECS=320');
+  const envelope = deriveCommitGateEnvelope(bumped);
+  assert.strictEqual(envelope.total, DOCUMENTED_ENVELOPE_SECONDS + 80);
+});
 
 test('Bash PreToolUse timeout stays strictly above the commit-gate envelope', () => {
-  const envelope = Object.values(COMMIT_GATE_ENVELOPE_SECONDS).reduce((a, b) => a + b, 0);
-  const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'));
+  const { total } = deriveCommitGateEnvelope();
+  const hooks = JSON.parse(readScript('hooks/hooks.json'));
   const bash = hooks.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash').hooks[0];
   assert.ok(
-    bash.timeout > envelope,
-    `Bash hook timeout ${bash.timeout}s must exceed the commit-gate envelope ${envelope}s (margin ${bash.timeout - envelope}s)`
+    bash.timeout > total,
+    `Bash hook timeout ${bash.timeout}s must exceed the commit-gate envelope ${total}s (margin ${bash.timeout - total}s)`
   );
-  const dispatch = fs.readFileSync(path.join(ROOT, 'scripts/hooks/pre-bash-dispatch.sh'), 'utf8');
-  assert.match(dispatch, new RegExp(`\\(${envelope} seconds\\)`), 'dispatcher comment must state the envelope total');
+  const dispatch = readScript('scripts/hooks/pre-bash-dispatch.sh');
+  assert.match(dispatch, new RegExp(`\\(${total} seconds\\)`), 'dispatcher comment must state the envelope total');
 });
 
 test('Bash PreToolUse declares the 1800-second block ceiling', () => {
