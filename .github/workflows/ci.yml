@@ -126,8 +126,6 @@ jobs:
         run: node scripts/ci/validate-agents.js --strict
       - name: Validate skills
         run: node scripts/ci/validate-skills.js --strict
-      - name: Validate commands
-        run: node scripts/ci/validate-commands.js --strict
       - name: Validate modules
         run: node scripts/ci/validate-modules.js --strict
       - name: Validate plugin manifest
@@ -496,7 +494,6 @@ jobs:
             codex/supporting/**/*.md
             # Lint installed Codex projections when present; runtime artifacts
             # and transaction backups under .codex/ are intentionally excluded.
-            commands/**/*.md
             docs/**/*.md
             rules/**/*.md
             modules/**/*.md

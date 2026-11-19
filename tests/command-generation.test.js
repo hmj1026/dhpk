@@ -4,7 +4,6 @@ const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { run: dispositions } = require('../scripts/ci/gen-command-skill-dispositions');
-const { run: forwarders } = require('../scripts/ci/gen-command-forwarders');
 
 function fixture(callback) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-command-source-'));
@@ -43,127 +42,18 @@ test('duplicate command identity fails before any aggregate publication', () => 
   assert.strictEqual(fs.readFileSync(file, 'utf8'), before);
 }));
 
-test('command forwarders have deterministic bytes and detect hand edits', () => fixture(ctx => {
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0, ctx.messages.join(''));
-  const file = path.join(ctx.root, 'commands/inspect.md');
-  const expected = "---\ndescription: 'Inspect the target'\nargument-hint: '<target>'\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n\nLoad the canonical `$fixture` Skill from [SKILL.md](../skills/fixture/SKILL.md) and follow it with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n";
-  assert.strictEqual(fs.readFileSync(file, 'utf8'), expected);
-  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0);
-  fs.appendFileSync(file, '\nmanual edit\n');
-  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 1);
-  assert.match(ctx.messages.join(''), /commands\/inspect.md/);
-}));
-
-test('explicit-only generated commands retain the Host invocation lock', () => fixture(ctx => {
-  ctx.put('skills/fixture/SKILL.md', '---\nname: fixture\ndescription: Explicit task\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\n');
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
-  const bytes = fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8');
-  assert.strictEqual(bytes, "---\ndescription: 'Explicit task'\nargument-hint: '<target>'\ndisable-model-invocation: true\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\n\nLoad the canonical `$fixture` Skill from [SKILL.md](../skills/fixture/SKILL.md) and follow it with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n");
-}));
-
-test('existing folded Skill descriptions generate a valid compact forwarder', () => fixture(ctx => {
-  ctx.put('skills/fixture/SKILL.md', '---\nname: fixture\ndescription: >\n  Inspect the selected\n  target safely\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n');
-  const result = ctx.invoke(forwarders, '--write');
-  assert.strictEqual(result.status, 0, ctx.messages.join(''));
-  assert.ok(fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8').includes("description: 'Inspect the selected target safely'"));
-}));
-
-test('declared command description overrides the owner Skill description and stays out of the disposition row', () => fixture(ctx => {
-  const description = 'Alias of $fixture inspect; same contract.';
-  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [{ ...ctx.declaration, description }] }));
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0, ctx.messages.join(''));
-  const expected = "---\ndescription: 'Alias of $fixture inspect; same contract.'\nargument-hint: '<target>'\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n\nLoad the canonical `$fixture` Skill from [SKILL.md](../skills/fixture/SKILL.md) and follow it with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n";
-  assert.strictEqual(fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8'), expected);
-  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0, ctx.messages.join(''));
+test('declared description and grant stay out of the disposition row', () => fixture(ctx => {
+  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [{ ...ctx.declaration, description: 'Alias of $fixture inspect; same contract.', allowed_tools: 'Read, Grep, Glob, Edit' }] }));
   assert.strictEqual(ctx.invoke(dispositions, '--write').status, 0, ctx.messages.join(''));
   const row = JSON.parse(fs.readFileSync(path.join(ctx.root, 'manifests/command-skill-dispositions.json'), 'utf8')).commands[0];
   assert.strictEqual(Object.prototype.hasOwnProperty.call(row, 'description'), false);
+  assert.strictEqual(row.allowed_tools, undefined);
 }));
 
-test('removed declarations retire only unchanged receipt-owned forwarders',() => fixture(ctx => {
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
-  ctx.put('commands/host-only.md', 'unowned Host command\n');
-  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [] }));
-  assert.strictEqual(ctx.invoke(dispositions, '--write').status, 0);
-  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 1);
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0, ctx.messages.join(''));
-  assert.strictEqual(fs.existsSync(path.join(ctx.root, 'commands/inspect.md')), false);
-  assert.strictEqual(fs.readFileSync(path.join(ctx.root, 'commands/host-only.md'), 'utf8'), 'unowned Host command\n');
-  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0);
-}));
-
-test('modified stale forwarders and their receipt survive failed cleanup', () => fixture(ctx => {
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
-  const ledger = path.join(ctx.root, 'manifests/command-forwarder-copies.json');
-  const before = fs.readFileSync(ledger, 'utf8');
-  fs.appendFileSync(path.join(ctx.root, 'commands/inspect.md'), '\nconsumer edit\n');
-  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [] }));
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 1);
-  assert.strictEqual(fs.readFileSync(ledger, 'utf8'), before);
-  assert.ok(fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8').endsWith('consumer edit\n'));
-}));
-
-test('forwarder ownership rejects traversal entries and symlink cleanup before mutations', () => fixture(ctx => {
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
-  const ledger = path.join(ctx.root, 'manifests/command-forwarder-copies.json');
-  const before = fs.readFileSync(ledger, 'utf8');
-  const malformed = JSON.parse(before);
-  malformed.files['../outside.md'] = '0'.repeat(64);
-  fs.writeFileSync(ledger, JSON.stringify(malformed));
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 1);
-  fs.writeFileSync(ledger, before);
-  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [] }));
-  const command = path.join(ctx.root, 'commands/inspect.md');
-  fs.renameSync(command, path.join(ctx.root, 'outside.md'));
-  fs.symlinkSync('../outside.md', command);
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 1);
-  assert.ok(fs.lstatSync(command).isSymbolicLink());
-  assert.strictEqual(fs.readFileSync(ledger, 'utf8'), before);
-}));
-
-test('forwarder-specific grants stay distinct from broader owner tools and dispositions', () => fixture(ctx => {
-  ctx.put('skills/fixture/SKILL.md', '---\nname: fixture\ndescription: Inspect target\nallowed-tools: Read, Write, Edit, Bash\n---\n');
-  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [{ ...ctx.declaration, allowed_tools: 'Read, Grep, Glob, Edit' }] }));
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
-  assert.ok(fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8').includes("allowed-tools: 'Read, Grep, Glob, Edit'"));
-  assert.strictEqual(ctx.invoke(dispositions, '--write').status, 0);
-  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(ctx.root, 'manifests/command-skill-dispositions.json'))).commands[0].allowed_tools, undefined);
-  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [{ ...ctx.declaration, allowed_tools: 'Read' }] }));
-  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 1);
-}));
-
-test('alias forwarders for an owner with a mode generate without undeclared tool grants', () => fixture(ctx => {
-  const declarations = [
-    { id: 'simplify', owner: 'code-simplify', public_name: '/dhpk:simplify' },
-    { id: 'matrix-cell-onboard', owner: 'library-author', public_name: '/dhpk:matrix-cell-onboard' },
-  ];
-  for (const { id, owner, public_name } of declarations) {
-    ctx.put(`skills/${owner}/SKILL.md`, `---\nname: ${owner}\ndescription: ${id} workflow\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n`);
-    ctx.put(`skills/${owner}/distribution.yaml`, JSON.stringify({
-      schema: 'dhpk.skill-distribution.v1',
-      commands: [{
-        id,
-        public_name,
-        argument_contract: '<target>',
-        authority: 'workspace-write',
-        disposition: 'thin-front-door',
-      }],
-    }));
-  }
-
-  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
-  for (const { id } of declarations) {
-    const bytes = fs.readFileSync(path.join(ctx.root, 'commands', `${id}.md`), 'utf8');
-    assert.doesNotMatch(bytes, /^allowed-tools:/m, id);
-  }
-  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0);
-
-}));
-
-test('forwarder grants reject empty or multiline declarations', () => fixture(ctx => {
+test('command grants reject empty or multiline declarations', () => fixture(ctx => {
   for (const allowed_tools of ['', 'Read\nWrite', 42]) {
     ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [{ ...ctx.declaration, allowed_tools }] }));
-    assert.strictEqual(ctx.invoke(forwarders, '--write').status, 1);
+    assert.strictEqual(ctx.invoke(dispositions, '--write').status, 1);
   }
 }));
 
