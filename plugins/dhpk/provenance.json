@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.78.0",
-  "sourceCommit": "a53bacbfd1249540f79f5456e1f4f41495508efa",
-  "generatedFromCommit": "a53bacbfd1249540f79f5456e1f4f41495508efa",
-  "generatedFromTree": "e0a15f13f56928f21058f31095effc1b108067df",
+  "sourceCommit": "116ac29e25c4f094418f6da7b86379e423d8a54a",
+  "generatedFromCommit": "116ac29e25c4f094418f6da7b86379e423d8a54a",
+  "generatedFromTree": "dfcec4a9aec365f61dcf79de98d4ac1da2e0424d",
   "inventoryDigest": "ff3e2efb7b4a34e07d8f24f2aaa2c2b041371da6720dd1e6ee484957f8dafdb0",
   "inventoryRevision": "sha256:60b5cf1783f429ff4deffb4043ea46cc1c097aa4ed66760af1ec01081d4d71a7",
   "generatorVersion": "2.4.0",
@@ -1775,7 +1775,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/skill-next-actions.js",
         "destination": "skills/flow-guide/scripts/skill-next-actions.js",
-        "originalGitBlobDigest": "987b02acda5d1e3c0c92594015bbe7cc2ee1bf70"
+        "originalGitBlobDigest": "6639419abc095eb68b384cc2e11def364e4045ac"
       },
       {
         "ownerId": "flow-guide",
@@ -4855,7 +4855,7 @@
     "create-pr": "4f1045b4b1968a78fc8e199e0131fd922f48239356d74c2bdd2e14cc0d59b9ec",
     "doc-maintain": "a606ad626865600214a7d00c1703a5ab3d852d07583f0f5385b043068764aeb6",
     "flow-drive": "b4ef7c575d1f12a93ac3f64eece1f574c9cb5539a044d6e3df8cc9906383e821",
-    "flow-guide": "6817abc0219b89fb259f1be6e9c3d408b3e8cf7f7dcf57d4c7da249c7101ee8e",
+    "flow-guide": "3faac696340375cb6c00a4d207dedfbb98d5e1f8933ce27e1e0d0bd9ed0b7385",
     "git-smart-commit": "71559f17f6c19513abe6dc5d3120b9ab034ca25596ae75c8bedad2b641b68626",
     "git-worktree": "937ecd20112e34ac279e56ba9de95e7c533fdb9b7c0d82b9661496e3d8651388",
     "precommit": "87f0cf1250d85543dc332cf4bf9f3ef023e47958182670100872606686ec7b57",
