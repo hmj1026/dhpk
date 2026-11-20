@@ -176,8 +176,9 @@ function checkDirectoryManifest(manifest, files, version) {
   for (const field of DIRECTORY_URL_FIELDS) {
     if (!isHttpsUrl(manifest[field])) errors.push(`${DIRECTORY_MANIFEST} must set ${field} to an https URL`);
   }
+  if (!Object.hasOwn(manifest, 'icon')) return errors;
   if (typeof manifest.icon !== 'string' || manifest.icon === '') {
-    return [...errors, `${DIRECTORY_MANIFEST} must set icon`];
+    return [...errors, `${DIRECTORY_MANIFEST} icon must be a package path`];
   }
   const iconPath = manifest.icon.replace(/^\.\//, '');
   if (!files.has(iconPath)) errors.push(`${DIRECTORY_MANIFEST} icon ${manifest.icon} is not in the package`);
@@ -185,7 +186,7 @@ function checkDirectoryManifest(manifest, files, version) {
 }
 
 // Directory Plugin: Claude package. Runtime files only, README and LICENSE
-// present, manifest carries icon, repository, and URL fields, and the package
+// present, manifest carries repository and URL fields, and the package
 // stays within Claude's file-count and file-size review thresholds.
 function checkDirectoryPlugin(files, { version } = {}) {
   if (!(files instanceof Map)) return ['Directory Plugin files must be a Map of path to Buffer'];

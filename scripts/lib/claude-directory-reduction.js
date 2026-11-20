@@ -12,6 +12,24 @@ const { buildRuntimeDataFile } = require('./public-plugin-tree');
 const DIRECTORY_PLUGIN_NAME = 'dhpk-lite';
 const DIRECTORY_DISPLAY_NAME = 'DHPK Dev Harness (Lite)';
 const SKILL_NEXT_MAP_PATH = 'skill-next-map.json';
+const DIRECTORY_MANUAL_ENTRY_BODIES = Object.freeze({
+  'flow-guide': [
+    '# Flow Guide',
+    '',
+    'Choose one action: help, route, rules, next, or close. Follow the matching stage in',
+    '[the Manual Procedure](references/manual-procedure.md) and report `mode: manual`.',
+    'Keep routing advisory and retain the action result fields and evidence status.',
+    'For implementation, use `/dhpk-lite:flow-drive`.',
+  ].join('\n'),
+  'harness-setup': [
+    '# Harness Setup',
+    '',
+    'Run this skill only on an explicit user request; otherwise stop and ask before any stage or side effect.',
+    'Follow [the Manual Procedure](references/manual-procedure.md) for inspection, dry runs,',
+    'and authorized setup. Require user confirmation before writing and use an explicitly',
+    'selected local source artifact for asset installation. Report `mode: manual`.',
+  ].join('\n'),
+});
 const REFERENCE_ENTRY = 'REFERENCE.md';
 const TOP_LEVEL_SKILL_MARKDOWN = /^skills\/[^/]+\/SKILL\.md$/;
 const SKILL_MARKDOWN_MENTION = /(?<![\w/.-])((?:\.{1,2}\/|[\w.-]+\/)*)SKILL\.md/g;
@@ -56,6 +74,7 @@ const SKILL_FRONTMATTER_KEYS = Object.freeze(['name', 'description']);
 const AGENT_FRONTMATTER_KEYS = Object.freeze(['name', 'description', 'model', 'color', 'tools']);
 
 const FORBIDDEN_EXACT_PATHS = Object.freeze([
+  '.claude-plugin/icon.png',
   'hooks.json',
   '.mcp.json',
   '.lsp.json',
@@ -288,7 +307,6 @@ function renderDirectoryManifest(fullManifestBuffer, { version } = {}) {
   if (manifest.license) out.license = manifest.license;
   if (manifest.homepage) out.homepage = manifest.homepage;
   if (manifest.repository) out.repository = manifest.repository;
-  if (manifest.icon) out.icon = manifest.icon;
   if (manifest.bugs) out.bugs = manifest.bugs;
   if (Array.isArray(manifest.keywords)) out.keywords = manifest.keywords;
   if (Array.isArray(manifest.agents)) {
@@ -396,11 +414,15 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
     } else if (destination === 'README.md') {
       content = renderDirectoryReadme(readmeCounts);
     } else if (TOP_LEVEL_SKILL_MARKDOWN.test(destination)) {
-      const reducedFm = reduceSkillFrontmatter(content.toString('utf8'), destination);
       const skillName = destination.split('/')[1];
+      const reducedFm = reduceSkillFrontmatter(content.toString('utf8'), destination);
+      const manualBody = skillsWithManualProcedure.has(skillName) && DIRECTORY_MANUAL_ENTRY_BODIES[skillName];
+      const entryText = manualBody
+        ? reducedFm.replace(/^(---\r?\n[\s\S]*?\r?\n---)\r?\n[\s\S]*$/, `$1\n\n${manualBody}\n`)
+        : reducedFm;
       const text = rewriteDirectorySkillScripts(
         outDestination,
-        rewriteDirectoryNamespace(rewriteNestedSkillMentions(destination, reducedFm, nestedEntries, nestedDirs)),
+        rewriteDirectoryNamespace(rewriteNestedSkillMentions(destination, entryText, nestedEntries, nestedDirs)),
         skillsWithManualProcedure.has(skillName),
       );
       content = Buffer.from(text, 'utf8');
@@ -432,9 +454,10 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
   }
 
   if (skillNextMap) {
+    const routingData = JSON.parse(rewriteDirectoryNamespace(Buffer.from(skillNextMap.bytes).toString('utf8')));
     reduced.set(SKILL_NEXT_MAP_PATH, {
       destination: SKILL_NEXT_MAP_PATH,
-      content: Buffer.from(rewriteDirectoryNamespace(Buffer.from(skillNextMap.bytes).toString('utf8')), 'utf8'),
+      content: Buffer.from(`${JSON.stringify(routingData, null, 2)}\n`, 'utf8'),
       mode: 0o644,
     });
   }

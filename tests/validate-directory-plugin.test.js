@@ -27,11 +27,9 @@ function validDirectoryFiles(overrides = {}) {
       description: 'Instruction-only DHPK directory plugin.',
       homepage: 'https://github.com/hmj1026/dhpk',
       repository: 'https://github.com/hmj1026/dhpk',
-      icon: './.claude-plugin/icon.png',
       bugs: 'https://github.com/hmj1026/dhpk/issues',
       agents: ['./agents/code-reviewer.md'],
     }, null, 2),
-    '.claude-plugin/icon.png': Buffer.from('pngbytes'),
     LICENSE: 'MIT\n',
     'README.md': [
       '# dhpk-lite',
@@ -225,6 +223,7 @@ test('manifest userConfig, wrong name, or version mismatch fails with manifest-c
     (m) => { m.userConfig = { hook_profile: { type: 'string' } }; },
     (m) => { m.hooks = './hooks/hooks.json'; },
     (m) => { delete m.bugs; },
+    (m) => { m.icon = './.claude-plugin/icon.png'; },
   ]) {
     const m = JSON.parse(JSON.stringify(baseManifest));
     mut(m);

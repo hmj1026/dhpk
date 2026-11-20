@@ -158,13 +158,22 @@ test('Directory Plugin missing README or LICENSE fails', () => {
   assert.ok(directoryErrors({ LICENSE: null }).some((error) => /LICENSE/.test(error)));
 });
 
-test('Directory Plugin manifest without icon, repository, or URL fields fails', () => {
-  for (const field of ['icon', 'repository', 'homepage']) {
+test('Directory Plugin manifest without repository or URL fields fails', () => {
+  for (const field of ['repository', 'homepage']) {
     const manifest = JSON.parse(directoryManifest().toString());
     delete manifest[field];
     const errors = directoryErrors({ '.claude-plugin/plugin.json': Buffer.from(JSON.stringify(manifest)) });
     assert.ok(errors.some((error) => error.includes(field)), `${field}: ${errors.join('; ')}`);
   }
+});
+
+test('Directory Plugin manifest may omit the listing icon', () => {
+  const manifest = JSON.parse(directoryManifest().toString());
+  delete manifest.icon;
+  assert.deepStrictEqual(directoryErrors({
+    '.claude-plugin/plugin.json': Buffer.from(JSON.stringify(manifest)),
+    '.claude-plugin/icon.png': null,
+  }), []);
 });
 
 test('Directory Plugin icon that is not packaged fails', () => {
