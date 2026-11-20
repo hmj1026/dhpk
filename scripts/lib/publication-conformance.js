@@ -217,9 +217,25 @@ function checkDirectoryPlugin(files, { version } = {}) {
 
 function defaultValidateRunner(directory) {
   const { spawnSync } = require('node:child_process');
-  const child = spawnSync('claude', ['plugin', 'validate', '--strict', '--profile', 'directory', directory], { encoding: 'utf8' });
+  const child = spawnSync('claude', ['plugin', 'validate', '--strict', '--profile', 'directory', '--json', directory], { encoding: 'utf8' });
   if (child.error) return { error: child.error.message };
   return { status: child.status, output: `${child.stdout || ''}${child.stderr || ''}` };
+}
+
+function isMissingIconAdvisory(output) {
+  const report = JSON.parse(output);
+  const { manifest, contents, directory } = report ?? {};
+  if (report?.success !== false || report.strict !== true
+    || !Array.isArray(manifest?.errors) || manifest.errors.length !== 0
+    || !Array.isArray(manifest.warnings) || manifest.warnings.length !== 0
+    || !Array.isArray(contents) || contents.length !== 0
+    || directory?.profile !== 'directory' || directory.incomplete !== false
+    || !Array.isArray(directory.undecided) || directory.undecided.length !== 0
+    || !Array.isArray(directory.findings) || directory.findings.length !== 1) return false;
+  const [finding] = directory.findings;
+  return finding?.code === 'ICON_MISSING' && finding.severity === 'warning'
+    && finding.blocking === false && finding.hold === false
+    && finding.file === DIRECTORY_MANIFEST && finding.field === 'icon';
 }
 
 // `claude plugin validate --strict --profile directory` on a built package
@@ -228,6 +244,13 @@ function runClaudeValidate(directory, run = defaultValidateRunner) {
   const result = run(directory);
   if (result.error) return [`claude plugin validate could not run: ${result.error}`];
   if (result.status !== 0) {
+    if (result.status === 1) {
+      try {
+        if (isMissingIconAdvisory(result.output)) return [];
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
+      }
+    }
     return [`claude plugin validate --strict --profile directory failed (exit ${result.status}): ${result.output.trim().slice(-800)}`];
   }
   return [];

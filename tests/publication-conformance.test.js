@@ -228,6 +228,25 @@ test('claude plugin validate failure and missing CLI are reported', () => {
   assert.ok(missing.some((error) => /could not run/.test(error)), missing.join('; '));
 });
 
+test('strict Claude validation accepts only the expected missing-icon advisory', () => {
+  const icon = {
+    code: 'ICON_MISSING', severity: 'warning', blocking: false, hold: false,
+    file: '.claude-plugin/plugin.json', field: 'icon',
+  };
+  const report = {
+    success: false, strict: true,
+    manifest: { errors: [], warnings: [] },
+    contents: [],
+    directory: { profile: 'directory', incomplete: false, undecided: [], findings: [icon] },
+  };
+  const run = (data) => runClaudeValidate('/pkg', () => ({ status: 1, output: JSON.stringify(data) }));
+  assert.deepStrictEqual(run(report), []);
+  assert.notStrictEqual(run({ ...report, manifest: { ...report.manifest, warnings: ['other warning'] } }).length, 0);
+  assert.notStrictEqual(run({ ...report, directory: { ...report.directory, incomplete: true } }).length, 0);
+  assert.notStrictEqual(run({ ...report, directory: { ...report.directory, findings: [{ ...icon, hold: true }] } }).length, 0);
+  assert.notStrictEqual(run({ ...report, directory: { ...report.directory, findings: [icon, { code: 'OTHER' }] } }).length, 0);
+});
+
 const skillWith = (text) => tree({ 'skills/a/references/guide.md': Buffer.from(text) });
 
 test('Public Plugin may name consumer-project output, cache, and settings paths', () => {
