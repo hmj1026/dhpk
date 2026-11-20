@@ -29,6 +29,13 @@ const DIRECTORY_MANUAL_ENTRY_BODIES = Object.freeze({
     'and authorized setup. Require user confirmation before writing and use an explicitly',
     'selected local source artifact for asset installation. Report `mode: manual`.',
   ].join('\n'),
+  precommit: [
+    '# Precommit',
+    '',
+    'From the consumer repository root, follow [the Manual Procedure](references/manual-procedure.md).',
+    'Choose full mode by default or fast mode when requested. For a dry run, report the plan without executing it.',
+    'Report the stage results, changed files, and final verdict in `mode: manual`.',
+  ].join('\n'),
 });
 const REFERENCE_ENTRY = 'REFERENCE.md';
 const TOP_LEVEL_SKILL_MARKDOWN = /^skills\/[^/]+\/SKILL\.md$/;
@@ -416,10 +423,13 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
     } else if (TOP_LEVEL_SKILL_MARKDOWN.test(destination)) {
       const skillName = destination.split('/')[1];
       const reducedFm = reduceSkillFrontmatter(content.toString('utf8'), destination);
+      const entryFrontmatter = skillName === 'precommit' && skillsWithManualProcedure.has(skillName)
+        ? reducedFm.replace(/^description: .+$/m, 'description: "Run the consumer repository pre-commit pipeline in fast or full mode using the Manual Procedure. Report stage results, changed files, and the final verdict."')
+        : reducedFm;
       const manualBody = skillsWithManualProcedure.has(skillName) && DIRECTORY_MANUAL_ENTRY_BODIES[skillName];
       const entryText = manualBody
-        ? reducedFm.replace(/^(---\r?\n[\s\S]*?\r?\n---)\r?\n[\s\S]*$/, `$1\n\n${manualBody}\n`)
-        : reducedFm;
+        ? entryFrontmatter.replace(/^(---\r?\n[\s\S]*?\r?\n---)\r?\n[\s\S]*$/, `$1\n\n${manualBody}\n`)
+        : entryFrontmatter;
       const text = rewriteDirectorySkillScripts(
         outDestination,
         rewriteDirectoryNamespace(rewriteNestedSkillMentions(destination, entryText, nestedEntries, nestedDirs)),
@@ -440,6 +450,9 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
       content = Buffer.from(rewriteDirectoryNamespace(reducedFm), 'utf8');
     } else if (TEXT_REWRITE_EXTENSIONS.has(path.posix.extname(outDestination).toLowerCase())) {
       let text = content.toString('utf8');
+      if (destination === 'agent-traps/database-reviewer/fastapi.md') {
+        text = text.replace('pass bind values', 'Use SQLAlchemy bound parameters');
+      }
       if (outDestination.endsWith('.md')) {
         text = rewriteNestedSkillMentions(destination, text, nestedEntries, nestedDirs);
       }

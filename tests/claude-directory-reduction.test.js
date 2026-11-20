@@ -79,7 +79,9 @@ function sampleFullPluginMap() {
     ['skills/flow-guide/assets/dhpk-icon.svg', entry('<svg/>\n')],
     ['skills/flow-guide/SKILL.md', entry('---\nname: flow-guide\ndescription: Router\n---\n# Flow Guide\nUse `$flow-drive` and `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js` or [manual](references/manual-procedure.md).\n')],
     ['skills/flow-guide/references/manual-procedure.md', entry('# Flow Guide Manual\nRead `references/skill-next-map.json`.\n')],
-    ['skills/precommit/SKILL.md', entry('---\nname: precommit\ndescription: Precommit\n---\n# Precommit\n')],
+    ['skills/precommit/SKILL.md', entry('---\nname: precommit\ndescription: Precommit\n---\n# Precommit\nUse the packaged runner.\n')],
+    ['skills/precommit/references/manual-procedure.md', entry('# Precommit Manual\n')],
+    ['agent-traps/database-reviewer/fastapi.md', entry('pass bind values; raw SQL only via named parameters.\n')],
     ['skills/git-smart-commit/SKILL.md', entry('---\nname: git-smart-commit\ndescription: Commit\n---\n# Commit\n')],
     ['skills/harness-setup/SKILL.md', entry('---\nname: harness-setup\ndescription: Setup\n---\n# Setup\nUse the native package installer.\n')],
     ['skills/harness-setup/references/manual-procedure.md', entry('# Setup Manual\n')],
@@ -423,6 +425,13 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-pr
   assert.ok(!flowGuideBody.includes('action-runner.js'), flowGuideBody);
   assert.ok(flowGuideBody.includes('/dhpk-lite:flow-drive'), flowGuideBody);
   assert.ok(!/(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(flowGuideBody));
+
+  const precommit = output.get('skills/precommit/SKILL.md').content.toString('utf8');
+  assert.match(precommit, /references\/manual-procedure\.md/);
+  assert.match(precommit, /mode: manual/);
+  assert.doesNotMatch(precommit, /packaged runner/);
+  const fastapi = output.get('agent-traps/database-reviewer/fastapi.md').content.toString('utf8');
+  assert.match(fastapi, /Use SQLAlchemy bound parameters/);
 
   const setupBody = output.get('skills/harness-setup/SKILL.md').content.toString('utf8');
   assert.match(setupBody, /only on an explicit user request/);
