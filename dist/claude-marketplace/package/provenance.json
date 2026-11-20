@@ -3421,7 +3421,7 @@
       "sourcePath": "skills/release-creator/references/manual-procedure.md",
       "destination": "skills/release-creator/references/manual-procedure.md",
       "kind": "entry",
-      "sha256": "e23338084cb1d12569180c02f2f0de40bff292d70ce988ef460fd232172071cc"
+      "sha256": "16fdcf05caecfc33ecd8a49d41f06b3d0cd50b168efa3471cc418d1c9fb6fd04"
     },
     {
       "skillId": "release-creator",

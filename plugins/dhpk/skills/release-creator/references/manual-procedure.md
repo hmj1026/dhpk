@@ -25,13 +25,13 @@ Matches `release-runner.sh prepare`.
    `{VERSION_FILES}`, `{VALIDATE_CMD}`, `{BASE_BRANCH}`, `{RELEASE_BRANCH}`,
    `{TAG_PREFIX}`, `{CHANGELOG}`, and `{RELEASE_WORKFLOW}` with the user.
 2. Verify strict semver `<X.Y.Z>`. If the user gave no file list and the project
-   has no `scripts/release/prepare-release.js`, stop and ask for files before
+   has no `$PROJECT_DIR/scripts/release/prepare-release.js`, stop and ask for files before
    any Git change. Then run `git checkout {BASE_BRANCH}` and
    `git pull --ff-only`. Then update every version file, changelog section, and
    generated release artifact in lockstep (or run the project's own
    `prepare-release` command if `RELEASE.md` defines one).
 3. Resolve the release file scope. Use the file list the user gave. If none was
-   given, run `node scripts/release/prepare-release.js paths`; each output line
+   given, run `node $PROJECT_DIR/scripts/release/prepare-release.js paths`; each output line
    is `file <path>`, `dir <prefix>`, or `deleted <prefix>`. Stop if the output
    is empty.
 4. Run `{VALIDATE_CMD}` (`npm test` / project validator). Inspect
@@ -73,10 +73,10 @@ Matches `release-runner.sh publish`. Accept no release file list.
    Confirm HEAD has exactly two parents (`git rev-list --parents -n1 HEAD`);
    stop if it is a squash or rebase commit.
 3. Run the pre-tag gate in the consumer project. Use the combined gate
-   (`scripts/release/publish-gate.js`, or the script the project names in
+   (`$PROJECT_DIR/scripts/release/publish-gate.js`, or the script the project names in
    `DHPK_RELEASE_PUBLISH_GATE_SCRIPT`) with `node <script> --version <version>`.
    If no combined gate exists, use the package-only gate instead
-   (`scripts/release/package-gate.js`, or `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`).
+   (`$PROJECT_DIR/scripts/release/package-gate.js`, or `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`).
    Stop `FAIL` if a named script is missing or exits non-zero. If the project
    has no gate, mark it `NOT_RUN` and do not claim an overall pass.
 4. Stop if the tag `{TAG_PREFIX}<version>` already exists

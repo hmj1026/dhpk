@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.79.1",
-  "sourceCommit": "e90512fcdfe4caef5a07e096f46b5b76ecedf17f",
-  "generatedFromCommit": "e90512fcdfe4caef5a07e096f46b5b76ecedf17f",
-  "generatedFromTree": "4ada0638b12cccdfb01dd3a4d62dc1c396013698",
+  "sourceCommit": "e1de350d295b0340809606ef8e007989c7badc97",
+  "generatedFromCommit": "e1de350d295b0340809606ef8e007989c7badc97",
+  "generatedFromTree": "70252f0fa171bf8b6c53969bb3b10dd502dbabbd",
   "inventoryDigest": "a214d830394523d2b57f710cc46cf809d92398df36edc77ee9392d2ba3ce9606",
   "inventoryRevision": "sha256:1e63dab6094e00d959ebecf30a2a90783048665af7b910c4cdc8193562dd8b9a",
   "generatorVersion": "2.4.0",
@@ -2129,7 +2129,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/references/manual-procedure.md",
         "destination": "skills/release-creator/references/manual-procedure.md",
-        "originalGitBlobDigest": "e993cd933752dfc1a1db8dec6de7fbeb9e4c9a92"
+        "originalGitBlobDigest": "fa60c19548f7fa506f6263186ccc19ad38bf1cfe"
       },
       {
         "ownerId": "release-creator",
@@ -4912,7 +4912,7 @@
     "git-worktree": "937ecd20112e34ac279e56ba9de95e7c533fdb9b7c0d82b9661496e3d8651388",
     "precommit": "86dbc4b393ec4c09ff38e04f66fd8504baa87017c2f9cfe2d9ac65831ee0a090",
     "proposal-analyze": "30beae79ada0acb4ee2906a99abf5029e36dcf5a411fa3cb573319b429884bd4",
-    "release-creator": "9d789f009e5ad0ed1f1b941630caf74082af2c641ea881891fa33def9691f2c1",
+    "release-creator": "dd1d649f69799b387637a0b2886a8fdaac52a303c28468c6e5cb4c34ed62607b",
     "repo-verify": "e69a12af65398ffe2153861568e6dfd63afd937c451cc6c1e36aca397403f999",
     "tdd-workflow": "73cd02b795b6c6c41a1ab1a0730dd98a8924f47235354d193934a2eb817b654e",
     "ui-ux-verify": "1db558c9689975b6c6c15d4a442d9923df25404f8dd2007da972963f3f65e5c5"
