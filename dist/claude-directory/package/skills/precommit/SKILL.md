@@ -1,79 +1,10 @@
 ---
 name: precommit
-description: "Run the deterministic pre-commit pipeline in fast or full mode through the packaged runner. Use when handing off repository changes. Not for: ad hoc replacement checks, dependency audits, or read-only verification. Output: runner-owned changed-file reporting and final verdict."
+description: "Run the consumer repository pre-commit pipeline in fast or full mode using the Manual Procedure. Report stage results, changed files, and the final verdict."
 ---
 
 # Precommit
 
-## Workflow
-
-Run from the consumer repository. Resolve `--fast` to fast mode and no flag to
-full mode, then invoke the package-local runner when present (if the runner
-script is absent, such as in the instruction-only Directory Plugin, follow
-[`references/manual-procedure.md`](references/manual-procedure.md) and report
-`mode: manual`):
-
-```bash
-node "references/manual-procedure.md (precommit-runner.js)" --mode <fast|full> --tail 80
-```
-
-With `--dry-run`, append that flag to preview the selected stages, commands,
-and working directories. The runner performs read-only repository discovery
-and stops before executing checks or writing cache/log files. `DRY_RUN` is a
-plan, not verification evidence. Fast mode omits build; its test selection can
-still fall back to the complete `test` script. Preview unfamiliar configurations
-before choosing an execution checkpoint.
-
-Here `$SKILL_DIR` is the installed directory containing this `SKILL.md`; the
-current working directory remains the consumer repository. The runner and its
-adjacent `references/manual-procedure.md (runner-utils.js)` are one local runtime tree.
-With the setup installer, the runner is
-`references/manual-procedure.md (precommit-runner.js)`.
-The runner owns ecosystem detection, package-manager selection,
-`lint:fix -> build -> test:unit` ordering, graceful skips, changed-file
-reporting, and the final verdict. If checks live in subprojects or do not use
-root `package.json` scripts, configure them in the repository-root
-[`precommit.config.json`](references/workflow.md#explicit-repository-configuration).
-Configured commands run directly from their declared working directories.
-Read
-[`references/workflow.md`](references/workflow.md) for the terminal boundary.
-
-When using the changed-file report for handoff, apply the kernel's
-[Evidence snapshots](https://github.com/hmj1026/dhpk/blob/main/rules/execution-policy-kernel.md#evidence-snapshots)
-rule to verification and review evidence.
-
-## When NOT to Use
-
-- A read-only verification loop is requested (use `/dhpk-lite:repo-verify`).
-- Dependency security evidence or a fix operation is requested (use
-  `/dhpk-lite:change-verdict deps`).
-- A one-off command is requested outside the deterministic precommit pipeline.
-
-## Output
-
-For a preview, return the runner's `DRY_RUN` plan and retain its unexecuted state.
-For execution, return the runner output, changed-file report, and its final `PASS`, `FAIL`, or
-`UNSUPPORTED` verdict. A missing runner is `UNAVAILABLE` unless following
-[`references/manual-procedure.md`](references/manual-procedure.md); a runner crash or
-failed check is `FAIL`. An `UNSUPPORTED` verdict means no Git repository or executable checks were
-available and exits non-zero; use the runner when present, otherwise follow
-[`references/manual-procedure.md`](references/manual-procedure.md); never claim
-a pass from partial output or when a required stage did not run.
-
-## Verification
-
-- [ ] Mode is exactly `fast` or `full` and the runner received `--tail 80`.
-- [ ] The package-local runner ran from the consumer repository cwd.
-- [ ] The local `runner-utils.js` helper resolved beside the runner.
-- [ ] A requested dry run listed the selected commands without stage/cache
-  writes and was reported as a plan rather than a check result.
-- [ ] Runner-owned stage order, skips, changed files, and verdict are intact.
-- [ ] `summary.json` `overallStatus` and the final Markdown verdict agree;
-  `FAIL` and `UNSUPPORTED` remain terminal when the CLI exits zero.
-- [ ] Non-zero exit or missing final verdict remains a failure.
-
-## References
-
-- [`references/workflow.md`](references/workflow.md) — mode mapping,
-  `$SKILL_DIR` resolution, runner ownership, and failure handling.
-- [`references/manual-procedure.md`](references/manual-procedure.md) — stage-ordered manual fallback (`mode: manual`) when the packaged runner is absent.
+From the consumer repository root, follow [the Manual Procedure](references/manual-procedure.md).
+Choose full mode by default or fast mode when requested. For a dry run, report the plan without executing it.
+Report the stage results, changed files, and final verdict in `mode: manual`.
