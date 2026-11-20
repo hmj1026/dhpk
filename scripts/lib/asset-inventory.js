@@ -25,7 +25,7 @@ const CODEX_MCP_COMMAND_NAMES = Object.freeze([
 ]);
 
 function frontmatterBlock(content) {
-  const match = String(content || '').replace(/^﻿/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  const match = String(content || '').replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   return match ? match[1] : '';
 }
 

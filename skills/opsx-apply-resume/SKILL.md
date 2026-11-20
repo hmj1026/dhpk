@@ -1,7 +1,7 @@
 ---
 name: opsx-apply-resume
 argument-hint: '[<save-or-resume-task>] [<change-id>]'
-description: 'Save and resume a long-running OpenSpec apply session from a live worktree, preserving optional gates and host-specific handoff artifacts. Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite. Output: a saved/resumed handoff report with lifecycle and next-action evidence.'
+description: 'Save and resume a long-running OpenSpec apply session from a live worktree, preserving optional gates and host-specific handoff artifacts. Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite. Output: a saved/resumed handoff report with lifecycle and next-action evidence. Explicit user request only; stop and ask before any side effect if selected by the model.'
 disable-model-invocation: true
 metadata:
   dhpk-capability-id: dhpk.skill.opsx-apply-resume
@@ -17,13 +17,18 @@ metadata:
 
 # OpenSpec Apply Resume
 
+Run this skill only on an explicit user request; otherwise stop and ask before any stage or side effect.
+
 `$opsx-apply-resume` is the explicit handoff capability behind
 `/dhpk:opsx-apply-resume`. It snapshots enough live state to cross a context
 boundary and restores it later; the live worktree remains the source of truth.
 `$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
 it is path notation, not an ambient environment variable or repository-root
 lookup. Resolve it once before invoking a package-local helper and keep the
-consumer's current working directory unchanged.
+consumer's current working directory unchanged. When `$SKILL_DIR/scripts/`
+helpers are absent (for example in the instruction-only Directory Plugin) or
+cannot run, follow [references/manual-procedure.md](references/manual-procedure.md)
+and report `mode: manual`.
 
 ## When to Use
 
@@ -121,3 +126,4 @@ private paths beyond the declared artifact path.
   handoff write contract.
 - [references/resume.md](references/resume.md) — load, context fallback,
   consuming state, external continuation, and archive contract.
+- [references/manual-procedure.md](references/manual-procedure.md) — fallback stages when `scripts/` helpers are absent.

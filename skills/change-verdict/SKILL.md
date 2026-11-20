@@ -13,8 +13,8 @@ metadata:
     BLOCKED: none
     NOT_RUN: none
     UNAVAILABLE: none
-    code:PASS: precommit
-    docs:PASS: git-smart-commit
+    'code:PASS': precommit
+    'docs:PASS': git-smart-commit
 ---
 
 # Change Verdict

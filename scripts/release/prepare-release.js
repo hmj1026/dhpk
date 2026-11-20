@@ -128,6 +128,7 @@ function isCanonicalReleaseTarget(root, target) {
     path.join(resolvedRoot, 'plugins', 'dhpk'),
     path.join(resolvedRoot, 'dist', 'claude-marketplace', 'package'),
     path.join(resolvedRoot, 'dist', 'claude-marketplace', 'stacks-package'),
+    path.join(resolvedRoot, 'dist', 'claude-directory', 'package'),
   ]);
   if (canonicalFiles.has(resolvedTarget) || canonicalDirectories.has(resolvedTarget)) return true;
   const fragmentDirectory = path.join(resolvedRoot, 'changelog.d');
@@ -651,6 +652,9 @@ function main() {
     materialize({ root: args.root, out: stagedClaude, version: args.version });
     const stagedStacks = path.join(stagingRoot, 'claude-stacks-package');
     materialize({ root: args.root, out: stagedStacks, kind: 'stacks', version: args.version });
+    const stagedDirectory = path.join(stagingRoot, 'claude-directory-package');
+    materialize({ root: args.root, out: stagedDirectory, kind: 'directory', version: args.version });
+    fs.mkdirSync(path.join(args.root, 'dist', 'claude-directory'), { recursive: true });
 
     const stagedChangelog = path.join(stagingRoot, 'CHANGELOG.md');
     fs.copyFileSync(changelogPath, stagedChangelog);
@@ -694,6 +698,7 @@ function main() {
       { target: path.join(args.root, 'plugins', 'dhpk'), source: stagedNative },
       { target: path.join(args.root, 'dist', 'claude-marketplace', 'package'), source: stagedClaude },
       { target: path.join(args.root, 'dist', 'claude-marketplace', 'stacks-package'), source: stagedStacks },
+      { target: path.join(args.root, 'dist', 'claude-directory', 'package'), source: stagedDirectory },
       ...promoted.consumed.map((relative) => ({ target: path.join(fragmentDir, relative), source: null })),
     ];
     const operationKey = args.operationKey || `release-${args.version}-${Date.now()}`;
@@ -705,6 +710,7 @@ function main() {
     changed.push('plugins/dhpk/ (regenerated codex-native package: manifest, skills/, fingerprints.json, provenance.json)');
     changed.push('dist/claude-marketplace/package/ (regenerated Claude marketplace package)');
     changed.push('dist/claude-marketplace/stacks-package/ (regenerated dhpk-stacks package)');
+    changed.push('dist/claude-directory/package/ (regenerated Claude Directory Plugin package)');
 
     console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
     for (const f of changed) console.log(`  - ${f}`);

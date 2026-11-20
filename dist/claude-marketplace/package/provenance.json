@@ -29,7 +29,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "463339e1e207fb3731dab4660289fe55641ed0d358c801ef3409bb3fe0ec6249"
+      "sha256": "ce08ed6c1eb28a30902f20fb0be8e57fab327b19d822fc84065b90b13b2db137"
     },
     {
       "skillId": "change-verdict",
@@ -669,7 +669,7 @@
       "sourcePath": "skills/doc-maintain/SKILL.md",
       "destination": "skills/doc-maintain/SKILL.md",
       "kind": "entry",
-      "sha256": "2698d7e0048f5366d5af2e3fe84427b8af4be51d956610ae62924287876f3767"
+      "sha256": "c45a6543456e4c64705ec8580f333c83f05bf465de3438e79752421b7004cc85"
     },
     {
       "skillId": "doc-maintain",
@@ -1765,7 +1765,7 @@
       "sourcePath": "skills/flow-guide/SKILL.md",
       "destination": "skills/flow-guide/SKILL.md",
       "kind": "entry",
-      "sha256": "116a7e176d2e8bac38e005e50bc45b5846d8f5db141dae96ba7b93068e93e8b9"
+      "sha256": "a8f9493b351a090a64ccaf2b2c953eb61d76164364698ccc18b3941412bc7f5e"
     },
     {
       "skillId": "flow-guide",
@@ -1789,7 +1789,7 @@
       "sourcePath": "skills/flow-guide/distribution.yaml",
       "destination": "skills/flow-guide/distribution.yaml",
       "kind": "entry",
-      "sha256": "5da600c7b6a16b2cee5d8e864256d3dde65b95d198981d7f67082583e92e0bde"
+      "sha256": "788b6ef5ecb7ef1f76203542caceae590b34c76746f7dff087a25f25e574fe03"
     },
     {
       "skillId": "flow-guide",
@@ -2114,6 +2114,14 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/references/manual-procedure.md",
+      "destination": "skills/flow-guide/references/manual-procedure.md",
+      "kind": "entry",
+      "sha256": "63e911cadc4d8f6ebe615a372fc5e1372efaf83636eb4203bfa0699ea595b8ab"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/references/output-shape.md",
       "destination": "skills/flow-guide/references/output-shape.md",
       "kind": "entry",
@@ -2277,7 +2285,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/frontmatter.js",
       "destination": "skills/flow-guide/scripts/_lib/frontmatter.js",
       "kind": "entry",
-      "sha256": "409b947c7d494d3aaaa1e3c6764d66c2730572c9b3f3ac130344d64ac50afae6"
+      "sha256": "c5e6ce0c517c68e0f74920b5adbdac6dc02d95d0098c536d4e3b1f54ee3b4c45"
     },
     {
       "skillId": "flow-guide",
@@ -2317,7 +2325,7 @@
       "sourcePath": "skills/flow-guide/scripts/action-runner.js",
       "destination": "skills/flow-guide/scripts/action-runner.js",
       "kind": "entry",
-      "sha256": "ce5e467f611ef75544e1bbf4218af711a6137612424972023aba210765ec4faf"
+      "sha256": "7f6d58fea4c98d416e8862bbe4bda0b2f6f2bd784ce2c0078d140a522ccfc564"
     },
     {
       "skillId": "flow-guide",
@@ -2341,7 +2349,7 @@
       "sourcePath": "skills/flow-guide/scripts/pre-route.sh",
       "destination": "skills/flow-guide/scripts/pre-route.sh",
       "kind": "entry",
-      "sha256": "7e31727e91e8a5a805ca5a4fa61c7fbb8897317849e81df80fbe80f807eb6536"
+      "sha256": "a00954a2e86435235374499cc7ef66020c3ce0de8e93b410868d5ee559c9d0fb"
     },
     {
       "skillId": "flow-guide",
@@ -2381,7 +2389,7 @@
       "sourcePath": "skills/flow-guide/scripts/usage-card.js",
       "destination": "skills/flow-guide/scripts/usage-card.js",
       "kind": "entry",
-      "sha256": "e906423d288e8f34107b64470f56176a459e5f4df49ab63a55f6f39792a22fbe"
+      "sha256": "ac49f4197183e6bd4c474f11240b278c6de6d4c9c6fff106bc2ca2e089d23760"
     },
     {
       "skillId": "flow-guide",
@@ -2397,7 +2405,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "b1f70ca400f3e5998f8854b26e2f835d76a39f18037264d09f6b93b315001cd6"
+      "sha256": "7422d732cddc5a183357028bacfee2a1b14c8912ab1d25a14fa9cba161ee71a4"
     },
     {
       "skillId": "git-smart-commit",
@@ -2413,7 +2421,7 @@
       "sourcePath": "skills/git-smart-commit/distribution.yaml",
       "destination": "skills/git-smart-commit/distribution.yaml",
       "kind": "entry",
-      "sha256": "9beb16bf975a9859829ad8e163f68c1b8cce43afbf01d3e2fb3ac47f83d12dfc"
+      "sha256": "3ea1b87c61142667cb20be5666dd1afcc8dcb5eb45e5a013ae6c882cdce57dd2"
     },
     {
       "skillId": "git-smart-commit",
@@ -2426,10 +2434,18 @@
     {
       "skillId": "git-smart-commit",
       "ownerId": "git-smart-commit",
+      "sourcePath": "skills/git-smart-commit/references/manual-procedure.md",
+      "destination": "skills/git-smart-commit/references/manual-procedure.md",
+      "kind": "entry",
+      "sha256": "f26c0a71405c45620676eaaedbf21e4f3168460cd8ea1452b08d938e9b3abaab"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
       "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
       "destination": "skills/git-smart-commit/scripts/collect-changes.js",
       "kind": "entry",
-      "sha256": "554ef41805d75d7e67bb3bbb2fd465119dc34fc6261fddafb78ad66401353579"
+      "sha256": "6d95509c27d25c09573dedfdfe3a8b81d4d80acdbd0472114d25184023f0c81c"
     },
     {
       "skillId": "git-worktree",
@@ -2469,7 +2485,7 @@
       "sourcePath": "skills/harness-setup/SKILL.md",
       "destination": "skills/harness-setup/SKILL.md",
       "kind": "entry",
-      "sha256": "ab139b973c5458ca205934931337a52833b65b2a8f4b91d5677ba9406d36af2e"
+      "sha256": "d341f41ed30b3c5ec9dc40b4f5ce4c80c77b49b90277e8724ee0af638133d1de"
     },
     {
       "skillId": "harness-setup",
@@ -2493,7 +2509,7 @@
       "sourcePath": "skills/harness-setup/distribution.yaml",
       "destination": "skills/harness-setup/distribution.yaml",
       "kind": "entry",
-      "sha256": "16e71a4c417ee0a04eb87cf14d68caf6d831718e5e4d53f95568fdac4b41cb2b"
+      "sha256": "6556c259cb7fdb8c00afab5f4eac67ad3e789208bfb040974a915cb8d62944f5"
     },
     {
       "skillId": "harness-setup",
@@ -2501,7 +2517,7 @@
       "sourcePath": "skills/harness-setup/references/claude-setup.md",
       "destination": "skills/harness-setup/references/claude-setup.md",
       "kind": "entry",
-      "sha256": "2726dc4c5c08ea711ce2789e4e4d8bbc77451b9f0d00b18f0b6a3663427a35ac"
+      "sha256": "21fc236897a9287c958f2bb5d638f1c52d55b24a6368171c4255f5d785d13be5"
     },
     {
       "skillId": "harness-setup",
@@ -2522,10 +2538,18 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
+      "sourcePath": "skills/harness-setup/references/manual-procedure.md",
+      "destination": "skills/harness-setup/references/manual-procedure.md",
+      "kind": "entry",
+      "sha256": "4d650c7527fa552c331a9b1b90fe85f72432224224009a7d275f0630b65ce0b4"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
       "sourcePath": "skills/harness-setup/scripts/install-assets.sh",
       "destination": "skills/harness-setup/scripts/install-assets.sh",
       "kind": "entry",
-      "sha256": "9ba67b8384500833c0b44fc770bfbc64f00760d90d8692c92754385749e8a0eb"
+      "sha256": "594e90dde441daeca61ac087a4be44fb999fb5b9da19433466299006f6a5ca73"
     },
     {
       "skillId": "harness-setup",
@@ -2533,7 +2557,7 @@
       "sourcePath": "skills/harness-setup/scripts/install-codex-project.sh",
       "destination": "skills/harness-setup/scripts/install-codex-project.sh",
       "kind": "entry",
-      "sha256": "37fe84359c3de8196ab1fdfed4e5dd3a004e3c0b70068adbafd4581b4e14a66b"
+      "sha256": "4f7a8e800e944879ca0e46cc748a1b4d76876081145891cf2c87a126257a6316"
     },
     {
       "skillId": "harness-setup",
@@ -2738,8 +2762,8 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
-      "sourcePath": "skills/harness-setup/templates/settings.local.json.example",
-      "destination": "skills/harness-setup/templates/settings.local.json.example",
+      "sourcePath": "skills/harness-setup/templates/settings.local.example.json",
+      "destination": "skills/harness-setup/templates/settings.local.example.json",
       "kind": "entry",
       "sha256": "aa4b88f7f19c6637fb5b05c20e274e96dee4891459d8f418cbd1b1edf82a9ea5"
     },
@@ -2845,7 +2869,7 @@
       "sourcePath": "skills/opsx-apply-resume/SKILL.md",
       "destination": "skills/opsx-apply-resume/SKILL.md",
       "kind": "entry",
-      "sha256": "47ce7b1dfec077780e679c4d241227ace6b19c3a90a8b6729b5627b5a32fdbbc"
+      "sha256": "d2843a1b39a36aeb9363055b0f651f003d0de8922f3ef24925698a945e19a13e"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2861,7 +2885,7 @@
       "sourcePath": "skills/opsx-apply-resume/distribution.yaml",
       "destination": "skills/opsx-apply-resume/distribution.yaml",
       "kind": "entry",
-      "sha256": "c0151a3a33a90259cdaa64172b232c3312a7145fcf0c2d2b36adc59baa06f032"
+      "sha256": "0f27240325f5d65e1291259070dc71af4ea82d99dbd79a442bfbbafd15f6c8d5"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2878,6 +2902,14 @@
       "destination": "skills/opsx-apply-resume/references/load-context.md",
       "kind": "entry",
       "sha256": "a1ec93b8caefbfd6c4437a46192f4c9c7aaa8c1fa28418157ee5889339b8324d"
+    },
+    {
+      "skillId": "opsx-apply-resume",
+      "ownerId": "opsx-apply-resume",
+      "sourcePath": "skills/opsx-apply-resume/references/manual-procedure.md",
+      "destination": "skills/opsx-apply-resume/references/manual-procedure.md",
+      "kind": "entry",
+      "sha256": "3dfdc9d429eb45d18cf46b8356738713fbb246663b05655eb937cf801a0d5654"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2909,7 +2941,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/detect-phase.sh",
       "destination": "skills/opsx-apply-resume/scripts/detect-phase.sh",
       "kind": "entry",
-      "sha256": "5f6b5c6a0d3e5ca94e5fb78c34378fa7223479bc3429dbfcf4bb3a4fa8dd219f"
+      "sha256": "5af4c009512d1b42d32d4135e42edc00d973b3437fa3bf0c5e5c5f1c8ff0f0d7"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2917,7 +2949,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/extract-compact.sh",
       "destination": "skills/opsx-apply-resume/scripts/extract-compact.sh",
       "kind": "entry",
-      "sha256": "2c59d38ad387b67ae5d3ceb360c76d4288b65c49ca4be649d561bcbfb3fdb8af"
+      "sha256": "40fb537fbd1b480ff5f145b7de2b365b4f6aef785151d5e0fa661619db9d3883"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2933,7 +2965,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/post-obs.sh",
       "destination": "skills/opsx-apply-resume/scripts/post-obs.sh",
       "kind": "entry",
-      "sha256": "813fa07e844756313d2d708243d36981940fb03a9704f36dcf85bd934f6da2f2"
+      "sha256": "0c7b200bc5f0f482ab464881d34739c946cdd716439bf0bf9de5adb7d6b9658c"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2941,7 +2973,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
       "destination": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
       "kind": "entry",
-      "sha256": "c677f05074532e2ce962d57d38df9159e31557d2ad0392f3a524d343d6292db9"
+      "sha256": "135e0415d82e7674f3bbc463dc10f3bc085a94fcc3506d30dd012a9ee0ad6137"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2949,7 +2981,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/write-handoff.sh",
       "destination": "skills/opsx-apply-resume/scripts/write-handoff.sh",
       "kind": "entry",
-      "sha256": "e4921824a3377a8eec398a950dd35536721784b08411c2ec3e07dbbed4724244"
+      "sha256": "fcf5158ac36ce61dde100e6a329ad329235e210da5cb587b383524675cd5509f"
     },
     {
       "skillId": "precommit",
@@ -2957,7 +2989,7 @@
       "sourcePath": "skills/precommit/SKILL.md",
       "destination": "skills/precommit/SKILL.md",
       "kind": "entry",
-      "sha256": "c97b4c97318e9e94cfbbba31710337162a24357aa0886f26a3f08ca717199eaf"
+      "sha256": "ee81434c824f905981a2e64d586e2c3202c43044b5c6c30865bb05647e1f744c"
     },
     {
       "skillId": "precommit",
@@ -2973,7 +3005,15 @@
       "sourcePath": "skills/precommit/distribution.yaml",
       "destination": "skills/precommit/distribution.yaml",
       "kind": "entry",
-      "sha256": "246a3cb6d1aef746eb5e4ab094a9aa8b0b48b8e7a0df8863ef41433fba5caebe"
+      "sha256": "cbe16f761bbc0a374962ea0f2b6240b117f4a430f0720397da5d144970417e49"
+    },
+    {
+      "skillId": "precommit",
+      "ownerId": "precommit",
+      "sourcePath": "skills/precommit/references/manual-procedure.md",
+      "destination": "skills/precommit/references/manual-procedure.md",
+      "kind": "entry",
+      "sha256": "72ae79e8af6b512c136f7e1111c5ca95c541a9457adcff88b31f38fd9241fb26"
     },
     {
       "skillId": "precommit",
@@ -2997,7 +3037,7 @@
       "sourcePath": "skills/precommit/scripts/precommit-runner.js",
       "destination": "skills/precommit/scripts/precommit-runner.js",
       "kind": "entry",
-      "sha256": "8fa1b1e9e1fdcc8a3e33901cf1ab9c1b7211244a01a83f1b010eb75b1f1e3ee8"
+      "sha256": "42183be72aa90b49e6c8b3bf1ddf9c18fbc9d15a20765b0a53971dfbaf019057"
     },
     {
       "skillId": "proposal-analyze",
@@ -3125,7 +3165,7 @@
       "sourcePath": "skills/release-creator/SKILL.md",
       "destination": "skills/release-creator/SKILL.md",
       "kind": "entry",
-      "sha256": "1b2f5cfb4288d722f375aff106102b570179e95ad6af2b4155aedf0b71c3c4aa"
+      "sha256": "280a8e49cc54f494e6c8339fd14bb40c2c07c34699d7a62536befc930880e623"
     },
     {
       "skillId": "release-creator",
@@ -3141,7 +3181,7 @@
       "sourcePath": "skills/release-creator/distribution.yaml",
       "destination": "skills/release-creator/distribution.yaml",
       "kind": "entry",
-      "sha256": "b9c02eddee042a3966ce38d54a683dcdca8d718c293298735c6e3527060f04d5"
+      "sha256": "820f495493ea1c44cf20ebb525621a6ace95795975e4e903054dfd9231b6bb55"
     },
     {
       "skillId": "deploy-list",
@@ -3378,6 +3418,14 @@
     {
       "skillId": "release-creator",
       "ownerId": "release-creator",
+      "sourcePath": "skills/release-creator/references/manual-procedure.md",
+      "destination": "skills/release-creator/references/manual-procedure.md",
+      "kind": "entry",
+      "sha256": "e23338084cb1d12569180c02f2f0de40bff292d70ce988ef460fd232172071cc"
+    },
+    {
+      "skillId": "release-creator",
+      "ownerId": "release-creator",
       "sourcePath": "skills/release-creator/references/release-presets.md",
       "destination": "skills/release-creator/references/release-presets.md",
       "kind": "entry",
@@ -3389,7 +3437,7 @@
       "sourcePath": "skills/release-creator/scripts/release-runner.sh",
       "destination": "skills/release-creator/scripts/release-runner.sh",
       "kind": "entry",
-      "sha256": "b7b68b2e3096dc65d373860e209a3893ab9fb75cb326334d681c8ae0e7bde4ef"
+      "sha256": "f364b1620f9308a58444067248bdc82742251b810f999749abe3d180c286c972"
     },
     {
       "skillId": "repo-verify",

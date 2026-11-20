@@ -1,0 +1,76 @@
+---
+name: create-pr
+description: "Create a GitHub pull request from a pushed branch with ticket-aware title and body generation. Not for: committing, pushing, merging, releasing, or editing an existing PR. Output: a dry-run gh pr create command by default, or the created PR URL after explicit execution."
+---
+
+# Create PR
+
+## Workflow
+
+Run in the consumer repository and preserve the supplied arguments. Resolve
+the selected head and base once, before the commit count, log, diff, ticket,
+push check, existing-PR query, or `gh` command. An explicit `--head` wins.
+When it is omitted, the selected head is the current branch. An explicit `--base` wins. When it
+is omitted and the consumer project's instructions supply `{TARGET_BRANCH}`,
+use that value. dhpk does not define a userConfig key for `{TARGET_BRANCH}`
+or `{TICKET_PATTERN}`. When `{TARGET_BRANCH}` is unset, the generic fallback is `main`.
+The consumer project's Project Convention supplies any project-specific
+base; use the explicit option or project instructions to select it. A
+ref that does not resolve is `BLOCKED`; do not substitute the checkout or
+another branch.
+
+Extract a ticket from the selected head name with `{TICKET_PATTERN}`.
+When the project does not set `{TICKET_PATTERN}`, use `[A-Z]+-\d+`.
+When the head name does not match, say the ticket was not resolved and
+do not invent one. Then generate `<type>: [<TICKET>] <summary>` unless
+`--title` overrides it. Build the body in this order: Summary, Evidence,
+Merge Danger, the ticket link when resolved, then verification.
+Summary uses one visual form from the workflow guide: pseudocode, a call
+tree, a component tree, a Mermaid sequence diagram, or a minimal diff.
+Evidence pairs a pre-change Before with an After observed on the selected
+head. Merge Danger states Door (`one-way` or `two-way`) and Blast Radius
+(the callers, packages, or surfaces affected, plus any chain reaction).
+Separate checks actually run on the selected range from planned checks
+marked `NOT RUN`. A result observed only on a different checkout is
+`NOT RUN` for this request. The section shape, form guide, and
+unobserved-after rule live in
+[`references/workflow.md`](references/workflow.md). Before any PR creation,
+run the pre-flight checks in that reference. Count commits with
+`git rev-list --count <selected-base>..<selected-head>`. A zero count stops
+with `No commits between <selected-base> and <selected-head> — nothing to open a PR for`.
+
+Dry-run is the default and only prints a copy-pasteable `gh pr create`
+command. `--execute` is the sole creation path: verify the branch is pushed,
+verify no PR already exists, require the existing GitHub authorization, ask
+for confirmation, and then report the URL. Do not push or create commits.
+
+## When NOT to Use
+
+- The branch still needs commits or a push.
+- An existing PR must be edited, merged, or closed.
+- A release, tag, or deployment is the requested operation.
+
+## Output
+
+- Dry-run: one copy-pasteable `gh pr create` command block and no PR URL claim.
+- Execute: the URL returned by `gh pr create`.
+- Missing refs, no commits, an unpushed branch, an existing PR, unavailable
+  `gh`, failed authorization, or failed confirmation are terminal failures;
+  never report a created PR without the URL evidence.
+
+## Verification
+
+- [ ] The selected head and base resolve, and that range's commit count is non-zero.
+- [ ] The selected head is pushed and no matching PR already exists for that head and base.
+- [ ] Dry-run performed no PR mutation, or execute mode has a returned URL.
+- [ ] The title, body, ticket, and diff describe the selected head and base.
+- [ ] Summary uses one form from the workflow guide; Evidence pairs a
+      pre-change Before with an After on the selected head; Merge Danger
+      states Door and Blast Radius.
+- [ ] Observed checks and planned `NOT RUN` checks are distinct; an
+      unobserved after-state is marked expected.
+
+## References
+
+- [`references/workflow.md`](references/workflow.md) — option resolution,
+  pre-flight evidence, command shape, and failure handling.

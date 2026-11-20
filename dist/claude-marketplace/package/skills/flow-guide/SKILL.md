@@ -33,7 +33,11 @@ owner's authority.
 | `close` | The edit boundary is complete and handoff readiness must be checked | Changed files, required gates, open risks, and the handoff state are accounted for. |
 
 Choose exactly one action. Load only the references named by that action, and
-keep required, skipped, unavailable, and failed evidence distinct.
+keep required, skipped, unavailable, and failed evidence distinct. Run the
+package-local `scripts/` helpers when present; when those scripts are absent
+(such as in the instruction-only Directory Plugin) or cannot execute, follow
+[`references/manual-procedure.md`](references/manual-procedure.md) for the
+matching action stage and report `mode: manual`.
 
 ## `help`
 
@@ -153,8 +157,8 @@ repository inventory, environment variable, or upward search is consulted.
   `references/projects-generic.md`.
 - `close`: use `references/output-shape.md`, `references/anti-loop.md`, and
   `references/squash-merge-hygiene.md` only for their named closeout checks.
-  `references/workflow-checklists.md` and `references/script-operations.md`
-  remain conditional detail, not initial context.
+- `references/workflow-checklists.md`, `references/script-operations.md`, and
+  `references/manual-procedure.md` remain conditional/fallback detail, not initial context.
 - Legacy deterministic helpers `scripts/openspec_gate_check.py`,
   `scripts/prepare_dev_scope.py`, `scripts/prepare_workflow_profile.py`, and
   `scripts/workflow_gate_check.py` are run only when a selected rule or next

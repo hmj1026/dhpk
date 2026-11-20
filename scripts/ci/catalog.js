@@ -18,6 +18,8 @@ const fs = require('fs');
 const path = require('path');
 const { CODEX_MCP_COMMAND_NAMES, collectInventory } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
+const { OMITTED_SKILLS } = require('../lib/claude-directory-reduction');
+const { validateDirectoryPlugin } = require('./validate-directory-plugin');
 const {
   MANIFEST_REL: PROJECTION_SETS_REL,
   computeProfileProjectionSets,
@@ -118,6 +120,17 @@ function checkOrWrite({ write }) {
     return 1;
   }
 
+  const directoryPkgDir = p('dist', 'claude-directory', 'package');
+  if (fs.existsSync(directoryPkgDir)) {
+    const dirResult = validateDirectoryPlugin(directoryPkgDir, { root: ROOT });
+    if (!dirResult.ok) {
+      for (const e of dirResult.errors) {
+        console.error(`DRIFT dist/claude-directory/package: ${e.file} (${e.rule}): ${e.message}`);
+      }
+      return 1;
+    }
+  }
+
   console.log('PASS [catalog]: retired Codex MCP surface and profile projection sets are current.');
   return 0;
 }
@@ -134,14 +147,14 @@ function printTable() {
 
   const inventoryPath = p('manifests', 'distribution-inventory.json');
   if (fs.existsSync(inventoryPath)) {
-    const dist = computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')));
+    const dist = computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')), { omittedSkillNames: OMITTED_SKILLS });
     // Scoped, independently-derived counts (harness-count-integrity spec):
     // a documentation claim about the default install surface must cite
     // claudePublished/codexPublished/promotedCore, never the canonical total.
     console.log(
       `  distribution: canonical ${dist.canonical} = promoted-core ${dist.promotedCore} + optional ${dist.optional} + experimental ${dist.experimental} + deprecated ${dist.deprecated}`
     );
-    console.log(`                claude-published ${dist.claudePublished}, codex-published ${dist.codexPublished}`);
+    console.log(`                claude-published ${dist.claudePublished}, claude-directory ${dist.claudeDirectoryPublished}, codex-published ${dist.codexPublished}`);
   }
 }
 

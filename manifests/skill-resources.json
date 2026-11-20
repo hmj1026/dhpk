@@ -144,8 +144,8 @@
         "destination": "data/module-catalog.json"
       },
       {
-        "source": "templates/settings.local.json.example",
-        "destination": "templates/settings.local.json.example"
+        "source": "templates/settings.local.example.json",
+        "destination": "templates/settings.local.example.json"
       }
     ],
     "opsx-apply-resume": [

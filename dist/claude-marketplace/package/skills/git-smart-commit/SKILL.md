@@ -1,6 +1,6 @@
 ---
 name: git-smart-commit
-description: '將雜亂的 git 變更依邏輯分群、逐批提交,適用於需要把多項變更拆成多個邏輯一致 commit 的情境。Not for: 單一小變更或只需要一個 commit（直接 commit 即可）。Output: 可直接執行的分組提交計畫與 commit 指令。'
+description: '將雜亂的 git 變更依邏輯分群、逐批提交,適用於需要把多項變更拆成多個邏輯一致 commit 的情境。Not for: 單一小變更或只需要一個 commit（直接 commit 即可）。Output: 可直接執行的分組提交計畫與 commit 指令。 Explicit user request only; stop and ask before any side effect if selected by the model.'
 argument-hint: '[--scope=<path>] [--type=<type>] [--ai-co-author]'
 disable-model-invocation: true
 metadata:
@@ -16,6 +16,8 @@ metadata:
 ---
 
 # Git Smart Commit — 智慧拆分提交
+
+Run this skill only on an explicit user request; otherwise stop and ask before any stage or side effect.
 
 將目前所有 staged / unstaged 變更，依功能邏輯分群後，逐批 `git add` + `git commit`。
 
@@ -35,7 +37,7 @@ Commit only within explicit user authorization. Reuse existing authorization for
 
 ### 1. 收集摘要並閱讀相關變更
 
-從 consumer 專案根目錄或子目錄執行唯讀收集器：
+從 consumer 專案根目錄或子目錄執行唯讀收集器（若 `$SKILL_DIR/scripts/collect-changes.js` 不存在或無法執行，例如純指引 Directory Plugin 環境，請依 [manual procedure](references/manual-procedure.md) 執行對應階段並標記 `mode: manual`）：
 
 ```bash
 node "$SKILL_DIR/scripts/collect-changes.js" [--scope <path>]

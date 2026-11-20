@@ -7,7 +7,8 @@
       "data/module-catalog.json",
       "references/claude-setup.md",
       "references/codex-setup.md",
-      "templates/settings.local.json.example"
+      "references/manual-procedure.md",
+      "templates/settings.local.example.json"
     ],
     "executable_entries": [
       {
@@ -48,8 +49,8 @@
       "destination": "data/module-catalog.json"
     },
     {
-      "source": "templates/settings.local.json.example",
-      "destination": "templates/settings.local.json.example"
+      "source": "templates/settings.local.example.json",
+      "destination": "templates/settings.local.example.json"
     }
   ],
   "usage": {

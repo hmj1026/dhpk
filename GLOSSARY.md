@@ -91,16 +91,28 @@ A versioned skills-only dhpk package intended for public distribution through Op
 _Avoid_: Local marketplace, project sync, installed skill directory
 
 **Directory Plugin**:
-A versioned dhpk package, carrying skills, agents, and hooks, intended for public distribution through Anthropic's Claude plugin directory.
-_Avoid_: Public Plugin, repository root plugin, marketplace package
+A versioned dhpk package that carries only instructions, such as skills, agents, and rules, and no code that runs on the user's computer, intended for public distribution through Anthropic's Claude plugin directory. It is a reduced form of the Full Plugin.
+_Avoid_: Public Plugin, repository root plugin, marketplace package, community plugin
+
+**Full Plugin**:
+The complete versioned dhpk package for Claude Code, carrying skills, agents, hooks, and the scripts they run, distributed through the Repository Marketplace.
+_Avoid_: Directory Plugin, marketplace package, verified plugin
+
+**Manual Procedure**:
+The written steps a skill follows to reach the same result as its shipped script when that script is not available, such as in the Directory Plugin. The skill's safety rules still apply, and its report says it ran in manual mode.
+_Avoid_: Fallback script, prose variant, lite skill
+
+**Repository Marketplace**:
+The plugin catalog that the dhpk repository itself publishes, through which consumers install the Full Plugin and its stack plugin.
+_Avoid_: Development Marketplace, official directory, self-hosted directory
 
 **Published Package**:
-Any dhpk package released for consumers outside this repository; a Public Plugin and a Directory Plugin are both Published Packages.
+Any dhpk package released for consumers outside this repository; a Public Plugin, a Directory Plugin, and a Full Plugin are all Published Packages.
 _Avoid_: Generated tree, build output, surface
 
 **Development Marketplace**:
-A local or repository plugin catalog used to test dhpk before public publication.
-_Avoid_: Public Plugin, public release channel
+A local plugin catalog used to test dhpk before public publication.
+_Avoid_: Public Plugin, public release channel, Repository Marketplace
 
 **Skill Identity**:
 The stable identity of one dhpk capability, retained when its public name or distribution location changes.

@@ -29,6 +29,13 @@ function tracked(prefix) {
   return result.stdout.split('\n').filter(Boolean);
 }
 
+function publishedPackagePresent(prefix) {
+  if (tracked(prefix).length > 0) return true;
+  if (!fs.existsSync(path.join(ROOT, prefix, '.claude-plugin', 'plugin.json'))) return false;
+  const ignored = spawnSync('git', ['check-ignore', '-q', prefix], { cwd: ROOT });
+  return ignored.status === 1;
+}
+
 test('the on-demand surfaces are exactly the Agent, Cursor and AGY packages', () => {
   assert.deepStrictEqual([...ON_DEMAND_SURFACES].sort(), ['agent-plugin', 'agy-plugin', 'cursor-plugin']);
   assert.strictEqual(isOnDemandSurface('codex-native'), false);
@@ -90,8 +97,9 @@ test('the repository commits only the Published Packages', () => {
   }
   assert.deepStrictEqual(tracked('generated'), [], 'generated/ is renamed dist/');
   assert.ok(tracked('plugins/dhpk').length > 0, 'the Public Plugin stays committed');
-  assert.ok(tracked('dist/claude-marketplace/package').length > 0, 'the Directory Plugin stays committed');
+  assert.ok(tracked('dist/claude-marketplace/package').length > 0, 'the Full Plugin (Repository Marketplace) stays committed');
   assert.ok(tracked('dist/claude-marketplace/stacks-package').length > 0, 'dhpk-stacks stays committed');
+  assert.ok(publishedPackagePresent('dist/claude-directory/package'), 'the Directory Plugin stays committed (or present and trackable before commit)');
   assert.deepStrictEqual(tracked('dist/on-demand'), [], 'on-demand builds are never committed');
 });
 

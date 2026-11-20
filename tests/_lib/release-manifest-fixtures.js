@@ -11,6 +11,7 @@ const { LISTING_METADATA } = require('../../scripts/lib/host-manifests');
 function manifestBody(relPath, version) {
   if (relPath.endsWith('.cursor-plugin/marketplace.json')) return { metadata: { version } };
   if (relPath.endsWith('provenance.json')) return { sourceVersion: version };
+  if (relPath.startsWith('dist/claude-directory/')) return { name: 'dhpk-lite', version };
   return { name: 'dhpk', version };
 }
 

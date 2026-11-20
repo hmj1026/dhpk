@@ -108,4 +108,51 @@ test('Claude verification returns plan-bound PASS evidence and isolates root dri
   assert.ok(failing.evidence.diagnostics.some((message) => /unexpected/.test(message)));
 });
 
+test('reconcileDistribution fails when Directory Plugin ships a skill absent from main marketplace selection', () => {
+  const result = reconcileDistribution({
+    inventory: { skills: [], modules: [] },
+    directoryPluginSkillNames: ['tdd-workflow', 'extra-skill'],
+    directoryPluginAgentNames: ['code-reviewer'],
+    mainMarketplaceSkillNames: ['tdd-workflow'],
+    mainMarketplaceAgentNames: ['code-reviewer'],
+  });
+  assert.ok(result.errors.some((e) => /Directory Plugin/i.test(e) && /extra-skill/.test(e)), result.errors.join('\n'));
+});
+
+test('reconcileDistribution fails when Directory Plugin ships an agent absent from main marketplace or omitted capability', () => {
+  const { OMITTED_SKILLS, OMITTED_AGENTS } = require('../scripts/lib/claude-directory-reduction');
+  const extraAgent = reconcileDistribution({
+    inventory: { skills: [], modules: [] },
+    directoryPluginSkillNames: ['tdd-workflow'],
+    directoryPluginAgentNames: ['extra-agent'],
+    mainMarketplaceSkillNames: ['tdd-workflow'],
+    mainMarketplaceAgentNames: ['code-reviewer'],
+    omittedSkillNames: OMITTED_SKILLS,
+    omittedAgentNames: OMITTED_AGENTS,
+  });
+  assert.ok(extraAgent.errors.some((e) => /Directory Plugin/i.test(e) && /extra-agent/.test(e)), extraAgent.errors.join('\n'));
+
+  const omittedSkill = reconcileDistribution({
+    inventory: { skills: [], modules: [] },
+    directoryPluginSkillNames: ['flow-guide'],
+    directoryPluginAgentNames: [],
+    mainMarketplaceSkillNames: ['flow-guide', 'tdd-workflow'],
+    mainMarketplaceAgentNames: [],
+    omittedSkillNames: OMITTED_SKILLS,
+    omittedAgentNames: OMITTED_AGENTS,
+  });
+  assert.ok(omittedSkill.errors.some((e) => /Directory Plugin/i.test(e) && /flow-guide/.test(e)), omittedSkill.errors.join('\n'));
+
+  const valid = reconcileDistribution({
+    inventory: { skills: [], modules: [] },
+    directoryPluginSkillNames: ['tdd-workflow'],
+    directoryPluginAgentNames: ['code-reviewer'],
+    mainMarketplaceSkillNames: ['tdd-workflow', 'flow-guide'],
+    mainMarketplaceAgentNames: ['code-reviewer', 'codex-worker'],
+    omittedSkillNames: OMITTED_SKILLS,
+    omittedAgentNames: OMITTED_AGENTS,
+  });
+  assert.deepStrictEqual(valid.errors, []);
+});
+
 run('validate-distribution');

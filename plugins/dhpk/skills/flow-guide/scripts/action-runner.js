@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// dhpk-stage-ids: help, route, rules, next, close
 'use strict';
 
 const path = require('node:path');
