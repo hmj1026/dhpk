@@ -18,7 +18,6 @@ const fs = require('fs');
 const path = require('path');
 const { CODEX_MCP_COMMAND_NAMES, collectInventory } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
-const { OMITTED_SKILLS } = require('../lib/claude-directory-reduction');
 const { validateDirectoryPlugin } = require('./validate-directory-plugin');
 const {
   MANIFEST_REL: PROJECTION_SETS_REL,
@@ -147,7 +146,7 @@ function printTable() {
 
   const inventoryPath = p('manifests', 'distribution-inventory.json');
   if (fs.existsSync(inventoryPath)) {
-    const dist = computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')), { omittedSkillNames: OMITTED_SKILLS });
+    const dist = computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')));
     // Scoped, independently-derived counts (harness-count-integrity spec):
     // a documentation claim about the default install surface must cite
     // claudePublished/codexPublished/promotedCore, never the canonical total.

@@ -12,18 +12,35 @@ const { buildRuntimeDataFile } = require('./public-plugin-tree');
 const DIRECTORY_PLUGIN_NAME = 'dhpk-lite';
 const DIRECTORY_DISPLAY_NAME = 'DHPK Dev Harness (Lite)';
 const SKILL_NEXT_MAP_PATH = 'skill-next-map.json';
+const REFERENCE_ENTRY = 'REFERENCE.md';
+const TOP_LEVEL_SKILL_MARKDOWN = /^skills\/[^/]+\/SKILL\.md$/;
+const SKILL_MARKDOWN_MENTION = /(?<![\w/.-])((?:\.{1,2}\/|[\w.-]+\/)*)SKILL\.md/g;
+const BARE_SKILL_MARKDOWN = /(?<![\w/.-])SKILL\.md/g;
 
-// Reviewed omission list: skills and agents whose primary purpose requires a
-// shipped script or external CLI wrapper.
-const OMITTED_SKILLS = Object.freeze([
+// Public catalog skills shipped by the Directory Plugin (all 17 skills; the 6
+// script-backed skills run via references/manual-procedure.md in mode: manual).
+const DIRECTORY_SKILL_NAMES = Object.freeze([
+  'change-verdict',
+  'code-trace',
+  'create-pr',
+  'doc-maintain',
+  'flow-drive',
   'flow-guide',
   'git-smart-commit',
+  'git-worktree',
   'harness-setup',
-  'precommit',
-  'release-creator',
+  'library-author',
   'opsx-apply-resume',
+  'precommit',
+  'proposal-analyze',
+  'release-creator',
+  'repo-verify',
+  'tdd-workflow',
+  'ui-ux-verify',
 ]);
 
+// Reviewed omission list: external CLI agents whose purpose requires an external
+// CLI binary (`codex` or `agy`).
 const OMITTED_AGENTS = Object.freeze([
   'codex-worker',
   'codex-reasoner',
@@ -44,6 +61,7 @@ const FORBIDDEN_EXACT_PATHS = Object.freeze([
   '.lsp.json',
   'monitors.json',
   'provenance.json',
+  'agents/INDEX.md',
 ]);
 
 const FORBIDDEN_PREFIXES = Object.freeze([
@@ -55,7 +73,13 @@ const FORBIDDEN_PREFIXES = Object.freeze([
 
 const SKILL_SCRIPTS_SEGMENT = /^skills\/(?:.+\/)?scripts\//;
 const TEXT_REWRITE_EXTENSIONS = new Set(['.md', '.txt', '.json', '.yaml', '.yml']);
-const URL_OR_DHPK_TOKEN = /(https?:\/\/[^\s)>\]"'`]+)|(?<![A-Za-z0-9_-])dhpk:([a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_-])/g;
+const SKILL_TOKEN_ALTERNATION = DIRECTORY_SKILL_NAMES.join('|');
+const DIRECTORY_REWRITE_TOKEN = new RegExp(
+  `(https?:\\/\\/[^\\s)>\\]"'\`]+)|(?<![A-Za-z0-9_-])dhpk:([a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_-])|(?<![A-Za-z0-9_/-])\\$(${SKILL_TOKEN_ALTERNATION})(?:(?![A-Za-z0-9_-])|(?=(?:route|help|rules|next|close)\\b))`,
+  'g',
+);
+const FLOW_GUIDE_NEXT_MAP_REF = /(?:skills\/flow-guide\/)?references\/skill-next-map\.json/g;
+const DIRECTORY_SCRIPT_REF = /(https?:\/\/[^\s)>\]"'`]+)|(?:(?:\$\{CLAUDE_SKILL_DIR\}|\$SKILL_DIR|\$\{POLICY_BUNDLE_ROOT\}|<policy bundle root>|\$PROJECT_DIR\/\.claude|\$REPO|references\/execution-bundle|\.claude\/dhpk\/skills\/[a-z0-9-]+|(?:\$PROJECT_DIR\/)?skills\/(?:<skill>|[a-z0-9-]+))\/)?(?<![A-Za-z0-9_-])scripts\/([A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g;
 
 function hasShebang(contentBuffer) {
   const buf = Buffer.isBuffer(contentBuffer) ? contentBuffer : Buffer.from(String(contentBuffer || ''), 'utf8');
@@ -78,9 +102,10 @@ function isAllowedExtension(destination) {
   return ALLOWED_EXTENSIONS.includes(ext);
 }
 
-function isOmittedSkillPath(destination) {
-  const match = /^skills\/([^/]+)\//.exec(destination);
-  return Boolean(match && OMITTED_SKILLS.includes(match[1]));
+function isNestedSkillMarkdown(destination) {
+  return destination.startsWith('skills/')
+    && destination.endsWith('/SKILL.md')
+    && !TOP_LEVEL_SKILL_MARKDOWN.test(destination);
 }
 
 function isOmittedAgentPath(destination) {
@@ -202,41 +227,50 @@ function reduceAgentFrontmatter(markdownText, filePath = 'agent.md') {
   return `---\n${keptLines.join('\n')}\n---\n${body}`;
 }
 
-function targetBaseSkillName(target) {
-  return String(target == null ? '' : target)
-    .trim()
-    .replace(/^[$]|^\/?(?:dhpk(?:-lite)?:)?/, '')
-    .split(':')[0];
+function stripYamlFrontmatter(markdownText) {
+  const clean = String(markdownText).replace(/^\uFEFF/, '');
+  const match = clean.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)*/);
+  return match ? clean.slice(match[0].length) : clean;
 }
 
-function pruneOmittedSkillNextRoutes(mapBuffer) {
-  const data = JSON.parse(Buffer.from(mapBuffer).toString('utf8'));
-  if (!data || !data.skills || typeof data.skills !== 'object' || Array.isArray(data.skills)) {
-    return Buffer.from(mapBuffer);
+function rewriteNestedSkillMentions(filePath, text, entries, dirs) {
+  const base = path.posix.dirname(filePath);
+  const resolved = String(text).replace(SKILL_MARKDOWN_MENTION, (match, prefix) => {
+    const relTarget = path.posix.normalize(path.posix.join(base, `${prefix}SKILL.md`));
+    const rootTarget = prefix ? path.posix.normalize(`${prefix}SKILL.md`) : '';
+    return (entries.has(relTarget) || (rootTarget && entries.has(rootTarget)))
+      ? `${prefix}${REFERENCE_ENTRY}`
+      : match;
+  });
+  return dirs.some((dir) => filePath.startsWith(`${dir}/`))
+    ? resolved.replace(BARE_SKILL_MARKDOWN, REFERENCE_ENTRY)
+    : resolved;
+}
+
+function rewriteDirectorySkillScripts(destination, text, hasManualProcedure = false) {
+  if (!destination.startsWith('skills/') || !(destination.endsWith('.md') || destination.endsWith('.json'))) {
+    return String(text);
   }
-  const omittedSet = new Set(OMITTED_SKILLS);
-  const prunedSkills = {};
-  for (const [skillName, entry] of Object.entries(data.skills)) {
-    if (omittedSet.has(skillName)) continue;
-    const nextEntry = { ...entry };
-    if (entry && entry.next && typeof entry.next === 'object' && !Array.isArray(entry.next)) {
-      const prunedNext = {};
-      for (const [stateKey, target] of Object.entries(entry.next)) {
-        if (!omittedSet.has(targetBaseSkillName(target))) {
-          prunedNext[stateKey] = target;
-        }
+  const normalizedMap = String(text).replace(FLOW_GUIDE_NEXT_MAP_REF, SKILL_NEXT_MAP_PATH);
+  const useManualRef = hasManualProcedure && !destination.endsWith('/references/manual-procedure.md');
+  return normalizedMap.replace(DIRECTORY_SCRIPT_REF, (match, url, scriptPath, offset, full) => {
+    if (url) return url;
+    const base = path.posix.basename(scriptPath);
+    if (useManualRef) {
+      if (offset >= 2 && full.slice(offset - 2, offset) === '](') {
+        return 'references/manual-procedure.md';
       }
-      nextEntry.next = prunedNext;
+      return `references/manual-procedure.md (${base})`;
     }
-    prunedSkills[skillName] = nextEntry;
-  }
-  return Buffer.from(`${JSON.stringify({ ...data, skills: prunedSkills })}\n`, 'utf8');
+    return `packaged-${base}`;
+  });
 }
 
 function rewriteDirectoryNamespace(text) {
-  return String(text).replace(URL_OR_DHPK_TOKEN, (whole, url, token) => {
+  return String(text).replace(DIRECTORY_REWRITE_TOKEN, (whole, url, dhpkToken, skillToken) => {
     if (url) return url;
-    return `${DIRECTORY_PLUGIN_NAME}:${token}`;
+    if (dhpkToken) return `${DIRECTORY_PLUGIN_NAME}:${dhpkToken}`;
+    return `/${DIRECTORY_PLUGIN_NAME}:${skillToken}`;
   });
 }
 
@@ -263,12 +297,13 @@ function renderDirectoryManifest(fullManifestBuffer, { version } = {}) {
   return Buffer.from(`${JSON.stringify(out, null, 2)}\n`, 'utf8');
 }
 
-function renderDirectoryReadme() {
+function renderDirectoryReadme({ skillCount = DIRECTORY_SKILL_NAMES.length, agentCount = null } = {}) {
+  const agentPhrase = agentCount === null ? 'specialist agents' : `${agentCount} specialist agents`;
   return Buffer.from([
     '# dhpk-lite (Instruction-only Directory Plugin)',
     '',
     '`dhpk-lite` is the instruction-only distribution of DHPK for Anthropic\'s Claude plugin directory.',
-    'It provides portable workflow skills (invoked as `/dhpk-lite:<skill-name>`), specialist agents (`dhpk-lite:<agent-name>`),',
+    `It provides all ${skillCount} workflow skills (invoked as \`/dhpk-lite:<skill-name>\`), ${agentPhrase} (\`dhpk-lite:<agent-name>\`),`,
     'trap sheets, and execution policy rules with zero local hooks, zero executable scripts, and zero `userConfig` prompts.',
     '',
     '## Install `dhpk-lite`',
@@ -285,17 +320,17 @@ function renderDirectoryReadme() {
     'They expose the same underlying skills and agents under separate namespaces (`dhpk:` vs `dhpk-lite:`).',
     'Keep only one active in a workspace.',
     '',
-    '## What `dhpk-lite` lacks compared to the Full Plugin (`dhpk`)',
+    '## How `dhpk-lite` differs from the Full Plugin (`dhpk`)',
     '',
     '- **No hooks (`hooks/hooks.json`)**: no `PreToolUse` `.env`/`.git`/credential guards, no `SessionStart` notice, and no `SubagentStop` verification hook.',
-    '- **No shipped scripts or `userConfig`**: omits `scripts/`, `skills/**/scripts/`, `manifests/`, and interactive `userConfig` settings.',
-    '- **Omitted script-dependent skills**: `flow-guide`, `git-smart-commit`, `harness-setup`, `precommit`, `release-creator`, and `opsx-apply-resume`.',
+    '- **No shipped scripts or `userConfig`**: omits `scripts/`, `skills/**/scripts/`, `manifests/`, `agents/INDEX.md`, and interactive `userConfig` settings.',
+    '- **Manual Procedures (`mode: manual`)**: `flow-guide`, `opsx-apply-resume`, `git-smart-commit`, `harness-setup`, `precommit`, and `release-creator` use their packaged `references/manual-procedure.md` workflows with standard tools and consumer project commands, reporting `mode: manual`.',
     '- **Omitted external CLI agents**: `codex-worker`, `codex-reasoner`, and `agy-worker`.',
-    '- **Reduced frontmatter**: skills keep only `name` and `description` (routing data is packaged in `skill-next-map.json`), and agents keep only `name`, `description`, `model`, `color`, and `tools`. Skills lose `disable-model-invocation`, `argument-hint`, and `allowed-tools`.',
+    '- **Reduced frontmatter**: skills keep only `name` and `description` (routing data is packaged in `skill-next-map.json`), and agents keep only `name`, `description`, `model`, `color`, and `tools`. Skills lose `disable-model-invocation`, `argument-hint`, and `allowed-tools` (user-only skills carry explicit-request guards).',
     '',
     '## Install the Full Plugin (`dhpk`) and `dhpk-stacks`',
     '',
-    'If you want command hooks, local safety gates, `harness-setup`, `precommit`, `git-smart-commit`, or stack modules (`dhpk-stacks`),',
+    'If you want command hooks, local safety gates, scripted runners, or stack modules (`dhpk-stacks`),',
     'install the Full Plugin directly from the DHPK Repository Marketplace in Claude Code:',
     '',
     '```text',
@@ -319,16 +354,25 @@ function renderDirectoryReadme() {
 function reduceToDirectoryPlugin(files, { version } = {}) {
   const retained = new Map();
   for (const [destination, file] of files) {
-    if (isOmittedSkillPath(destination) || isOmittedAgentPath(destination)) continue;
+    if (isOmittedAgentPath(destination)) continue;
     if (!isAllowedDirectoryFile(destination, file.content)) continue;
     retained.set(destination, file);
   }
+
+  const nestedEntries = new Set([...retained.keys()].filter(isNestedSkillMarkdown));
+  const nestedDirs = [...nestedEntries].map((entryPath) => path.posix.dirname(entryPath));
+  const skillsWithManualProcedure = new Set(
+    [...retained.keys()]
+      .map((destination) => /^skills\/([^/]+)\/references\/manual-procedure\.md$/.exec(destination))
+      .filter(Boolean)
+      .map((match) => match[1]),
+  );
 
   // Extract skill-next routing data from kept top-level skills before stripping
   // their metadata frontmatter.
   const topLevelSkillSources = [];
   for (const [destination, file] of retained) {
-    if (/^skills\/[^/]+\/SKILL\.md$/.test(destination)) {
+    if (TOP_LEVEL_SKILL_MARKDOWN.test(destination)) {
       topLevelSkillSources.push({ path: destination, bytes: Buffer.from(file.content) });
     }
   }
@@ -337,30 +381,60 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
     requireRuntimeSkill: false,
   });
 
+  const readmeCounts = {
+    skillCount: [...retained.keys()].filter((destination) => TOP_LEVEL_SKILL_MARKDOWN.test(destination)).length,
+    agentCount: [...retained.keys()].filter((destination) => /^agents\/[^/]+\.md$/.test(destination)).length,
+  };
   const reduced = new Map();
   for (const [destination, file] of retained) {
+    const outDestination = isNestedSkillMarkdown(destination)
+      ? `${path.posix.dirname(destination)}/${REFERENCE_ENTRY}`
+      : destination;
     let content = Buffer.from(file.content);
     if (destination === '.claude-plugin/plugin.json') {
       content = renderDirectoryManifest(content, { version });
     } else if (destination === 'README.md') {
-      content = renderDirectoryReadme();
-    } else if (destination.startsWith('skills/') && destination.endsWith('/SKILL.md')) {
+      content = renderDirectoryReadme(readmeCounts);
+    } else if (TOP_LEVEL_SKILL_MARKDOWN.test(destination)) {
       const reducedFm = reduceSkillFrontmatter(content.toString('utf8'), destination);
-      content = Buffer.from(rewriteDirectoryNamespace(reducedFm), 'utf8');
+      const skillName = destination.split('/')[1];
+      const text = rewriteDirectorySkillScripts(
+        outDestination,
+        rewriteDirectoryNamespace(rewriteNestedSkillMentions(destination, reducedFm, nestedEntries, nestedDirs)),
+        skillsWithManualProcedure.has(skillName),
+      );
+      content = Buffer.from(text, 'utf8');
+    } else if (isNestedSkillMarkdown(destination)) {
+      const stripped = stripYamlFrontmatter(content.toString('utf8'));
+      const skillName = destination.split('/')[1];
+      const text = rewriteDirectorySkillScripts(
+        outDestination,
+        rewriteDirectoryNamespace(rewriteNestedSkillMentions(destination, stripped, nestedEntries, nestedDirs)),
+        skillsWithManualProcedure.has(skillName),
+      );
+      content = Buffer.from(text, 'utf8');
     } else if (/^agents\/[^/]+\.md$/.test(destination)) {
       const reducedFm = reduceAgentFrontmatter(content.toString('utf8'), destination);
       content = Buffer.from(rewriteDirectoryNamespace(reducedFm), 'utf8');
-    } else if (TEXT_REWRITE_EXTENSIONS.has(path.posix.extname(destination).toLowerCase())) {
-      content = Buffer.from(rewriteDirectoryNamespace(content.toString('utf8')), 'utf8');
+    } else if (TEXT_REWRITE_EXTENSIONS.has(path.posix.extname(outDestination).toLowerCase())) {
+      let text = content.toString('utf8');
+      if (outDestination.endsWith('.md')) {
+        text = rewriteNestedSkillMentions(destination, text, nestedEntries, nestedDirs);
+      }
+      text = rewriteDirectoryNamespace(text);
+      if (outDestination.startsWith('skills/') && (outDestination.endsWith('.md') || outDestination.endsWith('.json'))) {
+        const skillName = outDestination.split('/')[1];
+        text = rewriteDirectorySkillScripts(outDestination, text, skillsWithManualProcedure.has(skillName));
+      }
+      content = Buffer.from(text, 'utf8');
     }
-    reduced.set(destination, { destination, content, mode: 0o644 });
+    reduced.set(outDestination, { destination: outDestination, content, mode: 0o644 });
   }
 
   if (skillNextMap) {
-    const pruned = pruneOmittedSkillNextRoutes(skillNextMap.bytes);
     reduced.set(SKILL_NEXT_MAP_PATH, {
       destination: SKILL_NEXT_MAP_PATH,
-      content: Buffer.from(rewriteDirectoryNamespace(pruned.toString('utf8')), 'utf8'),
+      content: Buffer.from(rewriteDirectoryNamespace(Buffer.from(skillNextMap.bytes).toString('utf8')), 'utf8'),
       mode: 0o644,
     });
   }
@@ -371,8 +445,9 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
 module.exports = {
   DIRECTORY_PLUGIN_NAME,
   DIRECTORY_DISPLAY_NAME,
+  DIRECTORY_SKILL_NAMES,
   SKILL_NEXT_MAP_PATH,
-  OMITTED_SKILLS,
+  REFERENCE_ENTRY,
   OMITTED_AGENTS,
   ALLOWED_EXTENSIONS,
   SKILL_FRONTMATTER_KEYS,
@@ -382,11 +457,14 @@ module.exports = {
   hasShebang,
   isForbiddenDirectoryPath,
   isAllowedExtension,
-  isOmittedSkillPath,
+  isNestedSkillMarkdown,
   isOmittedAgentPath,
   isAllowedDirectoryFile,
   reduceSkillFrontmatter,
   reduceAgentFrontmatter,
+  stripYamlFrontmatter,
+  rewriteNestedSkillMentions,
+  rewriteDirectorySkillScripts,
   rewriteDirectoryNamespace,
   renderDirectoryManifest,
   renderDirectoryReadme,
