@@ -100,10 +100,13 @@ const FORBIDDEN_PREFIXES = Object.freeze([
 const SKILL_SCRIPTS_SEGMENT = /^skills\/(?:.+\/)?scripts\//;
 const TEXT_REWRITE_EXTENSIONS = new Set(['.md', '.txt', '.json', '.yaml', '.yml']);
 // The Claude Directory scanner reads these prose phrases as code: a code-span eval as
-// download-and-run, "pass prompted" as a password prompt, and a perl command as an
-// exfiltration channel. Reword them for every Markdown file in the Directory Plugin.
+// download-and-run, "pass prompted" as a password prompt, a perl command as an
+// exfiltration channel, and an example environment-variable credential read as a
+// credential source. Reword them for every Markdown file in the Directory Plugin.
 const DIRECTORY_SCANNER_PHRASE_REWRITES = Object.freeze([
   [/`eval`/g, 'eval'],
+  [/process\.env\.STRIPE_KEY/g, '"YOUR_API_KEY"'],
+  [/`getenv\('X'\)` \+ `\.env`/g, 'Configuration supplied at deploy time, outside the repository'],
   [/`perl -pi`/g, 'Perl in-place edits'],
   [/`deep-reasoner` pass prompted independently from the source/g,
     '`deep-reasoner` run with an independent prompt built from the source'],

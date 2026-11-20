@@ -23,7 +23,7 @@ function processPayment(order, paymentClient) {
 
 // Hard to test: the boundary is constructed inside the behavior
 function processPayment(order) {
-  const client = new StripeClient(process.env.STRIPE_KEY);
+  const client = new StripeClient("YOUR_API_KEY");
   return client.charge(order.total);
 }
 ```
