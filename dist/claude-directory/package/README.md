@@ -1,7 +1,7 @@
 # dhpk-lite (Instruction-only Directory Plugin)
 
 `dhpk-lite` is the instruction-only distribution of DHPK for Anthropic's Claude plugin directory.
-It provides portable workflow skills (invoked as `/dhpk-lite:<skill-name>`), specialist agents (`dhpk-lite:<agent-name>`),
+It provides all 17 workflow skills (invoked as `/dhpk-lite:<skill-name>`), 29 specialist agents (`dhpk-lite:<agent-name>`),
 trap sheets, and execution policy rules with zero local hooks, zero executable scripts, and zero `userConfig` prompts.
 
 ## Install `dhpk-lite`
@@ -18,17 +18,17 @@ Do not enable both `dhpk` (Full Plugin) and `dhpk-lite` (Directory Plugin) at th
 They expose the same underlying skills and agents under separate namespaces (`dhpk:` vs `dhpk-lite:`).
 Keep only one active in a workspace.
 
-## What `dhpk-lite` lacks compared to the Full Plugin (`dhpk`)
+## How `dhpk-lite` differs from the Full Plugin (`dhpk`)
 
 - **No hooks (`hooks/hooks.json`)**: no `PreToolUse` `.env`/`.git`/credential guards, no `SessionStart` notice, and no `SubagentStop` verification hook.
-- **No shipped scripts or `userConfig`**: omits `scripts/`, `skills/**/scripts/`, `manifests/`, and interactive `userConfig` settings.
-- **Omitted script-dependent skills**: `flow-guide`, `git-smart-commit`, `harness-setup`, `precommit`, `release-creator`, and `opsx-apply-resume`.
+- **No shipped scripts or `userConfig`**: omits `scripts/`, `skills/**/scripts/`, `manifests/`, `agents/INDEX.md`, and interactive `userConfig` settings.
+- **Manual Procedures (`mode: manual`)**: `flow-guide`, `opsx-apply-resume`, `git-smart-commit`, `harness-setup`, `precommit`, and `release-creator` use their packaged `references/manual-procedure.md` workflows with standard tools and consumer project commands, reporting `mode: manual`.
 - **Omitted external CLI agents**: `codex-worker`, `codex-reasoner`, and `agy-worker`.
-- **Reduced frontmatter**: skills keep only `name` and `description` (routing data is packaged in `skill-next-map.json`), and agents keep only `name`, `description`, `model`, `color`, and `tools`. Skills lose `disable-model-invocation`, `argument-hint`, and `allowed-tools`.
+- **Reduced frontmatter**: skills keep only `name` and `description` (routing data is packaged in `skill-next-map.json`), and agents keep only `name`, `description`, `model`, `color`, and `tools`. Skills lose `disable-model-invocation`, `argument-hint`, and `allowed-tools` (user-only skills carry explicit-request guards).
 
 ## Install the Full Plugin (`dhpk`) and `dhpk-stacks`
 
-If you want command hooks, local safety gates, `harness-setup`, `precommit`, `git-smart-commit`, or stack modules (`dhpk-stacks`),
+If you want command hooks, local safety gates, scripted runners, or stack modules (`dhpk-stacks`),
 install the Full Plugin directly from the DHPK Repository Marketplace in Claude Code:
 
 ```text

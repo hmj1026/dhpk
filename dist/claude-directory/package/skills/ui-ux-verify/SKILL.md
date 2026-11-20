@@ -5,7 +5,7 @@ description: "Read-only check of one rendered page against one OpenSpec UI speci
 
 # UI/UX Verify
 
-`$ui-ux-verify` audits one spec/page pair without changing application code or
+`/dhpk-lite:ui-ux-verify` audits one spec/page pair without changing application code or
 data. It keeps the existing four argument modes, default `master` target
 selection, and shared report contract while choosing a native Host adapter.
 

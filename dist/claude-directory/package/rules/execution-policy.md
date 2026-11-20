@@ -76,7 +76,7 @@ external method may provide the same outcome. No named skill is a mandatory
 stage for every behavior change. Reuse adequate external work without
 re-interviewing settled choices or recreating an approved proposal.
 
-> **OpenSpec authoring boundary:** proposal and artifact creation belong to the external `$openspec-propose` owner (or its `/opsx:new` and `/opsx:ff` commands). `flow-guide` may identify that handoff, but it does not author; `flow-drive` implements only confirmed scope and acceptance and has no authoring or route mode. A formal OpenSpec change is one accepted evidence carrier; do not create one solely to repeat an already sufficient plan. Apply a confirmed change through external `/opsx:apply` or `$flow-drive <confirmed-spec-or-change-id>` according to the chosen owner.
+> **OpenSpec authoring boundary:** proposal and artifact creation belong to the external `$openspec-propose` owner (or its `/opsx:new` and `/opsx:ff` commands). `flow-guide` may identify that handoff, but it does not author; `flow-drive` implements only confirmed scope and acceptance and has no authoring or route mode. A formal OpenSpec change is one accepted evidence carrier; do not create one solely to repeat an already sufficient plan. Apply a confirmed change through external `/opsx:apply` or `/dhpk-lite:flow-drive <confirmed-spec-or-change-id>` according to the chosen owner.
 
 ### Planning and workflow composition (SSOT)
 
@@ -164,7 +164,7 @@ checks do not establish native quality, cache-token totals, billing, or savings.
 
 Every distributed skill/command carries `metadata.dhpk-invocation-class`
 (`explicit-only` or `implicit-eligible`). Entry selection across exact
-invocation, `$flow-guide` actions, `$flow-drive` confirmed implementation, and model selection follows one fixed
+invocation, `/dhpk-lite:flow-guide` actions, `/dhpk-lite:flow-drive` confirmed implementation, and model selection follows one fixed
 precedence; an explicitly-invoked router may start an `implicit-eligible`
 target but must present-and-wait for an `explicit-only` target rather than
 calling it through the Skill tool. Full precedence order, Explicit Invocation

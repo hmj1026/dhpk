@@ -1,6 +1,6 @@
 # Single-page verification procedure
 
-This reference is the portable procedure for `$ui-ux-verify`. It is read-only
+This reference is the portable procedure for `/dhpk-lite:ui-ux-verify`. It is read-only
 except for the one Host-local report artifact. The package-local Claude
 reviewer (`agents/ui-ux-verifier.md`) is an optional Claude adapter asset;
 `playwright-cli` or an equivalent native browser is a Host capability, not an
