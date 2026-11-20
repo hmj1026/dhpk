@@ -133,7 +133,7 @@ baseline.
 
 ## Related skills
 
-- `$library-author polyfill-audit` — version-branch-level coverage (this
+- `/dhpk-lite:library-author polyfill-audit` — version-branch-level coverage (this
   skill is directory-level)
-- `$library-author testbench` — per-cell Testbench install (cross-skill
+- `/dhpk-lite:library-author testbench` — per-cell Testbench install (cross-skill
   with this one when adding a new cell)

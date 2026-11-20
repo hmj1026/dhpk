@@ -78,9 +78,9 @@ mode's unrelated-change checker remains advisory.
 ## Closeout
 
 Before substantial handoff, after a large edit, or before smart-commit, use
-`$flow-guide close` to account for changed files, applicable gates, risks, and
+`/dhpk-lite:flow-guide close` to account for changed files, applicable gates, risks, and
 the next action. Daily single-line edits, pure research, and typos do not
-need it. `$flow-guide close` returns `manual-evidence-required`. That status
+need it. `/dhpk-lite:flow-guide close` returns `manual-evidence-required`. That status
 reminds the session to attach the evidence list. The list is the handoff; the
 runner status is not a gate PASS. Fix applicable unmet obligations before
 claiming completion; the closeout report does not itself prove merge, release,

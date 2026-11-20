@@ -17,8 +17,8 @@ Edit mechanism: change files with Edit/Write only, per
 `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Edit tool discipline"
 (report any last-resort shell-written file).
 
-Codemap generation (`$doc-maintain codemap`), final frontmatter/link/SSOT/policy
-review (`doc-reviewer`, `$change-verdict`), external library research
+Codemap generation (`/dhpk-lite:doc-maintain codemap`), final frontmatter/link/SSOT/policy
+review (`doc-reviewer`, `/dhpk-lite:change-verdict`), external library research
 (`docs-lookup`), and authoring from supplied sources with no structural change
 (`docs-writer`) are other roles' work; hand back rather than doing them. The
 command-level contract and five writing checks live in

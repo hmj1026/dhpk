@@ -1,0 +1,162 @@
+# Claude Code setup adapter
+
+This reference is the Claude branch of `harness-setup`. Load it only after
+the current Host has been identified as Claude. The procedure remains
+Host-driven: detection, questions, rendering, and settings writes are
+instructions for the active Claude Host. An unprobed Host run remains
+`NOT_RUN`; this reference does not manufacture Host evidence.
+
+The installed Skill contains its executable adapter and local procedure
+resources. Native packaging supplies a distribution artifact explicitly when
+asset bytes are needed. Require these resources:
+
+- `data/module-catalog.json` — stack, version, review-slot, and hook
+  profile source of truth.
+- `references/manual-procedure.md (install-assets.sh)` — Skill-local deterministic asset adapter.
+- `templates/settings.local.example.json` — settings shape guidance.
+
+A missing local resource is `BLOCKED_RESOURCE_MISSING`. Do not search a
+plugin cache, consumer `.claude`, parent checkout, or a remote URL to replace
+it. The maintained writer is read only as artifact data at
+<source-artifact>/references/manual-procedure.md (install-assets.sh); synchronization places its
+bytes at references/manual-procedure.md (install-assets-writer.sh.)
+
+## Root and existing state
+
+1. Resolve the consumer root with `git rev-parse --show-toplevel`, falling back
+   to `pwd` outside a Git repository.
+2. Read `.claude/settings.local.json` if it exists. Preserve unknown keys and
+   the existing configuration shape; current installations commonly store
+   options under `pluginConfigs["dhpk@dhpk"].options`. Never invent a second
+   namespace when an existing shape is present.
+3. `--show` prints the effective harness values and the four-role dispatch
+   summary, then exits. It never prompts, writes, or adds interactive
+   model-selection steps. Build the dispatch summary with the existing
+   `resolveDispatchConfig` / `createDispatchConfigReport` seam. Pass the
+   settings already read in step 2 as the project layer, pass
+   `~/.claude/settings.json` `pluginConfigs["dhpk@dhpk"].options` as the
+   global layer (the install-time source Claude uses for
+   `CLAUDE_PLUGIN_OPTION_*`), and pass the known Claude Host Profile. Do not
+   invent another settings file, search path, or precedence. Project wins
+   over global, and global wins over environment. A missing settings file is
+   an absent layer. If a higher-priority file cannot be read, show the values
+   that were read and disclose the failure in `covered_inputs`; do not claim
+   the lower layer is the complete final config. If the Host were unknown,
+   leave effective targets unresolved; do not guess `claude-code`. The report
+   is static: `runtime` remains `NOT_RUN`.
+
+## Asset installation
+
+For `--install hooks|rules|scripts|all`, require an explicit
+`--source-artifact <distribution-root>`, then run the Skill-local adapter before
+any configuration question and stop:
+
+```bash
+bash references/manual-procedure.md (install-assets.sh) \
+  --source-artifact <distribution-root> \
+  --target <project-root>/.claude/dhpk \
+  --install <hooks|rules|scripts|all> [--dry-run] [--force] [--vendor]
+```
+
+`--install rules` (and the `rules` part of `--install all`) writes
+`<project-root>/.claude/rules/dhpk-overrides.md`, a project-delta stub that
+points at the plugin runtime `rules/` directory. It does not copy upstream
+policy into `.claude/dhpk/rules/`. `--vendor` restores that discouraged
+verbatim copy. An existing `.claude/dhpk/rules/` tree is reported as legacy
+and left in place.
+
+The adapter prints a structured result containing `status`, `code`, the
+physical artifact and target, operation flags, and the Skill-relative writer.
+The artifact is read as data; an installer beneath it is never sourced or
+executed. `--dry-run` writes nothing; identical files are skipped; differing
+files are conflicts unless the operator explicitly supplied `--force`; and
+executable bits are retained.
+Any destination path with a symlink component is rejected even with `--force`.
+Do not combine this operation with interactive reconfiguration or claim a write
+from a plan.
+Real installation requires Python 3 with the physical descriptor capabilities
+used by the writer; if unavailable, installation stops before target mutation
+with exit 2. `--dry-run` remains available without Python 3.
+
+## Stack detection and dhpk-stacks
+
+Stack modules ship in the separate `dhpk-stacks` plugin, which requires this
+core plugin and owns the `modules` setting. Core carries no `modules/`
+directory.
+
+1. Detect the project's stacks from its root manifests, read-only: `composer.json`
+   (php, laravel, phpunit, yii), `package.json` (js, react, vue, nextjs),
+   `pyproject.toml` or `requirements.txt` (python), and `Package.swift` or an
+   `*.xcodeproj` (swift). Map each hit to a `.stacks[].id` in the catalog.
+2. Decide whether `dhpk-stacks` is installed. It is when
+   `enabledPlugins["dhpk-stacks@dhpk"]` is true in the project or user Claude
+   settings, or `claude plugin list` shows it. If neither can be read, report
+   `dhpk-stacks` as `UNAVAILABLE`; do not guess.
+3. When a stack was detected and `dhpk-stacks` is not installed, report the
+   install hint and stop the Stacks question below until the plugin is present:
+
+   ```text
+   /plugin marketplace add hmj1026/dhpk      (skip when the dhpk marketplace is already added)
+   /plugin install dhpk-stacks@dhpk
+   ```
+
+   Core keeps working without it; only the stack modules are missing.
+4. When a project still carries `modules` under `pluginConfigs["dhpk@dhpk"]`,
+   tell the operator to move it to `pluginConfigs["dhpk-stacks@dhpk"]`. The
+   old location is still read as a fallback, so nothing breaks while moving it.
+
+## Interactive configuration
+
+After the plugin is installed, use one native `AskUserQuestion` call per
+logical step. Do not ask these questions in free-form prose:
+
+1. **Stacks** — multi-select `.stacks[].id` from the catalog; empty means
+   generic core only.
+2. **Per-stack version** — respect `.selection` (`exclusive` by default,
+   `additive` for cumulative library guidance). Resolve each selected
+   `.module` and auto-include its `requires_module`. Under additive selection,
+   an `.exclusive: true` version drops sibling selections and surfaces a
+   warning.
+3. **Docker** — ask about container names only after explicit opt-in to the
+   separate Docker workflow. Explain that Docker must be installed and the
+   operator must provide the intended container names; `/dhpk-lite:harness-setup` does not
+   register a Docker SessionStart check. Keep Docker setup outside this Skill's
+   automatic writes.
+4. **Review agents** — offer overrides for the seven slots: code, database,
+   security, frontend, doc, polyfill, and migration. Pad short overrides with
+   shipped defaults.
+5. **Hook profile** — single-select `minimal`, `standard`, or `strict` from
+   `.hook_profiles[].id`.
+
+Write the resolved values under the existing local settings/userConfig shape,
+preserving unrelated settings. `modules` and the module tool settings
+(`js_*`, `python_*`, `ruff_bin`, `pyright_bin`, `mypy_bin`, `xcode_*`,
+`swift_build_skip_tests`, `php_cs_fixer_bin`, `phpstan_bin`, `psalm_bin`) go
+under `pluginConfigs["dhpk-stacks@dhpk"].options`; every other option stays under
+`dhpk@dhpk`. Show a before/after diff. Module changes need the normal Claude
+plugin reload (`/plugin configure dhpk-stacks@dhpk` or the documented terminal
+uninstall/install equivalent); settings-only changes apply next session.
+
+## Output and verification
+
+Return a confirmation block containing `modules`,
+`review_agents`, `hook_profile`, and the four-role dispatch summary
+(`planner`, `reasoner`, `worker`, `reviewer`) from the config report,
+each with before/after values where settings changed, followed by exactly
+one next action. The dispatch summary is read-only: show configured and
+effective targets, separate config-layer and Host Profile default sources,
+static fallback candidates, and `runtime: NOT_RUN`. Mark missing
+dependencies or unsupported operations `UNAVAILABLE`/`BLOCKED`; never turn
+a skipped prompt into a successful configuration.
+
+- [ ] Catalog was read as the only source for stacks, versions, slots, and
+      hook profiles.
+- [ ] A detected stack without `dhpk-stacks` produced the install hint, not a
+      silent `modules` write.
+- [ ] `--show` included the four-role dispatch summary without model-selection
+      prompts.
+- [ ] Existing settings and unknown keys were preserved.
+- [ ] Asset-install exit/JSON evidence was recorded when used.
+- [ ] The active Host's detection/render capability remains `NOT_RUN` until a
+      supported Host probe supplies evidence.
+- [ ] No private key, credential, or user-owned file was printed or replaced.

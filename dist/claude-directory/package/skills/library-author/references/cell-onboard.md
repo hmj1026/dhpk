@@ -99,7 +99,7 @@ Laravel and Testbench have a fixed mapping:
 | 12.x | 10.x | 11.x |
 
 If the user's proposed PHPUnit version is below the Laravel minimum, flag
-the conflict before continuing. Defer to `$library-author testbench` skill
+the conflict before continuing. Defer to `/dhpk-lite:library-author testbench` skill
 for per-cell Testbench install / boot scaffolding.
 
 ### Step 4 — Polyfill branch coverage for the new cell
@@ -120,7 +120,7 @@ If the new cell would be the first to enter a branch that no other cell
 enters, **add a test** before adding the cell. Otherwise the cell silently
 documents-but-doesn't-prove the branch.
 
-This step deliberately overlaps with the `$library-author polyfill-audit`
+This step deliberately overlaps with the `/dhpk-lite:library-author polyfill-audit`
 skill — call that skill if more than 3 guards need analysis.
 
 ### Step 5 — phpunit.xml testsuite gating
@@ -206,7 +206,7 @@ Mapping table says Laravel 12 → Testbench 10. Add the cell with
 - **Floor-raising disguised as cell add**: if adding the new cell requires
   bumping `"php": "^7.3 || ..."` to `"^7.4 || ..."`, that's a **major**
   semver bump for the library itself. Surface this loudly — see
-  `$library-author composer` skill for the decision tree.
+  `/dhpk-lite:library-author composer` skill for the decision tree.
 - **Testbench in `require` instead of `require-dev`**: orchestra/testbench
   must be in `require-dev`. Some templates accidentally float it to require
   and break consumers' production installs.
@@ -220,6 +220,6 @@ Mapping table says Laravel 12 → Testbench 10. Add the cell with
 
 ## Related skills
 
-- `$library-author testbench` — per-cell Testbench install + DB config
-- `$library-author composer` — semver decision when raising the floor
-- `$library-author polyfill-audit` — deep audit when step 4 surfaces gaps
+- `/dhpk-lite:library-author testbench` — per-cell Testbench install + DB config
+- `/dhpk-lite:library-author composer` — semver decision when raising the floor
+- `/dhpk-lite:library-author polyfill-audit` — deep audit when step 4 surfaces gaps

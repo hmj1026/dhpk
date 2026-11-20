@@ -1,11 +1,11 @@
 # CLI backend
 
-Use `scripts/review-cli.sh` when the Codex CLI is available and a full-disk read
+Use `packaged-review-cli.sh` when the Codex CLI is available and a full-disk read
 review is appropriate. It validates `--backend cli`, `--scope`, and `--depth`,
 passes arguments as a shell array, and returns the CLI's exit status.
 
 ```bash
-bash $SKILL_DIR/scripts/review-cli.sh \
+bash packaged-review-cli.sh \
   --backend cli --scope diff --depth fast
 ```
 

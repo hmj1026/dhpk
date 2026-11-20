@@ -64,12 +64,15 @@ We decided:
 
 ## Consequences
 
-- The Directory Plugin lacks the Codex and AGY CLI agents. Until a follow-up
-  change adds their Manual Procedures, it also lacks `flow-guide`,
-  `opsx-apply-resume`, `git-smart-commit`, `harness-setup`, `precommit`, and
-  `release-creator` (added in that order). Its README states the difference
-  and how to install the Full Plugin. References to absent skills stay in the
-  reduced text and are reported, not rewritten.
+- The Directory Plugin omits the Codex and AGY CLI agents (`codex-worker`,
+  `codex-reasoner`, `agy-worker`) and `agents/INDEX.md`, while shipping all 17
+  catalog skills and 29 specialist agents. The six script-backed skills
+  (`flow-guide`, `opsx-apply-resume`, `git-smart-commit`, `harness-setup`,
+  `precommit`, and `release-creator`) ship with their Manual Procedures
+  (`references/manual-procedure.md`), and the generator strips or rewrites
+  removed in-package `scripts/` execution references in kept skills. The
+  README states the differences and how to install the Full Plugin. References
+  to omitted agents stay in the reduced text and are reported as warnings.
 - In a Manual Procedure the skill's safety rules still hold (human merge gate
   and tag confirmation, stop on error, no PASS for a stage that did not run),
   and the report says `mode: manual`. Results lose the script's caching and
@@ -78,6 +81,9 @@ We decided:
   `argument-hint`, so a user-only skill may be invoked by the model there.
   User-only skills therefore state in their body and description that they run
   only on an explicit user request and otherwise stop and ask.
-- Policy holds (credential text in trap sheets, the repository-root
-  `package.json` behind install phrases) remain for human review rather than
-  being edited away before a refusal shows they must be.
+- The four portal policy holds observed on `v0.80.0` (`2 UNREAD_ASSET_REFERENCED`,
+  `2 MCP_FORWARDS_CREDENTIAL_ENV`) are cleared by omitting `agents/INDEX.md`,
+  renaming nested `skills/*/references/**/SKILL.md` entries to `REFERENCE.md`
+  without standalone skill frontmatter, rephrasing the two trap-sheet lines in
+  `agent-traps/security-reviewer/js.md` and `agent-traps/code-reviewer/yii.md`,
+  and rewriting Codex-style `$<skill-name>` tokens to `/dhpk-lite:<skill-name>`.

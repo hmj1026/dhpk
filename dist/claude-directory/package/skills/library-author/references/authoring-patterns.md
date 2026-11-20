@@ -91,7 +91,7 @@ For a multi-major package, use one Testbench cell per Laravel major and exclude 
 versions below each Laravel floor. The current rough mapping is Laravel 6→Testbench
 4, 7→5, 8→6, 9→7, 10→8, and 11→9. Confirm the exact cell constraint from the
 Testbench package metadata; the matrix mechanics live in
-`$library-author testbench`.
+`/dhpk-lite:library-author testbench`.
 
 ## Publishing recipes
 

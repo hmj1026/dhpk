@@ -12,10 +12,10 @@ stages and `fast` to lint + unit; accept only `fast` or `full`. Attach
 `--integration <path>` and `--e2e <path>` only to their matching stages.
 
 Use a project-installed
-`.claude/dhpk/skills/repo-verify/scripts/verify-runner.js` when present. If it
-is absent, use the package-local `$SKILL_DIR/scripts/verify-runner.js` for a
+`packaged-verify-runner.js` when present. If it
+is absent, use the package-local `packaged-verify-runner.js` for a
 Node project. `$SKILL_DIR` is the installed directory containing this
-`SKILL.md`; its adjacent `scripts/lib/runner-utils.js` is part of the same
+`SKILL.md`; its adjacent `packaged-runner-utils.js` is part of the same
 local closure, and the consumer cwd remains unchanged. A runner's crash,
 missing overall verdict, execution error, or explicit semantic `FAIL` is
 terminal and does not fall through. A Markdown `FAIL` or `summary.json`
@@ -31,7 +31,7 @@ rule.
 ## When NOT to Use
 
 - A check should edit, format, build, or fix the repository.
-- Dependency security review is the goal (use `$change-verdict deps`).
+- Dependency security review is the goal (use `/dhpk-lite:change-verdict deps`).
 - Merge approval or code-review verdict is the goal.
 
 ## Output

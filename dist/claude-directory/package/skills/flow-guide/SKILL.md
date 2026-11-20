@@ -1,0 +1,168 @@
+---
+name: flow-guide
+description: "Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff."
+---
+
+# Flow Guide
+
+Use `/dhpk-lite:flow-guide <help|route|rules|next|close> [query]` to answer one workflow
+question. The guide is advisory: it records evidence and hands work to the
+owner through the shared neutral handoff contract; it does not acquire the
+owner's authority.
+
+## When NOT to Use
+
+- Implementing a bounded task: invoke `/dhpk-lite:flow-drive <task-text|task-file|confirmed-spec-or-change-id>` directly.
+- Reviewing a completed diff: use `change-verdict`.
+- Tracing code or diagnosing a failure: use `code-trace`.
+
+## Actions
+
+| Action | Use when | Completion criterion |
+| --- | --- | --- |
+| `help` | Codex usage grammar or available skills is unclear | A catalog or one usage card is returned without loading target procedure text. |
+| `route` | One workflow owner must be selected | A validated `dhpk.route-result.v3` report names the target, availability, evidence, and next action. |
+| `rules` | A phase or policy question needs the repository source of truth | The applicable policy pointer and gates are reported; no downstream workflow starts. |
+| `next` | Progression from the current worktree or change is unclear | One next route is recommended from current evidence. |
+| `close` | The edit boundary is complete and handoff readiness must be checked | Changed files, required gates, open risks, and the handoff state are accounted for. |
+
+Choose exactly one action. Load only the references named by that action, and
+keep required, skipped, unavailable, and failed evidence distinct. Run the
+package-local `scripts/` helpers when present; when those scripts are absent
+(such as in the instruction-only Directory Plugin) or cannot execute, follow
+[`references/manual-procedure.md`](references/manual-procedure.md) for the
+matching action stage and report `mode: manual`.
+
+## `help`
+
+Run `node references/manual-procedure.md (action-runner.js) help` or `node references/manual-procedure.md (usage-card.js)` for the generated Codex catalog, or add one public skill name for a single usage card.
+`${CLAUDE_SKILL_DIR}` is the directory containing this `SKILL.md`. Claude substitutes it in these commands and in `allowed-tools`. Hosts that do not substitute it, and references that write `$SKILL_DIR`, resolve that same directory. Keep the working directory on the consumer repository; do not `cd` into the package to inspect that repository.
+Help is metadata only: it never invokes the named skill, loads procedural references, or grants workspace/Git/external-write authority.
+Unknown and known non-Codex skill names receive different diagnostics.
+
+## `route`
+
+1. Parse the action query with `node references/manual-procedure.md (action-runner.js)`; its route branch
+   delegates to `references/manual-procedure.md (route-result.js)`.
+2. Match `references/route-table.json` with `bash references/manual-procedure.md (pre-route.sh)`; the
+   first precise match wins. A miss remains a deliberate-classification case. `pre-route.sh` may run Python internally; that child process is not a separate host pre-approval.
+3. Apply the selected policy kernel first
+   (`references/execution-bundle/rules/execution-policy-kernel.md`), then only
+   the conditional section the route needs, and the target's invocation class.
+4. Without `--go`, return advice only. With `--go`, produce at most one
+   bounded handoff for an available implicit-eligible target. An explicit-only
+   target is reported as `explicit-required`; it is never dispatched here.
+5. Validate and emit the closed `dhpk.route-result.v3` object. A route report
+   is not implementation, review, commit, merge, archive, release, or deploy
+   evidence.
+
+The result has exactly `schema`, `action`, `host`, `cleanedQuery`, `options`,
+`target`, `availability`, `diagnostics`, `disposition`, `requiredEvidence`, and
+`nextAction`. `options` is exactly `{go: boolean}`. The target is either null or
+`{id, publicName, invocationClass, command}`.
+
+## `rules`
+
+Read the selected policy kernel first
+(`references/execution-bundle/rules/execution-policy-kernel.md`). Load a
+conditional section of
+`references/execution-bundle/rules/execution-policy.md` only after the kernel
+and only when the question needs that section. Listing a reference does not
+load it. Resolve these paths through the installed Skill's existing per-Host
+bundle (`references/execution-bundle/`).
+Use `references/execution-bundle/skills/flow-guide/references/invocation-precedence.md`
+when more than one owner appears to match, and load the phase-specific delivery
+reference only after the phase is known.
+Return the source pointer, applicable gate, and one next handoff.
+
+## `next`
+
+Run `node references/manual-procedure.md (action-runner.js) next` (which delegates to
+the package-local analyzer) and parse its JSON. Report the
+current branch/worktree evidence, each required or unavailable gate, and one
+next route. A recorded `passed` value applies to the current change only when
+its `head` equals the analyzer's current HEAD and, if the worktree differs
+from HEAD, its `diff` (or `scope.diff`) equals the current diff identity.
+The same HEAD alone does not prove an uncommitted diff is unchanged. Unbound,
+stale, and scope-changed records stay readable and are not a current pass;
+unobserved, failed, and skipped stay distinct. For `next`, pass `--host codex-cli` on Codex, `--host cursor` on Cursor, or `--host agy` on AGY; the omitted Host defaults to `claude-code`. Supported Host names match the shared handoff contract (`claude-code`, `codex-cli`, `agy`, `cursor`, `claude`, `codex`). The Host changes invocation formatting and handoff evidence only. If the script cannot run, record the fallback evidence and the
+reason instead of treating the missing check as a pass.
+
+When the request is an inbound issue with unsettled intent or acceptance, use
+the bounded read-only intake in
+`references/execution-bundle/skills/flow-guide/references/premise-verification.md`.
+Settled specifications, approved tasks, and resumptions skip that intake and
+continue from their existing evidence.
+
+## `close`
+
+Account for changed files, TDD evidence when behavior changed, applicable
+reviewers, triggered security/database/frontend/runtime checks, unresolved
+risks, and the next handoff. Use `references/handoff-and-verification.md` only when its conditional detail is
+needed. Never claim commit, merge, release, deployment, or archive completion
+from a local closeout report.
+
+The action runner emits a `manual-evidence-required` report for `rules` and
+`close`; this is a pointer and evidence boundary, not a gate PASS.
+
+## Output
+
+```text
+Action → Route or gate → Required evidence → PASS/FAIL/NOT NEEDED/BLOCKED → Next action
+```
+
+The report must name one action, one next route, and the evidence boundary.
+`route --go` still ends at a handoff; the selected target owns its own
+execution and completion evidence.
+
+## References
+
+`references/execution-bundle/` holds maintainer-synchronized policy copies; never edit them here.
+The selected policy file defines its bundle base, and every required policy
+resource resolves beneath it. Listing a reference does not load it. Runtime lookup is fail-closed and Skill-local:
+missing resources report `BLOCKED_RESOURCE_MISSING`; no checkout, sibling Skill,
+repository inventory, environment variable, or upward search is consulted.
+
+- `references/route-table.json`, `references/route-result.schema.json`,
+  `references/manual-procedure.md (pre-route.sh)`, `references/manual-procedure.md (route-result.js)`, and
+  `references/manual-procedure.md (action-runner.js)` — deterministic route contract and matcher.
+- `references/manual-procedure.md (flow-handoff-contract.js)` — shared
+  neutral handoff and evidence contract; it never grants execution authority.
+- `references/manual-procedure.md (usage-card.js)` and `references/codex-usage-catalog.json` —
+  progressively disclosed Codex grammar.
+- `references/execution-bundle/skills/flow-guide/references/invocation-precedence.md` — competing-owner resolution.
+- `references/projects-index.md` — project-specific policy references.
+- `references/progression-tables.md` — generated agent fallback for `next`; canonical frontmatter owns progression.
+- `references/handoff-and-verification.md` — conditional handoff evidence.
+- `rules`: load `references/execution-bundle/skills/flow-guide/references/deterministic-first.md`,
+  `references/dispatch-and-gates.md`, `references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md`,
+  `references/execution-bundle/skills/flow-guide/references/testing-policy.md`, or `references/execution-bundle/skills/flow-guide/references/component-addition-policy.md`
+  only for the matching policy question; use
+  `references/execution-bundle/skills/flow-guide/references/invocation-classification.md` or `references/codex-mode.md` only
+  when invocation or Codex delegation is the disputed boundary.
+- `next`: after classification, choose at most one of
+  `references/workflow-analysis.md`, `references/workflow-bugfix.md`,
+  `references/workflow-feature-delivery.md`, or
+  `references/workflow-lightweight.md`. Load
+  `references/task-modes.md`, `references/execution-bundle/skills/flow-guide/references/premise-verification.md`,
+  `references/work-item-and-gates.md`, `references/delivery-core.md`, or
+  `references/delivery-loop-gate.md` only when that selected branch points to
+  it. Project overrides use `references/profile-and-project-overrides.md` and
+  `references/projects-generic.md`.
+- `close`: use `references/output-shape.md`, `references/anti-loop.md`, and
+  `references/squash-merge-hygiene.md` only for their named closeout checks.
+- `references/workflow-checklists.md`, `references/script-operations.md`, and
+  `references/manual-procedure.md` remain conditional/fallback detail, not initial context.
+- Legacy deterministic helpers `references/manual-procedure.md (openspec_gate_check.py)`,
+  `references/manual-procedure.md (prepare_dev_scope.py)`, `references/manual-procedure.md (prepare_workflow_profile.py)`, and
+  `references/manual-procedure.md (workflow_gate_check.py)` are run only when a selected rule or next
+  branch explicitly requires their existing input/output contract. They are not
+  pre-approved; an unlisted command uses the host's normal permission flow.
+
+## Verification
+
+- [ ] Exactly one action was selected and its completion criterion is met; only action-relevant references and scripts were loaded.
+- [ ] Required, skipped, unavailable, and failed gates are distinct; a route report was validated as `dhpk.route-result.v3`.
+- [ ] Raw issue intake ran only for unsettled intent, reused relevant
+      discussion and decisions, and left tracker state unchanged.
+- [ ] No target was executed and no target authority was inherited.

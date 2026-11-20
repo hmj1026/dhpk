@@ -26,7 +26,7 @@ consumer-facing contract.
 - Application code that is never published to downstream consumers.
 - Language-level idiom selection; use `skills/php`.
 - Laravel service-provider, facade, publishing, or Testbench mechanics; use
-  `$library-author author` or `$library-author testbench`.
+  `/dhpk-lite:library-author author` or `/dhpk-lite:library-author testbench`.
 - A release workflow that does not publish a Composer package.
 
 ## Output
@@ -56,5 +56,5 @@ Return one of:
 - `package-contracts.md` — semver, public API, composer.json, Laravel
   discovery, and release contract details; load only the branch being used.
 - `skills/php/SKILL.md` — PHP language and dual-floor idioms.
-- `$library-author author` — Laravel package authoring mechanics.
-- `$library-author testbench` — per-major Testbench matrix mechanics.
+- `/dhpk-lite:library-author author` — Laravel package authoring mechanics.
+- `/dhpk-lite:library-author testbench` — per-major Testbench matrix mechanics.

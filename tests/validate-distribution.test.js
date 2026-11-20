@@ -120,14 +120,15 @@ test('reconcileDistribution fails when Directory Plugin ships a skill absent fro
 });
 
 test('reconcileDistribution fails when Directory Plugin ships an agent absent from main marketplace or omitted capability', () => {
-  const { OMITTED_SKILLS, OMITTED_AGENTS } = require('../scripts/lib/claude-directory-reduction');
+  const { OMITTED_AGENTS } = require('../scripts/lib/claude-directory-reduction');
+  const omittedSkillFixture = ['flow-guide'];
   const extraAgent = reconcileDistribution({
     inventory: { skills: [], modules: [] },
     directoryPluginSkillNames: ['tdd-workflow'],
     directoryPluginAgentNames: ['extra-agent'],
     mainMarketplaceSkillNames: ['tdd-workflow'],
     mainMarketplaceAgentNames: ['code-reviewer'],
-    omittedSkillNames: OMITTED_SKILLS,
+    omittedSkillNames: omittedSkillFixture,
     omittedAgentNames: OMITTED_AGENTS,
   });
   assert.ok(extraAgent.errors.some((e) => /Directory Plugin/i.test(e) && /extra-agent/.test(e)), extraAgent.errors.join('\n'));
@@ -138,7 +139,7 @@ test('reconcileDistribution fails when Directory Plugin ships an agent absent fr
     directoryPluginAgentNames: [],
     mainMarketplaceSkillNames: ['flow-guide', 'tdd-workflow'],
     mainMarketplaceAgentNames: [],
-    omittedSkillNames: OMITTED_SKILLS,
+    omittedSkillNames: omittedSkillFixture,
     omittedAgentNames: OMITTED_AGENTS,
   });
   assert.ok(omittedSkill.errors.some((e) => /Directory Plugin/i.test(e) && /flow-guide/.test(e)), omittedSkill.errors.join('\n'));
@@ -149,7 +150,7 @@ test('reconcileDistribution fails when Directory Plugin ships an agent absent fr
     directoryPluginAgentNames: ['code-reviewer'],
     mainMarketplaceSkillNames: ['tdd-workflow', 'flow-guide'],
     mainMarketplaceAgentNames: ['code-reviewer', 'codex-worker'],
-    omittedSkillNames: OMITTED_SKILLS,
+    omittedSkillNames: omittedSkillFixture,
     omittedAgentNames: OMITTED_AGENTS,
   });
   assert.deepStrictEqual(valid.errors, []);

@@ -37,8 +37,8 @@ function validDirectoryFiles(overrides = {}) {
       '# dhpk-lite',
       '',
       'Instruction-only Directory Plugin for Claude Code without hooks, scripts, or userConfig.',
-      'It omits flow-guide, git-smart-commit, harness-setup, precommit, release-creator, opsx-apply-resume,',
-      'and codex-worker, codex-reasoner, agy-worker. Do not enable both dhpk and dhpk-lite together.',
+      'It ships all 17 workflow skills (including Manual Procedures with mode: manual) and omits',
+      'codex-worker, codex-reasoner, agy-worker. Do not enable both dhpk and dhpk-lite together.',
       'Install the Full Plugin from the Repository Marketplace with /plugin marketplace add hmj1026/dhpk',
       'and /plugin install dhpk@dhpk.',
       '',
@@ -128,6 +128,7 @@ test('forbidden paths fail and name file and rule', () => {
     '.mcp.json',
     '.lsp.json',
     'monitors.json',
+    'agents/INDEX.md',
     'bin/tool.txt',
     'scripts/helper.txt',
     'manifests/m.json',
@@ -141,16 +142,32 @@ test('forbidden paths fail and name file and rule', () => {
   }
 });
 
-test('omitted skills and agents fail and name file and rule', () => {
+test('omitted external CLI agents fail while admitted manual-procedure skills pass', () => {
   withDir({ 'skills/flow-guide/SKILL.md': '---\nname: flow-guide\ndescription: "Router"\n---\n' }, (dir) => {
     const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
-    assert.strictEqual(res.ok, false);
-    assert.ok(res.errors.some((e) => e.file === 'skills/flow-guide/SKILL.md' && e.rule === 'omitted-skill'), JSON.stringify(res.errors));
+    assert.strictEqual(res.ok, true, JSON.stringify(res.errors));
   });
   withDir({ 'agents/codex-worker.md': '---\nname: codex-worker\ndescription: "Worker"\n---\n' }, (dir) => {
     const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
     assert.strictEqual(res.ok, false);
     assert.ok(res.errors.some((e) => e.file === 'agents/codex-worker.md' && e.rule === 'omitted-agent'), JSON.stringify(res.errors));
+  });
+});
+
+test('nested SKILL.md or REFERENCE.md carrying frontmatter fails no-nested-skill-md', () => {
+  withDir({ 'skills/code-trace/references/sub/SKILL.md': '# Nested Skill\n' }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.strictEqual(res.ok, false);
+    assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/references/sub/SKILL.md' && e.rule === 'no-nested-skill-md'), JSON.stringify(res.errors));
+  });
+  withDir({ 'skills/code-trace/references/sub/REFERENCE.md': '---\nname: sub\ndescription: "Sub"\n---\n# Nested\n' }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.strictEqual(res.ok, false);
+    assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/references/sub/REFERENCE.md' && e.rule === 'no-nested-skill-md'), JSON.stringify(res.errors));
+  });
+  withDir({ 'skills/code-trace/references/sub/REFERENCE.md': '# Nested\n' }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.strictEqual(res.ok, true, JSON.stringify(res.errors));
   });
 });
 
@@ -185,12 +202,18 @@ test('disallowed agent frontmatter keys or block scalars fail and name file and 
   }
 });
 
-test('unrewritten dhpk: namespace fails and names file and rule', () => {
+test('unrewritten dhpk: namespace or $skill-name token fails and names file and rule', () => {
   const md = '---\nname: code-trace\ndescription: "Trace"\n---\nUse `dhpk:code-reviewer`.\n';
   withDir({ 'skills/code-trace/SKILL.md': md }, (dir) => {
     const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
     assert.strictEqual(res.ok, false);
     assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/SKILL.md' && e.rule === 'namespace-rewrite'), JSON.stringify(res.errors));
+  });
+  const dollarMd = '---\nname: code-trace\ndescription: "Trace"\n---\nUse `$flow-drive`.\n';
+  withDir({ 'skills/code-trace/SKILL.md': dollarMd }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.strictEqual(res.ok, false);
+    assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/SKILL.md' && e.rule === 'namespace-rewrite' && e.message.includes('$flow-drive')), JSON.stringify(res.errors));
   });
 });
 
@@ -227,26 +250,27 @@ test('missing skill-next-map.json or broken skill-next-map reference fails and n
   });
 });
 
-test('references to omitted skills or agents emit warnings without failing CLI', () => {
-  const body = '---\nname: code-trace\ndescription: "Trace"\n---\nRun `/dhpk-lite:precommit` or delegate to `codex-worker`.\n';
-  const jsonFile = JSON.stringify({ next: { PASS: 'precommit' } });
+test('references to omitted agents emit warnings without failing CLI', () => {
+  const body = '---\nname: code-trace\ndescription: "Trace"\n---\nDelegate to `codex-worker` or `agy-worker`.\n';
+  const jsonFile = JSON.stringify({ agent: 'codex-reasoner' });
   withDir({
     'skills/code-trace/SKILL.md': body,
     'skills/code-trace/references/routing.json': jsonFile,
   }, (dir) => {
     const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
     assert.strictEqual(res.ok, true, JSON.stringify(res.errors));
-    assert.ok(res.warnings.some((w) => w.file === 'skills/code-trace/SKILL.md' && w.target === 'precommit'), JSON.stringify(res.warnings));
     assert.ok(res.warnings.some((w) => w.file === 'skills/code-trace/SKILL.md' && w.target === 'codex-worker'), JSON.stringify(res.warnings));
-    assert.ok(res.warnings.some((w) => w.file === 'skills/code-trace/references/routing.json' && w.target === 'precommit' && w.rule === 'omitted-reference'), JSON.stringify(res.warnings));
+    assert.ok(res.warnings.some((w) => w.file === 'skills/code-trace/SKILL.md' && w.target === 'agy-worker'), JSON.stringify(res.warnings));
+    assert.ok(res.warnings.some((w) => w.file === 'skills/code-trace/references/routing.json' && w.target === 'codex-reasoner' && w.rule === 'omitted-reference'), JSON.stringify(res.warnings));
 
     const cli = spawnSync(process.execPath, [CLI, '--dir', dir, '--version', PKG_VERSION], { encoding: 'utf8' });
     assert.strictEqual(cli.status, 0, `${cli.stdout}\n${cli.stderr}`);
-    assert.match(cli.stdout + cli.stderr, /WARN.*precommit/);
+    assert.match(cli.stdout + cli.stderr, /WARN.*codex-worker/);
+    assert.match(cli.stdout, /omitted-reference: 3/);
   });
 });
 
-test('kept-skill text naming a removed scripts/ path emits a warning without failing', () => {
+test('kept-skill text naming a removed scripts/ path fails validation with removed-script-reference', () => {
   const body = [
     '---',
     'name: code-trace',
@@ -256,15 +280,15 @@ test('kept-skill text naming a removed scripts/ path emits a warning without fai
     '',
   ].join('\n');
   withDir({ 'skills/code-trace/SKILL.md': body }, (dir) => {
-    // No Full Plugin tree to compare against: every scripts/ reference is reported.
+    // No Full Plugin tree to compare against: every scripts/ reference is an error.
     const res = validateDirectoryPlugin(dir, { version: PKG_VERSION, fullPluginDir: path.join(dir, 'no-full-plugin') });
-    assert.strictEqual(res.ok, true, JSON.stringify(res.errors));
-    assert.ok(res.warnings.some((w) => w.file === 'skills/code-trace/SKILL.md' && w.rule === 'removed-script-reference' && w.message.includes('scripts/risk-analyze.js')), JSON.stringify(res.warnings));
-    assert.ok(res.warnings.some((w) => w.file === 'skills/code-trace/SKILL.md' && w.rule === 'removed-script-reference' && w.message.includes('scripts/verify-runner.js')), JSON.stringify(res.warnings));
+    assert.strictEqual(res.ok, false);
+    assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/SKILL.md' && e.rule === 'removed-script-reference' && e.message.includes('scripts/risk-analyze.js')), JSON.stringify(res.errors));
+    assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/SKILL.md' && e.rule === 'removed-script-reference' && e.message.includes('scripts/verify-runner.js')), JSON.stringify(res.errors));
   });
 });
 
-test('removed-script warning names only paths the Full Plugin ships and the Directory Plugin removed', () => {
+test('removed-script error names only paths the Full Plugin ships and the Directory Plugin removed', () => {
   const body = [
     '---',
     'name: code-trace',
@@ -278,21 +302,22 @@ test('removed-script warning names only paths the Full Plugin ships and the Dire
     writeFiles(full, { 'skills/code-trace/scripts/risk-analyze.js': '// stub\n' });
     withDir({ 'skills/code-trace/SKILL.md': body }, (dir) => {
       const res = validateDirectoryPlugin(dir, { version: PKG_VERSION, fullPluginDir: full });
-      const scriptWarnings = res.warnings.filter((w) => w.rule === 'removed-script-reference');
-      assert.deepStrictEqual(scriptWarnings.map((w) => w.target), ['scripts/risk-analyze.js'], JSON.stringify(scriptWarnings));
+      assert.strictEqual(res.ok, false);
+      const scriptErrors = res.errors.filter((e) => e.rule === 'removed-script-reference');
+      assert.deepStrictEqual(scriptErrors.map((e) => e.target), ['scripts/risk-analyze.js'], JSON.stringify(scriptErrors));
     });
   } finally {
     fs.rmSync(full, { recursive: true, force: true });
   }
 });
 
-test('CLI summary counts each warning kind separately', () => {
-  const body = '---\nname: code-trace\ndescription: "Trace"\n---\nUse precommit and `scripts/ci/_lib/frontmatter.js`.\n';
+test('CLI fails with removed-script-reference and emits omitted-reference warning count when both appear', () => {
+  const body = '---\nname: code-trace\ndescription: "Trace"\n---\nUse codex-worker and `scripts/ci/_lib/frontmatter.js`.\n';
   withDir({ 'skills/code-trace/SKILL.md': body }, (dir) => {
     const cli = spawnSync(process.execPath, [CLI, '--dir', dir, '--version', PKG_VERSION], { encoding: 'utf8' });
-    assert.strictEqual(cli.status, 0, cli.stderr);
-    assert.match(cli.stdout, /omitted-reference: \d+/);
-    assert.match(cli.stdout, /removed-script-reference: \d+/);
+    assert.strictEqual(cli.status, 1, `${cli.stdout}\n${cli.stderr}`);
+    assert.match(cli.stderr, /FAIL \[validate-directory-plugin\] skills\/code-trace\/SKILL\.md \(removed-script-reference\)/);
+    assert.match(cli.stderr, /WARN \[validate-directory-plugin\] skills\/code-trace\/SKILL\.md \(omitted-reference\)/);
   });
 });
 
@@ -303,6 +328,16 @@ test('skill name mismatching its directory fails skill-frontmatter', () => {
     const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
     assert.strictEqual(res.ok, false);
     assert.ok(res.errors.some((e) => e.file === 'skills/wrong-dir/SKILL.md' && e.rule === 'skill-frontmatter'), JSON.stringify(res.errors));
+  });
+});
+
+test('shipped skill missing from DIRECTORY_SKILL_NAMES fails skill-allowlist', () => {
+  withDir({
+    'skills/new-skill/SKILL.md': '---\nname: new-skill\ndescription: "New."\n---\n# New\n',
+  }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.strictEqual(res.ok, false);
+    assert.ok(res.errors.some((e) => e.file === 'skills/new-skill/SKILL.md' && e.rule === 'skill-allowlist'), JSON.stringify(res.errors));
   });
 });
 
