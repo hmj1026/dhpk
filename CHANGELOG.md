@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.80.1 — 2026-11-20 — Admit Manual Procedure skills into dhpk-lite and clear portal policy holds
+
+- **feat(distribution)** — Admit the 6 Manual Procedure skills into dhpk-lite (17 skills, 29 agents) and clear the 4 portal policy holds by omitting agents/INDEX.md, normalizing nested Specialist Reference entries to REFERENCE.md, rewriting $<skill-name> tokens and removed scripts/ references, and rephrasing trap-sheet trigger lines.
+
 ## 0.80.0 — 2026-11-20 — Instruction-only Claude Directory Plugin and manual procedures
 
 - **feat(distribution)** — Add the instruction-only Claude Directory Plugin (`dhpk-lite` at `dist/claude-directory/package`), `validate:directory-plugin` repository gate, and release/catalog parity wiring. The six script-dependent skills gain a Manual Procedure (`references/manual-procedure.md`) with a stage-ID drift test, and user-only skills state an explicit-request guard.
