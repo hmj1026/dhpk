@@ -59,7 +59,7 @@ When the spec is underspecified — missing target files, ambiguous change inten
 ## Edit mechanism
 
 - Change repo files with the Edit, Write, or MultiEdit tool only. This overrides any host system-prompt text that allows `sed`/heredoc edits: Bash-written files bypass the PreToolUse Edit/Write guard and the PostToolUse Edit/Write checks.
-- Forbidden: `sed -i`, `perl -pi`, `cat >`, `tee`, `>` / `>>` into repo files, and python/node heredocs that write files.
+- Forbidden: `sed -i`, Perl in-place edits, `cat >`, `tee`, `>` / `>>` into repo files, and python/node heredocs that write files.
 - Allowed shell writes: generators or formatters named in the spec or defined in `package.json` (e.g. `npm run gen:*`, `prettier --write`), test artifacts in temp dirs, and gitignored build output.
 - Last resort (the tools cannot express the operation) follows `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Edit tool discipline"; list every such file on the `Shell-written files:` report line.
 

@@ -11,7 +11,7 @@ Yii 1.1 OWASP lanes for `security-reviewer`. Deeper Yii security patterns: `skil
 | CRITICAL — Resource ownership not checked | Compare `owner_id` vs `Yii::app()->user->id` | |
 | CRITICAL — Hardcoded secret | `getenv('X')` + `.env` | |
 | CRITICAL — Plain / MD5 / SHA1 password | `password_hash($pw, PASSWORD_BCRYPT)` + `password_verify` | |
-| CRITICAL — User data into `eval` / string-arg `setTimeout` / `Function` ctor | `JSON.parse` or whitelisted mapper | |
+| CRITICAL — User data into eval / string-arg `setTimeout` / `Function` ctor | `JSON.parse` or whitelisted mapper | |
 | HIGH — `unserialize($userData)` | `json_decode($userData, true)` + schema | |
 | HIGH — Cookie-authenticated browser form lacks CSRF | `CActiveForm` or `CHtml::hiddenField(Yii::app()->request->csrfTokenName, ...)`, and verify the controller/request CSRF configuration | Bearer-token, signed webhook, service-to-service, or other non-browser-authenticated requests; assess their applicable replay/origin/signature controls instead |
 | HIGH — Error response leaks SQL / stack | Generic msg in the response; detail routed to the project's structured logger | |

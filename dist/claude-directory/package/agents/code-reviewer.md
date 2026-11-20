@@ -52,7 +52,7 @@ HIGH / CRITICAL additionally require: exact snippet + line, the specific failure
 - **"Possible null deref"** where the preceding line narrows the type or a guard is in scope — trace type flow, don't pattern-match on `?.` / `?->`.
 - **"N+1 query"** on fixed-cardinality loops (iterating a small enum) or paths already batching / using a DataLoader-equivalent.
 - **"Missing await"** on intentionally detached fire-and-forget calls (logging, metrics, background queue) — check for a `void` / comment marker first.
-- **Security theater** — flagging `Math.random()` / `mt_rand()` in non-crypto contexts (animation, jitter, sampling), or `eval` in an explicit code-loading surface.
+- **Security theater** — flagging `Math.random()` / `mt_rand()` in non-crypto contexts (animation, jitter, sampling), or eval in an explicit code-loading surface.
 - **Stack-change suggestions** — "should use TypeScript" in a JS-only file, or "rewrite in X" — match the project's existing language, never propose a stack swap.
 
 ## Stack trap sheet (load on demand)

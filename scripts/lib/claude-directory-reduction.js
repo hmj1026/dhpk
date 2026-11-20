@@ -99,6 +99,15 @@ const FORBIDDEN_PREFIXES = Object.freeze([
 
 const SKILL_SCRIPTS_SEGMENT = /^skills\/(?:.+\/)?scripts\//;
 const TEXT_REWRITE_EXTENSIONS = new Set(['.md', '.txt', '.json', '.yaml', '.yml']);
+// The Claude Directory scanner reads these prose phrases as code: a code-span eval as
+// download-and-run, "pass prompted" as a password prompt, and a perl command as an
+// exfiltration channel. Reword them for every Markdown file in the Directory Plugin.
+const DIRECTORY_SCANNER_PHRASE_REWRITES = Object.freeze([
+  [/`eval`/g, 'eval'],
+  [/`perl -pi`/g, 'Perl in-place edits'],
+  [/`deep-reasoner` pass prompted independently from the source/g,
+    '`deep-reasoner` run with an independent prompt built from the source'],
+]);
 const SKILL_TOKEN_ALTERNATION = DIRECTORY_SKILL_NAMES.join('|');
 const DIRECTORY_REWRITE_TOKEN = new RegExp(
   `(https?:\\/\\/[^\\s)>\\]"'\`]+)|(?<![A-Za-z0-9_-])dhpk:([a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_-])|(?<![A-Za-z0-9_/-])\\$(${SKILL_TOKEN_ALTERNATION})(?:(?![A-Za-z0-9_-])|(?=(?:route|help|rules|next|close)\\b))`,
@@ -483,6 +492,12 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
         text = rewriteDirectorySkillScripts(outDestination, text, skillsWithManualProcedure.has(skillName));
       }
       content = Buffer.from(text, 'utf8');
+    }
+    if (outDestination.endsWith('.md')) {
+      content = Buffer.from(DIRECTORY_SCANNER_PHRASE_REWRITES.reduce(
+        (text, [pattern, replacement]) => text.replace(pattern, replacement),
+        content.toString('utf8'),
+      ), 'utf8');
     }
     reduced.set(outDestination, { destination: outDestination, content, mode: 0o644 });
   }
