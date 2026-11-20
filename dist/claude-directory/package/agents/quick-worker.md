@@ -29,7 +29,7 @@ long-running work. This tier is native-only; the CLI selector workers
 
 Change files only with the Edit and Write tools, per
 `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Edit tool discipline". Never
-write repo files with `sed -i`, `perl -pi`, heredocs, redirection, or scripts.
+write repo files with `sed -i`, Perl in-place edits, heredocs, redirection, or scripts.
 Bash is for the verification command and read-only checks.
 
 ## One shot and BLOCKED

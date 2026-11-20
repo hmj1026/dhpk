@@ -4,7 +4,7 @@ Trace each finding from a concrete source through the changed path to a sensitiv
 
 ## DOM injection
 
-**Trigger → evidence/action:** Attacker-controlled or otherwise untrusted data reaches an HTML, script, event-handler, or executable URL context, including `innerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, `Function`, or a framework escape hatch such as Vue `v-html`. Trace source, transformations, and sink; prefer safe text/DOM APIs or a context-appropriate maintained sanitizer, then test hostile values. See OWASP’s [DOM XSS](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html) and [XSS prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html) guidance.
+**Trigger → evidence/action:** Attacker-controlled or otherwise untrusted data reaches an HTML, script, event-handler, or executable URL context, including `innerHTML`, `insertAdjacentHTML`, `document.write`, eval, `Function`, or a framework escape hatch such as Vue `v-html`. Trace source, transformations, and sink; prefer safe text/DOM APIs or a context-appropriate maintained sanitizer, then test hostile values. See OWASP’s [DOM XSS](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html) and [XSS prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html) guidance.
 
 **Do not apply when:** The value is a fixed trusted constant or safe text is assigned through a non-parsing sink. A sanitizer is relevant only when its policy and call site actually cover the data and output context.
 

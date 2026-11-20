@@ -507,6 +507,33 @@ test('Directory code review uses local evidence and treats Keychain integration 
   assert.doesNotMatch(ios, /passphrase from Keychain/);
 });
 
+test('Directory package avoids phrases the directory scanner reads as credential or download-and-run patterns', () => {
+  const paths = [
+    'agents/code-reviewer.md',
+    'agents/fast-worker.md',
+    'agents/quick-worker.md',
+    'agent-traps/security-reviewer/js.md',
+    'agent-traps/security-reviewer/yii.md',
+    'skills/flow-guide/references/implementation-dispatch.md',
+    'skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md',
+  ];
+  const inputs = new Map(paths.map((destination) => [
+    destination,
+    { destination, content: fs.readFileSync(path.join(__dirname, '..', destination)), mode: 0o644 },
+  ]));
+  const output = reduceToDirectoryPlugin(inputs);
+  for (const destination of paths) {
+    const text = output.get(destination).content.toString('utf8');
+    assert.doesNotMatch(text, /`eval`/, `${destination} keeps a code-span eval`);
+    assert.doesNotMatch(text, /`perl -pi`/, `${destination} keeps a perl command`);
+    assert.doesNotMatch(text, /\bpass prompted\b/, `${destination} keeps "pass prompted"`);
+  }
+  const dispatch = output.get(paths[5]).content.toString('utf8');
+  assert.match(dispatch, /second `deep-reasoner` run with an independent prompt built from the source/);
+  assert.match(output.get(paths[1]).content.toString('utf8'), /Perl in-place edits/);
+  assert.match(output.get(paths[4]).content.toString('utf8'), /User data into eval/);
+});
+
 test('user-only skills retain explicit-user-request guard in description and body after frontmatter reduction', () => {
   const repoRoot = path.join(__dirname, '..');
   for (const skill of ['release-creator', 'git-smart-commit', 'harness-setup', 'opsx-apply-resume']) {
