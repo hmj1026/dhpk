@@ -490,6 +490,23 @@ test('reduceToDirectoryPlugin README counts follow the shipped skills and agents
   assert.ok(readme.includes(`${agentCount} specialist agents`), readme);
 });
 
+test('Directory code review uses local evidence and treats Keychain integration as application behavior', () => {
+  const paths = ['agents/code-reviewer.md', 'agent-traps/database-reviewer/ios.md'];
+  const inputs = new Map(paths.map((destination) => [
+    destination,
+    { destination, content: fs.readFileSync(path.join(__dirname, '..', destination)), mode: 0o644 },
+  ]));
+  const output = reduceToDirectoryPlugin(inputs);
+  const reviewer = output.get(paths[0]).content.toString('utf8');
+  assert.match(reviewer, /Use local repository evidence/);
+  assert.match(reviewer, /Use Read and Glob to inspect project files/);
+  assert.doesNotMatch(reviewer, /cat composer\.json|cat package\.json/);
+  const ios = output.get(paths[1]).content.toString('utf8');
+  assert.match(ios, /application uses Keychain-backed encryption configuration/);
+  assert.match(ios, /verify the encrypted store actually registered/);
+  assert.doesNotMatch(ios, /passphrase from Keychain/);
+});
+
 test('user-only skills retain explicit-user-request guard in description and body after frontmatter reduction', () => {
   const repoRoot = path.join(__dirname, '..');
   for (const skill of ['release-creator', 'git-smart-commit', 'harness-setup', 'opsx-apply-resume']) {
