@@ -158,13 +158,22 @@ test('Directory Plugin missing README or LICENSE fails', () => {
   assert.ok(directoryErrors({ LICENSE: null }).some((error) => /LICENSE/.test(error)));
 });
 
-test('Directory Plugin manifest without icon, repository, or URL fields fails', () => {
-  for (const field of ['icon', 'repository', 'homepage']) {
+test('Directory Plugin manifest without repository or URL fields fails', () => {
+  for (const field of ['repository', 'homepage']) {
     const manifest = JSON.parse(directoryManifest().toString());
     delete manifest[field];
     const errors = directoryErrors({ '.claude-plugin/plugin.json': Buffer.from(JSON.stringify(manifest)) });
     assert.ok(errors.some((error) => error.includes(field)), `${field}: ${errors.join('; ')}`);
   }
+});
+
+test('Directory Plugin manifest may omit the listing icon', () => {
+  const manifest = JSON.parse(directoryManifest().toString());
+  delete manifest.icon;
+  assert.deepStrictEqual(directoryErrors({
+    '.claude-plugin/plugin.json': Buffer.from(JSON.stringify(manifest)),
+    '.claude-plugin/icon.png': null,
+  }), []);
 });
 
 test('Directory Plugin icon that is not packaged fails', () => {
@@ -217,6 +226,25 @@ test('claude plugin validate failure and missing CLI are reported', () => {
   assert.ok(failed.some((error) => /exit 1/.test(error) && /missing README/.test(error)), failed.join('; '));
   const missing = runClaudeValidate('/pkg', () => ({ error: 'ENOENT' }));
   assert.ok(missing.some((error) => /could not run/.test(error)), missing.join('; '));
+});
+
+test('strict Claude validation accepts only the expected missing-icon advisory', () => {
+  const icon = {
+    code: 'ICON_MISSING', severity: 'warning', blocking: false, hold: false,
+    file: '.claude-plugin/plugin.json', field: 'icon',
+  };
+  const report = {
+    success: false, strict: true,
+    manifest: { errors: [], warnings: [] },
+    contents: [],
+    directory: { profile: 'directory', incomplete: false, undecided: [], findings: [icon] },
+  };
+  const run = (data) => runClaudeValidate('/pkg', () => ({ status: 1, output: JSON.stringify(data) }));
+  assert.deepStrictEqual(run(report), []);
+  assert.notStrictEqual(run({ ...report, manifest: { ...report.manifest, warnings: ['other warning'] } }).length, 0);
+  assert.notStrictEqual(run({ ...report, directory: { ...report.directory, incomplete: true } }).length, 0);
+  assert.notStrictEqual(run({ ...report, directory: { ...report.directory, findings: [{ ...icon, hold: true }] } }).length, 0);
+  assert.notStrictEqual(run({ ...report, directory: { ...report.directory, findings: [icon, { code: 'OTHER' }] } }).length, 0);
 });
 
 const skillWith = (text) => tree({ 'skills/a/references/guide.md': Buffer.from(text) });

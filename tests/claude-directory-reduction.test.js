@@ -81,7 +81,8 @@ function sampleFullPluginMap() {
     ['skills/flow-guide/references/manual-procedure.md', entry('# Flow Guide Manual\nRead `references/skill-next-map.json`.\n')],
     ['skills/precommit/SKILL.md', entry('---\nname: precommit\ndescription: Precommit\n---\n# Precommit\n')],
     ['skills/git-smart-commit/SKILL.md', entry('---\nname: git-smart-commit\ndescription: Commit\n---\n# Commit\n')],
-    ['skills/harness-setup/SKILL.md', entry('---\nname: harness-setup\ndescription: Setup\n---\n# Setup\n')],
+    ['skills/harness-setup/SKILL.md', entry('---\nname: harness-setup\ndescription: Setup\n---\n# Setup\nUse the native package installer.\n')],
+    ['skills/harness-setup/references/manual-procedure.md', entry('# Setup Manual\n')],
     ['skills/release-creator/SKILL.md', entry('---\nname: release-creator\ndescription: Release\n---\n# Release\n')],
     ['skills/opsx-apply-resume/SKILL.md', entry('---\nname: opsx-apply-resume\ndescription: Resume\n---\n# Resume\n')],
     ['skills/change-verdict/SKILL.md', entry([
@@ -324,7 +325,7 @@ test('renderDirectoryManifest produces dhpk-lite manifest without userConfig or 
   const manifest = JSON.parse(renderDirectoryManifest(full, { version: '2.0.0' }).toString('utf8'));
   assert.strictEqual(manifest.name, 'dhpk-lite');
   assert.strictEqual(manifest.version, '2.0.0');
-  assert.strictEqual(manifest.icon, './.claude-plugin/icon.png');
+  assert.ok(!Object.hasOwn(manifest, 'icon'));
   assert.strictEqual(manifest.bugs, 'https://github.com/hmj1026/dhpk/issues');
   assert.strictEqual(manifest.userConfig, undefined);
   assert.strictEqual(manifest.hooks, undefined);
@@ -373,7 +374,7 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-pr
     'hooks/hooks.json', 'hooks.json', '.mcp.json', '.lsp.json', 'monitors.json', 'bin/dhpk',
     'scripts/hooks/pre-edit-guard.sh', 'manifests/distribution-inventory.json', 'provenance.json',
     'templates/sample.example', 'templates/shebang.txt', 'templates/bom-shebang.md',
-    'skills/flow-guide/assets/dhpk-icon.svg', 'skills/change-verdict/scripts/risk-analyze.js',
+    '.claude-plugin/icon.png', 'skills/flow-guide/assets/dhpk-icon.svg', 'skills/change-verdict/scripts/risk-analyze.js',
     'skills/change-verdict/references/project-audit/SKILL.md',
     'skills/code-trace/references/diagnose/wait-for-helper.ts',
     'agents/INDEX.md', 'agents/agy-worker.md', 'agents/codex-worker.md', 'agents/codex-reasoner.md',
@@ -382,7 +383,7 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-pr
   }
 
   for (const kept of [
-    '.claude-plugin/plugin.json', '.claude-plugin/icon.png', 'README.md', 'LICENSE',
+    '.claude-plugin/plugin.json', 'README.md', 'LICENSE',
     'templates/dhpk-versions.json', 'templates/settings.local.example.json', 'templates/notes.txt', 'templates/config.yaml',
     'skills/flow-guide/SKILL.md', 'skills/flow-guide/references/manual-procedure.md',
     'skills/precommit/SKILL.md', 'skills/git-smart-commit/SKILL.md',
@@ -418,9 +419,16 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-pr
   assert.ok(!/(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(body));
 
   const flowGuideBody = output.get('skills/flow-guide/SKILL.md').content.toString('utf8');
-  assert.ok(flowGuideBody.includes('references/manual-procedure.md (action-runner.js)'), flowGuideBody);
+  assert.ok(flowGuideBody.includes('references/manual-procedure.md'), flowGuideBody);
+  assert.ok(!flowGuideBody.includes('action-runner.js'), flowGuideBody);
   assert.ok(flowGuideBody.includes('/dhpk-lite:flow-drive'), flowGuideBody);
   assert.ok(!/(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(flowGuideBody));
+
+  const setupBody = output.get('skills/harness-setup/SKILL.md').content.toString('utf8');
+  assert.match(setupBody, /only on an explicit user request/);
+  assert.match(setupBody, /user confirmation before writing/);
+  assert.match(setupBody, /references\/manual-procedure\.md/);
+  assert.doesNotMatch(setupBody, /native package installer/);
 
   const flowGuideManual = output.get('skills/flow-guide/references/manual-procedure.md').content.toString('utf8');
   assert.ok(!flowGuideManual.includes('references/skill-next-map.json'));
@@ -447,7 +455,9 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-pr
     }
     const refPath = path.join(temp, 'skills/change-verdict/references/guide.md');
     const resolvedMap = path.resolve(path.dirname(refPath), '../../../', SKILL_NEXT_MAP_PATH);
-    const mapData = JSON.parse(fs.readFileSync(resolvedMap, 'utf8'));
+    const mapText = fs.readFileSync(resolvedMap, 'utf8');
+    const mapData = JSON.parse(mapText);
+    assert.strictEqual(mapText, JSON.stringify(mapData, null, 2) + '\n');
     assert.strictEqual(mapData.schema, 'dhpk.skill-next-map.v1');
     assert.strictEqual(mapData.skills['change-verdict'].invocationClass, 'implicit-eligible');
     assert.deepStrictEqual(mapData.skills['change-verdict'].modes, ['code', 'docs']);

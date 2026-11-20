@@ -128,20 +128,14 @@ function validateManifest(files, expectedVersion, errors) {
   if (expectedVersion && manifest.version !== expectedVersion) {
     errors.push({ file: manifestPath, rule: 'manifest-contract', message: `version '${manifest.version}' does not match repository version '${expectedVersion}'` });
   }
-  for (const forbiddenKey of ['userConfig', 'hooks', 'mcpServers', 'lspServers', 'monitors']) {
+  for (const forbiddenKey of ['userConfig', 'hooks', 'mcpServers', 'lspServers', 'monitors', 'icon']) {
     if (Object.prototype.hasOwnProperty.call(manifest, forbiddenKey)) {
       errors.push({ file: manifestPath, rule: 'manifest-contract', message: `manifest must not declare '${forbiddenKey}'` });
     }
   }
-  for (const requiredField of ['icon', 'bugs', 'homepage', 'repository']) {
+  for (const requiredField of ['bugs', 'homepage', 'repository']) {
     if (typeof manifest[requiredField] !== 'string' || manifest[requiredField].trim() === '') {
       errors.push({ file: manifestPath, rule: 'manifest-contract', message: `manifest must declare '${requiredField}'` });
-    }
-  }
-  if (typeof manifest.icon === 'string' && manifest.icon.trim() !== '') {
-    const iconRel = manifest.icon.replace(/^\.\//, '');
-    if (!files.has(iconRel)) {
-      errors.push({ file: manifestPath, rule: 'manifest-contract', message: `icon '${manifest.icon}' does not exist in package` });
     }
   }
   if (!Array.isArray(manifest.agents)) {
