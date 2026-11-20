@@ -545,4 +545,22 @@ test('real-source package carries a parseable provenance.json receipt with match
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 
+test('real-source directory package builds and fails check when a #! file is introduced', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-directory-gate-'));
+  try {
+    const out = path.join(temp, 'directory-package');
+    const built = GENERATOR.materialize({ out, kind: 'directory' });
+    assert.ok(fs.existsSync(path.join(out, '.claude-plugin', 'plugin.json')));
+    assert.ok(fs.existsSync(path.join(out, 'skill-next-map.json')));
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(out, '.claude-plugin', 'plugin.json'), 'utf8')).name, 'dhpk-lite');
+    assert.ok(built.fingerprint);
+    assert.strictEqual(GENERATOR.check({ out, kind: 'directory' }).ok, true);
+
+    fs.writeFileSync(path.join(out, 'bad.txt'), '#!/usr/bin/env bash\necho bad\n');
+    const failed = GENERATOR.check({ out, kind: 'directory' });
+    assert.strictEqual(failed.ok, false);
+    assert.match(failed.error, /out of date|bad\.txt/);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
 run('gen-claude-marketplace-package');

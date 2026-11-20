@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# dhpk-stage-ids: install-codex-project, verify-setup-receipt
 # Codex project adapter for the harness-setup checkout or relocated Skill.
 # The artifact is data; checkout uses the canonical installer and a package
 # uses the physical installer emitted beside this file.

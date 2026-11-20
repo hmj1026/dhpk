@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// dhpk-stage-ids: resolve-repo-and-head, collect-status-and-numstat, inspect-safety-and-staging, detect-hooks
 'use strict';
 
 const fs = require('node:fs');

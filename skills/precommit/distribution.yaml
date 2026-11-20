@@ -4,6 +4,7 @@
     "entry": "SKILL.md",
     "references": [
       "agents/openai.yaml",
+      "references/manual-procedure.md",
       "references/workflow.md",
       "scripts/lib/runner-utils.js"
     ],

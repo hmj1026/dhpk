@@ -37,6 +37,7 @@ const {
 } = require('./lib/runner-utils');
 
 const CONFIG_FILE = 'precommit.config.json';
+// dhpk-stage-ids: lint_fix, build, test_unit
 const STAGE_ORDER = ['lint_fix', 'build', 'test_unit'];
 
 function readText(p) {

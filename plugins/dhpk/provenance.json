@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.79.1",
-  "sourceCommit": "a5ff1f6e738caaaf59436085df186ad3828f69ed",
-  "generatedFromCommit": "a5ff1f6e738caaaf59436085df186ad3828f69ed",
-  "generatedFromTree": "2429322c20e8c4482418c93158f26f307d2f50c7",
+  "sourceCommit": "e1de350d295b0340809606ef8e007989c7badc97",
+  "generatedFromCommit": "e1de350d295b0340809606ef8e007989c7badc97",
+  "generatedFromTree": "70252f0fa171bf8b6c53969bb3b10dd502dbabbd",
   "inventoryDigest": "a214d830394523d2b57f710cc46cf809d92398df36edc77ee9392d2ba3ce9606",
   "inventoryRevision": "sha256:1e63dab6094e00d959ebecf30a2a90783048665af7b910c4cdc8193562dd8b9a",
   "generatorVersion": "2.4.0",
@@ -143,7 +143,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "21703cfa4fe240b0474b5a494d3dd03f70151840"
+        "originalGitBlobDigest": "bc35923c9137082811d0f4cf0503df073e5112c6"
       },
       {
         "ownerId": "change-verdict",
@@ -581,7 +581,7 @@
         "ownerId": "doc-maintain",
         "source": "skills/doc-maintain/SKILL.md",
         "destination": "skills/doc-maintain/SKILL.md",
-        "originalGitBlobDigest": "ecc9f405ea00318e8e24a5dffb0a9960b1268017"
+        "originalGitBlobDigest": "7ad48e5680ff4651f824771b8e42577ecd806bf7"
       },
       {
         "ownerId": "doc-maintain",
@@ -1325,7 +1325,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "68bf0959d05f45844fd52f2913ca1832da32d601"
+        "originalGitBlobDigest": "bdb882aa8bc414304f5b6be902b3a90650604d39"
       },
       {
         "ownerId": "flow-guide",
@@ -1581,6 +1581,12 @@
       },
       {
         "ownerId": "flow-guide",
+        "source": "skills/flow-guide/references/manual-procedure.md",
+        "destination": "skills/flow-guide/references/manual-procedure.md",
+        "originalGitBlobDigest": "69714b8a3cb939eaca71fadce48224c205338a5d"
+      },
+      {
+        "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/output-shape.md",
         "destination": "skills/flow-guide/references/output-shape.md",
         "originalGitBlobDigest": "431bc7afd48d3e6b6243aac691af0b9eb0a25d3a"
@@ -1703,7 +1709,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/frontmatter.js",
         "destination": "skills/flow-guide/scripts/_lib/frontmatter.js",
-        "originalGitBlobDigest": "ccbac89d6435ff94b101b8f56c0a4cd782200d19"
+        "originalGitBlobDigest": "80b8130f526ed314994c30f5f2c1389572d28181"
       },
       {
         "ownerId": "flow-guide",
@@ -1733,7 +1739,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/action-runner.js",
         "destination": "skills/flow-guide/scripts/action-runner.js",
-        "originalGitBlobDigest": "3adc4c023460cfeee3b25db4d288d52693fe119c"
+        "originalGitBlobDigest": "1ecd856df865f371404d9eafa1a78995e60aed2c"
       },
       {
         "ownerId": "flow-guide",
@@ -1751,7 +1757,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/pre-route.sh",
         "destination": "skills/flow-guide/scripts/pre-route.sh",
-        "originalGitBlobDigest": "a31b3e3a616165e5790c2a464a2596d293523f9d"
+        "originalGitBlobDigest": "2c1ee6e59b15b026acee9e3aed838a76aeb08705"
       },
       {
         "ownerId": "flow-guide",
@@ -1781,7 +1787,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/usage-card.js",
         "destination": "skills/flow-guide/scripts/usage-card.js",
-        "originalGitBlobDigest": "fabbe872a70905a4914d4599ed82e7b2782febc8"
+        "originalGitBlobDigest": "d528856e19e550e4c30785d6861e88957bed61af"
       },
       {
         "ownerId": "flow-guide",
@@ -1793,7 +1799,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "bf002eab2ee1799127cc498b89e8215073b24242"
+        "originalGitBlobDigest": "4c96b3c381a9233f910b0cc459741a5b58300695"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1809,9 +1815,15 @@
       },
       {
         "ownerId": "git-smart-commit",
+        "source": "skills/git-smart-commit/references/manual-procedure.md",
+        "destination": "skills/git-smart-commit/references/manual-procedure.md",
+        "originalGitBlobDigest": "0f6d51742f2cb35ba0fc0ce577e5112216fa458e"
+      },
+      {
+        "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
-        "originalGitBlobDigest": "66d83d70d684867b889fd95dd24d01fd80773720"
+        "originalGitBlobDigest": "cbb2def61c3d0d0ccaa2df3ea94d3517ecb9d643"
       },
       {
         "ownerId": "git-worktree",
@@ -1835,13 +1847,19 @@
         "ownerId": "precommit",
         "source": "skills/precommit/SKILL.md",
         "destination": "skills/precommit/SKILL.md",
-        "originalGitBlobDigest": "689550bc7b921caebaff4fae9e332ed22892a78a"
+        "originalGitBlobDigest": "ebb5092d813864f00ce361c3c1182e345f0bb861"
       },
       {
         "ownerId": "precommit",
         "source": "skills/precommit/agents/openai.yaml",
         "destination": "skills/precommit/agents/openai.yaml",
         "originalGitBlobDigest": "38770984b66255eedcb00ef00f6bc3d5776b104b"
+      },
+      {
+        "ownerId": "precommit",
+        "source": "skills/precommit/references/manual-procedure.md",
+        "destination": "skills/precommit/references/manual-procedure.md",
+        "originalGitBlobDigest": "87fa3a65c17014b551b800e75fbe72449e4e4f1c"
       },
       {
         "ownerId": "precommit",
@@ -1859,7 +1877,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/precommit-runner.js",
         "destination": "skills/precommit/scripts/precommit-runner.js",
-        "originalGitBlobDigest": "2a230495fdf31191974db9f2b33e53dab884d06f"
+        "originalGitBlobDigest": "cfc7257a4b043e4a064b4f496f2bd230bebe4263"
       },
       {
         "ownerId": "proposal-analyze",
@@ -1931,7 +1949,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/SKILL.md",
         "destination": "skills/release-creator/SKILL.md",
-        "originalGitBlobDigest": "0be84b5bc89d851ffb614a8a0999ed12a2d427f1"
+        "originalGitBlobDigest": "9cd9fd8eb77a1de1f88bbb339258424ecdd058cb"
       },
       {
         "ownerId": "release-creator",
@@ -2109,6 +2127,12 @@
       },
       {
         "ownerId": "release-creator",
+        "source": "skills/release-creator/references/manual-procedure.md",
+        "destination": "skills/release-creator/references/manual-procedure.md",
+        "originalGitBlobDigest": "fa60c19548f7fa506f6263186ccc19ad38bf1cfe"
+      },
+      {
+        "ownerId": "release-creator",
         "source": "skills/release-creator/references/release-presets.md",
         "destination": "skills/release-creator/references/release-presets.md",
         "originalGitBlobDigest": "e3a52abb8a9982c7d1106547ed35bc831290af21"
@@ -2117,7 +2141,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/scripts/release-runner.sh",
         "destination": "skills/release-creator/scripts/release-runner.sh",
-        "originalGitBlobDigest": "8bdca3f2853df5f917767fce77b10ef1d66f100f"
+        "originalGitBlobDigest": "9dfa0fa06f06a9c43fc69202c5ef8de1bb31775b"
       },
       {
         "ownerId": "repo-verify",
@@ -3989,6 +4013,13 @@
       {
         "ownerId": "flow-guide",
         "skillId": "flow-guide",
+        "sourcePath": "skills/flow-guide/references/manual-procedure.md",
+        "destination": "skills/flow-guide/references/manual-procedure.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-guide",
+        "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/references/output-shape.md",
         "destination": "skills/flow-guide/references/output-shape.md",
         "kind": "entry"
@@ -4255,6 +4286,13 @@
       {
         "ownerId": "git-smart-commit",
         "skillId": "git-smart-commit",
+        "sourcePath": "skills/git-smart-commit/references/manual-procedure.md",
+        "destination": "skills/git-smart-commit/references/manual-procedure.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "skillId": "git-smart-commit",
         "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
         "kind": "entry"
@@ -4292,6 +4330,13 @@
         "skillId": "precommit",
         "sourcePath": "skills/precommit/agents/openai.yaml",
         "destination": "skills/precommit/agents/openai.yaml",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "precommit",
+        "skillId": "precommit",
+        "sourcePath": "skills/precommit/references/manual-procedure.md",
+        "destination": "skills/precommit/references/manual-procedure.md",
         "kind": "entry"
       },
       {
@@ -4605,6 +4650,13 @@
       {
         "ownerId": "release-creator",
         "skillId": "release-creator",
+        "sourcePath": "skills/release-creator/references/manual-procedure.md",
+        "destination": "skills/release-creator/references/manual-procedure.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "release-creator",
+        "skillId": "release-creator",
         "sourcePath": "skills/release-creator/references/release-presets.md",
         "destination": "skills/release-creator/references/release-presets.md",
         "kind": "entry"
@@ -4855,12 +4907,12 @@
     "create-pr": "4f1045b4b1968a78fc8e199e0131fd922f48239356d74c2bdd2e14cc0d59b9ec",
     "doc-maintain": "a606ad626865600214a7d00c1703a5ab3d852d07583f0f5385b043068764aeb6",
     "flow-drive": "5b122b26e38e6aa1f2aac1cacdd618d692de1ff0892c27bae14affe343e3e515",
-    "flow-guide": "774a6f8282646ed28cf7c1d1e1347d06259414aef4c37e27088cbfa4d2600f78",
-    "git-smart-commit": "71559f17f6c19513abe6dc5d3120b9ab034ca25596ae75c8bedad2b641b68626",
+    "flow-guide": "eb69df402077e39e819c2d75d07249fee41eebb3742f2c414924d427a5f5eb95",
+    "git-smart-commit": "bba14c6579dc9bcb9f80e0cb5180997c9b836d67f8f23cb65ca3b8fcd3f95fea",
     "git-worktree": "937ecd20112e34ac279e56ba9de95e7c533fdb9b7c0d82b9661496e3d8651388",
-    "precommit": "87f0cf1250d85543dc332cf4bf9f3ef023e47958182670100872606686ec7b57",
+    "precommit": "86dbc4b393ec4c09ff38e04f66fd8504baa87017c2f9cfe2d9ac65831ee0a090",
     "proposal-analyze": "30beae79ada0acb4ee2906a99abf5029e36dcf5a411fa3cb573319b429884bd4",
-    "release-creator": "1dc2724ecd86ed16c830d348f8c29f4d857cede13812049b1aed1d4cca825330",
+    "release-creator": "dd1d649f69799b387637a0b2886a8fdaac52a303c28468c6e5cb4c34ed62607b",
     "repo-verify": "e69a12af65398ffe2153861568e6dfd63afd937c451cc6c1e36aca397403f999",
     "tdd-workflow": "73cd02b795b6c6c41a1ab1a0730dd98a8924f47235354d193934a2eb817b654e",
     "ui-ux-verify": "1db558c9689975b6c6c15d4a442d9923df25404f8dd2007da972963f3f65e5c5"

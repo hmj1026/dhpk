@@ -162,10 +162,22 @@ test('extract detects a literal block-scalar description (|) and skips its neste
 });
 
 test('extract tolerates a UTF-8 BOM and CRLF line endings', () => {
-  const content = '﻿---\r\nname: foo\r\n---\r\nbody\r\n';
+  const content = '\uFEFF---\r\nname: foo\r\n---\r\nbody\r\n';
   const r = extract(content);
   assert.strictEqual(r.present, true);
   assert.strictEqual(r.values.name, 'foo');
+});
+
+test('frontmatter and asset-inventory sources contain no raw UTF-8 BOM bytes', () => {
+  const bom = Buffer.from([0xef, 0xbb, 0xbf]);
+  for (const rel of [
+    'scripts/ci/_lib/frontmatter.js',
+    'skills/flow-guide/scripts/_lib/frontmatter.js',
+    'scripts/lib/asset-inventory.js',
+  ]) {
+    const bytes = fs.readFileSync(path.join(ROOT, rel));
+    assert.strictEqual(bytes.includes(bom), false, `${rel} must not contain raw UTF-8 BOM bytes`);
+  }
 });
 
 test('extract does not treat a value containing # as a comment (C#, single-quoted)', () => {
@@ -241,6 +253,11 @@ test('extractMetadata reads nested next maps and modes alongside invocation poli
   assert.deepStrictEqual(parsed.values['dhpk-modes'], ['code', 'docs']);
   assert.strictEqual(parsed.values['dhpk-next']['code:PASS'], 'precommit');
   assert.strictEqual(parsed.values['dhpk-invocation-class'], 'explicit-only');
+
+  const quoted = extractMetadata("---\nmetadata:\n  dhpk-modes: [code, docs]\n  dhpk-next:\n    PASS: none\n    'code:PASS': precommit\n    \"docs:PASS\": git-smart-commit\n---\n");
+  assert.deepStrictEqual(quoted.errors, []);
+  assert.strictEqual(quoted.values['dhpk-next']['code:PASS'], 'precommit');
+  assert.strictEqual(quoted.values['dhpk-next']['docs:PASS'], 'git-smart-commit');
 });
 
 test('extractMetadata rejects dotted keys, unknown dhpk keys, and Host syntax values', () => {

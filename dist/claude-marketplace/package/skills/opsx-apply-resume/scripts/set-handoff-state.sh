@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # set-handoff-state.sh — atomically update the state field in latest.md frontmatter (legacy default; the Skill passes an explicit path)
+# dhpk-stage-ids: set-handoff-state
 #
 # Usage: bash scripts/set-handoff-state.sh <new-state> [handoff-file]
 # Valid states: saved | consuming | consumed

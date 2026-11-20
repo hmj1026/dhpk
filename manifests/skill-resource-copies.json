@@ -172,7 +172,7 @@
     "skills/flow-guide/scripts/_lib/frontmatter.js": {
       "skill_id": "flow-guide",
       "source": "scripts/ci/_lib/frontmatter.js",
-      "sha256": "sha256:409b947c7d494d3aaaa1e3c6764d66c2730572c9b3f3ac130344d64ac50afae6",
+      "sha256": "sha256:c5e6ce0c517c68e0f74920b5adbdac6dc02d95d0098c536d4e3b1f54ee3b4c45",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/runner-utils.js": {
@@ -205,9 +205,9 @@
       "sha256": "sha256:c9027d631003a336be01e0865383f9174f3e318e0f1fd5ca1aea7b429c1e0c67",
       "mode": "0755"
     },
-    "skills/harness-setup/templates/settings.local.json.example": {
+    "skills/harness-setup/templates/settings.local.example.json": {
       "skill_id": "harness-setup",
-      "source": "templates/settings.local.json.example",
+      "source": "templates/settings.local.example.json",
       "sha256": "sha256:aa4b88f7f19c6637fb5b05c20e274e96dee4891459d8f418cbd1b1edf82a9ea5",
       "mode": "0644"
     },

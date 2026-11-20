@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # pre-route.sh — skill-local deterministic matcher for flow-guide.
+# dhpk-stage-ids: pre-route
 #
 # Match a free-text request against references/route-table.json (typed
 # targets) and report the first hit. Always exits 0.

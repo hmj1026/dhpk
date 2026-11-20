@@ -30,9 +30,11 @@ const RUNTIME_DATA_KEYS = Object.freeze({
 // Next-edge data of every public skill, taken from the source frontmatter and
 // keyed by skill name; null when flow-guide is not part of the tree. Sorted, so
 // the bytes are deterministic. It holds routing data only, no build facts.
-function buildRuntimeDataFile(sourceFiles) {
+function buildRuntimeDataFile(sourceFiles, options = {}) {
+  const outputPath = options.path || RUNTIME_DATA_PATH;
+  const requireRuntimeSkill = options.requireRuntimeSkill !== false;
   const hasRuntime = sourceFiles.some((file) => file.path === 'skills/flow-guide/SKILL.md');
-  if (!hasRuntime) return null;
+  if (requireRuntimeSkill && !hasRuntime) return null;
   const skills = {};
   for (const file of sourceFiles) {
     if (!/^skills\/[^/]+\/SKILL\.md$/.test(file.path)) continue;
@@ -48,7 +50,7 @@ function buildRuntimeDataFile(sourceFiles) {
   }
   const sorted = Object.fromEntries(Object.keys(skills).sort().map((key) => [key, skills[key]]));
   return {
-    path: RUNTIME_DATA_PATH,
+    path: outputPath,
     bytes: Buffer.from(`${stableStringify({ schema: 'dhpk.skill-next-map.v1', skills: sorted })}\n`, 'utf8'),
     mode: 0o644,
   };

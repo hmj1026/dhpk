@@ -56,12 +56,14 @@ function allAtVersion(version) {
     'dist/claude-marketplace/package/.claude-plugin/plugin.json': version,
     'distribution/stacks-plugin/plugin.json': version,
     'dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json': version,
+    'dist/claude-directory/package/.claude-plugin/plugin.json': version,
   };
 }
 
 test('checkParity fails when a tracked Claude package manifest lags the target', () => {
   for (const rel of [
     'dist/claude-marketplace/package/.claude-plugin/plugin.json',
+    'dist/claude-directory/package/.claude-plugin/plugin.json',
   ]) {
     withRepo({
       versions: { ...allAtVersion('1.2.3'), [rel]: '1.2.2' },
@@ -149,6 +151,7 @@ test('MANIFEST_PATHS lists retained version-bearing manifests, including native 
     'dist/claude-marketplace/package/.claude-plugin/plugin.json',
     'distribution/stacks-plugin/plugin.json',
     'dist/claude-marketplace/stacks-package/.claude-plugin/plugin.json',
+    'dist/claude-directory/package/.claude-plugin/plugin.json',
     'package.json',
   ];
   assert.deepStrictEqual([...MANIFEST_PATHS].sort(), [...expectedPaths].sort());

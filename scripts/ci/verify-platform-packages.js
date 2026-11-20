@@ -49,6 +49,7 @@ const { readTree, listTrackedFiles } = require('../lib/file-tree');
 const {
   checkPublicPlugin, checkDirectoryPlugin, checkCursorPlugin, checkAgyPlugin, runClaudeValidate,
 } = require('../lib/publication-conformance');
+const { validateDirectoryPlugin } = require('./validate-directory-plugin');
 const { NATIVE_RECEIPT_FILES, publicPluginTreeDrift } = require('../lib/public-plugin-tree');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 const {
@@ -369,6 +370,12 @@ function verifyDirectoryPlugin({ root }) {
     if (name === 'package') coreCount = files.size;
     const found = [...checkDirectoryPlugin(files, { version: readSourceVersion(root) }), ...runClaudeValidate(directory)];
     errors.push(...found.map((error) => (label === 'Directory Plugin' ? error : `${label}: ${error}`)));
+  }
+  const directoryPluginDir = path.join(root, 'dist', 'claude-directory', 'package');
+  if (fs.existsSync(directoryPluginDir)) {
+    const gate = validateDirectoryPlugin(directoryPluginDir, { root, version: readSourceVersion(root) });
+    for (const err of gate.errors) errors.push(`dhpk-lite: ${err.file} (${err.rule}): ${err.message}`);
+    for (const error of runClaudeValidate(directoryPluginDir)) errors.push(`dhpk-lite: ${error}`);
   }
   return publicPluginResult(errors, coreCount);
 }

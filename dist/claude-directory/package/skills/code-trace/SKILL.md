@@ -1,0 +1,155 @@
+---
+name: code-trace
+description: "Trace unfamiliar code, diagnose a reproducible failure, investigate history, or pick a code-navigation tool, following symbols, callers, data flow, or regressions. Not for implementing a fix, reviewing a diff, or plain-text search. Output: an evidence-backed trace or root cause."
+---
+
+# Code Trace
+
+Use the smallest mode that answers the question. The default stance is
+evidence-first and read-only: inspect the repository, trace the relevant
+boundary, and report what remains unknown. A diagnosis may recommend a repair
+or a regression test, but it does not implement the repair.
+
+## Modes
+
+| Mode | Use when | Completion criterion |
+|---|---|---|
+| `explore` | You need to understand an unfamiliar symbol, file, module, or flow. | Entry point, caller/callee path, evidence, assumptions, and gaps are recorded. |
+| `diagnose` | A failure, regression, performance problem, data inconsistency, or timing issue needs a confirmed cause. | One falsifiable root cause is supported by evidence, or the current blocker and next check are explicit. |
+| `history` | You need to know when, why, or by whom behavior changed. | Blame, timeline, original/problematic comparison, and actionable conclusion are reported. |
+| `select-tool` | You need one code-navigation tool and a fallback chosen. | One intent row, executable primary call, and concrete fallback or `none` are returned. |
+
+If `--mode` is omitted, infer one mode only when intent is unambiguous. A
+request to edit a symbol first requires the repository's impact-analysis rule
+before any implementation lane touches it; this skill only reports the impact.
+
+## When NOT to Use
+
+- Implement a confirmed change → use `flow-drive`.
+- Review a proposed change → use `change-verdict`.
+- Review an existing skill document or change → use `change-verdict` in its `docs` or `risk` mode.
+
+## `explore`
+
+1. Identify the repository root, question, entry point, and target symbol.
+2. Follow the repository's CX priority: use `cx overview`, then `cx
+   definition`, then `cx references` for symbol-level questions. Use the
+   selected semantic fallback only when CX cannot answer.
+3. Trace callers, callees, data/control transitions, and observable output
+   until the relevant boundary is accounted for.
+4. For `--dual`, dispatch an isolated read-only perspective with only the
+   original question, repository path, and depth. Reconcile evidence after
+   the primary trace; never seed the second perspective with a conclusion.
+5. For `--explain --depth brief|normal|deep`, keep the response within the
+   requested depth. Load `references/explore/` only for the selected branch.
+
+## `diagnose`
+
+Use the five-phase loop:
+
+`Clarify → Gather evidence → Trace and confirm → Design the fix → Preserve knowledge`
+
+Before broad theorizing, run the smallest symptom-specific reproduction or
+probe that is available and safe. Record the command or interaction, relevant
+output, and the expected-versus-actual assertion. If reproduction is
+unavailable, blocked, or flaky, state that; for flaky behavior, include the
+observed attempts, successes, and known conditions. For performance symptoms,
+record a baseline from a comparable workload when available. Reduce one input
+at a time only while the check is bounded and preserves the signal. When
+changed code, an injected fault, or an altered fixture is what forced that
+check red, the red result counts as reproduction evidence only after the
+forced-mutation check passes. Confirm a mutation that is already present.
+Applying a mutation, or repairing a setup, belongs to the authorized isolated
+workflow in `references/diagnose/root-cause-tracing.md`. See
+`references/diagnose/reproduction-evidence.md` for these evidence details,
+including the clean-copy `git diff`, and
+`references/diagnose/root-cause-tracing.md` when following a call or data path.
+
+Keep diagnosis read-only: do not reproduce a destructive action or write to a
+shared database by default. Use existing evidence and authorized read-only
+queries; route any side-effecting confirmation through an authorized isolated
+environment. Maintain ranked, falsifiable hypotheses with a discriminating
+check and evidence that could reject each one. Redact secrets from commands,
+logs, traces, and handoffs. Do not promote a plausible explanation to root
+cause without a confirming check.
+
+Load the phase-specific material from `references/diagnose/` only when that
+phase requires it. Inspect a selected bundled script's operation and effects
+before running it, keep output bounded, and preserve its actual exit status.
+Bundled diagnose scripts are not pre-approved; an unlisted shell command uses
+the host's normal permission flow.
+Return the phase report in the response and name the single next handoff by
+default. Write an investigation artifact only when explicitly authorized; this
+skill does not create directories or files and does not implement the proposed
+repair.
+
+## `history`
+
+Use the narrowest history query that answers the question: `git blame` for
+ownership, `git log --follow` for timeline, `git log -S`/`-G` for introduction,
+and `git show`/`git diff` for original-versus-problematic comparison. Pin the
+relevant commit range, distinguish author from committer where material, and
+avoid changing refs, the index, or the worktree. Load
+`references/history/commands.md` for command/report details and
+`references/history/wsl-traps.md` only when the environment matches.
+
+## `select-tool`
+
+1. Read `references/select-tool/decision-tree.md` for the local decision table
+   and tie-breakers.
+2. Map the request to exactly one intent row and select its primary tool.
+3. Use the named fallback only when the primary is unavailable or returns no
+   useful result. Prefer CX when both CX and GitNexus are valid, except for
+   GitNexus-only operations; leave GitNexus-specific semantics to its external
+   package skill.
+4. For a planned edit, rename, or refactor, use the local reference's impact
+   timing before touching an existing symbol.
+
+Return:
+
+```text
+Intent: <matched decision-tree row>
+Primary: <exact command or MCP call>
+Fallback: <exact command or MCP call, or none>
+```
+
+## Output
+
+```markdown
+## Code trace: <mode>
+- Target/question: <target>
+- Mode/depth: <mode and depth>
+- Entry point or fixed commit: <evidence anchor>
+- Flow or timeline: <ordered path>
+
+### Evidence
+- <file:line, commit, command, or tool result>
+
+### Findings and gaps
+- <conclusion, hypothesis state, or unresolved link>
+
+### Next action
+- <one handoff, or none>
+```
+
+For `diagnose`, include expected/actual behavior, reproduction status, the
+clean-copy diff verdict when a forced mutation produced the red result, ranked
+hypotheses, one confirmed cause or blocker, options/risks/verification intent,
+and stop-loss state. The verdict words are defined in
+`references/diagnose/reproduction-evidence.md`. For `explore --dual`, keep primary and independent
+findings separate before the agreement/difference table.
+
+## References
+
+- `references/explore/` — search patterns, explanation depth, and independent perspective.
+- `references/diagnose/` — reproduction evidence, phase templates, tracing, waiting, defense-in-depth, checklists, and scripts.
+- `references/history/` — git command/report reference and environment traps.
+- `references/select-tool/decision-tree.md` — edge cases and routing rationale.
+
+## Verification
+
+- [ ] Exactly one mode and requested depth are stated.
+- [ ] Definitions/references were inspected at symbol or commit granularity before broad search.
+- [ ] Every material conclusion has evidence; hypotheses and gaps remain labeled.
+- [ ] Dual perspectives, if used, were independent and separately reported.
+- [ ] No implementation, fix, refactor, commit, or destructive cleanup was performed.

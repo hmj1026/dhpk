@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// dhpk-stage-ids: help
 'use strict';
 
 // Read-only progressive help for Codex-invokable skills. This helper reads
