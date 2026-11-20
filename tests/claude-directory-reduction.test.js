@@ -516,6 +516,7 @@ test('Directory package avoids phrases the directory scanner reads as credential
     'agent-traps/security-reviewer/yii.md',
     'skills/flow-guide/references/implementation-dispatch.md',
     'skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md',
+    'skills/tdd-workflow/references/mocking.md',
   ];
   const inputs = new Map(paths.map((destination) => [
     destination,
@@ -527,7 +528,9 @@ test('Directory package avoids phrases the directory scanner reads as credential
     assert.doesNotMatch(text, /`eval`/, `${destination} keeps a code-span eval`);
     assert.doesNotMatch(text, /`perl -pi`/, `${destination} keeps a perl command`);
     assert.doesNotMatch(text, /\bpass prompted\b/, `${destination} keeps "pass prompted"`);
+    assert.doesNotMatch(text, /process\.env\.[A-Z_]*KEY|getenv\(/, `${destination} keeps a credential read`);
   }
+  assert.match(output.get(paths[7]).content.toString('utf8'), /new StripeClient\("YOUR_API_KEY"\)/);
   const dispatch = output.get(paths[5]).content.toString('utf8');
   assert.match(dispatch, /second `deep-reasoner` run with an independent prompt built from the source/);
   assert.match(output.get(paths[1]).content.toString('utf8'), /Perl in-place edits/);

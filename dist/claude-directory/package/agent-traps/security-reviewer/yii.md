@@ -9,7 +9,7 @@ Yii 1.1 OWASP lanes for `security-reviewer`. Deeper Yii security patterns: `skil
 | CRITICAL — Unescaped echo of user data | `CHtml::encode($x)` | JSON APIs use `CJSON::encode` / `json_encode`, not `CHtml::encode` |
 | CRITICAL — Sensitive action without `Yii::app()->user->isGuest` | Throw `CHttpException(403)` | |
 | CRITICAL — Resource ownership not checked | Compare `owner_id` vs `Yii::app()->user->id` | |
-| CRITICAL — Hardcoded secret | `getenv('X')` + `.env` | |
+| CRITICAL — Hardcoded secret | Configuration supplied at deploy time, outside the repository | |
 | CRITICAL — Plain / MD5 / SHA1 password | `password_hash($pw, PASSWORD_BCRYPT)` + `password_verify` | |
 | CRITICAL — User data into eval / string-arg `setTimeout` / `Function` ctor | `JSON.parse` or whitelisted mapper | |
 | HIGH — `unserialize($userData)` | `json_decode($userData, true)` + schema | |
