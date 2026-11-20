@@ -1,7 +1,7 @@
 ---
 name: release-creator
 argument-hint: '<version> [--execute]'
-description: 'Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.'
+description: 'Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved. Explicit user request only; stop and ask before any side effect if selected by the model.'
 disable-model-invocation: true
 metadata:
   dhpk-capability-id: dhpk.skill.release-creator
@@ -11,8 +11,13 @@ metadata:
 
 # Release Creator
 
+Run this skill only on an explicit user request; otherwise stop and ask before any stage or side effect.
+
 Resolve the project release contract first, then delegate fixed mechanics to the
-tested runner. `RELEASE.md` is the complete route when the consumer provides it.
+tested runner (if `$SKILL_DIR/scripts/release-runner.sh` is absent, such as in
+the instruction-only Directory Plugin, or cannot run, follow
+[references/manual-procedure.md](references/manual-procedure.md) and report
+`mode: manual`). `RELEASE.md` is the complete route when the consumer provides it.
 
 `$SKILL_DIR` denotes the physical directory containing this `SKILL.md`;
 `$PROJECT_DIR` denotes the consumer project root. These are resolved path

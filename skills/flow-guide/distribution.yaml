@@ -32,6 +32,7 @@
       "references/implementation-dispatch.md",
       "references/invocation-classification.md",
       "references/invocation-precedence.md",
+      "references/manual-procedure.md",
       "references/output-shape.md",
       "references/premise-verification.md",
       "references/profile-and-project-overrides.md",

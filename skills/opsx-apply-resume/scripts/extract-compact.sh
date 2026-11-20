@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # extract-compact.sh — extract key fields from a compact-*.json file
+# dhpk-stage-ids: extract-compact
 #
 # Usage: bash scripts/extract-compact.sh <compact_json_path>
 # Outputs fixed human-readable lines for model consumption (no raw JSON in context)

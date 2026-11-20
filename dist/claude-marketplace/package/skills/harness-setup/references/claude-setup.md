@@ -13,7 +13,7 @@ asset bytes are needed. Require these resources:
 - `data/module-catalog.json` — stack, version, review-slot, and hook
   profile source of truth.
 - `scripts/install-assets.sh` — Skill-local deterministic asset adapter.
-- `templates/settings.local.json.example` — settings shape guidance.
+- `templates/settings.local.example.json` — settings shape guidance.
 
 A missing local resource is `BLOCKED_RESOURCE_MISSING`. Do not search a
 plugin cache, consumer `.claude`, parent checkout, or a remote URL to replace

@@ -122,8 +122,18 @@ const OWNER_GROUPS = Object.freeze([
   },
   {
     name: 'adapter-package',
-    paths: [/^scripts\/lib\/(?:agy|agent|agents|claude|codex|cursor|marketplace|standalone|workflow)-.*(?:package|adapter|publication)\.js$/i, /^scripts\/ci\/(?:gen-(?:.*package|.*manifest|cursor-sync)|validate-agent-plugin-package)\.js$/i, /^plugins\//i],
-    tests: ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'stacks-plugin-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js'],
+    paths: [
+      /^scripts\/lib\/(?:agy|agent|agents|claude|codex|cursor|marketplace|standalone|workflow)-.*(?:package|adapter|publication)\.js$/i,
+      /^scripts\/lib\/claude-directory-reduction\.js$/i,
+      /^scripts\/ci\/(?:gen-(?:.*package|.*manifest|cursor-sync)|validate-agent-plugin-package|validate-directory-plugin)\.js$/i,
+      /^plugins\//i,
+    ],
+    tests: ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'claude-directory-reduction.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'manual-procedure-drift.test.js', 'stacks-plugin-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js', 'validate-directory-plugin.test.js'],
+  },
+  {
+    name: 'manual-procedure',
+    paths: [/^skills\/(?:flow-guide|opsx-apply-resume|git-smart-commit|harness-setup|precommit|release-creator)\/references\/manual-procedure\.md$/i],
+    tests: ['manual-procedure-drift.test.js'],
   },
 ]);
 
@@ -206,6 +216,11 @@ function companionRoutingForFiles(files) {
       }
     }
     if (file === 'dist/claude-marketplace/package/provenance.json' || (file.startsWith('dist/claude-marketplace/package/') && file.endsWith('.md'))) {
+      generatedChecks.add('claude-marketplace');
+      hasCompanion = true;
+      companion = true;
+    }
+    if (file === 'dist/claude-directory/package/skill-next-map.json' || (file.startsWith('dist/claude-directory/package/') && file.endsWith('.md'))) {
       generatedChecks.add('claude-marketplace');
       hasCompanion = true;
       companion = true;

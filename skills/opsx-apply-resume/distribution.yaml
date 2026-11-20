@@ -6,6 +6,7 @@
       "agents/openai.yaml",
       "evals/evals.json",
       "references/load-context.md",
+      "references/manual-procedure.md",
       "references/post-observation.md",
       "references/resume.md",
       "references/save.md"

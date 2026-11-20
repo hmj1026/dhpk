@@ -1,6 +1,9 @@
 'use strict';
 
-// Runtime-file selection for the Directory Plugin (Claude package).
+// Runtime-file selection for the Full Plugin (Claude Code package distributed
+// through the Repository Marketplace at dist/claude-marketplace/package). The
+// instruction-only Directory Plugin (dhpk-lite at dist/claude-directory/package)
+// reduces from this selected tree.
 //
 // The package carries only files that run or that Claude loads.  Documentation,
 // the build, CI, release, and maintainer scripts, per-skill build metadata,
@@ -24,7 +27,7 @@ const SKILL_BUILD_FILE = /^skills\/(?:.+\/)?(?:distribution\.yaml|agents\/openai
 const SKILL_EVAL_FILE = /^skills\/(?:.+\/)?(?:evals\/|scripts\/check-golden\.sh$)/;
 
 // Stack skills compile into flow-drive's reference tree.  They ship in
-// dhpk-stacks as top-level skills, so the Directory Plugin does not carry them.
+// dhpk-stacks as top-level skills, so the Full Plugin does not carry them.
 const STACK_SKILL_IDS = Object.freeze(['swift', 'php', 'laravel', 'yii1', 'js-static-checks', 'python', 'react', 'nextjs']);
 const STACK_SKILL_FILE = new RegExp(`^skills/flow-drive/references/(${STACK_SKILL_IDS.join('|')})/`);
 
@@ -56,7 +59,7 @@ const BUILD_ONLY_FILES = Object.freeze([
     'standalone-skill-dependencies',
     'agent-plugin-package', 'agents-skills-package', 'agents-skills-retirement', 'agy-plugin-install',
     'agy-plugin-package', 'assertion-evidence', 'bounded-child-process', 'capability-bundle-activation',
-    'changelog-fragments', 'ci-plan', 'claude-capability-bundle', 'claude-plugin-provision',
+    'changelog-fragments', 'ci-plan', 'claude-capability-bundle', 'claude-directory-reduction', 'claude-plugin-provision',
     'codex-discovery-registry', 'codex-native-activation', 'codex-native-package', 'codex-role-neighbors',
     'command-namespace', 'cross-cli-parity', 'cursor-harness-adapt', 'cursor-plugin-package',
     'cursor-session-home', 'cursor-sync-package', 'dhpk-distribution', 'directory-plugin-runtime',

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # post-obs.sh — POST a claude-mem observation using a temp file (safe for special chars)
+# dhpk-stage-ids: post-observation
 #
 # Usage: bash scripts/post-obs.sh <payload_json_file>
 # Outputs: obs_id (integer string) or "null"

@@ -8,7 +8,10 @@ description: "Run the deterministic pre-commit pipeline in fast or full mode thr
 ## Workflow
 
 Run from the consumer repository. Resolve `--fast` to fast mode and no flag to
-full mode, then invoke the package-local runner:
+full mode, then invoke the package-local runner when present (if the runner
+script is absent, such as in the instruction-only Directory Plugin, follow
+[`references/manual-procedure.md`](references/manual-procedure.md) and report
+`mode: manual`):
 
 ```bash
 node "$SKILL_DIR/scripts/precommit-runner.js" --mode <fast|full> --tail 80
@@ -50,10 +53,12 @@ rule to verification and review evidence.
 
 For a preview, return the runner's `DRY_RUN` plan and retain its unexecuted state.
 For execution, return the runner output, changed-file report, and its final `PASS`, `FAIL`, or
-`UNSUPPORTED` verdict. A missing runner is `UNAVAILABLE`; a runner crash or
+`UNSUPPORTED` verdict. A missing runner is `UNAVAILABLE` unless following
+[`references/manual-procedure.md`](references/manual-procedure.md); a runner crash or
 failed check is `FAIL`. An `UNSUPPORTED` verdict means no Git repository or executable checks were
-available and exits non-zero; never replace it with hand-written checks or claim a pass
-from partial output.
+available and exits non-zero; use the runner when present, otherwise follow
+[`references/manual-procedure.md`](references/manual-procedure.md); never claim
+a pass from partial output or when a required stage did not run.
 
 ## Verification
 
@@ -71,3 +76,4 @@ from partial output.
 
 - [`references/workflow.md`](references/workflow.md) — mode mapping,
   `$SKILL_DIR` resolution, runner ownership, and failure handling.
+- [`references/manual-procedure.md`](references/manual-procedure.md) — stage-ordered manual fallback (`mode: manual`) when the packaged runner is absent.

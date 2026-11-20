@@ -15,7 +15,7 @@
  * @returns {{present:boolean, values:Record<string,string>, duplicates:string[], descriptionIndicator:string|null}}
  */
 function extract(content) {
-  const clean = content.replace(/^﻿/, '');
+  const clean = content.replace(/^\uFEFF/, '');
   const m = clean.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!m) {
     return { present: false, values: {}, duplicates: [], descriptionIndicator: null };
@@ -98,7 +98,7 @@ const unquote = value => value.trim().replace(/^(['"])(.*)\1$/, '$2');
 
 /** Parse the supported nested metadata shape; this is the shared CI/runtime source. */
 function extractMetadata(content) {
-  const match = content.replace(/^﻿/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  const match = content.replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   const values = {};
   const errors = [];
   if (!match) return { present: false, values, errors, dottedKeys: [] };
@@ -139,9 +139,9 @@ function extractMetadata(content) {
       continue;
     }
     if (next) {
-      const edge = raw.match(/^    ([A-Za-z][A-Za-z0-9_-]*(?::[A-Z_]+)?):\s*(.*)$/);
+      const edge = raw.match(/^    (['"]?)([A-Za-z][A-Za-z0-9_-]*(?::[A-Z_]+)?)\1:\s*(.*)$/);
       if (!edge) { errors.push('metadata.dhpk-next: malformed state mapping'); continue; }
-      const [, key, source] = edge;
+      const [, , key, source] = edge;
       const value = unquote(source);
       if (Object.prototype.hasOwnProperty.call(values['dhpk-next'], key)) errors.push(`metadata.dhpk-next: duplicate state ${key}`);
       values['dhpk-next'][key] = value;

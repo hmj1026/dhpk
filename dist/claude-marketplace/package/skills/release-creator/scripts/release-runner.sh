@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# dhpk-stage-ids: prepare, human-merge-gate, publish
 set -euo pipefail
 
 if [ "$#" -lt 6 ]; then

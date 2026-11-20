@@ -1,7 +1,7 @@
 ---
 name: harness-setup
 argument-hint: '[--show] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]'
-description: 'Configure or inspect the dhpk harness, or install selected host assets. Not for: ordinary harness audits, application changes, or silent credential/configuration changes. Output: a host-specific setup report with preserved-file, receipt, and terminal evidence.'
+description: 'Configure or inspect the dhpk harness, or install selected host assets. Not for: ordinary harness audits, application changes, or silent credential/configuration changes. Output: a host-specific setup report with preserved-file, receipt, and terminal evidence. Explicit user request only; stop and ask before any side effect if selected by the model.'
 disable-model-invocation: true
 metadata:
   dhpk-capability-id: dhpk.skill.harness-setup
@@ -11,9 +11,15 @@ metadata:
 
 # Harness Setup
 
+Run this skill only on an explicit user request; otherwise stop and ask before any stage or side effect.
+
 `$harness-setup` is the explicit setup capability behind the Claude
 `/dhpk:harness-setup` front door. It owns setup and configuration evidence; it does not
-silently broaden a host's authority or invent a second installer.
+silently broaden a host's authority or invent a second installer. Run the
+package-local scripts when present; if they are absent (as in the
+instruction-only Directory Plugin) or cannot execute, follow
+[references/manual-procedure.md](references/manual-procedure.md) and report
+`mode: manual`.
 
 ## When to Use
 

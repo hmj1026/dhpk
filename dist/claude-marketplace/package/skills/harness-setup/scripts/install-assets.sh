@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# dhpk-stage-ids: resolve-host-and-root, inspect-or-show-config, install-claude-assets
 # Portable asset adapter shared by the setup Skills. harness-setup owns this
 # source and dhpk-project-setup ships a synchronized copy named
 # install-project-assets.sh, so the adapter names itself from its path.

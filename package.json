@@ -1,6 +1,6 @@
 {
   "name": "dhpk",
-  "version": "0.79.1",
+  "version": "0.80.0",
   "private": true,
   "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "license": "MIT",
@@ -45,8 +45,9 @@
     "validate:references": "node scripts/ci/validate-references.js",
     "validate:invocation-policy": "node scripts/ci/validate-invocation-policy.js",
     "validate:cursor-sync": "node scripts/ci/validate-cursor-sync.js",
+    "validate:directory-plugin": "node scripts/ci/validate-directory-plugin.js",
     "validate:harness": "bash scripts/validate/validate-harness.sh || [ $? -eq 2 ]",
-    "validate": "npm run validate:agents && npm run validate:skills && npm run validate:modules && npm run validate:plugin && npm run validate:distribution && npm run validate:workflow-policy && npm run validate:hook-shellcheck && npm run validate:json-cli && npm run validate:js-guardrails && npm run validate:plugin-root && npm run validate:references && npm run validate:invocation-policy && npm run validate:cursor-sync && npm run validate:harness",
+    "validate": "npm run validate:agents && npm run validate:skills && npm run validate:modules && npm run validate:plugin && npm run validate:distribution && npm run validate:workflow-policy && npm run validate:hook-shellcheck && npm run validate:json-cli && npm run validate:js-guardrails && npm run validate:plugin-root && npm run validate:references && npm run validate:invocation-policy && npm run validate:cursor-sync && npm run validate:directory-plugin && npm run validate:harness",
     "check:manifest": "node scripts/ci/gen-claude-manifest.js --check",
     "check:host-manifests": "node scripts/ci/gen-host-manifests.js --check",
     "check:marketplace": "node scripts/ci/gen-claude-marketplace-package.js --check",

@@ -24,6 +24,7 @@ const {
 } = require('../lib/distribution-inventory');
 const { verifyClaudeProjection } = require('../lib/claude-projection-adapter');
 const { validateProfileDefinitions } = require('../lib/capability-bundle-selection');
+const { OMITTED_SKILLS, OMITTED_AGENTS } = require('../lib/claude-directory-reduction');
 
 const ROOT = path.join(__dirname, '..', '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -70,12 +71,39 @@ if (moduleCatalog && Array.isArray(moduleCatalog.stacks)) {
 const cursorSkillsDir = path.join(ROOT, 'cursor', 'skills');
 const cursorMirrorNames = fs.existsSync(cursorSkillsDir) ? fs.readdirSync(cursorSkillsDir) : [];
 
+const mainPackageDir = path.join(ROOT, 'dist', 'claude-marketplace', 'package');
+const dirPackageDir = path.join(ROOT, 'dist', 'claude-directory', 'package');
+
+function listSkillDirs(pkgDir) {
+  const dir = path.join(pkgDir, 'skills');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+}
+
+function listAgentNames(pkgDir) {
+  const dir = path.join(pkgDir, 'agents');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => entry.name.replace(/\.md$/, ''))
+    .sort();
+}
+
 const reconcile = reconcileDistribution({
   inventory,
   codexMirrorNames,
   cursorMirrorNames,
   moduleCatalogIds,
   hasOpenaiMetadata: (skill) => fs.existsSync(path.join(ROOT, skill.path, 'agents', 'openai.yaml')),
+  directoryPluginSkillNames: fs.existsSync(dirPackageDir) ? listSkillDirs(dirPackageDir) : [],
+  directoryPluginAgentNames: fs.existsSync(dirPackageDir) ? listAgentNames(dirPackageDir) : [],
+  mainMarketplaceSkillNames: fs.existsSync(mainPackageDir) ? listSkillDirs(mainPackageDir) : null,
+  mainMarketplaceAgentNames: fs.existsSync(mainPackageDir) ? listAgentNames(mainPackageDir) : null,
+  omittedSkillNames: OMITTED_SKILLS,
+  omittedAgentNames: OMITTED_AGENTS,
 });
 for (const msg of reconcile.errors) r.err(msg);
 

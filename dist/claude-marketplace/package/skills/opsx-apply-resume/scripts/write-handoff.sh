@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # write-handoff.sh — atomically write one explicit Save handoff from stdin
+# dhpk-stage-ids: write-handoff
 #
 # Usage: bash scripts/write-handoff.sh <handoff-file>
 #

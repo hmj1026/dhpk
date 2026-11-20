@@ -99,6 +99,13 @@ const GENERATORS = Object.freeze([
     ],
   },
   {
+    id: 'claude-directory-package',
+    command: 'node scripts/ci/gen-claude-marketplace-package.js',
+    outputs: [
+      { path: 'dist/claude-directory/package/.claude-plugin/plugin.json', read: 'version' },
+    ],
+  },
+  {
     id: 'codex-native-package',
     command: 'bin/dhpk distribution codex-native generate',
     outputs: [

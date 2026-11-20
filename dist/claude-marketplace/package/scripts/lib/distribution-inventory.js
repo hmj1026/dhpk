@@ -2187,6 +2187,12 @@ function reconcileDistribution({
   cursorMirrorNames = [],
   moduleCatalogIds = [],
   hasOpenaiMetadata = () => false,
+  directoryPluginSkillNames = [],
+  directoryPluginAgentNames = [],
+  mainMarketplaceSkillNames = null,
+  mainMarketplaceAgentNames = null,
+  omittedSkillNames = [],
+  omittedAgentNames = [],
 }) {
   const errors = [];
   const mirrorSet = new Set(codexMirrorNames);
@@ -2219,6 +2225,28 @@ function reconcileDistribution({
     }
   }
 
+  if (directoryPluginSkillNames.length > 0 || directoryPluginAgentNames.length > 0) {
+    const omittedSkillSet = new Set(omittedSkillNames);
+    const omittedAgentSet = new Set(omittedAgentNames);
+    const mainSkillSet = Array.isArray(mainMarketplaceSkillNames) ? new Set(mainMarketplaceSkillNames) : null;
+    const mainAgentSet = Array.isArray(mainMarketplaceAgentNames) ? new Set(mainMarketplaceAgentNames) : null;
+
+    for (const skillName of directoryPluginSkillNames) {
+      if (omittedSkillSet.has(skillName)) {
+        errors.push(`Directory Plugin (dist/claude-directory/package) ships omitted script-dependent skill: ${skillName}`);
+      } else if (mainSkillSet && !mainSkillSet.has(skillName)) {
+        errors.push(`Directory Plugin (dist/claude-directory/package) ships skill absent from main marketplace selection: ${skillName}`);
+      }
+    }
+    for (const agentName of directoryPluginAgentNames) {
+      if (omittedAgentSet.has(agentName)) {
+        errors.push(`Directory Plugin (dist/claude-directory/package) ships omitted external CLI agent: ${agentName}`);
+      } else if (mainAgentSet && !mainAgentSet.has(agentName)) {
+        errors.push(`Directory Plugin (dist/claude-directory/package) ships agent absent from main marketplace selection: ${agentName}`);
+      }
+    }
+  }
+
   return { errors };
 }
 
@@ -2231,13 +2259,18 @@ function freezeProjectionValue(value) {
 // Task 4.1/4.2: scoped counts, kept independently derived so a documentation
 // claim can cite the count whose scope actually matches it (harness-count-integrity
 // spec: canonical inventory must never stand in for a narrower published surface).
-function computeScopedCounts(inventory) {
+function computeScopedCounts(inventory, { omittedSkillNames = [] } = {}) {
   const skills = inventory.skills || [];
   const modules = inventory.modules || [];
   const byLifecycle = (entries, lifecycle) => entries.filter((s) => s.lifecycle === lifecycle).length;
   // Lazy: the Claude adapter requires this module for V2_SCHEMA at load time.
   const { generateClaudeSkillRoots } = require('./claude-projection-adapter');
   const generated = generateClaudeSkillRoots(inventory);
+  const omittedSkillSet = new Set(omittedSkillNames);
+  const generatedSet = new Set(generated.generatedSkillIds);
+  const directoryExcluded = skills.filter(
+    (s) => generatedSet.has(s.id) && omittedSkillSet.has(s.name || s.id),
+  ).length;
 
   return {
     canonical: skills.length,
@@ -2254,6 +2287,7 @@ function computeScopedCounts(inventory) {
     experimentalModules: byLifecycle(modules, 'experimental'),
     deprecatedModules: byLifecycle(modules, 'deprecated'),
     claudePublished: generated.generatedSkillIds.length,
+    claudeDirectoryPublished: Math.max(0, generated.generatedSkillIds.length - directoryExcluded),
     codexPublished: skills.filter((s) => (s.surfaces || []).some((surf) => surf === 'codex-sync' || surf === 'codex-native')).length,
   };
 }

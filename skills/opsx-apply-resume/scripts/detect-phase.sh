@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # detect-phase.sh — determine which phase opsx-apply-resume should enter
+# dhpk-stage-ids: detect-phase
 #
 # Usage: bash scripts/detect-phase.sh [handoff-file]
 # Outputs one token: save | resume | consuming | warn-recent

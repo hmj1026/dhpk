@@ -14,7 +14,7 @@ metadata:
     BLOCKED: none
     NOT_RUN: none
     UNAVAILABLE: none
-    update:PASS: git-smart-commit
+    'update:PASS': git-smart-commit
 ---
 
 # Documentation maintenance

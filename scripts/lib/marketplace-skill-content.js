@@ -34,7 +34,7 @@ function packagingOnlySkillResources(root) {
   return [...HELPER_RESOURCES, ...modules];
 }
 
-function resolveSourceFileAllowlist(physicalRoot, supplied, errors) {
+function resolveSourceFileAllowlist(physicalRoot, supplied, errors, inventory = null) {
   if (supplied !== undefined) {
     if (!(supplied instanceof Set) || [...supplied].some((item) => typeof item !== 'string')) {
       errors.push('sourceFileAllowlist must be a Set of source-relative paths');
@@ -89,7 +89,56 @@ function resolveSourceFileAllowlist(physicalRoot, supplied, errors) {
     errors.push('HEAD contains source paths that are not readable UTF-8');
     return null;
   }
-  return new Set(trackedText.split('\0').filter((item) => item.length > 0));
+  const allowed = new Set(trackedText.split('\0').filter((item) => item.length > 0));
+
+  const indexResult = spawnSync('git', ['ls-files', '-z'], {
+    cwd: physicalRoot,
+    maxBuffer: 16 * 1024 * 1024,
+    timeout: 15000,
+  });
+  if (!indexResult.error && indexResult.status === 0 && indexResult.stdout) {
+    try {
+      const indexText = new TextDecoder('utf-8', { fatal: true }).decode(indexResult.stdout);
+      for (const item of indexText.split('\0')) {
+        if (item.length > 0) allowed.add(item);
+      }
+    } catch (_) {
+      // Ignore non-UTF-8 index output here; strict decoding runs per selected source file.
+    }
+  }
+
+  const coveragePath = path.join(physicalRoot, 'manifests', 'skill-directory-coverage.json');
+  if (fs.existsSync(coveragePath)) {
+    try {
+      const coverageDoc = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+      let skillsList = inventory && Array.isArray(inventory.skills) ? inventory.skills : null;
+      if (!skillsList) {
+        const invPath = path.join(physicalRoot, 'manifests', 'distribution-inventory.json');
+        if (fs.existsSync(invPath)) {
+          const parsedInv = JSON.parse(fs.readFileSync(invPath, 'utf8'));
+          skillsList = parsedInv && Array.isArray(parsedInv.skills) ? parsedInv.skills : [];
+        }
+      }
+      const skillPathById = new Map((skillsList || []).map((s) => [s.id, s.path]));
+      for (const [skillId, cov] of Object.entries((coverageDoc && coverageDoc.skills) || {})) {
+        const base = skillPathById.get(skillId) || `skills/${skillId}`;
+        if (typeof cov.entry === 'string' && cov.entry.length > 0) allowed.add(path.posix.join(base, cov.entry));
+        for (const ref of cov.references || []) {
+          if (typeof ref === 'string' && ref.length > 0) allowed.add(path.posix.join(base, ref));
+        }
+        for (const exe of cov.executable_entries || []) {
+          if (exe && typeof exe.path === 'string' && exe.path.length > 0) allowed.add(path.posix.join(base, exe.path));
+        }
+        for (const helper of cov.internal_helpers || []) {
+          if (helper && typeof helper.path === 'string' && helper.path.length > 0) allowed.add(path.posix.join(base, helper.path));
+        }
+      }
+    } catch (_) {
+      // Let compileSkillMap/coverage validators report malformed coverage manifests explicitly.
+    }
+  }
+
+  return allowed;
 }
 
 function originalGitBlobDigest(bytes) {
@@ -403,7 +452,7 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
   } catch (error) {
     return { ok: false, errors: [`source root is unavailable: ${error.message}`], files: [], bundleProvenance: null };
   }
-  const allowedSourcePaths = resolveSourceFileAllowlist(physicalRoot, sourceFileAllowlist, errors);
+  const allowedSourcePaths = resolveSourceFileAllowlist(physicalRoot, sourceFileAllowlist, errors, inventory);
   if (errors.length > 0) return { ok: false, errors, files: [], bundleProvenance: null };
   const retainedHostResources = retainedHostResourceEntries(retainedHostResourcePaths, physicalRoot, errors);
   if (errors.length > 0) return { ok: false, errors, files: [], bundleProvenance: null };
