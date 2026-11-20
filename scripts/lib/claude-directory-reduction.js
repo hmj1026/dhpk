@@ -447,11 +447,32 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
       content = Buffer.from(text, 'utf8');
     } else if (/^agents\/[^/]+\.md$/.test(destination)) {
       const reducedFm = reduceAgentFrontmatter(content.toString('utf8'), destination);
-      content = Buffer.from(rewriteDirectoryNamespace(reducedFm), 'utf8');
+      const agentText = destination === 'agents/code-reviewer.md'
+        ? reducedFm
+          .replace('## Process', [
+            'Use local repository evidence. Review credential handling through source, configuration declarations, and tests.',
+            'Keep credential stores and live credential values outside the review. Use synthetic fixtures for verification.',
+            'Keep the review local and report findings in the current session.',
+            '',
+            '## Process',
+          ].join('\n'))
+          .replace(/^1\. \*\*Detect stack\*\*[^\n]*\n(?:   - [^\n]*\n)+/m, [
+            '1. **Detect stack** (once per invocation). Use Read and Glob to inspect project files:',
+            '   Composer PHP requirements and PHP framework dependencies, Node engine requirements and JavaScript dependencies,',
+            '   Swift project or package files, and declared project modules.',
+            '',
+          ].join('\n'))
+          .replace('HTTP `200` / `404`', 'status codes `200` / `404`')
+        : reducedFm;
+      content = Buffer.from(rewriteDirectoryNamespace(agentText), 'utf8');
     } else if (TEXT_REWRITE_EXTENSIONS.has(path.posix.extname(outDestination).toLowerCase())) {
       let text = content.toString('utf8');
       if (destination === 'agent-traps/database-reviewer/fastapi.md') {
         text = text.replace('pass bind values', 'Use SQLAlchemy bound parameters');
+      } else if (destination === 'agent-traps/database-reviewer/ios.md') {
+        text = text
+          .replace('pass `objectID` + re-fetch', 'Transfer the `objectID` and re-fetch in the destination context')
+          .replace('passphrase from Keychain', 'Check source and tests for evidence that the application uses Keychain-backed encryption configuration');
       }
       if (outDestination.endsWith('.md')) {
         text = rewriteNestedSkillMentions(destination, text, nestedEntries, nestedDirs);
