@@ -5,7 +5,7 @@ description: "Use the current Host and Model to complete one bounded, authorized
 
 # Flow Drive
 
-Invoke `$flow-drive` explicitly with one bounded task, a task-file path, or a confirmed specification/change ID. The current Host and Model handle understanding, investigation, edits, verification, and the report. `$flow-drive --help` describes the current entry; help makes no project changes.
+Invoke `/dhpk-lite:flow-drive` explicitly with one bounded task, a task-file path, or a confirmed specification/change ID. The current Host and Model handle understanding, investigation, edits, verification, and the report. `/dhpk-lite:flow-drive --help` describes the current entry; help makes no project changes.
 
 This directory is the complete skill. It needs no dhpk checkout, sibling skill, resource synchronization, parser, runner, external CLI worker, or special execution receipt. The Host must be able to read the supplied task and relevant project files, make only authorized edits, and run the consumer project's available verification. It uses its normal file and shell tools; provider and subagent access remains subject to that Host's own capabilities and grants.
 
@@ -13,7 +13,7 @@ This directory is the complete skill. It needs no dhpk checkout, sibling skill, 
 
 Accept one task input and no execution-selection options. If a user supplies a retired Flow Drive role, backend, Provider, planning, or architecture option as invocation syntax, reject it before any dependent edits, explain that it is unsupported here, and point to [the migration guide](references/migration.md). Ask for one task-only input or a separate help invocation. Do not silently reinterpret a retired option as task text.
 
-A flag written inside the quoted task, a task file, or the confirmed specification is task content. For example, `$flow-drive "Update the documentation example that contains --worker=codex"` is an ordinary documentation task. Read and interpret that content as part of the task; do not treat the embedded flag as a Flow Drive option.
+A flag written inside the quoted task, a task file, or the confirmed specification is task content. For example, `/dhpk-lite:flow-drive "Update the documentation example that contains --worker=codex"` is an ordinary documentation task. Read and interpret that content as part of the task; do not treat the embedded flag as a Flow Drive option.
 
 ## Complete the task
 

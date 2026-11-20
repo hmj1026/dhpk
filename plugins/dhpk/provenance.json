@@ -3,12 +3,12 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.80.0",
-  "sourceCommit": "42ad7525fc4a26456c2f19194e01f545cc111a82",
-  "generatedFromCommit": "42ad7525fc4a26456c2f19194e01f545cc111a82",
-  "generatedFromTree": "b7f000ea79eca1918b6c244024b433062a9cd109",
-  "inventoryDigest": "a214d830394523d2b57f710cc46cf809d92398df36edc77ee9392d2ba3ce9606",
-  "inventoryRevision": "sha256:1e63dab6094e00d959ebecf30a2a90783048665af7b910c4cdc8193562dd8b9a",
+  "sourceVersion": "0.80.1",
+  "sourceCommit": "1a3569708a50c28e2ef66e954b176d63a6839f8e",
+  "generatedFromCommit": "1a3569708a50c28e2ef66e954b176d63a6839f8e",
+  "generatedFromTree": "8a217d633371113e424e080207875f4c83df7da3",
+  "inventoryDigest": "c8eab21b31b9622a8596678f0801ee416ec1f92bb8d999c45a7e8a92ee3174c5",
+  "inventoryRevision": "sha256:610b60f0b3cca3b184f982ec5031d84c92557c0d5d7aba5706aec89393412cb0",
   "generatorVersion": "2.4.0",
   "fingerprintAlgorithm": "tree-merkle-v1",
   "selectedSkillIds": [
@@ -4919,7 +4919,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "d0d131451513b4bfe09d674dd86d377c4fab9684fd69403b8957d884ab6d5fb1",
+    "planId": "a530dd26227906490998572252d1deef32c73525c2772a3a450262b9523d1869",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -4963,10 +4963,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "d0d131451513b4bfe09d674dd86d377c4fab9684fd69403b8957d884ab6d5fb1",
-      "inventory": "a214d830394523d2b57f710cc46cf809d92398df36edc77ee9392d2ba3ce9606"
+      "plan": "a530dd26227906490998572252d1deef32c73525c2772a3a450262b9523d1869",
+      "inventory": "c8eab21b31b9622a8596678f0801ee416ec1f92bb8d999c45a7e8a92ee3174c5"
     },
-    "rollbackIdentity": "6ceb8e8fcd94daeaf8cb1c2f50c0de7a6392673044b3b1ba5befc3d272d78115"
+    "rollbackIdentity": "673d8440ce0ac60a459347ecd1cc1dadda1957340c5efc35a09d57e739ecd92c"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

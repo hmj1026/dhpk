@@ -10,7 +10,7 @@ Trace each finding from a concrete source through the changed path to a sensitiv
 
 ## Query and command trust paths
 
-**Trigger → evidence/action:** Request, file, message, or environment data influences a database query, raw query fragment, operator or identifier, shell command, or executable argument. Trace the exact source-to-sink path. Bind data values; allowlist dynamic identifiers and operators; pass executable arguments separately with shell interpretation disabled where supported. Review authorization independently from injection. Node documents the shell behavior and input risk of [`child_process.exec`](https://nodejs.org/api/child_process.html); OWASP provides [JavaScript and TypeScript security guidance](https://cheatsheetseries.owasp.org/cheatsheets/JavaScript_and_TypeScript_Security_Cheat_Sheet.html).
+**Trigger → evidence/action:** Request, file, message, or runtime-config input influences a database query, raw query fragment, operator or identifier, shell command, or command argument. Trace the exact source-to-sink path. Bind data values; allowlist dynamic identifiers and operators; supply command arguments as a separate array with shell interpretation disabled where supported. Review authorization independently from injection. Node documents the shell behavior and input risk of [`child_process.exec`](https://nodejs.org/api/child_process.html); OWASP provides [JavaScript and TypeScript security guidance](https://cheatsheetseries.owasp.org/cheatsheets/JavaScript_and_TypeScript_Security_Cheat_Sheet.html).
 
 **Do not apply when:** The relevant query or command uses trusted constants and verifiable parameter binding or argument separation. A query builder’s presence alone does not establish safety.
 

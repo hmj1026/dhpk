@@ -224,10 +224,13 @@ modules live in `dhpk-stacks`.
 
 The instruction-only Directory Plugin (`dhpk-lite`) lives at
 `dist/claude-directory/package` and is derived deterministically from the Full
-Plugin with no `hooks/`, `scripts/`, `manifests/`, `userConfig`, or
-script-dependent skills/agents, with `skill-next-map.json` relocated to the
-package root. Call Directory Plugin skills as `/dhpk-lite:<skill-name>`. Do not
-enable `dhpk` and `dhpk-lite` in the same session.
+Plugin with no `hooks/`, `scripts/`, `manifests/`, `userConfig`, `agents/INDEX.md`, or
+external CLI agents (17 catalog skills, 29 agents). The 6 script-backed skills run via
+`references/manual-procedure.md` (`mode: manual`), nested Specialist Reference
+entry files are normalized to `REFERENCE.md` without frontmatter, and
+`skill-next-map.json` is relocated to the package root. Call Directory Plugin
+skills as `/dhpk-lite:<skill-name>`. Do not enable `dhpk` and `dhpk-lite` in
+the same session.
 
 The catalog owns the 15 common public entries, folded branches/references, and
 necessary Host support. Canonical totals and physical directory counts are

@@ -21,7 +21,7 @@ callable only after the named consumer probe discovers the projected content.
 |---|---|---|---|---|
 | Claude Code Full Plugin (Repository Marketplace) | `/plugin marketplace add hmj1026/dhpk`, then `/plugin install dhpk@dhpk` (from a checkout: `bash scripts/install.sh`) | `/plugin marketplace update dhpk`, then `/reload-plugins`; remove with `/plugin uninstall dhpk@dhpk` | Fresh-session `/dhpk:flow-guide help` | Structural checks can pass; consumer discovery stays `NOT_RUN` until observed |
 | Claude Code stack modules | `/plugin install dhpk-stacks@dhpk` (requires Full Plugin `dhpk`) | Same as above; `modules` lives in this plugin's settings | Fresh-session `/dhpk:harness-setup --show` | Stack skills and modules only; no module is active until `modules` selects it |
-| Claude Code Directory Plugin (`dhpk-lite`, instruction-only) | Official Claude Plugin Directory (`dist/claude-directory/package`); mutually exclusive with Full Plugin `dhpk` | Disable/uninstall `dhpk-lite` via `/plugin uninstall dhpk-lite` before installing `dhpk@dhpk` | Fresh-session `/dhpk-lite:flow-drive` | Instruction-only (`/dhpk-lite:<skill>`); omits hooks, scripts, `userConfig`, script-dependent skills, and external CLI agents |
+| Claude Code Directory Plugin (`dhpk-lite`, instruction-only) | Official Claude Plugin Directory (`dist/claude-directory/package`); mutually exclusive with Full Plugin `dhpk` | Disable/uninstall `dhpk-lite` via `/plugin uninstall dhpk-lite` before installing `dhpk@dhpk` | Fresh-session `/dhpk-lite:flow-drive` | Instruction-only (`/dhpk-lite:<skill>`); ships all 17 catalog skills (6 via Manual Procedures in `mode: manual`) and 29 agents; omits hooks, scripts, `userConfig`, `agents/INDEX.md`, and external CLI agents |
 | Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`. Sync requires a repository checkout; an installed Claude plugin does not include `codex/` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
 | Codex Public Plugin (native) | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory (Codex and ChatGPT Work) | Search for DHPK in the product's Plugins Directory after the public listing appears | Use that product's plugin manager | Approved public listing and a fresh-session workflow probe per Host | Candidate only; currently `NOT_PUBLISHED`; local/repository marketplaces are development sources |
@@ -81,7 +81,7 @@ flag into a runtime `PASS`.
 DHPK offers two Claude Code distributions. Install **one** of them (never enable both `dhpk` and `dhpk-lite` simultaneously because their skills and agents overlap):
 
 1. **Full Plugin (`dhpk`, Repository Marketplace — recommended for local development):** includes runtime hooks, guardrails, helper scripts, `userConfig`, stack modules (`dhpk-stacks`), and `/dhpk:<skill>` commands.
-2. **Directory Plugin (`dhpk-lite`, Official Claude Plugin Directory — instruction-only):** omits hooks, scripts, `manifests/`, `userConfig`, the 6 script-dependent skills (`flow-guide`, `git-smart-commit`, `harness-setup`, `precommit`, `release-creator`, `opsx-apply-resume`), and the 3 external-CLI agents (`codex-worker`, `codex-reasoner`, `agy-worker`). It ships `skill-next-map.json` at the package root for pure-instruction routing under `/dhpk-lite:<skill>`. To upgrade from `dhpk-lite` to the Full Plugin, run `/plugin uninstall dhpk-lite` first, then follow the marketplace instructions below.
+2. **Directory Plugin (`dhpk-lite`, Official Claude Plugin Directory — instruction-only):** ships all 17 catalog skills and 29 agents, omitting hooks, scripts, `manifests/`, `userConfig`, `agents/INDEX.md`, and the 3 external-CLI agents (`codex-worker`, `codex-reasoner`, `agy-worker`). The 6 script-backed skills (`flow-guide`, `git-smart-commit`, `harness-setup`, `precommit`, `release-creator`, `opsx-apply-resume`) run via their `references/manual-procedure.md` workflows (`mode: manual`), and `skill-next-map.json` lives at the package root for pure-instruction routing under `/dhpk-lite:<skill>`. To upgrade from `dhpk-lite` to the Full Plugin, run `/plugin uninstall dhpk-lite` first, then follow the marketplace instructions below.
 
 ## Claude Code marketplace installation (recommended)
 
@@ -325,7 +325,7 @@ Release, so consumers can download them instead of building:
 ```bash
 bin/dhpk distribution build agent-plugin --json
 bin/dhpk distribution build cursor-plugin --json
-bin/dhpk distribution build agy-plugin --version=0.80.0 --json
+bin/dhpk distribution build agy-plugin --version=0.80.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1268,7 +1268,7 @@ Maintainers may build and validate the package from a clean checkout (the build
 also writes the release archive beside it):
 
 ```bash
-bin/dhpk distribution build agy-plugin --version=0.80.0 --json
+bin/dhpk distribution build agy-plugin --version=0.80.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

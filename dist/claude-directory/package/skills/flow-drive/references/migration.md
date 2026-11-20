@@ -1,6 +1,6 @@
 # Flow Drive migration
 
-The current `$flow-drive` entry accepts one bounded task, task-file path, or confirmed specification/change ID. `$flow-drive --help` is the only option. The current Host and Model execute the task with their native capabilities.
+The current `/dhpk-lite:flow-drive` entry accepts one bounded task, task-file path, or confirmed specification/change ID. `/dhpk-lite:flow-drive --help` is the only option. The current Host and Model execute the task with their native capabilities.
 
 ## Retired invocation interfaces
 

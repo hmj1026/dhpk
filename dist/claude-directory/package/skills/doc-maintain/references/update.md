@@ -12,7 +12,7 @@ actual `$ARGUMENTS` from the invocation and keep the documented output boundary.
 
 ## When NOT to Use
 
-- Codemap generation is the goal: use `$doc-maintain codemap`.
+- Codemap generation is the goal: use `/dhpk-lite:doc-maintain codemap`.
 - A policy, link, or frontmatter verdict is needed: use a read-only document
   review workflow.
 - External-library research is needed: use the repository’s documentation
@@ -60,7 +60,7 @@ and use the available local owner; never invent a replacement path.
 | Fact | Preferred owner |
 | --- | --- |
 | Public names, surfaces, counts | `$PROJECT_DIR/manifests/distribution-inventory.json` |
-| Route matching and invocation class | `$PROJECT_DIR/skills/flow-guide/route-table.json` and `$PROJECT_DIR/skills/flow-guide/scripts/route-result.js` |
+| Route matching and invocation class | `$PROJECT_DIR/skills/flow-guide/route-table.json` and `packaged-route-result.js` |
 | Effective configuration | `$PROJECT_DIR/docs/configuration.md` and its Traditional Chinese pair |
 | Install, update, migration, rollback | `$PROJECT_DIR/docs/platform-installation.md` and `$PROJECT_DIR/docs/skill-platform-migration.md` |
 | Runtime workflow, receipts, gate outcomes | `$PROJECT_DIR/docs/harness-workflow.md` and owning harness scripts |

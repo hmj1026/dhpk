@@ -10,15 +10,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   DIRECTORY_PLUGIN_NAME,
+  DIRECTORY_SKILL_NAMES,
   SKILL_NEXT_MAP_PATH,
-  OMITTED_SKILLS,
   OMITTED_AGENTS,
   SKILL_FRONTMATTER_KEYS,
   AGENT_FRONTMATTER_KEYS,
   hasShebang,
   isForbiddenDirectoryPath,
   isAllowedExtension,
-  isOmittedSkillPath,
+  isNestedSkillMarkdown,
   isOmittedAgentPath,
 } = require('../lib/claude-directory-reduction');
 
@@ -29,8 +29,11 @@ const MAX_NON_IMAGE_BYTES = 256 * 1024;
 const IMAGE_EXTENSION = /\.(?:png|jpe?g|gif|webp|ico)$/i;
 const TEXT_EXTENSION = /\.(?:md|txt|json|ya?ml)$/i;
 const URL_OR_DHPK_TOKEN = /(https?:\/\/[^\s)>\]"'`]+)|(?<![A-Za-z0-9_-])dhpk:([a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_-])/g;
-const OMITTED_ALL = [...OMITTED_SKILLS, ...OMITTED_AGENTS];
+const OMITTED_ALL = [...OMITTED_AGENTS];
 const OMITTED_REF_PATTERN = new RegExp(`(?<![A-Za-z0-9_-])(${OMITTED_ALL.join('|')})(?![A-Za-z0-9_-])`, 'g');
+const SKILL_TOKEN_PATTERN = new RegExp(`(?<![A-Za-z0-9_/-])\\$(${DIRECTORY_SKILL_NAMES.join('|')})(?![A-Za-z0-9_-])`, 'g');
+const TOP_LEVEL_SKILL_MARKDOWN = /^skills\/[^/]+\/SKILL\.md$/;
+const REFERENCE_FRONTMATTER = /^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
 
 function readPackageFiles(packageDir) {
   const files = new Map();
@@ -152,7 +155,7 @@ function validateManifest(files, expectedVersion, errors) {
     }
   }
   for (const file of files.keys()) {
-    if (/^agents\/[^/]+\.md$/.test(file) && file !== 'agents/INDEX.md' && !declaredAgents.has(file)) {
+    if (/^agents\/[^/]+\.md$/.test(file) && !declaredAgents.has(file)) {
       errors.push({ file: manifestPath, rule: 'manifest-contract', message: `agent '${file}' is present in package but omitted from manifest.agents` });
     }
   }
@@ -177,9 +180,21 @@ function validateReadme(files, errors) {
   if (!/do not enable|keep only one|not.*both/i.test(text) || !text.includes('dhpk-lite')) {
     errors.push({ file: 'README.md', rule: 'readme-contract', message: 'README.md must state that dhpk and dhpk-lite should not be enabled together' });
   }
-  const missingMentions = [...OMITTED_SKILLS, ...OMITTED_AGENTS].filter((name) => !text.includes(name));
+  if (!text.includes('mode: manual')) {
+    errors.push({ file: 'README.md', rule: 'readme-contract', message: 'README.md must explain Manual Procedures (mode: manual)' });
+  }
+  const missingMentions = OMITTED_AGENTS.filter((name) => !text.includes(name));
   if (missingMentions.length > 0) {
-    errors.push({ file: 'README.md', rule: 'readme-contract', message: `README.md must list omitted capabilities: ${missingMentions.join(', ')}` });
+    errors.push({ file: 'README.md', rule: 'readme-contract', message: `README.md must list omitted agents: ${missingMentions.join(', ')}` });
+  }
+}
+
+function validateSkillAllowlist(files, errors) {
+  const allowed = new Set(DIRECTORY_SKILL_NAMES);
+  for (const file of files.keys()) {
+    const match = /^skills\/([^/]+)\/SKILL\.md$/.exec(file);
+    if (!match || allowed.has(match[1])) continue;
+    errors.push({ file, rule: 'skill-allowlist', message: `shipped skill '${match[1]}' is missing from DIRECTORY_SKILL_NAMES, so its $${match[1]} tokens are not rewritten` });
   }
 }
 
@@ -265,8 +280,8 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
     if (isForbiddenDirectoryPath(file)) {
       errors.push({ file, rule: 'forbidden-path', message: `forbidden path '${file}' in Directory Plugin` });
     }
-    if (isOmittedSkillPath(file)) {
-      errors.push({ file, rule: 'omitted-skill', message: 'omitted script-dependent skill must not ship in Directory Plugin' });
+    if (isNestedSkillMarkdown(file)) {
+      errors.push({ file, rule: 'no-nested-skill-md', message: 'nested Specialist Reference files under skills/*/references/** must be renamed to REFERENCE.md' });
     }
     if (isOmittedAgentPath(file)) {
       errors.push({ file, rule: 'omitted-agent', message: 'omitted external CLI agent must not ship in Directory Plugin' });
@@ -281,7 +296,7 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
       errors.push({ file, rule: 'file-budget', message: `non-image file is ${buffer.length} bytes (limit ${MAX_NON_IMAGE_BYTES})` });
     }
 
-    if (file.startsWith('skills/') && file.endsWith('/SKILL.md')) {
+    if (TOP_LEVEL_SKILL_MARKDOWN.test(file)) {
       const topSkillMatch = /^skills\/([^/]+)\/SKILL\.md$/.exec(file);
       checkPlainFrontmatter(
         file,
@@ -292,6 +307,10 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
         errors,
         topSkillMatch ? topSkillMatch[1] : null,
       );
+    } else if (/^skills\/.+\/REFERENCE\.md$/.test(file)) {
+      if (REFERENCE_FRONTMATTER.test(buffer.toString('utf8'))) {
+        errors.push({ file, rule: 'no-nested-skill-md', message: 'nested REFERENCE.md must not carry standalone skill frontmatter' });
+      }
     } else if (/^agents\/[^/]+\.md$/.test(file)) {
       checkPlainFrontmatter(file, buffer.toString('utf8'), AGENT_FRONTMATTER_KEYS, ['name', 'description'], 'agent-frontmatter', errors);
     }
@@ -301,6 +320,9 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
       const stripped = text.replace(URL_OR_DHPK_TOKEN, (whole, url) => (url ? '' : whole));
       for (const m of stripped.matchAll(/(?<![A-Za-z0-9_-])dhpk:([a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_-])/g)) {
         errors.push({ file, rule: 'namespace-rewrite', message: `unrewritten namespace 'dhpk:${m[1]}'` });
+      }
+      for (const m of stripped.matchAll(SKILL_TOKEN_PATTERN)) {
+        errors.push({ file, rule: 'namespace-rewrite', message: `unrewritten skill token '$${m[1]}'` });
       }
       if ((file.endsWith('.md') || file.endsWith('.json')) && file !== 'README.md') {
         const warned = new Set();
@@ -312,11 +334,11 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
         }
       }
       if (file.startsWith('skills/') && (file.endsWith('.md') || file.endsWith('.json'))) {
-        const warnedScripts = new Set();
+        const reportedScripts = new Set();
         for (const m of stripped.matchAll(/(?<![A-Za-z0-9_-])(scripts\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g)) {
-          if (!warnedScripts.has(m[1]) && isRemovedScriptPath(file, m[1], files, fullPluginKnown ? resolvedFullDir : null)) {
-            warnedScripts.add(m[1]);
-            warnings.push({ file, rule: 'removed-script-reference', target: m[1], message: `references removed script path '${m[1]}'` });
+          if (!reportedScripts.has(m[1]) && isRemovedScriptPath(file, m[1], files, fullPluginKnown ? resolvedFullDir : null)) {
+            reportedScripts.add(m[1]);
+            errors.push({ file, rule: 'removed-script-reference', target: m[1], message: `references removed script path '${m[1]}'` });
           }
         }
       }
@@ -325,6 +347,7 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
 
   validateManifest(files, expectedVersion, errors);
   validateReadme(files, errors);
+  validateSkillAllowlist(files, errors);
   validateSkillNextMap(files, errors);
 
   return { ok: errors.length === 0, errors, warnings, fileCount: files.size };

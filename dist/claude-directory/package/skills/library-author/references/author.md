@@ -26,8 +26,8 @@ assets are separate consumer contracts.
 - Application controllers, jobs, or models that are not distributed to consumers.
 - Version-specific Laravel deprecations or new APIs; use the matching `laravel-N` module.
 - Semver, Composer manifest, or registry publication decisions; use
-  `$library-author composer`.
-- Detailed per-cell Testbench setup; use `$library-author testbench`.
+  `/dhpk-lite:library-author composer`.
+- Detailed per-cell Testbench setup; use `/dhpk-lite:library-author testbench`.
 
 ## Output
 
@@ -48,6 +48,6 @@ publish tags and migration ownership, discovery proof, and compatibility impact.
 
 - `authoring-patterns.md` — detailed provider, facade, matrix, publishing,
   discovery, and compatibility recipes; load only the relevant branch.
-- `$library-author composer` — package-level semver and manifest rules.
-- `$library-author testbench` — per-major Testbench mechanics.
+- `/dhpk-lite:library-author composer` — package-level semver and manifest rules.
+- `/dhpk-lite:library-author testbench` — per-major Testbench mechanics.
 - The consumer’s installed Laravel version guidance — version-specific framework facts, when available.

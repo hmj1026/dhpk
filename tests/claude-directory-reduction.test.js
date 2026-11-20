@@ -4,11 +4,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const reduction = require('../scripts/lib/claude-directory-reduction');
 const {
   DIRECTORY_PLUGIN_NAME,
+  DIRECTORY_SKILL_NAMES,
   SKILL_NEXT_MAP_PATH,
-  OMITTED_SKILLS,
   OMITTED_AGENTS,
+  FORBIDDEN_EXACT_PATHS,
   ALLOWED_EXTENSIONS,
   SKILL_FRONTMATTER_KEYS,
   AGENT_FRONTMATTER_KEYS,
@@ -19,7 +21,7 @@ const {
   renderDirectoryManifest,
   renderDirectoryReadme,
   reduceToDirectoryPlugin,
-} = require('../scripts/lib/claude-directory-reduction');
+} = reduction;
 
 const VERSION = '1.2.3';
 
@@ -75,7 +77,8 @@ function sampleFullPluginMap() {
     ['templates/shebang.txt', entry('#!/bin/sh\necho hi\n')],
     ['templates/bom-shebang.md', entry('\uFEFF#!/usr/bin/env bash\necho hi\n')],
     ['skills/flow-guide/assets/dhpk-icon.svg', entry('<svg/>\n')],
-    ['skills/flow-guide/SKILL.md', entry('---\nname: flow-guide\ndescription: Router\n---\n# Flow Guide\n')],
+    ['skills/flow-guide/SKILL.md', entry('---\nname: flow-guide\ndescription: Router\n---\n# Flow Guide\nUse `$flow-drive` and `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js` or [manual](references/manual-procedure.md).\n')],
+    ['skills/flow-guide/references/manual-procedure.md', entry('# Flow Guide Manual\nRead `references/skill-next-map.json`.\n')],
     ['skills/precommit/SKILL.md', entry('---\nname: precommit\ndescription: Precommit\n---\n# Precommit\n')],
     ['skills/git-smart-commit/SKILL.md', entry('---\nname: git-smart-commit\ndescription: Commit\n---\n# Commit\n')],
     ['skills/harness-setup/SKILL.md', entry('---\nname: harness-setup\ndescription: Setup\n---\n# Setup\n')],
@@ -101,11 +104,12 @@ function sampleFullPluginMap() {
       '',
       '# Change Verdict',
       '',
-      'Dispatch `dhpk:code-reviewer`, `/dhpk:doc-maintain`, or `/dhpk:precommit`.',
+      'Dispatch `dhpk:code-reviewer`, `/dhpk:doc-maintain`, `/dhpk:precommit`, or `$flow-drive`.',
+      'Run `node ${CLAUDE_SKILL_DIR}/scripts/risk-analyze.js --json`.',
       'See https://github.com/hmj1026/dhpk/blob/main/docs/dhpk:example and `dhpk-stacks`.',
       '',
     ].join('\n'))],
-    ['skills/change-verdict/references/guide.md', entry('# Guide\nUse `dhpk:code-reviewer`.\n')],
+    ['skills/change-verdict/references/guide.md', entry('# Guide\nUse `dhpk:code-reviewer` and [project-audit](project-audit/SKILL.md).\n')],
     ['skills/doc-maintain/SKILL.md', entry([
       '---',
       'name: doc-maintain',
@@ -131,10 +135,12 @@ function sampleFullPluginMap() {
       '---',
       '',
       '# Project Audit',
+      'Run `node "$SKILL_DIR/scripts/audit.js" --json` and see `SKILL.md`.',
       '',
     ].join('\n'))],
     ['skills/change-verdict/scripts/risk-analyze.js', entry('console.log(1);\n', 0o755)],
     ['skills/code-trace/references/diagnose/wait-for-helper.ts', entry('export const x = 1;\n')],
+    ['agents/INDEX.md', entry('# Agent Index\nSee `.claude-plugin/plugin.json`.\n')],
     ['agents/agy-worker.md', entry('---\nname: agy-worker\ndescription: Agy\ntools: Bash\nmodel: sonnet\neffort: low\nskills: ["tdd-workflow"]\n---\n# Agy\n')],
     ['agents/codex-worker.md', entry('---\nname: codex-worker\ndescription: Codex\ntools: Bash\nmodel: sonnet\neffort: low\n---\n# Codex\n')],
     ['agents/codex-reasoner.md', entry('---\nname: codex-reasoner\ndescription: Codex reasoner\ntools: Read\nmodel: sonnet\neffort: low\n---\n# Codex Reasoner\n')],
@@ -175,19 +181,14 @@ function sampleFullPluginMap() {
 test('reviewed omission lists and allowlists match the specification', () => {
   assert.strictEqual(DIRECTORY_PLUGIN_NAME, 'dhpk-lite');
   assert.strictEqual(SKILL_NEXT_MAP_PATH, 'skill-next-map.json');
-  assert.deepStrictEqual([...OMITTED_SKILLS].sort(), [
-    'flow-guide',
-    'git-smart-commit',
-    'harness-setup',
-    'opsx-apply-resume',
-    'precommit',
-    'release-creator',
-  ]);
+  assert.strictEqual(reduction.OMITTED_SKILLS, undefined);
+  assert.strictEqual(DIRECTORY_SKILL_NAMES.length, 17);
   assert.deepStrictEqual([...OMITTED_AGENTS].sort(), [
     'agy-worker',
     'codex-reasoner',
     'codex-worker',
   ]);
+  assert.ok(FORBIDDEN_EXACT_PATHS.includes('agents/INDEX.md'));
   assert.deepStrictEqual(SKILL_FRONTMATTER_KEYS, ['name', 'description']);
   assert.deepStrictEqual(AGENT_FRONTMATTER_KEYS, ['name', 'description', 'model', 'color', 'tools']);
   for (const ext of ['.md', '.txt', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico']) {
@@ -211,6 +212,7 @@ test('isAllowedDirectoryFile drops disallowed extensions, shebangs, and forbidde
   assert.strictEqual(isAllowedDirectoryFile('.mcp.json', Buffer.from('{}')), false);
   assert.strictEqual(isAllowedDirectoryFile('.lsp.json', Buffer.from('{}')), false);
   assert.strictEqual(isAllowedDirectoryFile('monitors.json', Buffer.from('{}')), false);
+  assert.strictEqual(isAllowedDirectoryFile('agents/INDEX.md', Buffer.from('# Index\n')), false);
   assert.strictEqual(isAllowedDirectoryFile('bin/dhpk', Buffer.from('x')), false);
   assert.strictEqual(isAllowedDirectoryFile('scripts/a.md', Buffer.from('x')), false);
   assert.strictEqual(isAllowedDirectoryFile('manifests/x.json', Buffer.from('{}')), false);
@@ -298,17 +300,22 @@ test('reduceAgentFrontmatter fails naming file and key on a YAML list value for 
   );
 });
 
-test('rewriteDirectoryNamespace rewrites whole-token dhpk: names while preserving URLs and dhpk-stacks', () => {
+test('rewriteDirectoryNamespace rewrites whole-token dhpk: names and $skill-name tokens while preserving URLs and dhpk-stacks', () => {
   const text = [
-    'Use `dhpk:code-reviewer` and `/dhpk:doc-maintain`.',
-    'Do not break https://github.com/hmj1026/dhpk/issues or https://example.com/dhpk:foo.',
-    'Keep `dhpk-stacks` and `dhpk:` alone.',
+    'Use `dhpk:code-reviewer`, `/dhpk:doc-maintain`, `$flow-drive`, `$flow-guide`, and `$precommit`.',
+    'Do not break https://github.com/hmj1026/dhpk/issues, https://example.com/dhpk:foo, or https://example.com/$flow-drive.',
+    'Keep `dhpk-stacks`, `$SKILL_DIR`, and `dhpk:` alone.',
   ].join('\n');
   const rewritten = rewriteDirectoryNamespace(text);
   assert.ok(rewritten.includes('`dhpk-lite:code-reviewer`'));
   assert.ok(rewritten.includes('`/dhpk-lite:doc-maintain`'));
+  assert.ok(rewritten.includes('`/dhpk-lite:flow-drive`'));
+  assert.ok(rewritten.includes('`/dhpk-lite:flow-guide`'));
+  assert.ok(rewritten.includes('`/dhpk-lite:precommit`'));
   assert.ok(rewritten.includes('https://example.com/dhpk:foo'));
+  assert.ok(rewritten.includes('https://example.com/$flow-drive'));
   assert.ok(rewritten.includes('`dhpk-stacks`'));
+  assert.ok(rewritten.includes('`$SKILL_DIR`'));
   assert.ok(!/(?<![:/A-Za-z0-9-])dhpk:[a-z]/.test(rewritten.replace(/https?:\/\/\S+/g, '')));
 });
 
@@ -326,12 +333,22 @@ test('renderDirectoryManifest produces dhpk-lite manifest without userConfig or 
   assert.deepStrictEqual(manifest.agents, ['./agents/code-reviewer.md', './agents/doc-reviewer.md']);
 });
 
-test('renderDirectoryReadme describes omissions, mutual exclusion, and Full Plugin install steps', () => {
+test('renderDirectoryReadme describes manual-procedure skills, omissions, mutual exclusion, and Full Plugin install steps', () => {
   const readme = renderDirectoryReadme().toString('utf8');
   const words = readme.trim().split(/\s+/).filter(Boolean);
   assert.ok(words.length >= 40, `README must have at least 40 words, got ${words.length}`);
-  for (const omitted of [...OMITTED_SKILLS, ...OMITTED_AGENTS]) {
-    assert.ok(readme.includes(omitted), `README must mention omitted ${omitted}`);
+  for (const name of [
+    'flow-guide',
+    'opsx-apply-resume',
+    'git-smart-commit',
+    'harness-setup',
+    'precommit',
+    'release-creator',
+    'mode: manual',
+    'agents/INDEX.md',
+    ...OMITTED_AGENTS,
+  ]) {
+    assert.ok(readme.includes(name), `README must mention ${name}`);
   }
   assert.match(readme, /dhpk-lite/);
   assert.match(readme, /\/plugin install dhpk-lite/);
@@ -339,7 +356,7 @@ test('renderDirectoryReadme describes omissions, mutual exclusion, and Full Plug
   assert.match(readme, /\/plugin install dhpk@dhpk/);
 });
 
-test('reduceToDirectoryPlugin reduces a Full Plugin map purely and relocates skill-next-map.json', () => {
+test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-procedure skills, normalizes nested references, and strips scripts/', () => {
   const input = sampleFullPluginMap();
   const snapshotBefore = new Map([...input].map(([k, v]) => [k, { mode: v.mode, hex: v.content.toString('hex') }]));
 
@@ -356,11 +373,10 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely and relocates ski
     'hooks/hooks.json', 'hooks.json', '.mcp.json', '.lsp.json', 'monitors.json', 'bin/dhpk',
     'scripts/hooks/pre-edit-guard.sh', 'manifests/distribution-inventory.json', 'provenance.json',
     'templates/sample.example', 'templates/shebang.txt', 'templates/bom-shebang.md',
-    'skills/flow-guide/assets/dhpk-icon.svg', 'skills/flow-guide/SKILL.md', 'skills/precommit/SKILL.md',
-    'skills/git-smart-commit/SKILL.md', 'skills/harness-setup/SKILL.md', 'skills/release-creator/SKILL.md',
-    'skills/opsx-apply-resume/SKILL.md', 'skills/change-verdict/scripts/risk-analyze.js',
+    'skills/flow-guide/assets/dhpk-icon.svg', 'skills/change-verdict/scripts/risk-analyze.js',
+    'skills/change-verdict/references/project-audit/SKILL.md',
     'skills/code-trace/references/diagnose/wait-for-helper.ts',
-    'agents/agy-worker.md', 'agents/codex-worker.md', 'agents/codex-reasoner.md',
+    'agents/INDEX.md', 'agents/agy-worker.md', 'agents/codex-worker.md', 'agents/codex-reasoner.md',
   ]) {
     assert.strictEqual(output.has(forbidden), false, `Directory Plugin must omit ${forbidden}`);
   }
@@ -368,8 +384,12 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely and relocates ski
   for (const kept of [
     '.claude-plugin/plugin.json', '.claude-plugin/icon.png', 'README.md', 'LICENSE',
     'templates/dhpk-versions.json', 'templates/settings.local.example.json', 'templates/notes.txt', 'templates/config.yaml',
+    'skills/flow-guide/SKILL.md', 'skills/flow-guide/references/manual-procedure.md',
+    'skills/precommit/SKILL.md', 'skills/git-smart-commit/SKILL.md',
+    'skills/harness-setup/SKILL.md', 'skills/release-creator/SKILL.md',
+    'skills/opsx-apply-resume/SKILL.md',
     'skills/change-verdict/SKILL.md', 'skills/change-verdict/references/guide.md',
-    'skills/change-verdict/references/project-audit/SKILL.md',
+    'skills/change-verdict/references/project-audit/REFERENCE.md',
     'agents/code-reviewer.md', 'agents/doc-reviewer.md', 'rules/execution-policy.md',
     SKILL_NEXT_MAP_PATH,
   ]) {
@@ -377,20 +397,45 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely and relocates ski
     assert.strictEqual(output.get(kept).mode, 0o644, `${kept} must be 0644`);
   }
 
-  // Nested SKILL.md also gets reduced frontmatter.
-  const nestedSkill = output.get('skills/change-verdict/references/project-audit/SKILL.md').content.toString('utf8');
-  assert.strictEqual(
-    nestedSkill.match(/^---\n([\s\S]*?)\n---/)[1],
-    'name: project-audit\ndescription: "Audit project health."',
-  );
+  // Nested Specialist Reference is renamed to REFERENCE.md without frontmatter,
+  // and links/mentions to it are rewritten.
+  const nestedRef = output.get('skills/change-verdict/references/project-audit/REFERENCE.md').content.toString('utf8');
+  assert.doesNotMatch(nestedRef, /^---\r?\n/);
+  assert.ok(nestedRef.includes('REFERENCE.md'));
+  assert.ok(!/(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(nestedRef));
 
-  // Namespace rewrites ran across kept markdown files.
+  const guide = output.get('skills/change-verdict/references/guide.md').content.toString('utf8');
+  assert.ok(guide.includes('project-audit/REFERENCE.md'), guide);
+
+  // Namespace and script rewrites ran across kept markdown files.
   const body = output.get('skills/change-verdict/SKILL.md').content.toString('utf8');
   assert.ok(body.includes('dhpk-lite:code-reviewer'));
   assert.ok(body.includes('/dhpk-lite:doc-maintain'));
   assert.ok(body.includes('/dhpk-lite:precommit'));
+  assert.ok(body.includes('/dhpk-lite:flow-drive'));
   assert.ok(body.includes('https://github.com/hmj1026/dhpk/blob/main/docs/dhpk:example'));
   assert.ok(body.includes('dhpk-stacks'));
+  assert.ok(!/(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(body));
+
+  const flowGuideBody = output.get('skills/flow-guide/SKILL.md').content.toString('utf8');
+  assert.ok(flowGuideBody.includes('references/manual-procedure.md (action-runner.js)'), flowGuideBody);
+  assert.ok(flowGuideBody.includes('/dhpk-lite:flow-drive'), flowGuideBody);
+  assert.ok(!/(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(flowGuideBody));
+
+  const flowGuideManual = output.get('skills/flow-guide/references/manual-procedure.md').content.toString('utf8');
+  assert.ok(!flowGuideManual.includes('references/skill-next-map.json'));
+  assert.ok(flowGuideManual.includes('skill-next-map.json'));
+
+  for (const [rel, item] of output) {
+    if (rel.startsWith('skills/') && (rel.endsWith('.md') || rel.endsWith('.json'))) {
+      const stripped = item.content.toString('utf8').replace(/https?:\/\/[^\s)>\]"'`]+/g, '');
+      assert.strictEqual(
+        /(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(stripped),
+        false,
+        `${rel} must not retain scripts/ references`,
+      );
+    }
+  }
 
   // Materialize on disk and read skill-next-map.json relative to a kept skill reference path.
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dir-reduce-'));
@@ -407,20 +452,23 @@ test('reduceToDirectoryPlugin reduces a Full Plugin map purely and relocates ski
     assert.strictEqual(mapData.skills['change-verdict'].invocationClass, 'implicit-eligible');
     assert.deepStrictEqual(mapData.skills['change-verdict'].modes, ['code', 'docs']);
     assert.strictEqual(mapData.skills['change-verdict'].next.PASS, 'none');
-    assert.strictEqual(mapData.skills['change-verdict'].next['code:PASS'], undefined);
-    assert.strictEqual(mapData.skills['change-verdict'].next['docs:PASS'], undefined);
+    assert.strictEqual(mapData.skills['change-verdict'].next['code:PASS'], 'precommit');
+    assert.strictEqual(mapData.skills['change-verdict'].next['docs:PASS'], 'git-smart-commit');
     assert.strictEqual(mapData.skills['doc-maintain'].next.PASS, 'none');
-    assert.strictEqual(mapData.skills['doc-maintain'].next['update:PASS'], undefined);
-    for (const [skillName, entryData] of Object.entries(mapData.skills)) {
-      assert.strictEqual(OMITTED_SKILLS.includes(skillName), false, `skill-next-map must omit ${skillName}`);
-      for (const target of Object.values(entryData.next || {})) {
-        const targetSkill = String(target).replace(/^[$]|^\/?(?:dhpk(?:-lite)?:)?/, '').split(':')[0];
-        assert.strictEqual(OMITTED_SKILLS.includes(targetSkill), false, `route from ${skillName} must not target omitted skill ${target}`);
-      }
-    }
+    assert.strictEqual(mapData.skills['doc-maintain'].next['update:PASS'], 'git-smart-commit');
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
+});
+
+test('reduceToDirectoryPlugin README counts follow the shipped skills and agents', () => {
+  const output = reduceToDirectoryPlugin(sampleFullPluginMap(), { version: VERSION });
+  const keys = [...output.keys()];
+  const skillCount = keys.filter((k) => /^skills\/[^/]+\/SKILL\.md$/.test(k)).length;
+  const agentCount = keys.filter((k) => /^agents\/[^/]+\.md$/.test(k)).length;
+  const readme = Buffer.from(output.get('README.md').content).toString('utf8');
+  assert.ok(readme.includes(`all ${skillCount} workflow skills`), readme);
+  assert.ok(readme.includes(`${agentCount} specialist agents`), readme);
 });
 
 test('user-only skills retain explicit-user-request guard in description and body after frontmatter reduction', () => {

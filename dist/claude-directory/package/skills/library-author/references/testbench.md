@@ -27,8 +27,8 @@ Laravel major; each cell needs its own dependency graph.
 - A package targets a single Laravel major and needs no matrix.
 - An application test suite that boots the real application instead of Testbench.
 - Service-provider, facade, publishing, or discovery design outside Testbench setup;
-  use `$library-author author`.
-- Semver or dependency-floor decisions; use `$library-author composer`.
+  use `/dhpk-lite:library-author author`.
+- Semver or dependency-floor decisions; use `/dhpk-lite:library-author composer`.
 
 ## Output
 
@@ -51,6 +51,6 @@ excludes, a shared provider/facade-aware TestCase, a deliberate database strateg
 
 - `testbench-recipes.md` — mapping, CI, TestCase, database, floor, discovery,
   and failure recipes; load only the branch being used.
-- `$library-author author` — provider, facade, publishing, and package
+- `/dhpk-lite:library-author author` — provider, facade, publishing, and package
   discovery design outside matrix mechanics.
-- `$library-author composer` — dependency and constraint hygiene.
+- `/dhpk-lite:library-author composer` — dependency and constraint hygiene.
