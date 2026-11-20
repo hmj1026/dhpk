@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.80.0 — 2026-11-20 — Instruction-only Claude Directory Plugin and manual procedures
+
+- **feat(distribution)** — Add the instruction-only Claude Directory Plugin (`dhpk-lite` at `dist/claude-directory/package`), `validate:directory-plugin` repository gate, and release/catalog parity wiring. The six script-dependent skills gain a Manual Procedure (`references/manual-procedure.md`) with a stage-ID drift test, and user-only skills state an explicit-request guard.
+
 ## 0.79.1 — 2026-11-19 — Serialize on-demand package builds and batch projection-journal flushes
 
 - **fix(distribution)** — Serialize concurrent on-demand package builds, and validation of the same package directory (default or custom `--output`), and write release archives atomically so parallel test and package-verification runs do not race on dist/on-demand outputs. Validation of a package in a read-only directory still works without a lock.

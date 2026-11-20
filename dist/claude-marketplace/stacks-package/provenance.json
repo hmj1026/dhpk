@@ -7,7 +7,7 @@
     },
     {
       "destination": ".claude-plugin/plugin.json",
-      "sha256": "3b3d33b499456598fb856497b39e4e60c6c79613a7cf0ceac7a8a9fc9e87928a"
+      "sha256": "22dc7d856eb04826f150688258d55664903507ce4e0ba05405dc5ee76af287ee"
     },
     {
       "destination": "LICENSE",
