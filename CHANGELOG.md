@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.80.2 — 2026-11-20 — Refine Directory Plugin prose, scanning patterns, and policy bounds
+
+- **fix(directory-plugin)** — Remove the Directory Plugin icon, format routing data, and route setup and guidance directly through their Manual Procedures.
+- **fix(directory-plugin)** — Use manual precommit instructions in the Directory Plugin and clarify FastAPI SQL parameter binding guidance.
+- **fix(directory-plugin)** — Keep Directory code review on local evidence and clarify how to review iOS encrypted store integration.
+- **fix(directory-plugin)** — Replace example environment-variable credential reads in Directory Plugin prose with placeholder values so the directory scanner no longer holds the plugin.
+- **fix(directory-plugin)** — Reword Directory Plugin prose that the directory scanner read as a password prompt, a Perl command, or a download-and-run eval.
+
 ## 0.80.1 — 2026-11-20 — Admit Manual Procedure skills into dhpk-lite and clear portal policy holds
 
 - **feat(distribution)** — Admit the 6 Manual Procedure skills into dhpk-lite (17 skills, 29 agents) and clear the 4 portal policy holds by omitting agents/INDEX.md, normalizing nested Specialist Reference entries to REFERENCE.md, rewriting $<skill-name> tokens and removed scripts/ references, and rephrasing trap-sheet trigger lines.

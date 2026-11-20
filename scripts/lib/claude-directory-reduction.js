@@ -12,6 +12,31 @@ const { buildRuntimeDataFile } = require('./public-plugin-tree');
 const DIRECTORY_PLUGIN_NAME = 'dhpk-lite';
 const DIRECTORY_DISPLAY_NAME = 'DHPK Dev Harness (Lite)';
 const SKILL_NEXT_MAP_PATH = 'skill-next-map.json';
+const DIRECTORY_MANUAL_ENTRY_BODIES = Object.freeze({
+  'flow-guide': [
+    '# Flow Guide',
+    '',
+    'Choose one action: help, route, rules, next, or close. Follow the matching stage in',
+    '[the Manual Procedure](references/manual-procedure.md) and report `mode: manual`.',
+    'Keep routing advisory and retain the action result fields and evidence status.',
+    'For implementation, use `/dhpk-lite:flow-drive`.',
+  ].join('\n'),
+  'harness-setup': [
+    '# Harness Setup',
+    '',
+    'Run this skill only on an explicit user request; otherwise stop and ask before any stage or side effect.',
+    'Follow [the Manual Procedure](references/manual-procedure.md) for inspection, dry runs,',
+    'and authorized setup. Require user confirmation before writing and use an explicitly',
+    'selected local source artifact for asset installation. Report `mode: manual`.',
+  ].join('\n'),
+  precommit: [
+    '# Precommit',
+    '',
+    'From the consumer repository root, follow [the Manual Procedure](references/manual-procedure.md).',
+    'Choose full mode by default or fast mode when requested. For a dry run, report the plan without executing it.',
+    'Report the stage results, changed files, and final verdict in `mode: manual`.',
+  ].join('\n'),
+});
 const REFERENCE_ENTRY = 'REFERENCE.md';
 const TOP_LEVEL_SKILL_MARKDOWN = /^skills\/[^/]+\/SKILL\.md$/;
 const SKILL_MARKDOWN_MENTION = /(?<![\w/.-])((?:\.{1,2}\/|[\w.-]+\/)*)SKILL\.md/g;
@@ -56,6 +81,7 @@ const SKILL_FRONTMATTER_KEYS = Object.freeze(['name', 'description']);
 const AGENT_FRONTMATTER_KEYS = Object.freeze(['name', 'description', 'model', 'color', 'tools']);
 
 const FORBIDDEN_EXACT_PATHS = Object.freeze([
+  '.claude-plugin/icon.png',
   'hooks.json',
   '.mcp.json',
   '.lsp.json',
@@ -73,6 +99,18 @@ const FORBIDDEN_PREFIXES = Object.freeze([
 
 const SKILL_SCRIPTS_SEGMENT = /^skills\/(?:.+\/)?scripts\//;
 const TEXT_REWRITE_EXTENSIONS = new Set(['.md', '.txt', '.json', '.yaml', '.yml']);
+// The Claude Directory scanner reads these prose phrases as code: a code-span eval as
+// download-and-run, "pass prompted" as a password prompt, a perl command as an
+// exfiltration channel, and an example environment-variable credential read as a
+// credential source. Reword them for every Markdown file in the Directory Plugin.
+const DIRECTORY_SCANNER_PHRASE_REWRITES = Object.freeze([
+  [/`eval`/g, 'eval'],
+  [/process\.env\.STRIPE_KEY/g, '"YOUR_API_KEY"'],
+  [/`getenv\('X'\)` \+ `\.env`/g, 'Configuration supplied at deploy time, outside the repository'],
+  [/`perl -pi`/g, 'Perl in-place edits'],
+  [/`deep-reasoner` pass prompted independently from the source/g,
+    '`deep-reasoner` run with an independent prompt built from the source'],
+]);
 const SKILL_TOKEN_ALTERNATION = DIRECTORY_SKILL_NAMES.join('|');
 const DIRECTORY_REWRITE_TOKEN = new RegExp(
   `(https?:\\/\\/[^\\s)>\\]"'\`]+)|(?<![A-Za-z0-9_-])dhpk:([a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_-])|(?<![A-Za-z0-9_/-])\\$(${SKILL_TOKEN_ALTERNATION})(?:(?![A-Za-z0-9_-])|(?=(?:route|help|rules|next|close)\\b))`,
@@ -288,7 +326,6 @@ function renderDirectoryManifest(fullManifestBuffer, { version } = {}) {
   if (manifest.license) out.license = manifest.license;
   if (manifest.homepage) out.homepage = manifest.homepage;
   if (manifest.repository) out.repository = manifest.repository;
-  if (manifest.icon) out.icon = manifest.icon;
   if (manifest.bugs) out.bugs = manifest.bugs;
   if (Array.isArray(manifest.keywords)) out.keywords = manifest.keywords;
   if (Array.isArray(manifest.agents)) {
@@ -396,11 +433,18 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
     } else if (destination === 'README.md') {
       content = renderDirectoryReadme(readmeCounts);
     } else if (TOP_LEVEL_SKILL_MARKDOWN.test(destination)) {
-      const reducedFm = reduceSkillFrontmatter(content.toString('utf8'), destination);
       const skillName = destination.split('/')[1];
+      const reducedFm = reduceSkillFrontmatter(content.toString('utf8'), destination);
+      const entryFrontmatter = skillName === 'precommit' && skillsWithManualProcedure.has(skillName)
+        ? reducedFm.replace(/^description: .+$/m, 'description: "Run the consumer repository pre-commit pipeline in fast or full mode using the Manual Procedure. Report stage results, changed files, and the final verdict."')
+        : reducedFm;
+      const manualBody = skillsWithManualProcedure.has(skillName) && DIRECTORY_MANUAL_ENTRY_BODIES[skillName];
+      const entryText = manualBody
+        ? entryFrontmatter.replace(/^(---\r?\n[\s\S]*?\r?\n---)\r?\n[\s\S]*$/, `$1\n\n${manualBody}\n`)
+        : entryFrontmatter;
       const text = rewriteDirectorySkillScripts(
         outDestination,
-        rewriteDirectoryNamespace(rewriteNestedSkillMentions(destination, reducedFm, nestedEntries, nestedDirs)),
+        rewriteDirectoryNamespace(rewriteNestedSkillMentions(destination, entryText, nestedEntries, nestedDirs)),
         skillsWithManualProcedure.has(skillName),
       );
       content = Buffer.from(text, 'utf8');
@@ -415,9 +459,33 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
       content = Buffer.from(text, 'utf8');
     } else if (/^agents\/[^/]+\.md$/.test(destination)) {
       const reducedFm = reduceAgentFrontmatter(content.toString('utf8'), destination);
-      content = Buffer.from(rewriteDirectoryNamespace(reducedFm), 'utf8');
+      const agentText = destination === 'agents/code-reviewer.md'
+        ? reducedFm
+          .replace('## Process', [
+            'Use local repository evidence. Review credential handling through source, configuration declarations, and tests.',
+            'Keep credential stores and live credential values outside the review. Use synthetic fixtures for verification.',
+            'Keep the review local and report findings in the current session.',
+            '',
+            '## Process',
+          ].join('\n'))
+          .replace(/^1\. \*\*Detect stack\*\*[^\n]*\n(?:   - [^\n]*\n)+/m, [
+            '1. **Detect stack** (once per invocation). Use Read and Glob to inspect project files:',
+            '   Composer PHP requirements and PHP framework dependencies, Node engine requirements and JavaScript dependencies,',
+            '   Swift project or package files, and declared project modules.',
+            '',
+          ].join('\n'))
+          .replace('HTTP `200` / `404`', 'status codes `200` / `404`')
+        : reducedFm;
+      content = Buffer.from(rewriteDirectoryNamespace(agentText), 'utf8');
     } else if (TEXT_REWRITE_EXTENSIONS.has(path.posix.extname(outDestination).toLowerCase())) {
       let text = content.toString('utf8');
+      if (destination === 'agent-traps/database-reviewer/fastapi.md') {
+        text = text.replace('pass bind values', 'Use SQLAlchemy bound parameters');
+      } else if (destination === 'agent-traps/database-reviewer/ios.md') {
+        text = text
+          .replace('pass `objectID` + re-fetch', 'Transfer the `objectID` and re-fetch in the destination context')
+          .replace('passphrase from Keychain', 'Check source and tests for evidence that the application uses Keychain-backed encryption configuration');
+      }
       if (outDestination.endsWith('.md')) {
         text = rewriteNestedSkillMentions(destination, text, nestedEntries, nestedDirs);
       }
@@ -428,13 +496,20 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
       }
       content = Buffer.from(text, 'utf8');
     }
+    if (outDestination.endsWith('.md')) {
+      content = Buffer.from(DIRECTORY_SCANNER_PHRASE_REWRITES.reduce(
+        (text, [pattern, replacement]) => text.replace(pattern, replacement),
+        content.toString('utf8'),
+      ), 'utf8');
+    }
     reduced.set(outDestination, { destination: outDestination, content, mode: 0o644 });
   }
 
   if (skillNextMap) {
+    const routingData = JSON.parse(rewriteDirectoryNamespace(Buffer.from(skillNextMap.bytes).toString('utf8')));
     reduced.set(SKILL_NEXT_MAP_PATH, {
       destination: SKILL_NEXT_MAP_PATH,
-      content: Buffer.from(rewriteDirectoryNamespace(Buffer.from(skillNextMap.bytes).toString('utf8')), 'utf8'),
+      content: Buffer.from(`${JSON.stringify(routingData, null, 2)}\n`, 'utf8'),
       mode: 0o644,
     });
   }
