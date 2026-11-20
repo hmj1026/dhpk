@@ -151,7 +151,7 @@ repository inventory, environment variable, or upward search is consulted.
   `references/projects-generic.md`.
 - `close`: use `references/output-shape.md`, `references/anti-loop.md`, and
   `references/squash-merge-hygiene.md` only for their named closeout checks.
-  - `references/workflow-checklists.md`, `references/script-operations.md`, and
+- `references/workflow-checklists.md`, `references/script-operations.md`, and
   `references/manual-procedure.md` remain conditional/fallback detail, not initial context.
 - Legacy deterministic helpers `scripts/openspec_gate_check.py`,
   `scripts/prepare_dev_scope.py`, `scripts/prepare_workflow_profile.py`, and

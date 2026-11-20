@@ -18,21 +18,37 @@ instruction-only Directory Plugin) or cannot execute.
 
 ## Stage: prepare
 
+Matches `release-runner.sh prepare`.
+
 1. Resolve the project's release contract from root `RELEASE.md` (authoritative
    if present) or [release-presets.md](release-presets.md), confirming
    `{VERSION_FILES}`, `{VALIDATE_CMD}`, `{BASE_BRANCH}`, `{RELEASE_BRANCH}`,
    `{TAG_PREFIX}`, `{CHANGELOG}`, and `{RELEASE_WORKFLOW}` with the user.
-2. Verify strict semver `<X.Y.Z>`, confirm the working tree is on `{BASE_BRANCH}`
-   and synced cleanly with `origin/{BASE_BRANCH}`, and update every version
-   file, changelog section, and generated release artifact in lockstep (or run the
-   project's own `prepare-release` command if `RELEASE.md` defines one).
-3. Run `{VALIDATE_CMD}` (`npm test` / project validator). Inspect
-   `git status --porcelain --untracked-files=all` and refuse if any changed file
-   falls outside the confirmed release file scope.
-4. Only after explicit user confirmation of the prepared diff, stage the exact
-   release files, commit `chore(release): bump version to <version> and update changelog`,
-   push to `origin/{BASE_BRANCH}`, and open the `{BASE_BRANCH} -> {RELEASE_BRANCH}`
-   pull request. Mark any unexecuted check `NOT_RUN` and report `mode: manual`.
+2. Verify strict semver `<X.Y.Z>`. If the user gave no file list and the project
+   has no `scripts/release/prepare-release.js`, stop and ask for files before
+   any Git change. Then run `git checkout {BASE_BRANCH}` and
+   `git pull --ff-only`. Then update every version file, changelog section, and
+   generated release artifact in lockstep (or run the project's own
+   `prepare-release` command if `RELEASE.md` defines one).
+3. Resolve the release file scope. Use the file list the user gave. If none was
+   given, run `node scripts/release/prepare-release.js paths`; each output line
+   is `file <path>`, `dir <prefix>`, or `deleted <prefix>`. Stop if the output
+   is empty.
+4. Run `{VALIDATE_CMD}` (`npm test` / project validator). Inspect
+   `git status --porcelain --untracked-files=all` (for a rename, use the new
+   path). Refuse if any changed path is outside the scope: a `file` entry must
+   match exactly, a `dir` entry matches by path prefix, and a `deleted` entry
+   matches by prefix only when the path is deleted. A deletion is allowed only
+   when a `deleted` entry matches it by prefix.
+   Stop if no release change is found in scope.
+5. Only after explicit user confirmation of the prepared diff, stage every
+   release file (`git add -- <path>` if it exists, else `git add -u -- <path>`
+   for a deletion). Then verify each release file is staged with
+   `git diff --cached --name-only -- <path>`; stop if any is not.
+6. Commit `chore(release): bump version to <version> and update changelog`, push
+   to `origin/{BASE_BRANCH}`, and open the `{BASE_BRANCH} -> {RELEASE_BRANCH}`
+   pull request (title `Release <tag>`). Mark any unexecuted check `NOT_RUN`
+   and report `mode: manual`.
 
 ## Stage: human-merge-gate
 
@@ -47,13 +63,36 @@ instruction-only Directory Plugin) or cannot execute.
 
 ## Stage: publish
 
-1. Verify the merged PR on GitHub (`gh pr list --head {BASE_BRANCH} --base {RELEASE_BRANCH} --state merged`),
-   fetch `origin`, confirm `{RELEASE_BRANCH}` `HEAD` equals the PR's
-   `mergeCommit.oid` and has two parents (unless trunk-based model has no PR).
-2. Run the project's post-merge publish gate command if defined (e.g., documented
-   in `RELEASE.md`) — stop `BLOCKED` / `FAIL` if it exits non-zero; mark
-   `NOT_RUN` if omitted and do not claim an overall pass.
-3. Confirm user authorization to cut immutable tag `{TAG_PREFIX}<version>`, create
-   the annotated tag (`git tag -a "<tag>" -m "Release <tag>"`), push the tag to
-   `origin`, watch `{RELEASE_WORKFLOW}` to completion on that exact tag, and
-   record consumer verification status separately with `mode: manual`.
+Matches `release-runner.sh publish`. Accept no release file list.
+
+1. Look up the merge commit:
+   `gh pr list --head {BASE_BRANCH} --base {RELEASE_BRANCH} --state merged --limit 1 --json mergeCommit --jq '.[0].mergeCommit.oid // empty'`.
+   If the result is empty, the PR is not merged: stop `BLOCKED`.
+2. Run `git checkout {RELEASE_BRANCH}` and `git pull --ff-only`. Compare
+   `git rev-parse HEAD` with the merge commit. If they differ, stop; do not tag.
+   Confirm HEAD has exactly two parents (`git rev-list --parents -n1 HEAD`);
+   stop if it is a squash or rebase commit.
+3. Run the pre-tag gate in the consumer project. Use the combined gate
+   (`scripts/release/publish-gate.js`, or the script the project names in
+   `DHPK_RELEASE_PUBLISH_GATE_SCRIPT`) with `node <script> --version <version>`.
+   If no combined gate exists, use the package-only gate instead
+   (`scripts/release/package-gate.js`, or `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`).
+   Stop `FAIL` if a named script is missing or exits non-zero. If the project
+   has no gate, mark it `NOT_RUN` and do not claim an overall pass.
+4. Stop if the tag `{TAG_PREFIX}<version>` already exists
+   (`git tag --list "<tag>"` is not empty); tags are immutable.
+5. Confirm user authorization to cut the tag. Create it
+   (`git tag -a "<tag>" -m "Release <tag>"`) and push it to `origin`.
+6. Find the `{RELEASE_WORKFLOW}` run for that tag:
+   `gh run list --workflow {RELEASE_WORKFLOW} --branch <tag> --event push --limit 1 --json databaseId --jq '.[0].databaseId // empty'`.
+   Retry (up to 30 times, 5 seconds apart) until a run ID appears; stop `FAIL`
+   if none appears. Then run `gh run watch <run-id> --exit-status`. A non-zero
+   exit fails the stage; never report the tag as published.
+7. Run `git fetch origin {RELEASE_BRANCH} {BASE_BRANCH}` and compare
+   `origin/{RELEASE_BRANCH}` with `origin/{BASE_BRANCH}`. If the SHAs match,
+   the branches are aligned. If the SHAs differ but `git diff --quiet` shows
+   equal trees, fail: idle-align did not land. If the trees differ, fail:
+   `{BASE_BRANCH}` has unique content and sync-develop is blocked.
+8. When aligned, restore the local branch with
+   `git checkout -B {BASE_BRANCH} origin/{BASE_BRANCH}`. Record consumer
+   verification status separately and report `mode: manual`.

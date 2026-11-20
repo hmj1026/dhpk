@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.79.1",
-  "sourceCommit": "001c950a893168a9b7506c7405a9b3442f7e25c5",
-  "generatedFromCommit": "001c950a893168a9b7506c7405a9b3442f7e25c5",
-  "generatedFromTree": "ab17b2367e5d9a779a1c42d5871cd4984ca8fcbc",
+  "sourceCommit": "e90512fcdfe4caef5a07e096f46b5b76ecedf17f",
+  "generatedFromCommit": "e90512fcdfe4caef5a07e096f46b5b76ecedf17f",
+  "generatedFromTree": "4ada0638b12cccdfb01dd3a4d62dc1c396013698",
   "inventoryDigest": "a214d830394523d2b57f710cc46cf809d92398df36edc77ee9392d2ba3ce9606",
   "inventoryRevision": "sha256:1e63dab6094e00d959ebecf30a2a90783048665af7b910c4cdc8193562dd8b9a",
   "generatorVersion": "2.4.0",
@@ -1325,7 +1325,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "5b31709642095888efa5953c73af4f512f1df3af"
+        "originalGitBlobDigest": "bdb882aa8bc414304f5b6be902b3a90650604d39"
       },
       {
         "ownerId": "flow-guide",
@@ -1583,7 +1583,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/manual-procedure.md",
         "destination": "skills/flow-guide/references/manual-procedure.md",
-        "originalGitBlobDigest": "354565b98dcb15f46c0e9504a4bda2817b489851"
+        "originalGitBlobDigest": "69714b8a3cb939eaca71fadce48224c205338a5d"
       },
       {
         "ownerId": "flow-guide",
@@ -1817,7 +1817,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/references/manual-procedure.md",
         "destination": "skills/git-smart-commit/references/manual-procedure.md",
-        "originalGitBlobDigest": "16e092e70000cc678ecb49193d10cbf15f110877"
+        "originalGitBlobDigest": "0f6d51742f2cb35ba0fc0ce577e5112216fa458e"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1859,7 +1859,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/references/manual-procedure.md",
         "destination": "skills/precommit/references/manual-procedure.md",
-        "originalGitBlobDigest": "c7b8322da17677e4cfcff222df0923a75d9e60b0"
+        "originalGitBlobDigest": "87fa3a65c17014b551b800e75fbe72449e4e4f1c"
       },
       {
         "ownerId": "precommit",
@@ -2129,7 +2129,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/references/manual-procedure.md",
         "destination": "skills/release-creator/references/manual-procedure.md",
-        "originalGitBlobDigest": "89902cb1ace2693b52d1ad11f7278d3edddb1632"
+        "originalGitBlobDigest": "e993cd933752dfc1a1db8dec6de7fbeb9e4c9a92"
       },
       {
         "ownerId": "release-creator",
@@ -4907,12 +4907,12 @@
     "create-pr": "4f1045b4b1968a78fc8e199e0131fd922f48239356d74c2bdd2e14cc0d59b9ec",
     "doc-maintain": "a606ad626865600214a7d00c1703a5ab3d852d07583f0f5385b043068764aeb6",
     "flow-drive": "5b122b26e38e6aa1f2aac1cacdd618d692de1ff0892c27bae14affe343e3e515",
-    "flow-guide": "a4752310c28515c51d8319fe659a0ca78158d20731354b3e48e2a47ce87137fb",
-    "git-smart-commit": "09e4581fb4695ce76083a97b8e29d49fb2d5745956dc2a030be73b040f05526d",
+    "flow-guide": "eb69df402077e39e819c2d75d07249fee41eebb3742f2c414924d427a5f5eb95",
+    "git-smart-commit": "bba14c6579dc9bcb9f80e0cb5180997c9b836d67f8f23cb65ca3b8fcd3f95fea",
     "git-worktree": "937ecd20112e34ac279e56ba9de95e7c533fdb9b7c0d82b9661496e3d8651388",
-    "precommit": "e1c012fbb580cec9c22aeec0b50ebc655f789ff39e6f597e0859785cf358d3a1",
+    "precommit": "86dbc4b393ec4c09ff38e04f66fd8504baa87017c2f9cfe2d9ac65831ee0a090",
     "proposal-analyze": "30beae79ada0acb4ee2906a99abf5029e36dcf5a411fa3cb573319b429884bd4",
-    "release-creator": "6189edbe630b8cf3d71f31002e65dea98ee0e6f0258038984574c6f0bbb198cb",
+    "release-creator": "9d789f009e5ad0ed1f1b941630caf74082af2c641ea881891fa33def9691f2c1",
     "repo-verify": "e69a12af65398ffe2153861568e6dfd63afd937c451cc6c1e36aca397403f999",
     "tdd-workflow": "73cd02b795b6c6c41a1ab1a0730dd98a8924f47235354d193934a2eb817b654e",
     "ui-ux-verify": "1db558c9689975b6c6c15d4a442d9923df25404f8dd2007da972963f3f65e5c5"
