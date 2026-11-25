@@ -50,7 +50,7 @@ Matches `release-runner.sh prepare`.
    pull request (title `Release <tag>`). When the project has both
    `$PROJECT_DIR/scripts/release/prepare-release.js` and
    `$PROJECT_DIR/scripts/release/extract-notes.sh`, run
-   `bash scripts/release/extract-notes.sh CHANGELOG.md <version>` before the
+   `bash $PROJECT_DIR/scripts/release/extract-notes.sh CHANGELOG.md <version>` before the
    commit, stop if it fails, and create the PR with its output through
    `--body-file <file>` (keep the short body above 60000 bytes). A later
    body edit can restart CI. Mark any unexecuted check `NOT_RUN` and report
