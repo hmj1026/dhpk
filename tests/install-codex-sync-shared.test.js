@@ -711,6 +711,48 @@ test('Codex --update inside the canonical source checkout skips relocatable Shar
   }
 });
 
+test('Codex retires only an unchanged review duplicate covered by the .agents compatibility projection', () => {
+  const project = selfOverlapPlugin();
+  try {
+    const inventoryPath = path.join(project, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const skill = inventory.skills.find((entry) => entry.id === 'codex-only');
+    skill.name = 'change-verdict';
+    skill.path = 'skills/change-verdict';
+    fs.rmSync(path.join(project, 'skills', 'change-verdict'), { recursive: true, force: true });
+    fs.cpSync(path.join(project, 'skills', 'dhpk-codex-only'), path.join(project, 'skills', 'change-verdict'), { recursive: true });
+    fs.symlinkSync('../../skills/change-verdict', path.join(project, 'codex', 'skills', 'change-verdict'), 'dir');
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+
+    const first = runCodexInstaller(project, ['--copy', '--force'], project);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const compatibilitySkill = path.join(project, '.agents', 'skills', 'change-verdict');
+    fs.mkdirSync(path.dirname(compatibilitySkill), { recursive: true });
+    fs.cpSync(path.join(project, 'skills', 'change-verdict'), compatibilitySkill, { recursive: true });
+    const sourceFingerprint = require('../scripts/lib/content-fingerprint').fingerprintPath(path.join(project, 'skills', 'change-verdict'));
+    const generatedFingerprints = {
+      'change-verdict/SKILL.md': crypto.createHash('sha256')
+        .update(fs.readFileSync(path.join(compatibilitySkill, 'SKILL.md'))).digest('hex'),
+    };
+    fs.writeFileSync(path.join(project, '.agents', 'skills', '.dhpk-projection.json'), JSON.stringify({
+      schema: 'dhpk.agents-skills-projection.v1',
+      fingerprint_algorithm: 'tree-merkle-v1',
+      selectedIds: ['change-verdict'],
+      managedPaths: ['change-verdict/SKILL.md'],
+      entries: [{ id: 'change-verdict', name: 'change-verdict', source: 'skills/change-verdict', sourceFingerprint }],
+      generatedFingerprints,
+    }));
+
+    const updated = runCodexInstaller(project, ['--copy', '--update', '--force'], project);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /retired=1/);
+    assert.ok(!fs.existsSync(path.join(project, '.codex', 'skills', 'change-verdict')));
+    assert.ok(fs.existsSync(compatibilitySkill));
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
 test('Cursor --update inside the canonical source checkout skips relocatable Shared Project Projection', () => {
   const project = selfOverlapPlugin();
   try {
