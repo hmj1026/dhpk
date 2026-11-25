@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.81.0",
-  "sourceCommit": "09e1486241478c7675a6d36b38f8190237da3bbc",
-  "generatedFromCommit": "09e1486241478c7675a6d36b38f8190237da3bbc",
-  "generatedFromTree": "b1190cfc2ec47c943de6a9b0d3fce049e36905e4",
+  "sourceCommit": "4184df816eefd1b7f0a44f3291fbae1900ebc5b8",
+  "generatedFromCommit": "4184df816eefd1b7f0a44f3291fbae1900ebc5b8",
+  "generatedFromTree": "7d8172ac14316142fa90d639feb5a0989ff8a2ac",
   "inventoryDigest": "5216484fba021e152828ce8409efd1339fb1dec1927d8ee8d82a7031338bab1f",
   "inventoryRevision": "sha256:d1df445ed4792f847acd07dd3d754c705cc1de5ee17687b710c52d5b1a21c98a",
   "generatorVersion": "2.4.0",
@@ -2141,7 +2141,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/references/manual-procedure.md",
         "destination": "skills/release-creator/references/manual-procedure.md",
-        "originalGitBlobDigest": "630af86e20a5becaa395f7741388d9a457f86ed1"
+        "originalGitBlobDigest": "2c60bfbc19aa561ab4a24d7fb395d0ef37d57eb3"
       },
       {
         "ownerId": "release-creator",
@@ -2153,7 +2153,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/scripts/release-runner.sh",
         "destination": "skills/release-creator/scripts/release-runner.sh",
-        "originalGitBlobDigest": "efcbafa7fb54db312cf7265c27b76ba7feb766f4"
+        "originalGitBlobDigest": "90c891b5c6fa8408c7490a55721778405144e40e"
       },
       {
         "ownerId": "repo-verify",
@@ -4938,7 +4938,7 @@
     "git-worktree": "937ecd20112e34ac279e56ba9de95e7c533fdb9b7c0d82b9661496e3d8651388",
     "precommit": "86dbc4b393ec4c09ff38e04f66fd8504baa87017c2f9cfe2d9ac65831ee0a090",
     "proposal-analyze": "30beae79ada0acb4ee2906a99abf5029e36dcf5a411fa3cb573319b429884bd4",
-    "release-creator": "8869b427f321002155ef0c5c2f7c50aa9f1fb10862621132ee8f0a8d1c7664c8",
+    "release-creator": "0ac8f9b369d0ea3fa55277e5d5ad1c40715737df0fec30983008f0481527d711",
     "repo-verify": "e69a12af65398ffe2153861568e6dfd63afd937c451cc6c1e36aca397403f999",
     "tdd-workflow": "f56265cc2c19233ecb9a61e847859f5dc779f466cd6e0f9aeae46be736823fdf",
     "ui-ux-verify": "1db558c9689975b6c6c15d4a442d9923df25404f8dd2007da972963f3f65e5c5"

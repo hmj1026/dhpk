@@ -135,9 +135,11 @@ case "$phase" in
         notes_script="scripts/release/extract-notes.sh"
         if [ -f "$scope_script" ] && [ -f "$notes_script" ]; then
             notes="$(bash "$notes_script" CHANGELOG.md "$version")"
-            # GitHub caps a body at 65536 characters; a failed PR creation would
-            # leave the bump commit pushed without a pull request.
-            if [ "${#notes}" -le 60000 ]; then
+            # GitHub caps a body at 65536 characters and the OS caps one argument in
+            # bytes; a failed PR creation would leave the bump commit pushed without
+            # a pull request. Bytes bound both limits.
+            notes_bytes="$(printf '%s' "$notes" | wc -c)"
+            if [ "$notes_bytes" -le 60000 ]; then
                 pr_body="$(printf '%s\n\n%s' "$pr_body" "$notes")"
             else
                 echo "release-runner: release notes exceed the PR body limit; using the short body" >&2
