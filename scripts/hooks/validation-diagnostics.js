@@ -15,6 +15,7 @@ const DIRECT_TOOLS = new Set([
   'eslint', 'tsc', 'prettier', 'vitest', 'jest', 'pytest', 'phpunit',
   'mypy', 'ruff', 'flake8', 'cargo', 'go', 'swift',
 ]);
+const MAIN_SESSION = 'main';
 const STATE_LOCK_TIMEOUT_MS = 10000;
 const STATE_LOCK_POLL_MS = 10;
 const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
@@ -42,7 +43,7 @@ function subagentOf(input) {
   // missing IDs into a guessed agent name: main-session state must not be
   // cleaned by an unrelated SubagentStop event.
   return clean(input.agent_id || input.agentId || input.subagent_id || input.subagentId)
-    || 'main';
+    || MAIN_SESSION;
 }
 
 function sessionOf(input) {
@@ -194,6 +195,7 @@ function validationOutcome(input, event) {
 }
 
 const CHECK_CONFIG = /^(?:package\.json|(?:jest|vitest|eslint)\.config\.[cm]?[jt]s|tsconfig(?:\.[a-z0-9_-]+)?\.json|pyproject\.toml|pytest\.ini|phpunit\.xml(?:\.dist)?|Cargo\.toml|Package\.swift)$/i;
+const CHECK_CONFIG_MAX_BYTES = 262144;
 const RECOVERY_FIELDS = ['target', 'premise', 'file', 'observation', 'proposed_change', 'rerun_plan'];
 
 function projectMode(project, options) {
@@ -214,6 +216,29 @@ function digest(contents) {
   return crypto.createHash('sha256').update(contents).digest('hex');
 }
 
+// Project files are untrusted: bind the size, type, and path checks to the
+// descriptor that is read, so a swap after validation cannot supply evidence.
+function readCheckConfig(config) {
+  const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fs.constants;
+  if (!Number.isInteger(O_NOFOLLOW) || !Number.isInteger(O_NONBLOCK)) return null;
+  const descriptor = fs.openSync(config, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
+  try {
+    const opened = fs.fstatSync(descriptor);
+    if (!opened.isFile() || opened.size > CHECK_CONFIG_MAX_BYTES) return null;
+    if (fs.realpathSync(config) !== config) return null;
+    const current = fs.lstatSync(config);
+    if (current.dev !== opened.dev || current.ino !== opened.ino) return null;
+    const buffer = Buffer.alloc(CHECK_CONFIG_MAX_BYTES + 1);
+    let length = 0;
+    for (let count = -1; count !== 0 && length < buffer.length; length += count) {
+      count = fs.readSync(descriptor, buffer, length, buffer.length - length, null);
+    }
+    return length > CHECK_CONFIG_MAX_BYTES ? null : buffer.toString('utf8', 0, length);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
 function verifyRecovery(raw, project) {
   if (typeof raw !== 'string' || raw.length > 8192 || !project) return null;
   const request = JSON.parse(raw);
@@ -223,11 +248,8 @@ function verifyRecovery(raw, project) {
       || !/^[\w./-]+$/.test(file)
       || file.split('/').some((part) => !part || part.startsWith('.'))
       || !CHECK_CONFIG.test(path.basename(file))) return null;
-  const config = path.join(project, file);
-  const stat = fs.lstatSync(config);
-  if (!stat.isFile() || stat.size > 262144 || fs.realpathSync(config) !== config) return null;
-  const contents = fs.readFileSync(config, 'utf8');
-  if (!contents.includes(observation)) return null;
+  const contents = readCheckConfig(path.join(project, file));
+  if (contents === null || !contents.includes(observation)) return null;
   return { target, evidenceDigest: digest(raw + '\0' + digest(contents)) };
 }
 
@@ -248,14 +270,14 @@ function blockMessage(latch) {
     : 'Run the scoped configuration recovery check and record the next change before editing.';
   return { hookSpecificOutput: {
     hookEventName: 'PreToolUse', permissionDecision: 'deny',
-    permissionDecisionReason: '[validation-diagnostics] ' + reason,
+    permissionDecisionReason: '[validation-diagnostics] ' + reason + ' Do not edit through Bash while paused.',
   } };
 }
 
 function processEvent(input, options = {}) {
   const event = clean(input.hook_event_name);
   if (event === 'SubagentStop') {
-    if (!clean(input.agent_id) || !sessionOf(input)) return { message: null, record: { ignored: true } };
+    if (subagentOf(input) === MAIN_SESSION || !sessionOf(input)) return { message: null, record: { ignored: true } };
     cleanupSubagent(input, options);
     return { message: null, record: { cleaned: true } };
   }
@@ -348,6 +370,7 @@ function main() {
 module.exports = {
   deriveValidationTarget,
   processEvent,
+  verifyRecovery,
   identity,
 };
 
