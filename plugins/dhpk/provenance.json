@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.80.2",
-  "sourceCommit": "3ff927baf11c98cde0d33a10fe870d081c4bde66",
-  "generatedFromCommit": "3ff927baf11c98cde0d33a10fe870d081c4bde66",
-  "generatedFromTree": "bf185ceba668811031708017f4290ee204bebb90",
+  "sourceCommit": "017ac4784c2fd5624780c885e4eb8dfb3a371cb6",
+  "generatedFromCommit": "017ac4784c2fd5624780c885e4eb8dfb3a371cb6",
+  "generatedFromTree": "2f20670514a7703979bf72a16b4a3404f5c7c306",
   "inventoryDigest": "5216484fba021e152828ce8409efd1339fb1dec1927d8ee8d82a7031338bab1f",
   "inventoryRevision": "sha256:d1df445ed4792f847acd07dd3d754c705cc1de5ee17687b710c52d5b1a21c98a",
   "generatorVersion": "2.4.0",
@@ -617,7 +617,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/SKILL.md",
         "destination": "skills/flow-drive/SKILL.md",
-        "originalGitBlobDigest": "79e4db440f48a0be339e6af7cb7a4e3bd440a592"
+        "originalGitBlobDigest": "9284b5619fb9fbc71c18de0c88cc5dc9e63a2a76"
       },
       {
         "ownerId": "flow-drive",
@@ -4932,7 +4932,7 @@
     "code-trace": "9723d4b670adc5ad404cc46c1ca09561bde4a92fc9ccdd638d1d5ff5c0efe253",
     "create-pr": "4f1045b4b1968a78fc8e199e0131fd922f48239356d74c2bdd2e14cc0d59b9ec",
     "doc-maintain": "a606ad626865600214a7d00c1703a5ab3d852d07583f0f5385b043068764aeb6",
-    "flow-drive": "009d3c1189e403f3d3abe2bf79b58583d368034421da7f3a0e86040cbdd89d90",
+    "flow-drive": "2e01b162b89f6f9208881882779f92fd68c3579e0373246a213396922b62658e",
     "flow-guide": "187fa63985b20b523880950bc389b8221eb286525c72f80cf86873297b5a96f5",
     "git-smart-commit": "bba14c6579dc9bcb9f80e0cb5180997c9b836d67f8f23cb65ca3b8fcd3f95fea",
     "git-worktree": "937ecd20112e34ac279e56ba9de95e7c533fdb9b7c0d82b9661496e3d8651388",
