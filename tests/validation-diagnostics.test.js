@@ -243,4 +243,115 @@ test('three identical failures require escalation, including after a target swit
   }
 });
 
+test('subagent stop cleans up every accepted identity field and never the main session', () => {
+  for (const key of ['agent_id', 'agentId', 'subagent_id', 'subagentId']) {
+    const stateDir = fixtureDir();
+    try {
+      const own = { agent_id: undefined, [key]: 'agent-a' };
+      diagnostics.processEvent(payload(own), { stateDir });
+      diagnostics.processEvent(payload({ agent_id: undefined }), { stateDir });
+      const stopped = diagnostics.processEvent(payload({
+        ...own, hook_event_name: 'SubagentStop', tool_input: undefined,
+      }), { stateDir });
+      assert.strictEqual(stopped.record.cleaned, true, key);
+      assert.strictEqual(diagnostics.processEvent(payload(own), { stateDir }).record.failures, 1, key);
+      const anonymous = diagnostics.processEvent(payload({
+        agent_id: undefined, hook_event_name: 'SubagentStop', tool_input: undefined,
+      }), { stateDir });
+      assert.strictEqual(anonymous.record.ignored, true, key);
+      assert.strictEqual(diagnostics.processEvent(payload({ agent_id: undefined }), { stateDir }).record.failures, 2, key);
+    } finally {
+      fs.rmSync(stateDir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('block mode gates the native edit tools only and says Bash writes do not resume work', () => {
+  const stateDir = fixtureDir();
+  try {
+    const base = { stateDir, mode: 'block' };
+    diagnostics.processEvent(payload(), base);
+    diagnostics.processEvent(payload(), base);
+    for (const tool of ['Edit', 'Write', 'MultiEdit']) {
+      const denied = diagnostics.processEvent(payload({ hook_event_name: 'PreToolUse', tool_name: tool }), base);
+      assert.strictEqual(denied.message.hookSpecificOutput.permissionDecision, 'deny', tool);
+      assert.match(denied.message.hookSpecificOutput.permissionDecisionReason, /Do not edit through Bash/);
+    }
+    const bash = diagnostics.processEvent(payload({
+      hook_event_name: 'PreToolUse', tool_input: { command: 'grep -n jest package.json' },
+    }), base);
+    assert.strictEqual(bash.message, null);
+    diagnostics.processEvent(payload({
+      hook_event_name: 'PostToolUse', tool_input: { command: "sed -i s/a/b/ package.json" }, tool_response: { exit_code: 0 },
+    }), base);
+    assert.ok(diagnostics.processEvent(edit(process.cwd()), base).message);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('recovery rejects a symlinked, special, or oversized config', () => {
+  const cwd = fs.realpathSync(fixtureDir());
+  const outside = fs.realpathSync(fixtureDir());
+  const script = path.join(__dirname, '..', 'scripts/hooks/validation-diagnostics.js');
+  const recover = (file) => spawnSync(process.execPath, [script, 'recover', JSON.stringify({
+    target: 'npm:test', premise: 'p', file, observation: 'observed', proposed_change: 'c', rerun_plan: 'npm test',
+  })], { cwd, encoding: 'utf8', timeout: 10000 });
+  try {
+    const config = path.join(cwd, 'package.json');
+    fs.writeFileSync(path.join(outside, 'package.json'), 'observed');
+    fs.symlinkSync(path.join(outside, 'package.json'), config);
+    assert.strictEqual(recover('package.json').status, 1);
+    fs.symlinkSync(outside, path.join(cwd, 'linked'));
+    assert.strictEqual(recover('linked/package.json').status, 1);
+    fs.unlinkSync(config);
+    assert.strictEqual(spawnSync('mkfifo', [config]).status, 0);
+    assert.strictEqual(recover('package.json').status, 1);
+    fs.unlinkSync(config);
+    fs.writeFileSync(config, `observed${' '.repeat(262144)}`);
+    assert.strictEqual(recover('package.json').status, 1);
+    fs.writeFileSync(config, 'observed');
+    assert.strictEqual(recover('package.json').status, 0);
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('recovery rejects a config swapped between path validation and read', () => {
+  const cwd = fs.realpathSync(fixtureDir());
+  const outside = path.join(fs.realpathSync(fixtureDir()), 'pytest.ini');
+  const config = path.join(cwd, 'pytest.ini');
+  const script = path.join(__dirname, '..', 'scripts/hooks/validation-diagnostics.js');
+  const raw = JSON.stringify({
+    target: 'direct:pytest', premise: 'p', file: 'pytest.ini', observation: 'observed', proposed_change: 'c', rerun_plan: 'pytest',
+  });
+  // Swap the validated file for a link to outside data right after the realpath check.
+  const child = `
+    const fs = require('node:fs');
+    const [script, config, outside, raw] = process.argv.slice(1);
+    const real = fs.realpathSync;
+    fs.realpathSync = (target, ...rest) => {
+      const resolved = real(target, ...rest);
+      if (target === config) { fs.unlinkSync(config); fs.symlinkSync(outside, config); }
+      return resolved;
+    };
+    const diagnostics = require(script);
+    try {
+      process.exitCode = diagnostics.verifyRecovery(raw, ${JSON.stringify(cwd)}) ? 0 : 3;
+    } catch (error) {
+      process.exitCode = error.code === 'ELOOP' ? 3 : 4;
+    }
+  `;
+  try {
+    fs.writeFileSync(config, 'harmless');
+    fs.writeFileSync(outside, 'observed');
+    const result = spawnSync(process.execPath, ['-e', child, script, config, outside, raw], { cwd, encoding: 'utf8' });
+    assert.strictEqual(result.status, 3, `swapped config must not produce recovery evidence: ${result.stderr}`);
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+    fs.rmSync(path.dirname(outside), { recursive: true, force: true });
+  }
+});
+
 run('validation-diagnostics');

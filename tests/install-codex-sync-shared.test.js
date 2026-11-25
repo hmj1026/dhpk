@@ -711,47 +711,114 @@ test('Codex --update inside the canonical source checkout skips relocatable Shar
   }
 });
 
-test('Codex retires only an unchanged review duplicate covered by the .agents compatibility projection', () => {
+// A source checkout whose inventory carries the review skill under its real
+// identity. `.agents/skills` is always written by the public generator.
+function reviewSkillCheckout() {
   const project = selfOverlapPlugin();
-  try {
-    const inventoryPath = path.join(project, 'manifests', 'distribution-inventory.json');
-    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    const skill = inventory.skills.find((entry) => entry.id === 'codex-only');
-    skill.name = 'change-verdict';
-    skill.path = 'skills/change-verdict';
-    fs.rmSync(path.join(project, 'skills', 'change-verdict'), { recursive: true, force: true });
-    fs.cpSync(path.join(project, 'skills', 'dhpk-codex-only'), path.join(project, 'skills', 'change-verdict'), { recursive: true });
-    fs.symlinkSync('../../skills/change-verdict', path.join(project, 'codex', 'skills', 'change-verdict'), 'dir');
-    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  const inventoryPath = path.join(project, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8').replaceAll('"codex-only"', '"change-verdict"'));
+  const skill = inventory.skills.find((entry) => entry.id === 'change-verdict');
+  skill.name = 'change-verdict';
+  skill.path = 'skills/change-verdict';
+  fs.writeFileSync(inventoryPath, `${JSON.stringify({
+    ...inventory, surface_membership: { 'agent-plugin': ['change-verdict'] },
+  }, null, 2)}\n`);
+  const profilesPath = path.join(project, 'manifests', 'profile-projection-sets.json');
+  fs.writeFileSync(profilesPath, fs.readFileSync(profilesPath, 'utf8').replaceAll('"codex-only"', '"change-verdict"'));
+  for (const surface of ['skills', 'codex/skills']) {
+    fs.rmSync(path.join(project, surface, 'dhpk-codex-only'), { recursive: true, force: true });
+    write(path.join(project, surface, 'change-verdict', 'SKILL.md'), skillBody('change-verdict', 'Change Verdict'));
+  }
+  return project;
+}
 
+function projectCompatibilitySkills(project) {
+  const result = spawnSync(process.execPath, [
+    path.join(REPO, 'scripts', 'ci', 'gen-agents-skills.js'), '--repo-root', project, '--update', '--preserve-unmanaged',
+  ], { cwd: project, encoding: 'utf8', timeout: 20000 });
+  assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+}
+
+function discoverableReviewSkills(project) {
+  return ['.agents/skills', '.codex/skills']
+    .map((root) => `${root}/change-verdict/SKILL.md`)
+    .filter((relative) => fs.existsSync(path.join(project, relative)));
+}
+
+function addThirdPartyReview(project) {
+  const owned = path.join(project, 'third-party', 'code-review');
+  write(path.join(owned, 'SKILL.md'), skillBody('code-review', 'Third-party review'));
+  const links = ['.agents', '.codex'].map((root) => path.join(project, root, 'skills', 'code-review'));
+  for (const link of links) {
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.symlinkSync('../../third-party/code-review', link, 'dir');
+  }
+  return () => [fs.readFileSync(path.join(owned, 'SKILL.md'), 'utf8'), ...links.map((link) => fs.readlinkSync(link))];
+}
+
+test('Codex --update leaves one review source after a two-source install and keeps third-party code-review', () => {
+  const project = reviewSkillCheckout();
+  try {
     const first = runCodexInstaller(project, ['--copy', '--force'], project);
-    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const compatibilitySkill = path.join(project, '.agents', 'skills', 'change-verdict');
-    fs.mkdirSync(path.dirname(compatibilitySkill), { recursive: true });
-    fs.cpSync(path.join(project, 'skills', 'change-verdict'), compatibilitySkill, { recursive: true });
-    const sourceFingerprint = require('../scripts/lib/content-fingerprint').fingerprintPath(path.join(project, 'skills', 'change-verdict'));
-    const generatedFingerprints = {
-      'change-verdict/SKILL.md': crypto.createHash('sha256')
-        .update(fs.readFileSync(path.join(compatibilitySkill, 'SKILL.md'))).digest('hex'),
-    };
-    fs.writeFileSync(path.join(project, '.agents', 'skills', '.dhpk-projection.json'), JSON.stringify({
-      schema: 'dhpk.agents-skills-projection.v1',
-      fingerprint_algorithm: 'tree-merkle-v1',
-      selectedIds: ['change-verdict'],
-      managedPaths: ['change-verdict/SKILL.md'],
-      entries: [{ id: 'change-verdict', name: 'change-verdict', source: 'skills/change-verdict', sourceFingerprint }],
-      generatedFingerprints,
-    }));
+    assert.strictEqual(first.status, 0, outputOf(first));
+    projectCompatibilitySkills(project);
+    const thirdParty = addThirdPartyReview(project);
+    const before = thirdParty();
+    const portable = completeTreeFingerprint(path.join(project, '.agents', 'skills', 'change-verdict'));
+    assert.deepStrictEqual(discoverableReviewSkills(project), [
+      '.agents/skills/change-verdict/SKILL.md', '.codex/skills/change-verdict/SKILL.md',
+    ]);
 
     const updated = runCodexInstaller(project, ['--copy', '--update', '--force'], project);
-    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
-    assert.match(`${updated.stdout}\n${updated.stderr}`, /retired=1/);
-    assert.ok(!fs.existsSync(path.join(project, '.codex', 'skills', 'change-verdict')));
-    assert.ok(fs.existsSync(compatibilitySkill));
+    assert.strictEqual(updated.status, 0, outputOf(updated));
+    assert.match(outputOf(updated), /retired=1/);
+    assert.deepStrictEqual(discoverableReviewSkills(project), ['.agents/skills/change-verdict/SKILL.md']);
+    assert.deepStrictEqual(thirdParty(), before);
+
+    const again = runCodexInstaller(project, ['--copy', '--update', '--force'], project);
+    assert.strictEqual(again.status, 0, outputOf(again));
+    assert.deepStrictEqual(discoverableReviewSkills(project), ['.agents/skills/change-verdict/SKILL.md']);
+    assert.strictEqual(completeTreeFingerprint(path.join(project, '.agents', 'skills', 'change-verdict')), portable);
+    assert.deepStrictEqual(thirdParty(), before);
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
   }
 });
+
+test('Codex fresh install beside the generated projection adds no second review source', () => {
+  const project = reviewSkillCheckout();
+  try {
+    projectCompatibilitySkills(project);
+    const installed = runCodexInstaller(project, ['--copy', '--force'], project);
+    assert.strictEqual(installed.status, 0, outputOf(installed));
+    assert.deepStrictEqual(discoverableReviewSkills(project), ['.agents/skills/change-verdict/SKILL.md']);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+for (const { label, edited } of [
+  { label: 'a user-modified Codex copy', edited: '.codex/skills/change-verdict/SKILL.md' },
+  { label: 'the Codex copy when the projection was modified', edited: '.agents/skills/change-verdict/SKILL.md' },
+]) {
+  test(`Codex --update preserves ${label}`, () => {
+    const project = reviewSkillCheckout();
+    try {
+      const first = runCodexInstaller(project, ['--copy', '--force'], project);
+      assert.strictEqual(first.status, 0, outputOf(first));
+      projectCompatibilitySkills(project);
+      fs.appendFileSync(path.join(project, edited), '\nLocal note.\n');
+      const content = fs.readFileSync(path.join(project, edited), 'utf8');
+
+      const updated = runCodexInstaller(project, ['--copy', '--update'], project);
+      assert.doesNotMatch(outputOf(updated), /retired=1/);
+      assert.strictEqual(discoverableReviewSkills(project).length, 2, outputOf(updated));
+      assert.strictEqual(fs.readFileSync(path.join(project, edited), 'utf8'), content);
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+    }
+  });
+}
 
 test('Cursor --update inside the canonical source checkout skips relocatable Shared Project Projection', () => {
   const project = selfOverlapPlugin();
