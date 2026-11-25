@@ -137,6 +137,15 @@ bash skills/release-creator/scripts/release-runner.sh \
 dhpk 自己發版時請使用 repo 內的 runner。早於此變更的已安裝 plugin 副本仍要求明確列出
 檔案；若必須使用它，請傳入 `prepare-release.js paths` 範圍內有變更的路徑。
 
+Runner 會把 `CHANGELOG.md` 中已提升的版本段落寫入 PR body。請保留該內容：修改
+標題或 body 會重新啟動 release PR 的 CI。
+
+Runner 會在任何檢查執行前，直接把 bump commit 推到 `develop`，因此 GitHub 會回報
+`Bypassed rule violations`。這是 `develop` ruleset 唯一接受的 bypass，需要
+repository admin 憑證，且只涵蓋 release bump commit；同一個 SHA 必須在合併前通過
+release PR 的 `Validate harness assets`。其他變更一律經由 pull request 進入
+`develop`。
+
 Release PR 必須通過 `validate`、`release-rehearsal` 與 Markdown `lint` job。
 `release-rehearsal` 只在 base 為 `main` 的 PR 上執行，依序做兩件事：
 
@@ -184,7 +193,9 @@ Release gate 分三層：
    `TIMEOUT_SECONDS` 調整時限。
 6. runner 會再確認 merged PR SHA、`main` HEAD 與雙親 merge topology，並在合併後
    的 `main` 驗證 SOURCE + PACKAGE（包含 provenance）；通過後才建立 annotated semver tag。
-7. Push tag，等待 release workflow 與 GitHub Release 完成。
+7. Push tag，等待 release workflow 與 GitHub Release 完成。GitHub API 錯誤中斷監看時，
+   runner 會繼續監看。若 runner 回報結果未知，tag 已經推送，不可再次執行 publish；
+   請觀察該 run 到結束，確認完成條件後切回 `develop`。
 8. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
 9. Release 成功後，先確認 `origin/develop` 仍等於 merged release PR head，再確認
    tree 與 `origin/main` 相同，最後由 `sync-develop` 使用

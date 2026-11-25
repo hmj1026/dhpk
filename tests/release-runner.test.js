@@ -290,6 +290,105 @@ exit 0
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+// A failed watch is not a failed release: the tag is already immutable, so the
+// runner reads the run's own state before it reports a result.
+function runPublishWithWatch({ watchFailures = 0, states = [], listFailures = 0 }) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-watch-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    writePackageGateFixture(tmp);
+    fs.writeFileSync(path.join(tmp, 'states'), states.map((s) => `${s}\n`).join(''));
+    fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "merge-commit-sha\\n"; fi\nif [ "$1" = "rev-list" ]; then printf "merge-commit-sha parent-a parent-b\\n"; fi\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
+printf "gh %s\\n" "$*" >> "$CALL_LOG"
+case "$1 $2" in
+  "pr list") printf "merge-commit-sha\\n" ;;
+  "run list")
+    n=$(grep -c "^gh run list" "$CALL_LOG")
+    if [ "$n" -le "$LIST_FAILURES" ]; then echo "HTTP 500" >&2; exit 1; fi
+    printf "run-123\\n"
+    ;;
+  "run watch")
+    n=$(grep -c "^gh run watch" "$CALL_LOG")
+    if [ "$n" -le "$WATCH_FAILURES" ]; then echo "failed to get run: HTTP 500" >&2; exit 1; fi
+    ;;
+  "run view")
+    n=$(grep -c "^gh run view" "$CALL_LOG")
+    state=$(sed -n "\${n}p" "$STATE_FILE")
+    if [ "$state" = "error" ]; then exit 1; fi
+    printf "%s\\n" "$state"
+    ;;
+esac
+exit 0
+`, { mode: 0o755 });
+    const res = spawnSync('bash', [RUNNER, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        CALL_LOG: log,
+        STATE_FILE: path.join(tmp, 'states'),
+        WATCH_FAILURES: String(watchFailures),
+        LIST_FAILURES: String(listFailures),
+        DHPK_RELEASE_POLL_INTERVAL: '0',
+        DHPK_RELEASE_POLL_ATTEMPTS: '3',
+      },
+    });
+    const calls = fs.readFileSync(log, 'utf8');
+    return { res, calls, watches: (calls.match(/^gh run watch/gm) || []).length };
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+}
+
+test('publish retries the run lookup after a transient API error', () => {
+  const { res, calls, watches } = runPublishWithWatch({ listFailures: 2 });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(watches, 1, calls);
+});
+
+test('publish says the tag is already pushed when the run lookup never succeeds', () => {
+  const { res, calls, watches } = runPublishWithWatch({ listFailures: 9 });
+  assert.strictEqual(res.status, 1, res.stderr);
+  assert.strictEqual(watches, 0, calls);
+  assert.match(res.stderr, /workflow run not found for tag v1\.2\.3; the tag is already pushed/);
+});
+
+test('publish resumes watching when the watch fails while the run is unfinished', () => {
+  const { res, calls, watches } = runPublishWithWatch({ watchFailures: 2, states: ['in_progress', 'error'] });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(watches, 3, calls);
+  assert.ok(calls.includes('git checkout -B develop origin/develop'), calls);
+});
+
+test('publish continues when the watch fails but the run completed successfully', () => {
+  const { res, calls, watches } = runPublishWithWatch({ watchFailures: 9, states: ['completed success'] });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(watches, 1, calls);
+  assert.ok(calls.includes('git checkout -B develop origin/develop'), calls);
+});
+
+for (const conclusion of ['failure', 'cancelled', 'timed_out', 'skipped', '']) {
+  test(`publish fails without retrying when the run completed with conclusion "${conclusion}"`, () => {
+    const { res, calls, watches } = runPublishWithWatch({ watchFailures: 9, states: [`completed ${conclusion}`] });
+    assert.strictEqual(res.status, 1, res.stderr);
+    assert.strictEqual(watches, 1, calls);
+    assert.match(res.stderr, /run run-123 completed with conclusion/);
+    assert.ok(!calls.includes('git checkout -B develop'), calls);
+  });
+}
+
+test('publish stops after bounded attempts and reports an unknown result for the pushed tag', () => {
+  const { res, calls, watches } = runPublishWithWatch({ watchFailures: 9, states: ['error', 'queued', 'error'] });
+  assert.strictEqual(res.status, 1, res.stderr);
+  assert.strictEqual(watches, 3, calls);
+  assert.match(res.stderr, /result of run run-123 is unknown/);
+  assert.match(res.stderr, /tag v1\.2\.3 is already pushed/);
+  assert.ok(!calls.includes('git checkout -B develop'), calls);
+});
+
 test('publish fails when post-release trees match but develop and main SHAs differ', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
   try {
@@ -476,14 +575,15 @@ function writeScopeFixture(root) {
   ].join('\n'));
 }
 
-function runScopedPrepare(statusLines, { withScope = true } = {}) {
+function runScopedPrepare(statusLines, { withScope = true, changelog = '# Changelog\n', withNotes = false, env = {} } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-scope-'));
   const bin = path.join(tmp, 'bin');
   const log = path.join(tmp, 'calls.log');
   fs.mkdirSync(bin);
   fs.writeFileSync(log, '');
   if (withScope) writeScopeFixture(tmp);
-  fs.writeFileSync(path.join(tmp, 'CHANGELOG.md'), '# Changelog\n');
+  if (withNotes) fs.copyFileSync(path.join(ROOT, 'scripts', 'release', 'extract-notes.sh'), path.join(tmp, 'scripts', 'release', 'extract-notes.sh'));
+  fs.writeFileSync(path.join(tmp, 'CHANGELOG.md'), changelog);
   fs.mkdirSync(path.join(tmp, '.claude-plugin'));
   fs.writeFileSync(path.join(tmp, '.claude-plugin', 'plugin.json'), '{}\n');
   fs.mkdirSync(path.join(tmp, 'plugins', 'dhpk-agy'), { recursive: true });
@@ -499,7 +599,7 @@ if [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--name-only" ]; then 
   const res = spawnSync('bash', [RUNNER, 'prepare', '1.2.7', 'develop', 'main', 'v', 'release.yml'], {
     cwd: tmp,
     encoding: 'utf8',
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+    env: { ...process.env, ...env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
   });
   const calls = fs.readFileSync(log, 'utf8');
   fs.rmSync(tmp, { recursive: true, force: true });
@@ -540,6 +640,40 @@ test('prepare without files keeps requiring explicit files outside a dhpk checko
   assert.strictEqual(res.status, 2);
   assert.ok(res.stderr.includes('prepare requires explicit release files'), res.stderr);
   assert.ok(!calls.includes('git checkout'), calls);
+});
+
+const NOTES_CHANGELOG = '# Changelog\n\n## 1.2.7 - 2026-01-01\n\n- **fix(x)** `quoted` $HOME.\n\n## 1.2.6 - 2025-12-01\n\n- old\n';
+
+test('prepare puts the changelog section in the PR body when the project extracts notes', () => {
+  const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { changelog: NOTES_CHANGELOG, withNotes: true });
+  assert.strictEqual(res.status, 0, res.stderr);
+  const body = calls.slice(calls.indexOf('--body '));
+  assert.ok(body.startsWith('--body Release version 1.2.7\n\n'), body);
+  assert.ok(body.includes('- **fix(x)** `quoted` $HOME.'), body);
+  assert.ok(!body.includes('- old'), body);
+});
+
+test('prepare stops before committing when the release section has no notes', () => {
+  const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { withNotes: true });
+  assert.notStrictEqual(res.status, 0);
+  assert.ok(!calls.includes('git commit'), calls);
+  assert.ok(!calls.includes('git push'), calls);
+});
+
+for (const [name, filler] of [['ASCII', 'x'.repeat(161000)], ['multibyte', '\u7248'.repeat(50000)]]) {
+  test(`prepare keeps the short PR body when ${name} notes exceed the body limit`, () => {
+    const changelog = NOTES_CHANGELOG.replace('$HOME.', filler);
+    const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { changelog, withNotes: true, env: { LC_ALL: 'C.UTF-8' } });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(calls.endsWith('--body Release version 1.2.7\n'), calls.slice(-200));
+    assert.match(res.stderr, /release notes exceed the PR body limit/);
+  });
+}
+
+test('prepare keeps the short PR body when the project has no notes extractor', () => {
+  const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { changelog: NOTES_CHANGELOG });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.ok(calls.endsWith('--body Release version 1.2.7\n'), calls);
 });
 
 test('prepare commits an already-staged changelog deletion in a real git repository', () => {

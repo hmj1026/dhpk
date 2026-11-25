@@ -7,6 +7,9 @@
 // CLAUDE_PLUGIN_ROOT environment variable. The check is lexical: it rejects
 // value reads and env injection, ignoring comment lines.
 //
+// Maintainer docs get one more check: a shell block an agent or maintainer runs
+// from the checkout must not expand the variable, because only hooks receive it.
+//
 //   node scripts/ci/validate-plugin-root-resolution.js
 
 const { execFileSync } = require('node:child_process');
@@ -43,6 +46,13 @@ const JS_RULES = [
   { pattern: new RegExp('\\benv(?:\\.|\\[\\s*[\'"`])' + VAR + '(?![A-Za-z0-9_])'), message: `reads env ${VAR}; use scripts/lib/package-root.js` },
   { pattern: new RegExp('(?<![A-Za-z0-9_.$])[\'"`]?' + VAR + '[\'"`]?\\s*:(?!:)'), message: `injects ${VAR} as an object key (spawn env); pass the resolved root explicitly` },
 ];
+
+// Maintainer instructions run from a plain shell. Consumer-facing docs stay out
+// of scope: a Host expands the variable in the settings they show.
+const DOC_SCOPE = [/^AGENTS\.md$/, /^RELEASE(?:\.[\w-]+)?\.md$/, /^docs\/agent-guidance\/[^/]+\.md$/];
+const DOC_FENCE = /^\s*(`{3,}|~{3,})\s*(\S*)/;
+const DOC_SHELLS = new Set(['bash', 'sh', 'shell', 'zsh']);
+const DOC_READ = new RegExp('\\$\\{?' + VAR + '\\b');
 
 function kindOf(relativePath, source) {
   const ext = path.extname(relativePath);
@@ -105,6 +115,31 @@ function checkSources(entries) {
     .flatMap(({ path: p, source }) => fileViolations(p, source));
 }
 
+function isCheckedDoc(relativePath) {
+  return DOC_SCOPE.some((pattern) => pattern.test(relativePath));
+}
+
+function docFileViolations(relativePath, source) {
+  let fence = null;
+  return source.split(/\r?\n/).flatMap((line, index) => {
+    const match = DOC_FENCE.exec(line);
+    if (fence === null) {
+      if (match) fence = { marker: match[1], shell: DOC_SHELLS.has(match[2].toLowerCase()) };
+      return [];
+    }
+    if (match && match[2] === '' && match[1].startsWith(fence.marker)) {
+      fence = null;
+      return [];
+    }
+    if (!fence.shell || !DOC_READ.test(line)) return [];
+    return [{ file: relativePath, line: index + 1, message: `${VAR}: is unset in a maintainer shell; use a checkout-relative path` }];
+  });
+}
+
+function checkDocs(entries) {
+  return entries.filter(({ path: p }) => isCheckedDoc(p)).flatMap(({ path: p, source }) => docFileViolations(p, source));
+}
+
 function listFiles(root) {
   const output = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   return output.split('\0').filter(Boolean).sort();
@@ -112,7 +147,7 @@ function listFiles(root) {
 
 function main(root = path.resolve(__dirname, '..', '..')) {
   const entries = listFiles(root).flatMap((p) => {
-    if (!isScanned(p) || p in EXEMPTIONS) return [];
+    if (!isCheckedDoc(p) && (!isScanned(p) || p in EXEMPTIONS)) return [];
     const file = path.join(root, p);
     try {
       return fs.statSync(file).isFile() ? [{ path: p, source: fs.readFileSync(file, 'utf8') }] : [];
@@ -120,7 +155,7 @@ function main(root = path.resolve(__dirname, '..', '..')) {
       return [];
     }
   });
-  return { checked: entries.length, errors: checkSources(entries) };
+  return { checked: entries.length, errors: [...checkSources(entries), ...checkDocs(entries)] };
 }
 
 if (require.main === module) {
@@ -130,4 +165,4 @@ if (require.main === module) {
   else console.log(`PASS [validate-plugin-root-resolution]: ${result.checked} files read no ${VAR} directly`);
 }
 
-module.exports = { checkSources, isScanned, main, EXEMPTIONS };
+module.exports = { checkDocs, checkSources, isScanned, main, EXEMPTIONS };

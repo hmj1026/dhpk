@@ -22,6 +22,8 @@ RECOVERY = Recovery(
               'directory itself (git grep -n PATTERN -- <directory>); read a blob as <rev>:<path>.',
     recursive='narrow the git pathspec to paths without protected files, add -n to limit history, '
               'or read an explicit non-protected <rev>:<path>.',
+    unknown_cwd='run git as the first word without cd, pushd, popd, eval, source, or a wrapper such as env or '
+                'timeout in the same command; select another repository with git -C <literal-path>.',
 )
 
 # Global options that move the repository or change pathspec meaning; the

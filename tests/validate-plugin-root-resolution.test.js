@@ -4,7 +4,7 @@
 // through the shared resolvers, never by reading CLAUDE_PLUGIN_ROOT directly.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { checkSources, isScanned, EXEMPTIONS } = require('../scripts/ci/validate-plugin-root-resolution');
+const { checkDocs, checkSources, isScanned, main, EXEMPTIONS } = require('../scripts/ci/validate-plugin-root-resolution');
 
 function violations(file, source) {
   return checkSources([{ path: file, source }]);
@@ -195,6 +195,49 @@ test('exemptions are file-specific, not directory-wide', () => {
     const dir = file.slice(0, file.lastIndexOf('/'));
     assert.strictEqual(violations(dir + '/zz-neighbor.sh', bad).length, 1, file);
   }
+});
+
+const FENCE = '```';
+const DOC_READ = 'bash "${CLAUDE_PLUGIN_ROOT}/skills/x/scripts/run.sh"';
+
+function docViolations(file, source) {
+  return checkDocs([{ path: file, source }]);
+}
+
+function fenced(lang, line) {
+  return [`${FENCE}${lang}`, line, FENCE, ''].join('\n');
+}
+
+for (const lang of ['bash', 'sh', 'shell', 'zsh']) {
+  test(`rejects the variable in a maintainer doc ${lang} block`, () => {
+    const found = docViolations('RELEASE.md', `text\n${fenced(lang, DOC_READ)}`);
+    assert.deepStrictEqual(found.map(({ file, line }) => ({ file, line })), [{ file: 'RELEASE.md', line: 3 }]);
+    assert.match(found[0].message, /unset in a maintainer shell/);
+  });
+}
+
+test('rejects an indented maintainer doc block and a bare read', () => {
+  const source = ['1. step', '', `   ${FENCE}bash`, '   cd "$CLAUDE_PLUGIN_ROOT"', `   ${FENCE}`, ''].join('\n');
+  assert.deepStrictEqual(docViolations('docs/agent-guidance/x.md', source).map((v) => v.line), [4]);
+});
+
+test('allows the variable in prose, in other blocks, and after a fence closes', () => {
+  const source = [DOC_READ, fenced('json', DOC_READ), fenced('', DOC_READ), fenced('bash', 'ls'), DOC_READ].join('\n');
+  assert.deepStrictEqual(docViolations('RELEASE.md', source), []);
+});
+
+test('checks maintainer docs only', () => {
+  const source = fenced('bash', DOC_READ);
+  for (const file of ['AGENTS.md', 'RELEASE.md', 'RELEASE.zh-TW.md', 'docs/agent-guidance/x.md']) {
+    assert.strictEqual(docViolations(file, source).length, 1, file);
+  }
+  for (const file of ['README.md', 'docs/platform-installation.md', 'skills/x/SKILL.md', 'dist/a/RELEASE.md']) {
+    assert.deepStrictEqual(docViolations(file, source), [], file);
+  }
+});
+
+test('the checkout passes, including its maintainer docs', () => {
+  assert.deepStrictEqual(main().errors, []);
 });
 
 run('validate-plugin-root-resolution');

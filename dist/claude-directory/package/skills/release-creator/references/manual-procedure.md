@@ -47,8 +47,14 @@ Matches `release-runner.sh prepare`.
    `git diff --cached --name-only -- <path>`; stop if any is not.
 6. Commit `chore(release): bump version to <version> and update changelog`, push
    to `origin/{BASE_BRANCH}`, and open the `{BASE_BRANCH} -> {RELEASE_BRANCH}`
-   pull request (title `Release <tag>`). Mark any unexecuted check `NOT_RUN`
-   and report `mode: manual`.
+   pull request (title `Release <tag>`). When the project has both
+   `$PROJECT_DIR/packaged-prepare-release.js` and
+   `$PROJECT_DIR/packaged-extract-notes.sh`, run
+   `bash $PROJECT_DIR/packaged-extract-notes.sh CHANGELOG.md <version>` before the
+   commit, stop if it fails, and create the PR with its output through
+   `--body-file <file>` (keep the short body above 60000 bytes). A later
+   body edit can restart CI. Mark any unexecuted check `NOT_RUN` and report
+   `mode: manual`.
 
 ## Stage: human-merge-gate
 
@@ -85,9 +91,14 @@ Matches `release-runner.sh publish`. Accept no release file list.
    (`git tag -a "<tag>" -m "Release <tag>"`) and push it to `origin`.
 6. Find the `{RELEASE_WORKFLOW}` run for that tag:
    `gh run list --workflow {RELEASE_WORKFLOW} --branch <tag> --event push --limit 1 --json databaseId --jq '.[0].databaseId // empty'`.
-   Retry (up to 30 times, 5 seconds apart) until a run ID appears; stop `FAIL`
-   if none appears. Then run `gh run watch <run-id> --exit-status`. A non-zero
-   exit fails the stage; never report the tag as published.
+   Retry (up to 30 times, 5 seconds apart, also after an API error) until a run
+   ID appears; stop `FAIL` if none appears, without repeating the tag. Then run `gh run watch <run-id> --exit-status`. When it
+   exits non-zero, read `gh run view <run-id> --json status,conclusion`:
+   `completed` with `success` continues, `completed` with any other conclusion
+   fails the stage, and an unfinished or unreadable run is watched again, up
+   to 30 times, 5 seconds apart. If the result stays unknown, stop and report
+   it: the tag is already pushed, so keep observing that run instead of
+   repeating this stage, and never report the tag as published.
 7. Run `git fetch origin {RELEASE_BRANCH} {BASE_BRANCH}` and compare
    `origin/{RELEASE_BRANCH}` with `origin/{BASE_BRANCH}`. If the SHAs match,
    the branches are aligned. If the SHAs differ but `git diff --quiet` shows

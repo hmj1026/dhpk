@@ -221,7 +221,9 @@ def listing_verdict(plan, patterns, cwd):
             return verdict.protected()
     if result.ambiguous:
         return verdict.ambiguous(result.ambiguous, recovery and recovery.ambiguous)
-    if result.failure in ('unknown', 'limit'):
+    if result.failure == 'unknown':
+        return verdict.recursive_unproven(None, result.detail, recovery and (recovery.unknown_cwd or recovery.recursive))
+    if result.failure == 'limit':
         return verdict.recursive_unproven(None, result.detail, recovery and recovery.recursive)
     if result.failure == 'unsupported':
         return verdict.unsupported(None, result.detail)
