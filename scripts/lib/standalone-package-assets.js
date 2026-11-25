@@ -75,6 +75,9 @@ const NATIVE_AGENT_TRAP_FILES = Object.freeze([
   'agent-traps/_common/trap-sheet-loader.md',
   'agent-traps/_common/cli-prompt-composition.md',
   'agent-traps/_common/build-resolver-skeleton.md',
+  'agent-traps/build-resolver/python.md',
+  'agent-traps/build-resolver/rust.md',
+  'agent-traps/build-resolver/swift.md',
   'agent-traps/e2e-runner/playwright.md',
 ]);
 

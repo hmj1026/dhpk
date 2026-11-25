@@ -32,6 +32,9 @@ const CURSOR_SUPPORT_FILES = Object.freeze([
   'agent-traps/_common/trap-sheet-loader.md',
   'agent-traps/_common/cli-prompt-composition.md',
   'agent-traps/_common/build-resolver-skeleton.md',
+  'agent-traps/build-resolver/python.md',
+  'agent-traps/build-resolver/rust.md',
+  'agent-traps/build-resolver/swift.md',
   'agent-traps/e2e-runner/playwright.md',
   'rules/execution-policy.mdc',
   'rules/tool-routing.mdc',
@@ -42,6 +45,9 @@ const AGY_SUPPORT_FILES = Object.freeze([
   'agent-traps/_common/trap-sheet-loader.md',
   'agent-traps/_common/cli-prompt-composition.md',
   'agent-traps/_common/build-resolver-skeleton.md',
+  'agent-traps/build-resolver/python.md',
+  'agent-traps/build-resolver/rust.md',
+  'agent-traps/build-resolver/swift.md',
   'agent-traps/e2e-runner/playwright.md',
   'rules/execution-policy.md',
   'rules/tool-routing.md',
@@ -71,6 +77,20 @@ function rewriteCursorNativeSupportBody(body) {
 
 function cursorCases() {
   return [
+    {
+      agent: 'agents/build-resolver.md',
+      required: [
+        `${CURSOR_PLUGIN_ROOT_TOKEN}/agent-traps/build-resolver/python.md`,
+        `${CURSOR_PLUGIN_ROOT_TOKEN}/agent-traps/build-resolver/rust.md`,
+        `${CURSOR_PLUGIN_ROOT_TOKEN}/agent-traps/build-resolver/swift.md`,
+      ],
+      files: [
+        'agent-traps/build-resolver/python.md',
+        'agent-traps/build-resolver/rust.md',
+        'agent-traps/build-resolver/swift.md',
+      ],
+      forbidden: ['.cursor/dhpk/'],
+    },
     {
       agent: 'agents/planner.md',
       required: [
@@ -130,6 +150,20 @@ function cursorCases() {
 
 function agyCases() {
   return [
+    {
+      agent: 'agents/build-resolver.md',
+      required: [
+        'agent-traps/build-resolver/python.md',
+        'agent-traps/build-resolver/rust.md',
+        'agent-traps/build-resolver/swift.md',
+      ],
+      files: [
+        'agent-traps/build-resolver/python.md',
+        'agent-traps/build-resolver/rust.md',
+        'agent-traps/build-resolver/swift.md',
+      ],
+      forbidden: [CLAUDE_PLUGIN_ROOT_TOKEN, '.cursor/dhpk/'],
+    },
     {
       agent: 'agents/planner.md',
       required: ['agent-traps/_common/prompt-defense.md', 'rules/execution-policy.md'],
@@ -211,6 +245,7 @@ function mentionsNativeSupport(text) {
     || text.includes('tool-routing')
     || text.includes('cli-prompt-composition')
     || text.includes('build-resolver-skeleton')
+    || text.includes('agent-traps/build-resolver/')
     || text.includes('run-codex.sh')
     || text.includes('run-agy.sh')
     || text.includes('fast-worker-selector.js')
