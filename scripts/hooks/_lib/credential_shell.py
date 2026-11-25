@@ -46,6 +46,7 @@ RESERVED_WORDS = frozenset(('!', '{', 'if', 'then', 'elif', 'else', 'while', 'un
 SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
 # 任何參數展開：值可能成為指令字、eval、trap 或函式本體的內容。
 PARAMETER = re.compile(r'\$[A-Za-z0-9_{@*#?!$-]')
+DESCRIPTORS = frozenset((digit, False) for digit in '0123456789')
 # 其引數只會被當成資料的指令：雙引號中含 heredoc 的替換輸出在這些指令的引數位置才視為資料。
 DATA_COMMANDS = frozenset(('git', 'gh', 'glab', 'echo', 'printf'))
 # git、gh、glab 只在這些子命令的訊息選項中把值當成文字儲存；其他選項（--exec、-c、alias 等）可能執行它。
@@ -88,6 +89,9 @@ class Token:
     # (#1453) the literal text left once each parameter expansion with no visible
     # source is removed; '' when the word has no such expansion
     residue: str = ''
+    # an unquoted digit directly before `<` or `>`: a file descriptor, not a word.
+    # One digit only: zsh reads a longer number as a word.
+    descriptor: bool = False
 
 
 @dataclass(frozen=True)
@@ -201,6 +205,16 @@ class _Cursor:
         return CHAR, ch
 
 
+def _lone_digit(text, end):
+    """True when the raw word before `end` is one digit; empty quotes or a split word beside it make it a word."""
+    i = end - 1
+    if text[i] not in '0123456789':
+        return False
+    while text[max(0, i - 2):i] == '\\\n':
+        i -= 2
+    return i == 0 or text[i - 1] in WORD_SPACES or text[i - 1] in OPERATOR_CHARS
+
+
 def tokenize(text):
     """Word view: words keep whether wildcard or expansion characters were active.
 
@@ -258,7 +272,10 @@ def tokenize(text):
                 tokens.append(Token(';', operator=True))
             continue
         if not quoted and ch in OPERATOR_CHARS:
+            descriptor = ch in '<>' and len(pieces) == 1 and pieces[0] in DESCRIPTORS and _lone_digit(text, start)
             flush()
+            if descriptor:
+                tokens[-1].descriptor = True
             op = ch
             if text[start:start + 2] in TWO_CHAR_OPERATORS:
                 op = text[start:start + 2]

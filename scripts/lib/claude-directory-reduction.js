@@ -117,7 +117,9 @@ const DIRECTORY_REWRITE_TOKEN = new RegExp(
   'g',
 );
 const FLOW_GUIDE_NEXT_MAP_REF = /(?:skills\/flow-guide\/)?references\/skill-next-map\.json/g;
-const DIRECTORY_SCRIPT_REF = /(https?:\/\/[^\s)>\]"'`]+)|(?:(?:\$\{CLAUDE_SKILL_DIR\}|\$SKILL_DIR|\$\{POLICY_BUNDLE_ROOT\}|<policy bundle root>|\$PROJECT_DIR\/\.claude|\$REPO|references\/execution-bundle|\.claude\/dhpk\/skills\/[a-z0-9-]+|(?:\$PROJECT_DIR\/)?skills\/(?:<skill>|[a-z0-9-]+))\/)?(?<![A-Za-z0-9_-])scripts\/([A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g;
+// `$PROJECT_DIR/scripts/` names a file of the consumer's own project, which the
+// reduction never removes, so it keeps its path.
+const DIRECTORY_SCRIPT_REF = /(https?:\/\/[^\s)>\]"'`]+)|(?:(?:\$\{CLAUDE_SKILL_DIR\}|\$SKILL_DIR|\$\{POLICY_BUNDLE_ROOT\}|<policy bundle root>|\$PROJECT_DIR\/\.claude|\$REPO|references\/execution-bundle|\.claude\/dhpk\/skills\/[a-z0-9-]+|(?:\$PROJECT_DIR\/)?skills\/(?:<skill>|[a-z0-9-]+))\/)?(?<![A-Za-z0-9_-])(?<!\$PROJECT_DIR\/)scripts\/([A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g;
 
 function hasShebang(contentBuffer) {
   const buf = Buffer.isBuffer(contentBuffer) ? contentBuffer : Buffer.from(String(contentBuffer || ''), 'utf8');

@@ -359,6 +359,27 @@ test('renderDirectoryReadme describes manual-procedure skills, omissions, mutual
   assert.match(readme, /\/plugin install dhpk@dhpk/);
 });
 
+test('consumer-project script paths survive reduction while packaged script paths are rewritten', () => {
+  const input = sampleFullPluginMap();
+  const line = [
+    'Run `node $PROJECT_DIR/scripts/release/publish-gate.js` in the project.',
+    'Then `bash "$PROJECT_DIR/scripts/release/extract-notes.sh"` and `$PROJECT_DIR/scripts/`.',
+    'Packaged: `$SKILL_DIR/scripts/a.js`, `scripts/b.js`, `$PROJECT_DIR/.claude/scripts/c.sh`, `$PROJECT_DIR/skills/precommit/scripts/d.js`.',
+    '',
+  ].join('\n');
+  const documents = ['skills/flow-guide/references/manual-procedure.md', 'skills/flow-guide/references/consumer-paths.md'];
+  for (const file of documents) input.set(file, { mode: 0o644, content: Buffer.from(`# Doc\n${line}`) });
+  const output = reduceToDirectoryPlugin(input, { version: VERSION });
+  for (const file of documents) {
+    const text = output.get(file).content.toString('utf8');
+    for (const kept of ['node $PROJECT_DIR/scripts/release/publish-gate.js`', '"$PROJECT_DIR/scripts/release/extract-notes.sh"', '`$PROJECT_DIR/scripts/`']) {
+      assert.ok(text.includes(kept), `${file}: ${kept}\n${text}`);
+    }
+    assert.ok(!text.includes('$PROJECT_DIR/packaged-'), text);
+    assert.strictEqual(/(?<!\$PROJECT_DIR\/)(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(text), false, text);
+  }
+});
+
 test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-procedure skills, normalizes nested references, and strips scripts/', () => {
   const input = sampleFullPluginMap();
   const snapshotBefore = new Map([...input].map(([k, v]) => [k, { mode: v.mode, hex: v.content.toString('hex') }]));

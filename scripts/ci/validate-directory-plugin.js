@@ -228,6 +228,7 @@ function validateSkillNextMap(files, errors) {
 // A scripts/ reference counts as removed when the Full Plugin ships it (relative
 // to the skill directory or the package root) and the Directory Plugin does not.
 // Without a Full Plugin tree to compare, every scripts/ reference is reported.
+// `$PROJECT_DIR/scripts/` is the consumer's own file and is never a reference to one.
 function isRemovedScriptPath(file, ref, files, fullDir) {
   const skillRoot = file.split('/').slice(0, 2).join('/');
   const candidates = [`${skillRoot}/${ref}`, ref];
@@ -329,7 +330,7 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
       }
       if (file.startsWith('skills/') && (file.endsWith('.md') || file.endsWith('.json'))) {
         const reportedScripts = new Set();
-        for (const m of stripped.matchAll(/(?<![A-Za-z0-9_-])(scripts\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g)) {
+        for (const m of stripped.matchAll(/(?<![A-Za-z0-9_-])(?<!\$PROJECT_DIR\/)(scripts\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g)) {
           if (!reportedScripts.has(m[1]) && isRemovedScriptPath(file, m[1], files, fullPluginKnown ? resolvedFullDir : null)) {
             reportedScripts.add(m[1]);
             errors.push({ file, rule: 'removed-script-reference', target: m[1], message: `references removed script path '${m[1]}'` });
