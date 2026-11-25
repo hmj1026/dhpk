@@ -671,9 +671,9 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 - Structural change (new module / renamed dir / new public service or API surface) → `doc-updater` (it runs `/dhpk:doc-maintain codemap` + `/dhpk:doc-maintain update`).
 - Needing current / up-to-date library / framework / API docs mid-task → `docs-lookup` (Context7).
 - Cleanup beyond a single file — a file > 800 lines to split, cross-file duplicate logic, or a multi-module dead-code sweep → `refactor-cleaner` (use `/simplify` for in-place single-file work).
-- `swift build` / `xcodebuild` / SPM resolution failure → `swift-build-resolver` (swift / xcode-tooling module active).
-- `ruff` / `mypy` / `pytest-asyncio` (and `pyright` / `pytest` / `uv sync`) error appears in Bash output → `python-build-resolver` (python / fastapi / pytest module active).
-- `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
+- `swift build` / `xcodebuild` / SPM resolution failure → `build-resolver` (swift / xcode-tooling module active).
+- `ruff` / `mypy` / `pytest-asyncio` (and `pyright` / `pytest` / `uv sync`) error appears in Bash output → `build-resolver` (python / fastapi / pytest module active).
+- `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `build-resolver` (Cargo remains eligible without a Rust module).
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
 
 ## Edit tool discipline

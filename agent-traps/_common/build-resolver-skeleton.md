@@ -1,6 +1,9 @@
 # Build-Resolver Shared Skeleton
 
-Shared procedure and framing referenced by the three language-specific build-resolver agents (`python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`). Each resolver keeps its own Diagnose commands, error→cause→fix table, and language-specific escape-hatch list inline — those are the genuinely differentiating content; only the surrounding procedure is shared here.
+Shared procedure and framing referenced by the unified `build-resolver` agent.
+The language-specific Diagnose commands, error→cause→fix tables, and escape-hatch
+lists live in `agent-traps/build-resolver/{python,rust,swift}.md`; this file owns
+the procedure shared by all three paths.
 
 ## Principles (shared framing)
 
