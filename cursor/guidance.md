@@ -25,6 +25,16 @@ generated. `cursor/dhpk/` is the rewritten support tree (trap sheets,
 contracts, policies, and other inventory supporting assets) that the installer
 copies into `.cursor/dhpk/`.
 
+## Selecting the DHPK review skill
+
+The supported public skill name is `change-verdict`; its stable capability ID
+is `dhpk.skill.change-verdict`. After project-local install or update, choose
+the discovered `change-verdict` entry in Cursor's skill chooser. Hosts that
+render display metadata may label that entry **DHPK Change Verdict**, but the
+canonical `.cursor/skills/change-verdict/` path and public name must remain
+unchanged. A discovered entry is not runtime invocation evidence; record an
+unexecuted call as `NOT_RUN`.
+
 ## Installer
 
 From a repository checkout, run at the consumer project root. An installed Claude plugin does not include `cursor/`:

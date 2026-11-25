@@ -76,6 +76,24 @@ for its scope and controlled extraction.
 Never turn a static manifest, marketplace entry, generated file, or enabled
 flag into a runtime `PASS`.
 
+## DHPK Change Verdict discovery and invocation
+
+The DHPK review capability keeps the stable public name `change-verdict` and
+capability ID `dhpk.skill.change-verdict`. Hosts that support a display label
+may show it as **DHPK Change Verdict**; the label is not a second skill or an
+alias.
+
+| Host route | Discovery and selection | Public invocation |
+|---|---|---|
+| Claude Code | After install/update, start a fresh session and select the DHPK plugin skill shown as `DHPK Change Verdict` | `/dhpk:change-verdict --mode code` |
+| Codex project-local sync | After `install-codex-skills.sh` or `--update`, select the one discovered `DHPK Change Verdict` row; verify its stable name is `change-verdict` | `$change-verdict --mode=code` |
+| Codex Public Plugin | After the approved public listing is available, select the discovered `DHPK Change Verdict` row in a fresh session; this route is currently `NOT_PUBLISHED` | `$change-verdict --mode=code` |
+| Cursor project-local sync | After `install-cursor-harness.sh` or `--update`, choose the discovered `change-verdict` skill in Cursor's skill chooser; do not rename the `.cursor/skills/change-verdict/` directory | Invoke the selected `change-verdict` skill using Cursor's documented skill UI/entrypoint |
+
+Record discovery and invocation separately. A package, receipt, or selected
+row is discovery evidence only; an unexecuted invocation remains `NOT_RUN`, and
+an absent Host capability is `UNAVAILABLE`.
+
 ## Claude Code installation paths
 
 DHPK offers two Claude Code distributions. Install **one** of them (never enable both `dhpk` and `dhpk-lite` simultaneously because their skills and agents overlap):
