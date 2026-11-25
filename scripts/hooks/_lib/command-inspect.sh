@@ -479,6 +479,7 @@ _dhpk_ci_flag_clear() {
     _dhpk_ci_fs_overflow=0
     _dhpk_ci_taint_overflow=0
     _dhpk_ci_fn_overflow=0
+    _dhpk_ci_copies_clear
 }
 
 # True when a value text mentions an already recorded flag variable name.
@@ -1185,7 +1186,7 @@ _dhpk_ci_fs_set() {
 # assignments, redirections and function definition prefixes (a name, then the () marker). With $2 = 1
 # a defined function name is recorded (at most 16, then the pool is opaque).
 _dhpk_ci_fs_strip() {
-    local s="$1" w fn u=$'\001'
+    local s="$1" w fn u=$'\002'
     local re_fn='^function[[:space:]]+([A-Za-z_][A-Za-z0-9_.-]*)([[:space:]]*'$u')?[[:space:]]*(.*)$'
     local re_paren='^([A-Za-z_][A-Za-z0-9_.-]*)[[:space:]]*'$u'[[:space:]]*(.*)$'
     local re_asg='^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?='
@@ -1429,7 +1430,7 @@ _dhpk_ci_scan_flag_sources() {
     esac
     _dhpk_ci_fs_funcs=" "
     _dhpk_ci_fs_nfn=0
-    text="${text//\(\)/$'\001'}"
+    text="${text//\(\)/$'\002'}"
     text="${text//[;&|()\`]/$'\n'}"
     # (#1468) More than 1024 segments are not scanned: the pool and the default expansions fail closed.
     local nl="${text//[^$'\n']/}"
@@ -1489,6 +1490,7 @@ _dhpk_ci_scan_git_taint() {
     local re_dq='^"([^"]*)"(.*)$'
     local re_par='^\(([^)]*)\)(.*)$'
     local re_bare='^([^[:space:];&|<>()]*)(.*)$'
+    local re_more='^([^[:space:];&|<>()"'$sq']+)(.*)$' seg_n sub more
     local re_build='(printf[[:space:]]+-v)[[:space:]]+([^;&|<]*)'
     local re_id='^[A-Za-z_][A-Za-z0-9_]*$'
     local -a ws_a
@@ -1523,6 +1525,26 @@ _dhpk_ci_scan_git_taint() {
             v=""
             rest="$t"
         fi
+        # (#1515) Adjacent quoted and bare segments are one value: 'gi'"t commit". They are read through
+        # a separate cursor: the assignment scan itself resumes after the first segment, so text that only
+        # looks adjacent cannot hide a later assignment.
+        more="$rest"
+        seg_n=0
+        while [ "$seg_n" -lt 16 ]; do
+            seg_n=$((seg_n + 1))
+            if [[ "$more" =~ $re_sq ]] || [[ "$more" =~ $re_dq ]] || [[ "$more" =~ $re_more ]]; then
+                v="$v${BASH_REMATCH[1]}"
+                more="${BASH_REMATCH[2]}"
+            else
+                break
+            fi
+        done
+        # (#1515) The text of a substitution that feeds the value is followed for copies only.
+        sub="_dhpk_ci_cx_$name"
+        case "$v" in
+            *'$') [ "${more:0:1}" = "(" ] && printf -v "$sub" '%s %s' "${!sub:-}" "${more%%)*}" ;;
+            *'`'*) printf -v "$sub" '%s %s' "${!sub:-}" "${more%%\`*}" ;;
+        esac
         var="_dhpk_ci_tv_$name"
         printf -v "$var" '%s %s' "${!var:-}" "$v"
         _dhpk_ci_lower "$v"
@@ -1557,11 +1579,24 @@ _dhpk_ci_scan_git_taint() {
             _dhpk_ci_taint_add "$name"
             rebuilt="$rebuilt$name "
         fi
-        unset "$var"
     done
     _dhpk_ci_bound_names="${_dhpk_ci_bound_names}${names# } "
+    # (#1515) A non-ASCII printf -v value may fold into git under a UTF-8 case conversion.
+    rest="$1"
+    while [[ "$rest" =~ $re_build ]]; do
+        seg="${BASH_REMATCH[2]}"
+        rest="${rest#*"${BASH_REMATCH[0]}"}"
+        _dhpk_ci_nonascii "$seg" || continue
+        read -r -a ws_a <<<"$seg"
+        [[ "${ws_a[0]:-}" =~ $re_id ]] && _dhpk_ci_nonascii_names="${_dhpk_ci_nonascii_names}${ws_a[0]} "
+    done
     _dhpk_ci_scan_namerefs "$1"
     _dhpk_ci_scan_flag_sources "$1"
+    _dhpk_ci_scan_copies "$1" "$names"
+    _dhpk_ci_scan_namerefs "$1"
+    for name in $names; do
+        unset "_dhpk_ci_tv_$name" "_dhpk_ci_cx_$name"
+    done
     rest="$1"
     while [[ "$rest" =~ $re_build ]]; do
         seg="${BASH_REMATCH[2]}"
@@ -1598,6 +1633,9 @@ _dhpk_ci_scan_namerefs() {
                 case "$_dhpk_ci_git_taint" in
                     *" $target "*) _dhpk_ci_taint_add "$name" ;;
                 esac
+                case "$_dhpk_ci_nonascii_names" in
+                    *" $target "*) _dhpk_ci_nonascii_names="${_dhpk_ci_nonascii_names}$name " ;;
+                esac
             else
                 _dhpk_ci_taint_add "$name"
             fi
@@ -1605,7 +1643,7 @@ _dhpk_ci_scan_namerefs() {
     done
 }
 
-# True when the word expands a variable that holds risky git text.
+# True when the word expands a variable that holds risky git text. $2 is 1 for a quoted command word.
 _dhpk_ci_word_uses_taint() {
     local w="$1" name re
     [ "${_dhpk_ci_taint_overflow:-0}" = "1" ] && [[ "$w" == *'$'* ]] && return 0
@@ -1614,6 +1652,8 @@ _dhpk_ci_word_uses_taint() {
             *'${!'[A-Za-z_]*) return 0 ;;
         esac
     fi
+    _dhpk_ci_cp_fold_taint "$w" && return 0
+    _dhpk_ci_cp_pos_taint "$w" "${2:-0}" && return 0
     # (#1456) A transformed expansion (${l/log/push}, ${l%log}, ${l:0}, ${l@P}) of a variable whose
     # visible value names git can rebuild any git command, so it is risky even when the value is read-only.
     for name in ${_dhpk_ci_git_named:-} ${_dhpk_ci_nonascii_names:-}; do
@@ -1785,6 +1825,8 @@ case "${BASH_SOURCE[0]}" in */*) ;; *) _dhpk_ci_mod_dir=. ;; esac
 . "$_dhpk_ci_mod_dir/command-inspect-unwrap.sh"
 # shellcheck disable=SC1090,SC1091
 . "$_dhpk_ci_mod_dir/command-inspect-scan.sh"
+# shellcheck disable=SC1090,SC1091
+. "$_dhpk_ci_mod_dir/command-inspect-copies.sh"
 # shellcheck disable=SC1090,SC1091
 . "$_dhpk_ci_mod_dir/command-inspect-api.sh"
 unset _dhpk_ci_mod_dir
