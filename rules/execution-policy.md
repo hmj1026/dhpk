@@ -597,10 +597,13 @@ sidecar runtime.
 
 ### Reviewer trigger table
 
-The orchestrator judges which reviewer(s) apply from the diff, using this
-default trigger table (project can extend via
-`userConfig.review_trigger_extra_paths`) plus the AI-judgment back-stop below
-for a semantic match the table misses. There is no hook-armed marker file.
+Resolve the diff's recommended roles with the `change-verdict` package's
+`scripts/resolve-review-triggers.js`. Its inputs are the selected Git scope,
+active stack modules, and `userConfig.review_trigger_extra_paths`. Use the
+back-stop below for semantic additions and to identify false positives.
+In the completion report retain the raw hits, actual dispatch, omitted roles
+with reasons, and added roles with reasons. Dispatch remains advisory under
+ADR-0026.
 
 A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash command — it is a markdown-interpolation token, not a shell variable.
 
@@ -616,7 +619,7 @@ A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash 
 
 ### Reviewer dispatch (when multiple roles are triggered)
 
-Dispatch every recommended reviewer for a wave together in one parallel batch,
+Dispatch the selected reviewers for a wave together in one parallel batch,
 then merge their findings into one bounded fix-spec while retaining each
 domain's independent verdict. Do not re-review each micro-fix as its own round.
 If an applicable external review already covers a domain, attach its scope,
