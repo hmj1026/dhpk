@@ -34,6 +34,8 @@ test('same session, project, subagent and target advises only on the second fail
 
   assert.strictEqual(first.message, null);
   assert.ok(second.message && second.message.systemMessage.includes('read-only'));
+  assert.match(second.message.hookSpecificOutput.additionalContext, /read-only/);
+  assert.strictEqual(second.message.hookSpecificOutput.hookEventName, 'PostToolUseFailure');
   assert.strictEqual(second.record.failures, 2);
 });
 
@@ -138,6 +140,8 @@ test('script names remain distinct while case selectors do not split the target'
   assert.strictEqual(diagnostics.deriveValidationTarget({ tool_input: { command: 'npm run test:api -- case-a' } }), 'npm:test:api');
   assert.strictEqual(diagnostics.deriveValidationTarget({ tool_input: { command: 'npm run test:api -- case-b' } }), 'npm:test:api');
   assert.notStrictEqual(diagnostics.deriveValidationTarget({ tool_input: { command: 'npm run test:web' } }), 'npm:test:api');
+  assert.notStrictEqual(diagnostics.deriveValidationTarget({ tool_input: { command: 'cargo test' } }),
+    diagnostics.deriveValidationTarget({ tool_input: { command: 'cargo clippy' } }));
 });
 
 test('interrupted or missing-session failures are ignored', () => {
