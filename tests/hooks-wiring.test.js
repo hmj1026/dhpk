@@ -38,13 +38,27 @@ test('every referenced hook script is executable', () => {
   }
 });
 
-test('default lifecycle wiring is the three deterministic hook events only', () => {
+test('default lifecycle wiring includes native validation events and deterministic gates', () => {
   const parsed = JSON.parse(raw);
   assert.deepStrictEqual(Object.keys(parsed.hooks).sort(), [
-    'PreToolUse', 'SessionStart', 'SubagentStop',
+    'PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SessionStart', 'SubagentStop',
   ]);
   assert.strictEqual(parsed.hooks.PreToolUse.length, 2, 'only edit and Bash gates are default PreToolUse hooks');
-  assert.strictEqual(parsed.hooks.SubagentStop.length, 1, 'only fast-worker liveness cleanup is default SubagentStop');
+  assert.strictEqual(parsed.hooks.SubagentStop.length, 1, 'only cleanup is default SubagentStop');
+});
+
+test('PostToolUse and PostToolUseFailure wire the validation diagnostics seam', () => {
+  const parsed = JSON.parse(raw);
+  for (const event of ['PostToolUse', 'PostToolUseFailure']) {
+    assert.deepStrictEqual(parsed.hooks[event], [{
+      matcher: 'Bash',
+      hooks: [{
+        type: 'command',
+        command: 'node',
+        args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/validation-diagnostics.js'],
+      }],
+    }]);
+  }
 });
 
 test('Edit|Write|MultiEdit wires only the protected-path guard', () => {
@@ -60,7 +74,7 @@ test('Edit|Write|MultiEdit wires only the protected-path guard', () => {
   }]);
 });
 
-test('Bash and SubagentStop each wire one consolidated deterministic hook', () => {
+test('Bash safety and both SubagentStop cleanup handlers are wired', () => {
   const parsed = JSON.parse(raw);
   const bash = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash');
   assert.ok(bash, 'missing Bash PreToolUse entry');
@@ -76,6 +90,10 @@ test('Bash and SubagentStop each wire one consolidated deterministic hook', () =
       type: 'command',
       command: 'bash',
       args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh'],
+    }, {
+      type: 'command',
+      command: 'node',
+      args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/validation-diagnostics.js'],
     }],
   }]);
 });
@@ -105,7 +123,9 @@ test('SessionStart wires only module activation', () => {
     const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'hooks.json'), 'utf8'));
     const defaults = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'default-events.json'), 'utf8'));
     assert.deepStrictEqual(defaults.events.slice().sort(), Object.keys(hooks.hooks).sort());
-    assert.deepStrictEqual(defaults.events.slice().sort(), ['PreToolUse', 'SessionStart', 'SubagentStop']);
+    assert.deepStrictEqual(defaults.events.slice().sort(), [
+      'PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SessionStart', 'SubagentStop',
+    ]);
     assert.ok(defaults.optionalEvents.includes('UserPromptSubmit'));
   });
 }

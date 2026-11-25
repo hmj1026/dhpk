@@ -15,6 +15,16 @@ Invoke `$flow-drive` explicitly with one bounded task, a task-file path, or a co
 
 This directory is the complete skill. It needs no dhpk checkout, sibling skill, resource synchronization, parser, runner, external CLI worker, or special execution receipt. The Host must be able to read the supplied task and relevant project files, make only authorized edits, and run the consumer project's available verification. It uses its normal file and shell tools; provider and subagent access remains subject to that Host's own capabilities and grants.
 
+## Validation failure diagnostics
+
+When the active Host exposes Claude Code `PostToolUse` and
+`PostToolUseFailure`, the native validation-diagnostics hook tracks a verified
+test, lint, or type-check target by session, project, and the actual Claude
+`agent_id`. It resets on success or target change, cleans only the stopping
+subagent's external atomic state, and emits one advisory on the second failure.
+Other Hosts use an equivalent runner/workflow fallback when available; record
+missing capabilities as `UNAVAILABLE` and skipped checks as `NOT_RUN`.
+
 ## Invocation boundary
 
 Accept one task input and no execution-selection options. If a user supplies a retired Flow Drive role, backend, Provider, planning, or architecture option as invocation syntax, reject it before any dependent edits, explain that it is unsupported here, and point to [the migration guide](references/migration.md). Ask for one task-only input or a separate help invocation. Do not silently reinterpret a retired option as task text.

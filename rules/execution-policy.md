@@ -638,7 +638,18 @@ optional events.
 | `PreToolUse(Bash)` → `pre-bash-dispatch.sh` | blocking safety gate | enabled; preserve shell safety plus protected-branch checks |
 | `SubagentStop` → `subagent-stop-verify.sh` | liveness cleanup | enabled; clear a stopped fast-worker's active-liveness marker |
 | `SessionStart` → `session-start.sh` | module activation and dispatch delta | enabled; validate and activate configured modules, and print the fixed 4-6 line dispatch delta (Explore model/effort, sub-agent role reassignment, general-purpose model) that points to `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`; static text, no config keys |
+| `PostToolUse(Bash)` + `PostToolUseFailure(Bash)` → `validation-diagnostics.js` | opt-in advisory | enabled; track validation failures and advise on the second failure |
 | Prompt hints, precompact/postcompact handoff, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
+
+Validation diagnostics use the Claude-native PostToolUse/PostToolUseFailure
+events when available. State is stored atomically outside the project and is
+keyed by session, project, and the actual Claude `agent_id`; a successful
+validation or target change resets the scoped counter, and SubagentStop removes
+only that agent's record. The second consecutive failure emits exactly one
+advisory asking for assumptions and read-only discriminating checks. Codex,
+Cursor, and AGY hosts without equivalent lifecycle events use their runner or
+workflow fallback; unavailable capabilities are `UNAVAILABLE`, and checks not
+performed are `NOT_RUN` rather than inferred as passing.
 
 ### Review output gate
 
