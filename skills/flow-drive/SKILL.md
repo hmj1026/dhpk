@@ -29,4 +29,17 @@ A flag written inside the quoted task, a task file, or the confirmed specificati
 4. Verify the acceptance criteria using the consumer project's appropriate tools. Report the commands or checks actually run and their observed results. A failed or unavailable check is a failure or gap, never a pass.
 5. Finish when every criterion has evidence, or report what remains blocked or unverified and the concrete next action.
 
+## Completion evidence
+
+For each applicable test, lint, or GitNexus change analysis, record the
+command, `PASS` / `FAIL` / `NOT_RUN`, exit code if run, and redacted terminal
+output or a readable evidence path. Include the reason for failed or unrun
+checks. Evaluate completion against the task's acceptance criteria.
+
+| Observed check | Report |
+| --- | --- |
+| Tests exit 0 and report passing assertions | `PASS`, 0, actual test summary or path |
+| Lint exits 1 with a diagnostic | `FAIL`, 1, diagnostic and failure reason |
+| GitNexus is unavailable | `NOT_RUN`, tool unavailable, no exit code |
+
 Do not claim a commit, merge, release, deployment, or other external action unless it was separately requested and actually completed.

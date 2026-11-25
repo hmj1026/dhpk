@@ -41,3 +41,11 @@ Use the project’s declared Python support floor and runtime configuration. Thi
 **Check and act:** For FastAPI lifecycle or response behavior, use [the FastAPI review traps](fastapi.md). Send security evidence to security-reviewer; query, transaction, or storage concerns to database-reviewer; schema-change concerns to migration-reviewer. Include the affected path and observed behavior.
 
 **Do not apply when:** The concern is a local behavior the current review can verify directly. For prompt content or tool-boundary concerns, use the shared [prompt-defense guidance](../_common/prompt-defense.md) rather than duplicating it here.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The change looks right on inspection.” | Trace the changed behavior to a public seam and report the verification available for that seam. | Applicable test or lint result for the reviewed diff, or `NOT_RUN` with the gap. |

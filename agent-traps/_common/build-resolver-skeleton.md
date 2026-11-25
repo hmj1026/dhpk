@@ -45,3 +45,11 @@ Report the files changed, including any required lockfile, and list the
 failing command rerun with its result. Keep unrelated observations separate
 from the assigned repair and state when a required cleanup or broader action
 remains unperformed.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “This role’s check is implied.” | Role-specific advice still needs an observed, applicable result. | Exact command, `PASS`, `FAIL`, or `NOT_RUN`; exit code; redacted output or readable path; reason when not PASS. |

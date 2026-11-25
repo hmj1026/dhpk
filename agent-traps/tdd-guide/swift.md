@@ -24,3 +24,11 @@ xcodebuild test -scheme <scheme> -destination 'platform=iOS Simulator,name=<inst
 ```
 
 iOS run detail: xcode-tooling module `references/xcodebuild-spm.md`.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The new test is enough.” | Prove the expected failure before the fix and the same check passing afterward. | RED and GREEN commands, exit codes, the failed assertion, and the passing result. |

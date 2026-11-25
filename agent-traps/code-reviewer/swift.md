@@ -55,3 +55,11 @@ Measured speed or memory cost belongs to the performance analyzer. Swallowed err
 ## Reference
 
 Reference: [The Swift Programming Language](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/)
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The change looks right on inspection.” | Trace the changed behavior to a public seam and report the verification available for that seam. | Applicable test or lint result for the reviewed diff, or `NOT_RUN` with the gap. |
