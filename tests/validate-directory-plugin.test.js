@@ -310,6 +310,22 @@ test('removed-script error names only paths the Full Plugin ships and the Direct
   }
 });
 
+test('a consumer-project script path is never a removed-script reference', () => {
+  const body = [
+    '---',
+    'name: code-trace',
+    'description: "Trace"',
+    '---',
+    'Run `node $PROJECT_DIR/scripts/verify-runner.js`, then `scripts/risk-analyze.js` and `$PROJECT_DIR/.claude/scripts/old.sh`.',
+    '',
+  ].join('\n');
+  withDir({ 'skills/code-trace/SKILL.md': body }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION, fullPluginDir: path.join(dir, 'no-full-plugin') });
+    const targets = res.errors.filter((e) => e.rule === 'removed-script-reference').map((e) => e.target);
+    assert.deepStrictEqual(targets, ['scripts/risk-analyze.js', 'scripts/old.sh'], JSON.stringify(res.errors));
+  });
+});
+
 test('CLI fails with removed-script-reference and emits omitted-reference warning count when both appear', () => {
   const body = '---\nname: code-trace\ndescription: "Trace"\n---\nUse codex-worker and `scripts/ci/_lib/frontmatter.js`.\n';
   withDir({ 'skills/code-trace/SKILL.md': body }, (dir) => {
