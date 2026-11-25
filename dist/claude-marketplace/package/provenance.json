@@ -3437,7 +3437,7 @@
       "sourcePath": "skills/release-creator/references/manual-procedure.md",
       "destination": "skills/release-creator/references/manual-procedure.md",
       "kind": "entry",
-      "sha256": "48342a6f2fe3c3a3a9439c1cff9b9a688b9216881119bad0830c0df5b244e8f2"
+      "sha256": "ec7c91e3e34c5b50b0ca6d7ef88a23dd10e3b5fde19dbef5c6e0e8741f28d93d"
     },
     {
       "skillId": "release-creator",
@@ -3453,7 +3453,7 @@
       "sourcePath": "skills/release-creator/scripts/release-runner.sh",
       "destination": "skills/release-creator/scripts/release-runner.sh",
       "kind": "entry",
-      "sha256": "8d985dacbe07b618c02b5b39cce4a23129bddd06159d980955b645e6ac2755d7"
+      "sha256": "f8a08e22eaca8f5f12b0ea7d6628e87ebb3cab66b7f8ae3c1bbbc4e1adf2d61c"
     },
     {
       "skillId": "repo-verify",

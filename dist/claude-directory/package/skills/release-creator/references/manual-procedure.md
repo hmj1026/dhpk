@@ -52,7 +52,7 @@ Matches `release-runner.sh prepare`.
    `$PROJECT_DIR/packaged-extract-notes.sh`, run
    `bash packaged-extract-notes.sh CHANGELOG.md <version>` before the
    commit, stop if it fails, and create the PR with its output through
-   `--body-file <file>` (keep the short body above 60000 characters). A later
+   `--body-file <file>` (keep the short body above 60000 bytes). A later
    body edit can restart CI. Mark any unexecuted check `NOT_RUN` and report
    `mode: manual`.
 

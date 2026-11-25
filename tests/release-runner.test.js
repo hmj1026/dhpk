@@ -575,7 +575,7 @@ function writeScopeFixture(root) {
   ].join('\n'));
 }
 
-function runScopedPrepare(statusLines, { withScope = true, changelog = '# Changelog\n', withNotes = false } = {}) {
+function runScopedPrepare(statusLines, { withScope = true, changelog = '# Changelog\n', withNotes = false, env = {} } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-scope-'));
   const bin = path.join(tmp, 'bin');
   const log = path.join(tmp, 'calls.log');
@@ -599,7 +599,7 @@ if [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--name-only" ]; then 
   const res = spawnSync('bash', [RUNNER, 'prepare', '1.2.7', 'develop', 'main', 'v', 'release.yml'], {
     cwd: tmp,
     encoding: 'utf8',
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+    env: { ...process.env, ...env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
   });
   const calls = fs.readFileSync(log, 'utf8');
   fs.rmSync(tmp, { recursive: true, force: true });
@@ -660,13 +660,15 @@ test('prepare stops before committing when the release section has no notes', ()
   assert.ok(!calls.includes('git push'), calls);
 });
 
-test('prepare keeps the short PR body when the notes exceed the GitHub body limit', () => {
-  const changelog = NOTES_CHANGELOG.replace('$HOME.', 'x'.repeat(161000));
-  const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { changelog, withNotes: true });
-  assert.strictEqual(res.status, 0, res.stderr);
-  assert.ok(calls.endsWith('--body Release version 1.2.7\n'), calls.slice(-200));
-  assert.match(res.stderr, /release notes exceed the PR body limit/);
-});
+for (const [name, filler] of [['ASCII', 'x'.repeat(161000)], ['multibyte', '\u7248'.repeat(50000)]]) {
+  test(`prepare keeps the short PR body when ${name} notes exceed the body limit`, () => {
+    const changelog = NOTES_CHANGELOG.replace('$HOME.', filler);
+    const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { changelog, withNotes: true, env: { LC_ALL: 'C.UTF-8' } });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(calls.endsWith('--body Release version 1.2.7\n'), calls.slice(-200));
+    assert.match(res.stderr, /release notes exceed the PR body limit/);
+  });
+}
 
 test('prepare keeps the short PR body when the project has no notes extractor', () => {
   const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { changelog: NOTES_CHANGELOG });
