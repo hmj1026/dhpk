@@ -40,6 +40,10 @@
         ]
       },
       {
+        "path": "scripts/resolve-review-triggers.js",
+        "fixture_ids": ["remaining-change-verdict-resolve-review-triggers"]
+      },
+      {
         "path": "scripts/risk-analyze.js",
         "fixture_ids": [
           "audit-change-verdict-clean",
@@ -87,7 +91,7 @@
     }
   ],
   "usage": {
-    "display_name": "Change Verdict",
+    "display_name": "DHPK Change Verdict",
     "summary": "Review changes or audit dependencies with bounded explicit fixes",
     "syntax": "$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
     "input_kind": "mixed",

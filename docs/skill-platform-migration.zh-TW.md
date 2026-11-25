@@ -84,9 +84,9 @@ metadata 檔案推論可用。
 
 | Surface | 語法 | 範例 |
 |---|---|---|
-| Claude plugin skill（沒有 `commands/` 目錄） | `/dhpk:<public-skill-name>` | `/dhpk:precommit`、`/dhpk:change-verdict` |
-| Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
-| Cursor synced skill | `install-cursor-harness.sh` 之後的 `.cursor/skills/<public-skill-name>/` | `change-verdict` |
+| Claude plugin skill（沒有 `commands/` 目錄） | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict`（顯示名稱：`DHPK Change Verdict`） |
+| Codex skill | discovery 後使用 `$<public-skill-name>` | 選取 discovery 顯示的 `DHPK Change Verdict` 列，再使用 `$change-verdict --mode code` |
+| Cursor synced skill | `install-cursor-harness.sh` 之後的 `.cursor/skills/<public-skill-name>/` | 在 Cursor skill chooser 選取 `change-verdict`；保留 public name，不任意改名 |
 | Codex guidance entry | discovery 後使用 `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` | `$flow-guide help flow-drive` |
 | Codex implementation entry | discovery 後使用 `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` | `$flow-drive "修正收據總額並驗證。"` |
 

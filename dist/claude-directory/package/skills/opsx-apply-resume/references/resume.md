@@ -58,8 +58,11 @@ Codex may continue in the current turn or start a new turn, with no required
    report that the change may have been archived or renamed; do not continue.
 4. **Display the restore summary.** Show the Host, change, context source,
    goal, completed/in-progress items, Next Actions, advisory model suggestion,
-   and prior precommit/commit states. Keep failed, skipped, unavailable, and
-   not-configured evidence distinct.
+   prior precommit/commit states, and the saved `## Verification Evidence`.
+   Keep failed, skipped, unavailable, and not-configured evidence distinct.
+   Preserve the shared check record (`check`, `status`, `exit_code`, redacted
+   `evidence`, and `reason`) rather than restating a result without its
+   command. `NOT_RUN` remains `NOT_RUN` when the tool is still missing.
 5. **Mark in flight.** After the handoff and external capability are valid,
    update its state to `consuming` through
    `"references/manual-procedure.md (set-handoff-state.sh)" consuming "$HANDOFF_PATH"` with
@@ -77,7 +80,12 @@ Codex may continue in the current turn or start a new turn, with no required
    directory. Never
    delete the handoff. If apply did not complete, keep the handoff in
    `consuming` state.
-8. **Choose the next route.** Re-read live tasks. Remaining tasks recommend
+8. **Choose the next route.** Re-read live tasks and the verification record.
+   Restore must state exactly one explicit next action: rerun the failed check
+   after the recorded fix, install or enable the missing tool and then run the
+   `NOT_RUN` check, or continue the named in-progress task. Never infer a
+   passing check from a successful Save or from an evidence path alone.
+   Remaining tasks recommend
    another apply (and a future handoff when context grows); all tasks done with
    no P0 issue recommend verification then archive. A P0 issue recommends
    fixing it before verification. This is a route suggestion, not completion

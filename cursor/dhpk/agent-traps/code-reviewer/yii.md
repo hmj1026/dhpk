@@ -10,3 +10,11 @@ SQL injection as an OWASP finding → `security-reviewer/php.md` / `security-rev
 | ActiveRecord class missing `public static function model($className=__CLASS__)` | add `return parent::model($className);` | non-AR classes |
 | `queryRow()` compared to `null` | check `if (!$result)` — DAO returns `false` on miss | `findByPk()` / AR, which returns `null` |
 | String-concatenated SQL in a reviewer-visible query | bind `:param` PDO parameters | a query with no user/runtime fragments (static SQL) |
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The change looks right on inspection.” | Trace the changed behavior to a public seam and report the verification available for that seam. | Applicable test or lint result for the reviewed diff, or `NOT_RUN` with the gap. |

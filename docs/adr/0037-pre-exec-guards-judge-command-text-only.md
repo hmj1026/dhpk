@@ -42,6 +42,12 @@ sensitive token (a Protected Path, or the word `git` in command position) appear
   closing one more shell or git-config variant does not make a deliberate
   bypass harder. From #1380 to #1468 such reports grew the shared parser from
   about 500 to 8,251 lines and added false blocks.
+- One exception, decided by the maintainer (#1515): risky git text that the
+  command states stays risky through a copy into another variable, a loop
+  variable, the positional parameters, or a case-folding attribute. The rule
+  is narrow instead of a ban on every dynamic command word: on 9,142 related
+  commands from real sessions it added no block. A value that is built at run
+  time (a decoder, a command's own output) stays accepted.
 - A false block of a legitimate command is always accepted as a bug.
 - Reviews of guard changes check for regressions and false blocks. They are
   not asked to search for new bypass shapes.

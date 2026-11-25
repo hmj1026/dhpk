@@ -43,3 +43,11 @@ Trace each finding from a concrete source through the changed path to a sensitiv
 **Trigger → evidence/action:** A private credential or privileged token is embedded in a browser bundle, source map, storage, or client configuration. Confirm that the value is secret-bearing and usable from an untrusted client; move privileged credentials server-side and rotate exposed secrets.
 
 **Do not apply when:** The value is intentionally public, such as a public verification key, OAuth client identifier, endpoint, or immutable trusted constant. Verify its intended privilege and mutability before calling it a secret.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The allowed request passed.” | Verify the denied case at the same authorization or input-validation boundary. | Executed negative-case command, exit code, and redacted rejection evidence, or `NOT_RUN` with the gap. |

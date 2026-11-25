@@ -36,6 +36,23 @@ reproduced from the recorded point, return `INCONCLUSIVE`.
 
 ## Step 2: collect mode-specific metadata
 
+For reviewer dispatch on a Git-backed wave, run the package-local
+`node <skill-dir>/scripts/resolve-review-triggers.js` with exactly one of
+`--staged`, `--unstaged`, or `--base <ref>`. For a wave spanning the index
+and the working tree, run both scopes and take the union. The base scope
+compares the merge base with `HEAD`. Untracked files are outside these Git
+diffs. Supply an already activated stack with `--modules <csv>` and, when its
+manifests live outside the skill's plugin, `--modules-root <dir>`.
+The resolver also reads Claude project options and accepts repeated
+`--extra <slot:prefix>` for an explicitly supplied non-Claude configuration.
+
+Record the original JSON hits, reviewers actually dispatched, reasons for
+omissions (including unavailable roles and false positives), and reasons for
+semantic additions. A successful empty result is `[]`. On resolver failure
+record the error and label the raw hits unavailable. Apply semantic judgment
+to the selected diff and retain advisory dispatch, including when a
+recommended reviewer is absent and its reason is recorded.
+
 Collect only the metadata needed to navigate to evidence. The primary reviewer
 must read the actual source and change contents.
 

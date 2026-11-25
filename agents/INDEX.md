@@ -5,7 +5,7 @@ description: 'Reference index for the agents shipped by the dhpk plugin.'
 
 # Agents Index (dhpk plugin)
 
-<!-- dhpk-agent-roster-counts: {"schema":"dhpk.agent-roster-counts.v1","total":33,"root":32,"module":1} -->
+<!-- dhpk-agent-roster-counts: {"schema":"dhpk.agent-roster-counts.v1","total":31,"root":30,"module":1} -->
 
 > The roster is registered in `.claude-plugin/plugin.json` and discovered as `dhpk:<name>` after install.
 
@@ -81,9 +81,7 @@ This index only lists the shipped roles above.
 | [harness-reviser](harness-reviser.md) | sonnet | Scoped harness configuration review and fixes |
 | [migration-reviewer](migration-reviewer.md) | sonnet | DB migration up/down symmetry, multi-tenant FK/index collision, online-DDL safety on high-volume tables |
 | [version-matrix-impact-reviewer](version-matrix-impact-reviewer.md) | sonnet | Per-change blast radius across a CI version matrix (PHP × Laravel/Symfony, Yii 1×2); recommends the minimum testsuite subset |
-| [swift-build-resolver](swift-build-resolver.md) | sonnet | Swift / Xcode / SwiftPM build-error resolution (compile, Sendable/actor isolation, Codable, package-version conflicts, signing) |
-| [python-build-resolver](python-build-resolver.md) | sonnet | Python build-error resolution (ruff / mypy / pyright / pytest incl. pytest-asyncio scope, uv / pip / poetry install) — 3-attempt-then-escalate, re-runs to verify |
-| [rust-build-resolver](rust-build-resolver.md) | sonnet | Rust / Cargo build-error resolution (rustc type / borrow / lifetime, Send / Sync, tokio, Cargo.toml conflicts) — 3-attempt-then-escalate, re-runs to verify |
+| [build-resolver](build-resolver.md) | sonnet | Python / Swift / Rust build-error resolution with language-specific guides — 3-attempt-then-escalate, re-runs the exact failed command |
 | [silent-failure-hunter](silent-failure-hunter.md) | sonnet | Deep error-handling audit — empty catch / swallowed exceptions / error-hiding fallbacks / lost stack traces / missing rollback. Situational delegate of code-reviewer (not an unconditional post-edit role) |
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
 | [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize Playwright journeys, helpers, fixtures, and artifacts. Application-code failures return a fast-worker-ready fix-spec; after the fix, this agent re-runs the originating journey as acceptance. Distinct from ui-ux-verifier (page-vs-spec audit) |
@@ -102,8 +100,7 @@ This index only lists the shipped roles above.
 > - `tdd-guide` / `tdd-workflow` ← unit/integration post-development routes; the TDD capability is `UNAVAILABLE` when its configured test stack or dispatch backend is absent, and must not be silently remapped.
 > - `e2e-runner` ← Playwright route-table entry (`agent:e2e-runner`); report `UNAVAILABLE` when the Playwright agent capability is absent, without substituting another route.
 > - `smoke-tester`, `qa-executor`, `docs-writer` ← `rules/execution-policy.md` §Implementation dispatch table
-> - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
-> - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `flow-guide`, which does **not** itself name these agents — so there is no deterministic route-table dispatch; they fire purely on the AI-judgment back-stop
+> - `build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop; Python and Swift require their active language module, while Cargo is eligible without a Rust module
 
 ## Module-shipped agents
 

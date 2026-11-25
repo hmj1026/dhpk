@@ -21,12 +21,27 @@ Host support, user-owned files, and installation authority boundaries.
    active harness directory must be resolved.
 2. Identify duplicate or stale configuration with concrete file references.
    Report baseline failures before adding fixes that depend on them.
-3. Present scope, user-visible effects, and applicable checks. Apply only
+3. Apply the rule budget in this order for each requested behavior:
+   - Hook or Script: decide whether executable enforcement can observe and
+     reject it.
+   - Existing linter or GitNexus: decide whether a maintained analysis rule
+     can enforce it without new harness prose.
+   - Markdown rule: use guidance when the behavior needs agent judgment or
+     cannot be enforced by the first two options. Record which option applies
+     and the evidence for the decision.
+4. When an existing Markdown rule covers the behavior, name its file and
+   heading, then merge the requirement there and explain the resulting edit.
+   Add a distinct persistent rule only when the Hook/Script and
+   linter/GitNexus options are unsuitable and no maintained rule can absorb
+   it. Record why the behavior is necessary, why the maintained rule cannot
+   be merged, and the check that will observe the new rule; otherwise defer
+   the addition.
+5. Present scope, user-visible effects, and applicable checks. Apply only
    changes covered by the existing user authorization.
-4. Run the existing checks that protect each changed behavior. Project-local
+6. Run the existing checks that protect each changed behavior. Project-local
    hooks require their own execution authorization; setup inspection is not
    a replacement for an audit or runtime scenario.
-5. Obtain applicable review under the selected execution policy and report
+7. Obtain applicable review under the selected execution policy and report
    unresolved findings and unobserved evidence.
 
 ## Rules
@@ -40,9 +55,12 @@ Host support, user-owned files, and installation authority boundaries.
 
 ## Output
 
-Report baseline evidence, findings with severity and file references, applied
-fixes, applicable check results, review verdict, and deferred items. Mark missing
-or unexecuted checks as BLOCKED or NOT_RUN.
+Report baseline evidence, the ordered Hook/Script, linter/GitNexus, and
+Markdown decision with its applicability evidence, findings with severity and
+file references, applied fixes, and applicable check results. For every new
+distinct Markdown rule, include the necessity, failed merge rationale, and
+observable check. Finish with the review verdict and deferred items. Mark
+missing or unexecuted checks as BLOCKED or NOT_RUN.
 
 ## References
 

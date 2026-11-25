@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.80.2",
+  "version": "0.81.0",
   "description": "Reusable Claude Code harness with role-based agents, skills, hooks, and advisory reviewer dispatch, plus a parallel Codex CLI projection. Stack modules and stack skills ship separately in dhpk-stacks.",
   "author": {
     "name": "hmj1026",
@@ -40,15 +40,13 @@
     "./agents/migration-reviewer.md",
     "./agents/performance-analyzer.md",
     "./agents/planner.md",
-    "./agents/python-build-resolver.md",
+    "./agents/build-resolver.md",
     "./agents/qa-executor.md",
     "./agents/quick-worker.md",
     "./agents/refactor-cleaner.md",
-    "./agents/rust-build-resolver.md",
     "./agents/security-reviewer.md",
     "./agents/silent-failure-hunter.md",
     "./agents/smoke-tester.md",
-    "./agents/swift-build-resolver.md",
     "./agents/tdd-guide.md",
     "./agents/type-design-analyzer.md",
     "./agents/ui-ux-verifier.md",
@@ -66,6 +64,12 @@
       "title": "Hook profile",
       "description": "Verbosity of hook output: minimal | standard | strict",
       "default": "standard"
+    },
+    "validation_failure_mode": {
+      "type": "string",
+      "title": "Validation failure mode",
+      "description": "Repeated validation failures remain advisory by default. Set to 'block' to deny Edit/Write/MultiEdit until a correlated targeted read-only recovery records premise, observation, proposed change, and the original validation rerun plan. Read-only checks remain available; a pass of the same target also resumes editing, while failing retries, unrelated reads, and other targets do not.",
+      "default": "advisory"
     },
     "review_agents": {
       "type": "string",

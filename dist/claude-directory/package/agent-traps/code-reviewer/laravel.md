@@ -41,3 +41,11 @@ Confirm the Laravel version and PHP support floor from the project configuration
 **Check and act:** Send database behavior to database-reviewer, security findings to security-reviewer, and DDL or migration deployment concerns to migration-reviewer. Include the query or state transition that establishes the concern.
 
 **Do not apply when:** The issue is limited to a local validation, cast, or relation contract that this review can establish.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The change looks right on inspection.” | Trace the changed behavior to a public seam and report the verification available for that seam. | Applicable test or lint result for the reviewed diff, or `NOT_RUN` with the gap. |

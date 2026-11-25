@@ -151,6 +151,45 @@ either:
 A referenced capability with neither presence → HIGH: the proposal cites a
 capability that doesn't exist anywhere.
 
+### Check 7 — behavior-change test seam (HIGH)
+
+Classify the proposal's described work before checking its test boundary. A
+behavior change is any change to a user- or caller-visible rule, result, or
+failure mode. A cross-module refactor is work that moves or rewires behavior
+across module boundaries, even when the intended result is unchanged.
+
+For either classification, the artifact must state both of these facts in
+ordinary prose (a fixed `Seams` heading is not required):
+
+1. the public test entry — the documented command, public API, family-local
+   resolver/CLI, or user-visible artifact through which the behavior can be
+   exercised; and
+2. the observable result — the independent success/failure output, state, or
+   artifact that proves the behavior, including the fail-closed result when
+   routing or validation is involved.
+
+Report each missing fact separately so the author can repair only the missing
+boundary:
+
+```text
+[HIGH] behavior-change test seam
+Issue: missing public test entry; name the command, API, resolver/CLI, or artifact used to exercise the change.
+
+[HIGH] behavior-change test oracle
+Issue: missing observable result; state the independent success/failure result that proves the change.
+```
+
+The same two findings apply to a cross-module refactor, with the finding
+labelled `cross-module test seam` or `cross-module test oracle`. Ordinary
+paragraphs count when they clearly name the entry and result; do not require a
+literal heading, checklist, or `Seams` section. Do not infer either fact from a
+task title, an implementation detail, or a static mirror of the skill.
+
+Skip this check for pure documentation and for lightweight maintenance that
+does not change behavior (for example formatting, wording, or metadata-only
+updates). Record the classification and exemption in the guard output so a
+skipped check is distinguishable from an unreviewed artifact.
+
 ---
 
 ## Output
@@ -184,6 +223,10 @@ APPROVE: openspec/ shape is valid. <N> change(s) checked.
 - [ ] Every spec-delta carries ADDED / MODIFIED / REMOVED markers (Check 2).
 - [ ] Each active change has proposal.md, tasks.md, and specs/ (Check 3).
 - [ ] Slugs are kebab-case (Check 5); proposal capability refs resolve (Check 6).
+- [ ] Behavior changes and cross-module refactors name a public test entry and
+      observable result in ordinary prose, with separate findings for either
+      missing fact; pure docs and behavior-preserving light maintenance are
+      explicitly exempt (Check 7).
 - [ ] Verdict emitted: APPROVE / WARNING / BLOCK.
 
 ---

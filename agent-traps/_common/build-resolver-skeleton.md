@@ -1,6 +1,9 @@
 # Build-Resolver Shared Skeleton
 
-Shared procedure and framing referenced by the three language-specific build-resolver agents (`python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`). Each resolver keeps its own Diagnose commands, error→cause→fix table, and language-specific escape-hatch list inline — those are the genuinely differentiating content; only the surrounding procedure is shared here.
+Shared procedure and framing referenced by the unified `build-resolver` agent.
+The language-specific Diagnose commands, error→cause→fix tables, and escape-hatch
+lists live in `agent-traps/build-resolver/{python,rust,swift}.md`; this file owns
+the procedure shared by all three paths.
 
 ## Principles (shared framing)
 
@@ -45,3 +48,11 @@ Report the files changed, including any required lockfile, and list the
 failing command rerun with its result. Keep unrelated observations separate
 from the assigned repair and state when a required cleanup or broader action
 remains unperformed.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “This role’s check is implied.” | Role-specific advice still needs an observed, applicable result. | Exact command, `PASS`, `FAIL`, or `NOT_RUN`; exit code; redacted output or readable path; reason when not PASS. |

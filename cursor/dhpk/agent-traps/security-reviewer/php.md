@@ -49,3 +49,11 @@ Use configured project instructions, PHP runtime and extension support, and the 
 **Check and act:** For CSRF, establish that the request changes state and that the browser automatically attaches an ambient credential, such as a cookie, HTTP authentication, or another automatically supplied browser credential. Verify the configured protection contract and establish missing or bypassable protection before reporting. Do not impose a blanket CSRF requirement on every API or webhook. For Yii 1.x controller, access-rule, or lifecycle claims, use the dedicated Yii guidance; this sheet covers PHP-level sinks and runtime compatibility.
 
 **Do not apply when:** The route has no ambient browser credential context, or the concern requires framework behavior outside this sheet’s scope. For model prompt or tool-boundary issues, use the shared [prompt-defense guidance](../_common/prompt-defense.md).
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The allowed request passed.” | Verify the denied case at the same authorization or input-validation boundary. | Executed negative-case command, exit code, and redacted rejection evidence, or `NOT_RUN` with the gap. |

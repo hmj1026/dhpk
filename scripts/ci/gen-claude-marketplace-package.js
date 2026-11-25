@@ -13,6 +13,7 @@ const { sha256Hex } = require('../lib/content-fingerprint');
 const { createDistributionPlan } = require('../lib/distribution-projection-contract');
 const { ProjectionArtifactStore } = require('../lib/projection-artifact-store');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
+const { buildRuntimeDataFile, RUNTIME_DATA_PATH } = require('../lib/public-plugin-tree');
 const { compileMarketplaceSkillContent } = require('../lib/marketplace-skill-content');
 const { selectRuntimeFiles, stackSkillDestination } = require('../lib/directory-plugin-runtime');
 const { reduceToDirectoryPlugin } = require('../lib/claude-directory-reduction');
@@ -60,7 +61,7 @@ const STACKS_ROOT_FILES = [
 // Each package resolves its own copy; the stacks package never reads the core cache.
 const STACKS_SHARED_HOOK_LIBS = [
   'activate-modules.py',
-  'command-inspect.sh', 'command-inspect-api.sh', 'command-inspect-fn.sh',
+  'command-inspect.sh', 'command-inspect-api.sh', 'command-inspect-copies.sh', 'command-inspect-fn.sh',
   'command-inspect-scan.sh', 'command-inspect-unwrap.sh',
   'load-project-config.sh', 'modules.sh', 'payload.sh', 'plugin-root.sh',
   'portable-timeout.sh', 'runtime-config.sh', 'session-env.sh',
@@ -214,6 +215,27 @@ function compileSkillContent(sourceRoot) {
   return { publicationView, content };
 }
 
+// The flow-guide next-action map, derived from the packaged top-level skills.
+function addNextActionMap(runtime) {
+  const sources = [...runtime.values()]
+    .filter((file) => /^skills\/[^/]+\/SKILL\.md$/.test(file.destination))
+    .map((file) => ({ path: file.destination, bytes: file.content }));
+  const map = buildRuntimeDataFile(sources);
+  if (map) addFile(runtime, RUNTIME_DATA_PATH, map.bytes, false);
+}
+
+// Fails when a package that ships flow-guide lacks a valid next-action map.
+function nextActionMapError(output) {
+  if (!fs.existsSync(path.join(output, 'skills', 'flow-guide', 'SKILL.md'))) return null;
+  const mapPath = path.join(output, ...RUNTIME_DATA_PATH.split('/'));
+  if (!fs.existsSync(mapPath)) return `${RUNTIME_DATA_PATH} is missing from a package that ships flow-guide`;
+  try {
+    const data = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+    if (data && data.schema === 'dhpk.skill-next-map.v1' && data.skills && typeof data.skills === 'object') return null;
+  } catch (_) { /* reported below */ }
+  return `${RUNTIME_DATA_PATH} has an invalid schema (expected dhpk.skill-next-map.v1)`;
+}
+
 function buildCanonicalRuntimeMap(root, { version } = {}) {
   const sourceRoot = fs.realpathSync(root);
   const { publicationView, content } = compileSkillContent(sourceRoot);
@@ -228,6 +250,7 @@ function buildCanonicalRuntimeMap(root, { version } = {}) {
   if (content) relocateText(files, content);
   withManifestVersion(files, version);
   const runtime = selectRuntimeFiles(files);
+  addNextActionMap(runtime);
   for (const [destination, source] of DIRECTORY_ROOT_FILES) {
     addFile(runtime, destination, fs.readFileSync(path.join(sourceRoot, source)), false);
   }
@@ -242,7 +265,9 @@ function planCanonicalTree(root, { version } = {}) {
 }
 
 function planDirectoryTree(root, { version } = {}) {
-  const fullRuntime = buildCanonicalRuntimeMap(root, { version });
+  const fullRuntime = new Map(buildCanonicalRuntimeMap(root, { version }));
+  // The Directory Plugin carries only its pruned root map, built by the reduction.
+  fullRuntime.delete(RUNTIME_DATA_PATH);
   const reduced = reduceToDirectoryPlugin(fullRuntime, { version });
   return planOutputs([...reduced.values()]);
 }
@@ -446,6 +471,10 @@ function check({ root = ROOT, out = DEFAULT_OUTPUT, kind = 'core' } = {}) {
     publishPackage({ root, storeRoot: temporary, publishRoot: expectedRoot, kind });
     assertPhysicalPackage(expectedRoot);
     assertPhysicalPackage(output);
+    if (kind === 'core') {
+      const mapError = nextActionMapError(output);
+      if (mapError) return { ok: false, output, error: `Claude Full Plugin next-action map: ${mapError}` };
+    }
     const expected = fingerprint(expectedRoot);
     const actual = fingerprint(output);
     if (expected !== actual) {
@@ -507,6 +536,7 @@ module.exports = {
   DEFAULT_STACKS_OUTPUT,
   DEFAULT_DIRECTORY_OUTPUT,
   PACKAGE_PATHS,
+  buildCanonicalRuntimeMap,
   STACKS_SHARED_HOOK_LIBS,
   check,
   // Host Adapter contract names: compile = plan the canonical tree, verify = check.

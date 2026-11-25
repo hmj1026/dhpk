@@ -93,9 +93,9 @@ Names are deliberately different across host surfaces:
 
 | Surface | Syntax | Example |
 |---|---|---|
-| Claude plugin skill (no `commands/` directory) | `/dhpk:<public-skill-name>` | `/dhpk:precommit`, `/dhpk:change-verdict` |
-| Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
-| Cursor synced skill | `.cursor/skills/<public-skill-name>/` after `install-cursor-harness.sh` | `change-verdict` |
+| Claude plugin skill (no `commands/` directory) | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` (display label: `DHPK Change Verdict`) |
+| Codex skill | `$<public-skill-name>` after discovery | Select the discovered `DHPK Change Verdict` row, then use `$change-verdict --mode code` |
+| Cursor synced skill | `.cursor/skills/<public-skill-name>/` after `install-cursor-harness.sh` | Select the discovered `change-verdict` skill in Cursor's chooser; keep the public name unchanged |
 | Codex guidance entry | `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` after discovery | `$flow-guide help flow-drive` |
 | Codex implementation entry | `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` after discovery | `$flow-drive "Fix the receipt total and verify it."` |
 

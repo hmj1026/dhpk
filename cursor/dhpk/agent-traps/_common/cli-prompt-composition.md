@@ -82,3 +82,11 @@ The heading name is a stable contract (`openspec/specs/cli-prompt-composition`);
   tree, not from training-data assumptions about this repo).
 - Confirm installed CLI flags from `--help` before copying examples from
   generated docs.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “This role’s check is implied.” | Role-specific advice still needs an observed, applicable result. | Exact command, `PASS`, `FAIL`, or `NOT_RUN`; exit code; redacted output or readable path; reason when not PASS. |

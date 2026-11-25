@@ -67,6 +67,22 @@ projection 內容後，才能宣稱 client 可呼叫。
 不可把 static manifest、marketplace entry、generated file 或 enabled flag
 直接轉成 runtime `PASS`。
 
+## DHPK Change Verdict 的 discovery 與呼叫
+
+DHPK review capability 保留公開名稱 `change-verdict` 與能力識別碼
+`dhpk.skill.change-verdict`。支援顯示名稱的 Host 可以顯示
+**DHPK Change Verdict**；這只是顯示標籤，不是第二個 skill 或 alias。
+
+| Host route | Discovery 與選取 | 公開呼叫 |
+|---|---|---|
+| Claude Code | 安裝／更新後開啟 fresh session，選取顯示為 `DHPK Change Verdict` 的 DHPK plugin skill | `/dhpk:change-verdict --mode code` |
+| Codex project-local sync | `install-codex-skills.sh` 或 `--update` 後，選取唯一的 `DHPK Change Verdict` discovery 列，並核對 stable name 為 `change-verdict` | `$change-verdict --mode=code` |
+| Codex Public Plugin | 公開 listing 核准後，在 fresh session 的 plugin 選單選取 `DHPK Change Verdict` 列；目前仍是 `NOT_PUBLISHED` | `$change-verdict --mode=code` |
+| Cursor project-local sync | `install-cursor-harness.sh` 或 `--update` 後，在 Cursor skill chooser 選取 discovery 的 `change-verdict`；不可改名 `.cursor/skills/change-verdict/` | 使用 Cursor 文件定義的 skill UI／entrypoint 呼叫已選取的 `change-verdict` |
+
+Discovery 與實際呼叫要分開記錄。套件、receipt 或選取列只算 discovery
+證據；尚未執行的呼叫維持 `NOT_RUN`，Host 缺少能力則記 `UNAVAILABLE`。
+
 ## Claude Code marketplace 安裝（推薦）
 
 在 Claude Code 內從 marketplace 安裝：
@@ -286,7 +302,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution build agy-plugin --version=0.80.2 --json
+bin/dhpk distribution build agy-plugin --version=0.81.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1111,7 +1127,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution build agy-plugin --version=0.80.2 --json
+bin/dhpk distribution build agy-plugin --version=0.81.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

@@ -30,3 +30,11 @@ docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected
 - PHPUnit 5.7 API: the installed Codex PHP/Yii legacy test-trap reference
 - `protected/tests/docs/TESTING_STANDARDS.md`
 - testing: the project's PHP testing rules
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The new test is enough.” | Prove the expected failure before the fix and the same check passing afterward. | RED and GREEN commands, exit codes, the failed assertion, and the passing result. |

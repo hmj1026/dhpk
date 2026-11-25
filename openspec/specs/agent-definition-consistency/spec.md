@@ -38,18 +38,21 @@ Every agent that is a sentinel-driven mandatory review gate (its body clears a `
 - **WHEN** an agent is a non-sentinel situational delegate (e.g. `silent-failure-hunter`, `performance-analyzer`)
 - **THEN** this requirement does not force MANDATORY-sentinel phrasing on it
 
-### Requirement: The build-resolver family shares one effort tier
+### Requirement: The unified build-resolver keeps one effort tier
 
-The single-language build-resolver agents (`python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`) share identical tools, the same 3-attempt-then-escalate contract, and the same "hand a green build to code-reviewer" hand-off, and SHALL therefore declare the same `effort` tier unless a divergence is justified with an inline rationale. `swift-build-resolver`'s `effort: high` outlier SHALL be reconciled to `effort: medium` (or carry a documented rationale).
+The public `build-resolver` agent SHALL declare the shared medium effort tier,
+the 3-attempt-then-escalate contract, and the "hand a green build to
+code-reviewer" hand-off. Language-specific diagnosis belongs in its referenced
+guides rather than separate registered agents.
 
-#### Scenario: The effort outlier is reconciled
+#### Scenario: The resolver effort is consistent
 
-- **WHEN** `swift-build-resolver` declares `effort: high` while `python-build-resolver` and `rust-build-resolver` declare `effort: medium`, with no stated reason
-- **THEN** `swift-build-resolver` is set to `effort: medium` to match the family
+- **WHEN** `build-resolver` is registered with a tier other than `medium`
+- **THEN** it is set to `effort: medium`
 
 #### Scenario: A justified divergence is documented
 
-- **WHEN** a build-resolver legitimately needs a different effort tier
+- **WHEN** a language guide appears to need a different effort tier
 - **THEN** the divergence is accompanied by an inline rationale rather than left unexplained
 
 ### Requirement: Every registered agent has a roster disposition

@@ -248,7 +248,7 @@ each canonical role is classified exactly once:
 | Coverage outcome | Canonical roles |
 |------|--------------------|
 | `merged` | `codex-reasoner`, `codex-worker`, `fast-worker`, `performance-analyzer`, `refactor-cleaner`, `silent-failure-hunter`, `type-design-analyzer` |
-| `skill/manual-fallback` | `agy-worker`, `doc-updater`, `docs-lookup`, `harness-reviser`, `python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`, `version-matrix-impact-reviewer` |
+| `skill/manual-fallback` | `agy-worker`, `build-resolver`, `doc-updater`, `docs-lookup`, `harness-reviser`, `version-matrix-impact-reviewer` |
 | `capability-gated` | `polyfill-reviewer`, `smoke-tester`, `ui-ux-verifier` |
 | `intentionally-unavailable` | `codex-bridge` |
 

@@ -13,3 +13,11 @@ flow.
 | `CDbMigration` using `up` / `down`, or a class that is not transaction-wrapped | Always `safeUp` / `safeDown` (transaction-wrapped). Form: `class m… extends CDbMigration` with `safeUp()` doing DDL via `$this->addColumn()` / `$this->createIndex()` and `safeDown()` truly reversible (`dropColumn` / `dropIndex` fully restoring) | Laravel `Migration::up()` / `Migration::down()` via `Schema` and `DB` facades; Doctrine `AbstractMigration::up(Schema $schema)` / `down(Schema $schema)` — pointer only, not a second sheet. Irreversible data backfill with an explicit comment |
 | DDL via `$this->execute("ALTER ...")` literal SQL | Use the framework's API: `addColumn` / `dropColumn` / `createIndex` / `addForeignKey` | `SHOW TABLE STATUS` / `INFORMATION_SCHEMA` queries and complex DML (already listed raw-SQL exceptions) |
 | Shipping a migration without structural or dry-run verification | Gauge ALTER duration: `SELECT COUNT(*) FROM <table>`. Inspect structure: `SHOW CREATE TABLE <table>`. Yii dry-run up: `php yiic migrate to <migration-name> --interactive=0`. Yii dry-run down: `php yiic migrate down --interactive=0`. Defaults: `${MYSQL_CONTAINER:-mysql}`, `${PHP_CONTAINER:-php}`, `${DB_NAME:-<your-db>}` (via `docker exec -i` when using containers) | Laravel: `php artisan migrate --pretend` / `php artisan migrate:rollback --pretend`; Doctrine: `doctrine:migrations:execute --dry-run` — pointer only, not a second sheet |
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “A clean install passed.” | Exercise the upgrade from an existing fixture and inspect its retained data. | Upgrade and applicable rollback commands, exit codes, and observed data checks. |

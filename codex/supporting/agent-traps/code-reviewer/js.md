@@ -21,3 +21,11 @@ For prompt-construction or instruction-trust questions, route to the shared [pro
 **Trigger → evidence/action:** Work runs on a server request path or interactive browser path and processes variable-sized input, performs synchronous I/O or expensive computation, or repeats work per row or render. Identify the caller and representative workload, then profile or bound the work and preserve the result contract while moving, limiting, or reducing it. Node’s [event-loop guidance](https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop) explains why long callbacks delay other requests.
 
 **Do not apply when:** The work is a short bounded operation, startup-only task, or background job with no interactive completion requirement. Do not infer a defect from a loop or synchronous call without evidence that its workload affects the relevant path.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The change looks right on inspection.” | Trace the changed behavior to a public seam and report the verification available for that seam. | Applicable test or lint result for the reviewed diff, or `NOT_RUN` with the gap. |

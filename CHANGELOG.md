@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## 0.81.0 — 2026-11-25 — Harness verification gates, unified build-resolver, and Bash guard value-copy tracking
+
+- **BREAKING(build-resolver)** — Replace python-build-resolver, rust-build-resolver, and swift-build-resolver with build-resolver; the retired names are not aliases.
+- **feat(change-verdict)** — Identify the existing review entry as DHPK Change Verdict where supported and document how to select it in Claude Code, Codex, and Cursor.
+- **feat(harness-reviser)** — Evaluate executable checks and existing rules before adding persistent guidance, and record why a distinct rule is necessary.
+- **feat(openspec-artifact-guard)** — Require behavior changes and cross-module refactors to name a public test entry and observable result, while accepting ordinary prose and documented exemptions.
+- **feat(opsx-apply-resume)** — Preserve failed or unavailable verification in resumable handoffs together with the next action.
+- **feat(change-verdict)** — Resolve advisory reviewer recommendations from a reproducible Git diff and report the reviewers selected for the wave.
+- **feat(flow-drive)** — Add advisory diagnostics after two validation failures with scoped native lifecycle state.
+- **feat(flow-drive)** — Let projects pause supported edits after two validation failures until a targeted read-only diagnosis provides a verifiable next change.
+- **feat(workflow-evidence)** — Require completion reports to link applicable checks to terminal evidence and standardize evidence rebuttals across high-risk agent trap sheets.
+- **fix(codex-sync)** — Retire the unchanged receipt-owned Change Verdict copy when the source checkout already has the current managed portable skill, preserving conflicting or third-party assets.
+- **fix(claude-marketplace)** — Package the flow-guide skill-next-map.json in the Claude Full Plugin and fail the package check when it is missing or has an invalid schema.
+- **fix(hooks)** — Keep the Git Gate block when risky git text is copied through a variable, loop, positional parameter, or case-folding attribute before it runs.
+- **fix(flow-drive)** — Resume native editing when the paused validation target passes again, not only after a recorded recovery.
+
 ## 0.80.2 — 2026-11-20 — Refine Directory Plugin prose, scanning patterns, and policy bounds
 
 - **fix(directory-plugin)** — Remove the Directory Plugin icon, format routing data, and route setup and guidance directly through their Manual Procedures.
