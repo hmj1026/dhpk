@@ -14,3 +14,11 @@ FastAPI OWASP lanes for `security-reviewer`. Deeper SQLAlchemy correctness (sess
 | HIGH — `CORSMiddleware` with `allow_origins=["*"]` together with `allow_credentials=True` | explicit origin allow-list when credentials are sent | |
 | CRITICAL — `passlib` / bcrypt not used — plain or fast-hash password storage | `bcrypt`/`argon2` via passlib; verify with constant-time compare | |
 | MEDIUM — Background task / async path swallows an exception so the request still 200s | surface or log+alert; don't mask a failed write as success | |
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The allowed request passed.” | Verify the denied case at the same authorization or input-validation boundary. | Executed negative-case command, exit code, and redacted rejection evidence, or `NOT_RUN` with the gap. |

@@ -39,7 +39,8 @@
     "openspec-artifact-guard": {
       "entry": "SKILL.md",
       "references": [
-        "agents/openai.yaml"
+        "agents/openai.yaml",
+        "evals/evals.json"
       ],
       "executable_entries": [],
       "host_capabilities": []
@@ -396,6 +397,12 @@
           "path": "scripts/review-cli.sh",
           "fixture_ids": [
             "remaining-change-verdict-review-cli-stub"
+          ]
+        },
+        {
+          "path": "scripts/resolve-review-triggers.js",
+          "fixture_ids": [
+            "remaining-change-verdict-resolve-review-triggers"
           ]
         },
         {

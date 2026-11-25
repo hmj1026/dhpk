@@ -10,6 +10,10 @@
 
 ## Code evidence
 
+For a wave with reviewer dispatch, include the selected diff scope, raw
+resolver hits, actual reviewers, omissions with reasons, and semantic
+additions with reasons. Record any resolver error separately.
+
 Include this section only for `code` mode.
 
 | Axis | Status | Evidence |

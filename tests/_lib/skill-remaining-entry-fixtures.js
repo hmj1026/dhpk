@@ -369,6 +369,16 @@ function registerRemainingFixtures() {
       args: ['42', '--merge-method', 'merge'], expected: { status: 0, output: ["[skip] merge method 'merge'"] },
     },
     {
+      id: 'remaining-change-verdict-resolve-review-triggers', skill: 'change-verdict',
+      entry: 'scripts/resolve-review-triggers.js', args: ['--staged'], stubs: fixtureTools('git'),
+      prepare(context) {
+        initGit(context);
+        writeFile(path.join(context.projectDir, 'example.php'), '<?php\n');
+        git(context, ['add', 'example.php']);
+      },
+      expected: { status: 0, output: ['["code-reviewer"]'] },
+    },
+    {
       id: 'remaining-change-verdict-review-cli-stub', skill: 'change-verdict', entry: 'scripts/review-cli.sh',
       args: ['--backend', 'cli', '--scope', 'tests', '--depth', 'fast', '--prompt', 'fixture prompt'],
       stubs: { ...fixtureTools('git'), codex: codexStub() }, prepare: prepareReviewRepository,

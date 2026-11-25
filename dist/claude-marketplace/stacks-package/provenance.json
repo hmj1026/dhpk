@@ -607,7 +607,7 @@
     },
     {
       "destination": "modules/library-author/module.yaml",
-      "sha256": "39e02ecba440a4fccda2e84a8afbae5ab7a64c1ba817c4ac7b443d585f7d10f7"
+      "sha256": "e4ce5511379683232510fb3bd8bfc6ee4fa973914dd1750d42b084d031ee2226"
     },
     {
       "destination": "modules/library-author/references/openspec-naming-gotchas.md",
@@ -667,7 +667,7 @@
     },
     {
       "destination": "modules/library-author/skills/openspec-artifact-guard/SKILL.md",
-      "sha256": "6d9c04e9a552f359abb86c2e07d6341ef575384967ba6ac18f6cdf7446b1a2c6"
+      "sha256": "9c7b4e8b1fe4364586bb9d2edb1d25f36e6ee348823227a36f57e66e6aa17046"
     },
     {
       "destination": "modules/library-author/skills/openspec-artifact-guard/agents/openai.yaml",
@@ -675,7 +675,11 @@
     },
     {
       "destination": "modules/library-author/skills/openspec-artifact-guard/distribution.yaml",
-      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
+      "sha256": "d864f8a33dd2ccff9bf00b69f0c9f3147db0c3a453203a64148c008a73771555"
+    },
+    {
+      "destination": "modules/library-author/skills/openspec-artifact-guard/evals/evals.json",
+      "sha256": "127384a4206626d694f1bb411a60e75aef35a6766a4e24ca3800b99d737cabb5"
     },
     {
       "destination": "modules/nextjs-15.5/module.yaml",

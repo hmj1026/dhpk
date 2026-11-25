@@ -92,6 +92,7 @@ option。Scope selection 不會改變已設定的 planner model、effort 或 wor
 |-----|------|--------|------|------|
 | `credential_read_paths` | string | `[]` | 路徑 pattern 字串的 JSON array | 在 Claude Bash credential-read 預設規則之外增加路徑；project settings 也接受原生 array。無效值會阻擋 gate。詳見[比對與擷取](./hook-extension.zh-TW.md#credential-read-保護)。 |
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Hook 輸出的詳細程度。`minimal` 抑制 Stop 提醒；`strict` 增加額外警告。 |
+| `validation_failure_mode` | string | `advisory` | `advisory` \| `block` | 連續失敗後，`block` 會阻擋 Edit/Write/MultiEdit，但保留唯讀檢查；必須記錄相符目標的前提、觀察、建議修改與原目標重跑計畫才可恢復。重試、無關讀取與切換目標不會清除 latch。Bash 不在阻擋範圍內，因此 shell 寫入不會被擋下，也不會清除 latch。 |
 | `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 role 順序（code、db、sec、frontend、doc、polyfill、migration）由建議性 reviewer 派工使用的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 role。Slot 5–6（polyfill、migration）僅在 opt-in trigger 時選取。 |
 | `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
 | `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。 |

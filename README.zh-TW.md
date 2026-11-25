@@ -101,7 +101,7 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 | Slash entries | 以 `/dhpk:<skill-name>` 呼叫的 skill；沒有 `commands/` 目錄 | `/dhpk:precommit`、`/dhpk:harness-setup`、`/dhpk:change-verdict pending`、`/dhpk:git-smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
 | Canonical skills | Inventory 管理的 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；portable family 負責整併介面。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
-| Hooks | 3 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git branch-safety gate）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
+| Hooks | 5 個事件 | PreToolUse（編輯安全與合併 Bash safety/Git branch-safety gate）、PostToolUse/PostToolUseFailure（validation diagnostics）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
 | Hook dispatchers | 1 | `pre-bash-dispatch.sh` 合併 deterministic shell 與 Git branch-safety gate |
 | Harness 腳本 | Repository 管理的 scripts | precommit-runner、verify-runner、codemap generator、dep-audit |
 | Codex 發布 | Inventory 管理的 project 與 native surface | 專案同步使用 receipt 管理的 projection；[distribution surfaces 指南](./docs/distribution-surfaces.md)與[平台安裝 SSOT](./docs/platform-installation.zh-TW.md)說明 native package 與 Host helper。 |

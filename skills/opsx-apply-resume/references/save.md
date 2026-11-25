@@ -85,6 +85,23 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    Embed `## Compact Summary`, `### Completed`, `### In Progress`,
    `## Next Actions`, and `## Completion Criteria`. Use `(未取得)` or an
    explicit unavailable marker when an optional provider supplied no data.
+   Add a `## Verification Evidence` section before the context sections. Keep
+   static rules and required checks first; put `### In Progress` and
+   `### Latest Failed Evidence` at the end. Each check uses this shared shape:
+
+   ```text
+   - check: <exact command or named check>
+     status: PASS | FAIL | NOT_RUN
+     exit_code: <integer when run, otherwise N/A>
+     evidence: <redacted output or repository-relative evidence path>
+     reason: <why it passed, failed, or was not run>
+   ```
+
+   Redact credentials and private output before saving. A missing tool is
+   `NOT_RUN` with the tool and reason recorded; it must never become `PASS`.
+   A failed or unrun check does not prevent a truthful Save: preserve the
+   atomic handoff and make the failed check the latest-failure entry when
+   applicable. Do not invent an exit code or evidence path.
    Pipe the complete payload to the package-local
    `"$SKILL_DIR/scripts/write-handoff.sh" "$HANDOFF_PATH"` helper; its `python3` prerequisite must be available before
    Save can pass.
@@ -106,7 +123,7 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
 ## Output and verification
 
 Return the handoff path, change, remaining count, risk, precommit/commit/
-compact/memory states, and one next action. Verify the file exists, has
+compact/memory states, verification evidence, and one next action. Verify the file exists, has
 `state: saved`, contains the required sections, and leaves unrelated files
 untouched. A successful Save is evidence of a resumable snapshot, not an
 OpenSpec implementation or commit.

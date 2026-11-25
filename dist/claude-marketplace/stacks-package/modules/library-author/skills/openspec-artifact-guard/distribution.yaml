@@ -3,7 +3,8 @@
   "coverage": {
     "entry": "SKILL.md",
     "references": [
-      "agents/openai.yaml"
+      "agents/openai.yaml",
+      "evals/evals.json"
     ],
     "executable_entries": [],
     "host_capabilities": []

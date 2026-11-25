@@ -11,3 +11,11 @@ and idempotency/reversibility as "no silent data loss on store recreation".
 | Unclassified or misclassified migration (lightweight vs heavyweight) | Confirm the classification. Lightweight (inferred) covers additive / renamable changes; non-trivial transforms (entity splits/merges, attribute type changes, derived data) need an explicit `NSMappingModel` + `NSEntityMigrationPolicy` | — |
 | Heavyweight transform that drops an attribute/relationship without an annotated path | Preserve existing rows; no silent data loss — verify no attribute/relationship is dropped without an intentional, annotated migration path | — |
 | Code that deletes/recreates the persistent store (including "drop store on migration failure") | No destructive store recreation on real data; never run that fallback against real user data | Empty-template / first-run store reset |
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “A clean install passed.” | Exercise the upgrade from an existing fixture and inspect its retained data. | Upgrade and applicable rollback commands, exit codes, and observed data checks. |

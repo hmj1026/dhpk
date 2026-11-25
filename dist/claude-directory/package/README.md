@@ -1,7 +1,7 @@
 # dhpk-lite (Instruction-only Directory Plugin)
 
 `dhpk-lite` is the instruction-only distribution of DHPK for Anthropic's Claude plugin directory.
-It provides all 17 workflow skills (invoked as `/dhpk-lite:<skill-name>`), 29 specialist agents (`dhpk-lite:<agent-name>`),
+It provides all 17 workflow skills (invoked as `/dhpk-lite:<skill-name>`), 27 specialist agents (`dhpk-lite:<agent-name>`),
 trap sheets, and execution policy rules with zero local hooks, zero executable scripts, and zero `userConfig` prompts.
 
 ## Install `dhpk-lite`

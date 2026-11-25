@@ -1,10 +1,8 @@
 # Codex Build-Resolver Shared Skeleton
 
-Shared procedure for language-specific build repair on the Codex surface.
-Codex maps that work through the `worker` role and the language-build
-capability, not through separate Claude resolver agents. Each language keeps
-its own Diagnose commands, error-to-cause table, and escape-hatch list; only
-the surrounding procedure is shared here.
+Shared procedure for the Codex language-build capability. Load the Python,
+Swift, or Rust guide under `agent-traps/build-resolver/` according to the
+failed toolchain, then apply the common procedure below.
 
 ## Principles (shared framing)
 
@@ -42,3 +40,11 @@ Report the files changed, including any required lockfile, and list the
 failing command rerun with its result. Keep unrelated observations separate
 from the assigned repair and state when a required cleanup or broader action
 remains unperformed.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “This role’s check is implied.” | Role-specific advice still needs an observed, applicable result. | Exact command, `PASS`, `FAIL`, or `NOT_RUN`; exit code; redacted output or readable path; reason when not PASS. |

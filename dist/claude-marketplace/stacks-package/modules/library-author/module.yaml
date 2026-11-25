@@ -36,6 +36,9 @@ triggers:
   sec:
     extensions: []
     paths: []
+  polyfill:
+    extensions: [".php"]
+    paths: []
 provides:
   agents: [polyfill-reviewer]
   skills:

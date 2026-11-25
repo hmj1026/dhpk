@@ -1,7 +1,7 @@
 {
   "schema": "dhpk.plugin-user-config-contract.fixture.v1",
   "source": "manifests/claude-user-config-legacy.json",
-  "count": 60,
+  "count": 61,
   "entries": [
     {
       "key": "credential_read_paths",
@@ -16,6 +16,13 @@
       "multiple": false,
       "title": "Hook profile",
       "default": "standard"
+    },
+    {
+      "key": "validation_failure_mode",
+      "type": "string",
+      "multiple": false,
+      "title": "Validation failure mode",
+      "default": "advisory"
     },
     {
       "key": "review_agents",

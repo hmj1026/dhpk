@@ -37,3 +37,11 @@ Use the project’s configured test runner, scripts, and test layout. Apply thes
 **Trigger → evidence/action:** The task or project configuration sets a coverage threshold. Run that configured gate and report its actual result; add cases for changed decisions and relevant branches.
 
 **Do not apply when:** No project or task threshold exists. Do not impose a universal percentage target.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The new test is enough.” | Prove the expected failure before the fix and the same check passing afterward. | RED and GREEN commands, exit codes, the failed assertion, and the passing result. |

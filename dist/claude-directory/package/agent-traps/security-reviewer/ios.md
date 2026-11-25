@@ -31,3 +31,11 @@ SecItemAdd([kSecAttrSynchronizable: true,
 SecItemAdd([kSecAttrSynchronizable: false,
             kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly, ...] as CFDictionary, nil)
 ```
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The allowed request passed.” | Verify the denied case at the same authorization or input-validation boundary. | Executed negative-case command, exit code, and redacted rejection evidence, or `NOT_RUN` with the gap. |

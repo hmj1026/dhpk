@@ -42,6 +42,7 @@ const EXPECTED_REMAINING_ENTRIES = Object.freeze({
   'remaining-feature-verify-health-retry-exhausted': ['feature-verify', 'scripts/health-probe.sh'],
   'remaining-change-verdict-unrelated-squash-warning': ['change-verdict', 'scripts/check-unrelated-changes.sh'],
   'remaining-change-verdict-unrelated-merge-skip': ['change-verdict', 'scripts/check-unrelated-changes.sh'],
+  'remaining-change-verdict-resolve-review-triggers': ['change-verdict', 'scripts/resolve-review-triggers.js'],
   'remaining-change-verdict-review-cli-stub': ['change-verdict', 'scripts/review-cli.sh'],
   'remaining-flow-guide-pre-route-local-table': ['flow-guide', 'scripts/pre-route.sh'],
   'remaining-git-smart-commit-collect-changes-scope-readonly': ['git-smart-commit', 'scripts/collect-changes.js'],
@@ -142,6 +143,7 @@ const CLASSIFICATION = Object.freeze({
   'change-verdict/scripts/lib/command-namespace.js': { kind: 'module', reason: 'library under scripts/lib/' },
   'change-verdict/scripts/lib/runner-utils.js': { kind: 'module', reason: 'library under scripts/lib/' },
   'change-verdict/scripts/review-cli.sh': { kind: 'cli', remainingEntry: true },
+  'change-verdict/scripts/resolve-review-triggers.js': { kind: 'cli', remainingEntry: true },
   // risk-analyze has no --help; isolation has no git so the start path exits 2.
   'change-verdict/scripts/risk-analyze.js': { kind: 'cli', args: ['--help'], expectedStatus: 2 },
   'code-trace/scripts/diagnose/analyze-function-calls.sh': { kind: 'cli', remainingEntry: true },

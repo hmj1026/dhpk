@@ -1,0 +1,52 @@
+{
+  "skill_name": "openspec-artifact-guard",
+  "evidence_kind": "instruction-forward-evaluation",
+  "host_runtime_status": "NOT_RUN",
+  "evals": [
+    {
+      "id": "behavior-change-missing-entry",
+      "prompt": "Use $openspec-artifact-guard to review a proposal whose ordinary prose says: 'Change checkout validation so malformed manifests are rejected with a safer message. The implementation will update the parser.' It names no command, API, resolver/CLI, or user-visible artifact for exercising the change, but it does state the expected rejection message. Return the guard findings and verdict. Do not edit the proposal.",
+      "expected_output": "Report a HIGH behavior-change test seam finding for the missing public test entry, naming the required boundary. Do not report a missing observable result because the rejection message is stated. The result is WARNING unless another check finds a higher-severity issue.",
+      "expected_boundaries": {
+        "required_evidence": ["behavior classification", "public test entry finding", "observable rejection result accepted"],
+        "forbidden_effects": ["proposal edit", "external OpenSpec authoring"]
+      }
+    },
+    {
+      "id": "cross-module-missing-observable-result",
+      "prompt": "Use $openspec-artifact-guard to review a proposal whose ordinary prose says: 'Refactor the receipt parser and publication adapter across two modules. Exercise it through the documented publish command.' It names the public command but does not state an independent success, failure, state, or artifact result. Return the guard findings and verdict. Do not edit the proposal.",
+      "expected_output": "Report a HIGH cross-module test oracle finding for the missing observable result, while accepting the documented publish command as the public test entry. The result is WARNING unless another check finds a higher-severity issue.",
+      "expected_boundaries": {
+        "required_evidence": ["cross-module refactor classification", "public command accepted", "observable result finding"],
+        "forbidden_effects": ["proposal edit", "external OpenSpec authoring"]
+      }
+    },
+    {
+      "id": "ordinary-prose-seam-passes",
+      "prompt": "Use $openspec-artifact-guard to review a behavior-change proposal with this ordinary paragraph: 'The public `dhpk validate` command exercises the new manifest rule. A valid manifest exits 0 and emits the normalized capability list; an invalid or ambiguous manifest exits non-zero and emits no publication plan.' There is no `Seams` heading. Return the guard findings and verdict. Do not edit the proposal.",
+      "expected_output": "Accept both the public test entry and observable result from the ordinary paragraph; do not require a fixed heading or checklist and report no Check 7 finding.",
+      "expected_boundaries": {
+        "required_evidence": ["entry parsed from ordinary prose", "independent success and fail-closed results parsed"],
+        "forbidden_effects": ["heading requirement", "proposal edit", "external OpenSpec authoring"]
+      }
+    },
+    {
+      "id": "pure-documentation-exempt",
+      "prompt": "Use $openspec-artifact-guard to review a proposal that only corrects examples and wording in a user guide. It explicitly says behavior, commands, APIs, metadata, and generated artifacts are unchanged. Return the guard findings and verdict. Do not edit the proposal.",
+      "expected_output": "Classify the work as pure documentation and explicitly skip Check 7; do not report missing test entry or observable result. Continue the artifact-shape checks and emit their normal verdict.",
+      "expected_boundaries": {
+        "required_evidence": ["pure-documentation exemption recorded"],
+        "forbidden_effects": ["invented test seam requirement", "proposal edit", "external OpenSpec authoring"]
+      }
+    },
+    {
+      "id": "light-maintenance-exempt",
+      "prompt": "Use $openspec-artifact-guard to review a proposal for whitespace normalization and metadata key ordering only. It explicitly states that behavior and generated outputs are unchanged. Return the guard findings and verdict. Do not edit the proposal.",
+      "expected_output": "Classify the work as behavior-preserving lightweight maintenance and explicitly skip Check 7; do not report missing test entry or observable result. Continue the artifact-shape checks and emit their normal verdict.",
+      "expected_boundaries": {
+        "required_evidence": ["light-maintenance exemption recorded"],
+        "forbidden_effects": ["invented test seam requirement", "proposal edit", "external OpenSpec authoring"]
+      }
+    }
+  ]
+}

@@ -37,7 +37,7 @@
       "sourcePath": "skills/change-verdict/agents/openai.yaml",
       "destination": "skills/change-verdict/agents/openai.yaml",
       "kind": "entry",
-      "sha256": "0014b097131ca525efa070c9fb1e87a6cda47368f93b006669a2b76c27ac20f3"
+      "sha256": "482a842e023dbe8ae7eddb8e4cb8173557619846ad12a9fecc739275791c76b3"
     },
     {
       "skillId": "change-verdict",
@@ -45,7 +45,7 @@
       "sourcePath": "skills/change-verdict/distribution.yaml",
       "destination": "skills/change-verdict/distribution.yaml",
       "kind": "entry",
-      "sha256": "330749f49884fc982c51e275e52de4ed212df659a439ceb9fd5f5a113a623cd4"
+      "sha256": "7e0b3bebc4da5bdb60d5c3e989c4d1488445ecbc3ce98ba532b9dc2c9657a250"
     },
     {
       "skillId": "change-verdict",
@@ -245,7 +245,7 @@
       "sourcePath": "skills/change-verdict/references/shared/review-workflow.md",
       "destination": "skills/change-verdict/references/shared/review-workflow.md",
       "kind": "entry",
-      "sha256": "35b93a85fc384a14fe88bdf76201a3312afe717182953e23df2e6b65663b29e2"
+      "sha256": "4149f4899d1ae07012066d85519111ea5a71b085411e3bfe46e9265f64300e2a"
     },
     {
       "skillId": "change-verdict",
@@ -290,6 +290,14 @@
     {
       "skillId": "change-verdict",
       "ownerId": "change-verdict",
+      "sourcePath": "skills/change-verdict/scripts/resolve-review-triggers.js",
+      "destination": "skills/change-verdict/scripts/resolve-review-triggers.js",
+      "kind": "entry",
+      "sha256": "6a96867be2277a700d207a874b4b90d02055422eecccef37933354207d9e3e95"
+    },
+    {
+      "skillId": "change-verdict",
+      "ownerId": "change-verdict",
       "sourcePath": "skills/change-verdict/scripts/review-cli.sh",
       "destination": "skills/change-verdict/scripts/review-cli.sh",
       "kind": "entry",
@@ -309,7 +317,7 @@
       "sourcePath": "skills/change-verdict/templates/review_output.md",
       "destination": "skills/change-verdict/templates/review_output.md",
       "kind": "entry",
-      "sha256": "e334671e92b12c2397cd0e2a3e1b810aa18dbefda658ea6e45a9a7f07b0112af"
+      "sha256": "72076b64b8ed63baaa84a25a2be02725f8cdd2985117ab75dce9bb64503cc1c8"
     },
     {
       "skillId": "code-trace",
@@ -717,7 +725,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "7fbc0a3565ef2c9dbc9b9e34f18b37e700d2f6170c819b1ff1f8c5fdddffed45"
+      "sha256": "179027144d795d7e18a9c33386ebe1797469b3a1743c64f9ae075b0bc92daaa1"
     },
     {
       "skillId": "flow-drive",
@@ -1021,7 +1029,7 @@
       "sourcePath": "skills/openspec-artifact-guard/SKILL.md",
       "destination": "skills/flow-drive/references/openspec-artifact-guard/SKILL.md",
       "kind": "reference",
-      "sha256": "6d9c04e9a552f359abb86c2e07d6341ef575384967ba6ac18f6cdf7446b1a2c6"
+      "sha256": "9c7b4e8b1fe4364586bb9d2edb1d25f36e6ee348823227a36f57e66e6aa17046"
     },
     {
       "skillId": "openspec-artifact-guard",
@@ -1037,7 +1045,15 @@
       "sourcePath": "skills/openspec-artifact-guard/distribution.yaml",
       "destination": "skills/flow-drive/references/openspec-artifact-guard/distribution.yaml",
       "kind": "reference",
-      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
+      "sha256": "d864f8a33dd2ccff9bf00b69f0c9f3147db0c3a453203a64148c008a73771555"
+    },
+    {
+      "skillId": "openspec-artifact-guard",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/openspec-artifact-guard/evals/evals.json",
+      "destination": "skills/flow-drive/references/openspec-artifact-guard/evals/evals.json",
+      "kind": "reference",
+      "sha256": "127384a4206626d694f1bb411a60e75aef35a6766a4e24ca3800b99d737cabb5"
     },
     {
       "skillId": "php",
@@ -1813,7 +1829,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "edcaf3e59a5bc0334724c80a5709b11fcd6af0bd6f731b121ff3efe1736e0247"
+      "sha256": "e190eff3d375f92237406aa02e36fbc745e3dbaa0e70550d763b41e02501890e"
     },
     {
       "skillId": "flow-guide",
@@ -1845,7 +1861,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "78f12010044454089bb78f7c68ac8e8a28d117ad89c9e38e6e591af94f7f301e"
+      "sha256": "177595ecfbea921f32d61df8c84da7c07ad86d7ca0db3925dc67db94e62b94a7"
     },
     {
       "skillId": "flow-guide",
@@ -1941,7 +1957,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "edcaf3e59a5bc0334724c80a5709b11fcd6af0bd6f731b121ff3efe1736e0247"
+      "sha256": "e190eff3d375f92237406aa02e36fbc745e3dbaa0e70550d763b41e02501890e"
     },
     {
       "skillId": "flow-guide",
@@ -2621,7 +2637,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
       "kind": "packaging-resource",
-      "sha256": "74e5fca87060d01a3e20e3a87f691abb88c76b3db87939a6af88c1ccb5aef3a7"
+      "sha256": "27f633cb517aab997e7e290478092d297193e5f8d7eb39f036bec7887c5f5efc"
     },
     {
       "skillId": "harness-setup",
@@ -2869,7 +2885,7 @@
       "sourcePath": "skills/opsx-apply-resume/SKILL.md",
       "destination": "skills/opsx-apply-resume/SKILL.md",
       "kind": "entry",
-      "sha256": "d2843a1b39a36aeb9363055b0f651f003d0de8922f3ef24925698a945e19a13e"
+      "sha256": "b5d8cf0db1ac7ccb319ee4771ff1c76a7f58b1b474491240f5a345cb7c85ed26"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2893,7 +2909,7 @@
       "sourcePath": "skills/opsx-apply-resume/evals/evals.json",
       "destination": "skills/opsx-apply-resume/evals/evals.json",
       "kind": "entry",
-      "sha256": "d92fad7e92c8d43d3ebe835114a55265f0a3beae199b2abf84ac4d67f05ba0ce"
+      "sha256": "abb6382aa37eeff6cae5c87bb4f92982ac37f3af319f9ea82a7f81761cdc6b2a"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2909,7 +2925,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/manual-procedure.md",
       "destination": "skills/opsx-apply-resume/references/manual-procedure.md",
       "kind": "entry",
-      "sha256": "3dfdc9d429eb45d18cf46b8356738713fbb246663b05655eb937cf801a0d5654"
+      "sha256": "a6df82cf4809e589c836daf3aad5faeedaf6de67beee1b2f6eab663ed162912e"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2925,7 +2941,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/resume.md",
       "destination": "skills/opsx-apply-resume/references/resume.md",
       "kind": "entry",
-      "sha256": "09ae790792343fbff96ba5031e7570cd233b7bc9a49891cf034b6c1b5968ca29"
+      "sha256": "98200fedc50ce535c0c3d40a0d50e48087838b951e1937adc206a876eeca6294"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2933,7 +2949,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/save.md",
       "destination": "skills/opsx-apply-resume/references/save.md",
       "kind": "entry",
-      "sha256": "5d4aaa02b7e859e14491437bdc7e1e8c5fc8dd345ae2cfbcc49e9e5dc94f4f45"
+      "sha256": "dddf046add4ee9db7a9852961bbc0b7b6adba7bf0329f3c4eecc223e0b6e2414"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -3573,7 +3589,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "80fb1f4987df84ff27ecae492d9a10f9847e17d4ddb188a1838f9f653af4b357"
+      "sha256": "54ec6f25323dff39108cf3f086ce3139e8080a07cba7e0e6eb9455fd48cc634c"
     },
     {
       "skillId": "tdd",
