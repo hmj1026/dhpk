@@ -19,3 +19,11 @@ turn an example from another stack into a requirement. When a required child
 dispatch capability is unavailable, the owning role reports an escalation and
 the unresolved outcome rather than inventing a delegate or silently changing
 authority.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “This role’s check is implied.” | Role-specific advice still needs an observed, applicable result. | Exact command, `PASS`, `FAIL`, or `NOT_RUN`; exit code; redacted output or readable path; reason when not PASS. |

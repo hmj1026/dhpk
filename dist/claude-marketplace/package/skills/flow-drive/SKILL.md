@@ -31,8 +31,10 @@ available. Follow the hook's recovery command with the original target,
 premise, observed configuration value, proposed change, and rerun plan. The
 hook verifies the observation in the reported project configuration before
 resuming the blocked editor. Escalate if the diagnosis has no direction or
-the existing stop conditions apply. Hosts without a registered blocking
-event use the advisory workflow and report hard gating as `UNAVAILABLE`.
+the existing stop conditions apply. The gate covers those native edit tools,
+not Bash, so do not edit through the shell while paused. Hosts without a
+registered blocking event use the advisory workflow and report hard gating as
+`UNAVAILABLE`.
 
 ## Invocation boundary
 
