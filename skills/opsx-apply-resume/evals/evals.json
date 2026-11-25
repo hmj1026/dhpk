@@ -31,6 +31,16 @@
         "allowed_fixture_writes": ["private observation payload/result", ".scratch/<id>/apply-resume.md"],
         "forbidden_effects": ["commit", "precommit without enabling request", "source edit/stash/revert", "peer observer fallback", "handoff completion before collection"]
       }
+    },
+    {
+      "id": 4,
+      "prompt": "Use $opsx-apply-resume to save and then resume checkout-evidence from a live worktree. One static check passes, the test command fails with exit code 1 and redacted evidence path .scratch/checkout-evidence/evidence/test.txt, and cargo is unavailable. Save must succeed without changing the worktree. Restore the handoff and show the verification records and exactly one next action.",
+      "expected_output": "The handoff is written and remains recoverable. Static checks appear before in-progress and latest-failed sections. The failed test is FAIL with exit code 1 and redacted evidence path; cargo is NOT_RUN with a reason and no fabricated PASS. Resume reads the same records and states one next action to fix and rerun the failure or install cargo and run the missing check. A successful Save does not promote either result to PASS.",
+      "expected_boundaries": {
+        "local_resources": ["references/save.md", "references/resume.md", "scripts/write-handoff.sh", "scripts/set-handoff-state.sh"],
+        "allowed_fixture_writes": [".scratch/checkout-evidence/apply-resume.md"],
+        "forbidden_effects": ["claiming PASS for an unrun check", "credential disclosure", "source edit/stash/revert", "external apply substitution"]
+      }
     }
   ]
 }

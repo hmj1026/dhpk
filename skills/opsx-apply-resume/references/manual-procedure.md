@@ -17,6 +17,11 @@ are absent or cannot execute.
 - Keep `commit: SKIPPED`, optional provider failures, and unexecuted stages as
   `UNAVAILABLE` / `NOT_RUN` rather than failing the handoff or reporting an
   overall `PASS`.
+- Save verification evidence with the shared fields `check`, `status`,
+  `exit_code` (only when run), redacted `evidence` or an evidence path, and
+  `reason`. Put static rules first and `In Progress` plus `Latest Failed
+  Evidence` last. Missing tools are `NOT_RUN`; a successful Save never changes
+  that status to `PASS`.
 - Report `mode: manual` in the final handoff summary.
 
 ## Stage: detect-phase
@@ -82,6 +87,9 @@ stage is optional and never blocks Save.
    `compact_json_path`, `claude_mem_obs_id`, `claude_mem_tags`, and `memory`,
    followed by `## Compact Summary`, `### Completed`, `### In Progress`,
    `## Next Actions`, and `## Completion Criteria`.
+   Include `## Verification Evidence` using the shared check record. Save may
+   succeed after a failure or missing tool, but must retain the truthful
+   `FAIL`/`NOT_RUN` record and one recoverable next action.
 3. Check `HANDOFF_PATH` against the path rules in Safety Rules, then write the
    payload with `Write`, then re-read to verify `state: saved` and all required
    sections. The `Write` tool is not atomic. This is an accepted downgrade from
@@ -105,3 +113,5 @@ stage is optional and never blocks Save.
    instead of deleting it. If continuation did not finish, leave `consuming` in
    place and report `NOT_RUN` / `BLOCKED` rather than overall `PASS`. Include
    `mode: manual`.
+   Restore the saved verification evidence and state one explicit next action;
+   do not promote `NOT_RUN` or a saved handoff to `PASS`.
