@@ -120,3 +120,12 @@ independent oracle, and scoped/suite results match what actually ran. When
 this run proposed the seam, include its catches and misses line.
 Return the method evidence to the caller and stop; the caller owns subsequent
 repository-wide verification or delivery workflows.
+
+## Completion evidence
+
+For each applicable test, lint, or GitNexus change analysis, record command,
+status (`PASS`, `FAIL`, or `NOT_RUN`), exit code if run, redacted output or a
+readable evidence path, and the reason for failure or non-execution. The
+expected RED assertion is recorded as an observed command failure with its
+RED purpose. Report completion against the acceptance criteria and preserve
+unmet checks in the handoff.
