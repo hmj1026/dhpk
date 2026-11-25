@@ -279,6 +279,39 @@ def _without(words, *groups):
     return [word for word in words if id(word) not in dropped]
 
 
+def _stdin_file(tokens, cwd):
+    """True when the segment's stdin is redirected from a literal regular file."""
+    for i, token in enumerate(tokens[:-1]):
+        fd = tokens[i - 1].value if i and tokens[i - 1].descriptor else '0'
+        target = tokens[i + 1]
+        if token.operator and token.value == '<' and fd == '0' and not target.operator:
+            return cwd is not None and not target.dynamic and not target.glob and os.path.isfile(os.path.join(cwd, target.value))
+    return False
+
+
+def _split_output(targets):
+    """The output target whose file name continues in the next word, else None.
+
+    zsh reads `>! file` as one redirect, and the suffix of an unquoted `$(...)` is a separate word.
+    That word then looks like an operand and could narrow a recursive read.
+    """
+    return next((t for t in targets if t.value == '!' or (t.substitution and t.substitution not in t.value)), None)
+
+
+def _recursive_verdict(adapter, plan, args, inputs, outputs, tokens, patterns, cwd, wrapped):
+    """Judge a recursive Reader again without the redirects that could stand in for its search root; None when they cannot."""
+    split = _split_output(outputs)
+    if split is not None:
+        return verdict.ambiguous('output redirect %s' % ascii(split.value))
+    if not inputs or (plan.reader == 'rg' and _stdin_file(tokens, cwd)):
+        return None
+    bare = adapter.plan(_without(args, inputs))
+    if not isinstance(bare, ReadPlan):
+        return verdict.unsupported(adapter.exclusion_syntax, bare.detail)
+    found = judge(bare, patterns, cwd, wrapped)
+    return None if found.allowed else found
+
+
 def _output_verdict(targets, patterns, cwd):
     """Judge the files a segment's output redirects open; None when none is protected."""
     for target in targets:
@@ -501,16 +534,23 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
         if plan is not None:
             if not isinstance(plan, ReadPlan):
                 return verdict.unsupported(None, plan.detail)
+            split = _split_output(outputs)
+            if split is not None:
+                return verdict.ambiguous('output redirect %s' % ascii(split.value))
             return _output_verdict(outputs, patterns, cwd) or judge(plan, patterns, cwd, bool(before))
     if index is None:
         return verdict.allow()
     if names[index] == 'ssh':
         return remote_wrapper_verdict(words[index + 1:], patterns, cwd)
     adapter = ADAPTERS[names[index]]
-    plan = adapter.plan(_without(words[index + 1:], descriptors, outputs))
+    args = _without(words[index + 1:], descriptors, outputs)
+    plan = adapter.plan(args)
     if not isinstance(plan, ReadPlan):
         return verdict.unsupported(adapter.exclusion_syntax, plan.detail)
-    return _output_verdict(outputs, patterns, cwd) or judge(plan, patterns, cwd, index != 0)
+    found = _output_verdict(outputs, patterns, cwd) or judge(plan, patterns, cwd, index != 0)
+    if not found.allowed or not plan.recursive:
+        return found
+    return _recursive_verdict(adapter, plan, args, inputs, outputs, tokens, patterns, cwd, index != 0) or found
 
 
 TRANSFORM_MARKS = tuple('@/#%:^,~')

@@ -47,6 +47,8 @@ SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
 # 任何參數展開：值可能成為指令字、eval、trap 或函式本體的內容。
 PARAMETER = re.compile(r'\$[A-Za-z0-9_{@*#?!$-]')
 DESCRIPTORS = frozenset((digit, False) for digit in '0123456789')
+# The raw word is the digit alone: no empty quotes and no line continuation beside it.
+DESCRIPTOR_WORD = re.compile(r'(?:^|[ \t;&|()<>]|(?<!\\)\n)[0-9]\Z')
 # 其引數只會被當成資料的指令：雙引號中含 heredoc 的替換輸出在這些指令的引數位置才視為資料。
 DATA_COMMANDS = frozenset(('git', 'gh', 'glab', 'echo', 'printf'))
 # git、gh、glab 只在這些子命令的訊息選項中把值當成文字儲存；其他選項（--exec、-c、alias 等）可能執行它。
@@ -262,7 +264,7 @@ def tokenize(text):
                 tokens.append(Token(';', operator=True))
             continue
         if not quoted and ch in OPERATOR_CHARS:
-            descriptor = ch in '<>' and len(pieces) == 1 and pieces[0] in DESCRIPTORS
+            descriptor = ch in '<>' and len(pieces) == 1 and pieces[0] in DESCRIPTORS and DESCRIPTOR_WORD.search(text[max(0, start - 3):start])
             flush()
             if descriptor:
                 tokens[-1].descriptor = True

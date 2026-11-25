@@ -195,6 +195,32 @@ check([
 `);
 });
 
+test('a redirect never hides the directory a recursive Reader searches', () => {
+  python(String.raw`
+root = repo(base, 'narrowing', ['src/a.js', 'README.md', '.env'])
+check([
+    # grep -r ignores stdin, and rg ignores stdin when it is not a regular file.
+    *[(reader + ' KEY ' + redirect, v.RECURSIVE_UNPROVEN)
+      for reader in ('grep -rn', 'rg -n', 'rg -n --hidden')
+      for redirect in ('</dev/null', '</dev/null 2>/dev/null', '< /dev/null > out', '</dev/null 2>&1', '0</dev/null', '3<README.md')],
+    ('grep -rn KEY <README.md 2>/dev/null', v.RECURSIVE_UNPROVEN),
+    ('rg KEY < README.md 2>/dev/null', v.ALLOW), ('grep -rn KEY src </dev/null 2>/dev/null', v.ALLOW),
+    ('cat < README.md 2>/dev/null', v.ALLOW), ('grep KEY < README.md 2>/dev/null', v.ALLOW),
+    # zsh reads >! as >| and takes the next word as the output file; bash keeps that word as an operand.
+    *[(reader + ' ' + op + ' README.md', v.AMBIGUOUS_TARGET)
+      for reader in ('rg KEY', 'grep -rn KEY', 'git log -p', 'git grep KEY') for op in ('>!', '>>!', '&>!')],
+    ('cat README.md >! out', v.ALLOW), ('cat README.md >! .env', v.PROTECTED),
+    # The suffix of an unquoted substitution target is lexed as a separate word.
+    ('grep -rn KEY > $(date +%F)src', v.AMBIGUOUS_TARGET), ('git log -p > $(date +%F)README.md', v.AMBIGUOUS_TARGET),
+    ('git show HEAD:README.md > "$(mktemp)"', v.ALLOW), ('cat README.md > $(mktemp)', v.ALLOW),
+    # Only a digit that touches the operator is a descriptor.
+    ("head -n ''2>o .env", v.PROTECTED), ('head -n ""2>o .env', v.PROTECTED),
+    ('head -n 2\\\n>o .env', v.PROTECTED), ("head -n ''\\\n2>o .env", v.PROTECTED),
+    ('git show HEAD:README.md;2>o git show HEAD:README.md', v.ALLOW),
+], root)
+`);
+});
+
 test('tracked custom protected file: listings name it, narrowed reads pass', () => {
   python(String.raw`
 prot = repo(base, 'prot', ['src/a.js', 'protected/config/db.php', '.env'])
