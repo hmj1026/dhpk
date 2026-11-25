@@ -627,13 +627,22 @@ test('packaged Full Plugin flow-guide loads the shipped next-action map and agre
     const out = path.join(temp, 'package');
     GENERATOR.materialize({ out });
     const script = path.join(out, 'skills', 'flow-guide', 'scripts', 'skill-next-actions.js');
-    const { collectSkillMetadata } = require(script);
     const shipped = JSON.parse(fs.readFileSync(path.join(out, NEXT_MAP), 'utf8')).skills;
+    const { collectSkillMetadata } = require(script);
     const metadata = collectSkillMetadata();
     for (const [name, entry] of Object.entries(shipped)) {
       assert.ok(metadata[name], `${name} resolves in packaged metadata`);
       if (entry.next !== undefined) assert.deepStrictEqual(metadata[name].values['dhpk-next'], entry.next);
     }
+    // Without the frontmatter key, only the shipped map can supply the route.
+    const [routed] = Object.entries(shipped).find(([, entry]) => entry.next !== undefined);
+    const skill = path.join(out, 'skills', routed, 'SKILL.md');
+    const body = fs.readFileSync(skill, 'utf8');
+    assert.match(body, /^\s*dhpk-next:/m);
+    fs.writeFileSync(skill, body.replace(/^(\s*)dhpk-next:/m, '$1dhpk-unused:'));
+    assert.deepStrictEqual(collectSkillMetadata()[routed].values['dhpk-next'], shipped[routed].next);
+    fs.rmSync(path.join(out, NEXT_MAP));
+    assert.strictEqual(collectSkillMetadata()[routed].values['dhpk-next'], undefined);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 
