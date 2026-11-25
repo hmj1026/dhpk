@@ -65,15 +65,13 @@ function deriveValidationTarget(input) {
     if (!script || !/^(?:test|lint|typecheck|check)(?::[a-z0-9][a-z0-9._-]*)?$/i.test(script)) return null;
     return `${executable}:${script.toLowerCase()}`;
   }
-  if (executable === 'npx' || executable === 'pnpx') {
-    if (!DIRECT_TOOLS.has(argv[1])) return null;
-    return `direct:${argv[1].toLowerCase()}`;
+  const [tool, subcommand] = executable === 'npx' || executable === 'pnpx' ? argv.slice(1) : [executable, ...argv.slice(1)];
+  if (!DIRECT_TOOLS.has(tool)) return null;
+  if (tool === 'cargo') {
+    return ['test', 'check', 'clippy'].includes(subcommand) ? `direct:cargo:${subcommand}` : null;
   }
-  if (!DIRECT_TOOLS.has(executable)) return null;
-  if (executable === 'cargo' && !['test', 'check', 'clippy'].includes(argv[1])) return null;
-  if (executable === 'go' && argv[1] !== 'test') return null;
-  if (executable === 'swift' && argv[1] !== 'test') return null;
-  return `direct:${executable}`;
+  if ((tool === 'go' || tool === 'swift') && subcommand !== 'test') return null;
+  return `direct:${tool}`;
 }
 
 function identity(input, target) {
@@ -310,8 +308,11 @@ function processEvent(input, options = {}) {
       ? 'Edits pause until correlated recovery. For a configuration check, call node \'' + __filename
         + '\' recover with a single-quoted JSON argument containing target, premise, file, observation, proposed_change, and rerun_plan.'
       : 'This is advisory. Escalate if no direction is available.';
+    const diagnostic = '[validation-diagnostics] ' + id.target
+      + ' failed twice. Check the premise with a targeted read-only operation and record the observation, proposed change, and rerun plan. ' + direction;
     const message = failures === 2 ? {
-      systemMessage: '[validation-diagnostics] ' + id.target + ' failed twice. Check the premise with a targeted read-only operation and record the observation, proposed change, and rerun plan. ' + direction,
+      systemMessage: diagnostic,
+      hookSpecificOutput: { hookEventName: event, additionalContext: diagnostic },
     } : null;
     return { message, record };
   });

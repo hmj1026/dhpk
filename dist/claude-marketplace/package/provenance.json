@@ -2637,7 +2637,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
       "kind": "packaging-resource",
-      "sha256": "74e5fca87060d01a3e20e3a87f691abb88c76b3db87939a6af88c1ccb5aef3a7"
+      "sha256": "27f633cb517aab997e7e290478092d297193e5f8d7eb39f036bec7887c5f5efc"
     },
     {
       "skillId": "harness-setup",
