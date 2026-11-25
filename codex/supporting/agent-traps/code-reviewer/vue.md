@@ -27,3 +27,11 @@ Apply these checks only when the changed code uses Vue. First identify the confi
 **Do not apply when:** The project is client-only and has no server-rendering entry. Do not add SSR constraints based on a possible future deployment mode.
 
 For generic TypeScript boundaries, promises, and async error ownership, use the [JavaScript review traps](js.md).
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The change looks right on inspection.” | Trace the changed behavior to a public seam and report the verification available for that seam. | Applicable test or lint result for the reviewed diff, or `NOT_RUN` with the gap. |
