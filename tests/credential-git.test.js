@@ -217,6 +217,13 @@ check([
     ("head -n ''2>o .env", v.PROTECTED), ('head -n ""2>o .env', v.PROTECTED),
     ('head -n 2\\\n>o .env', v.PROTECTED), ("head -n ''\\\n2>o .env", v.PROTECTED),
     ('git show HEAD:README.md;2>o git show HEAD:README.md', v.ALLOW),
+    # A continuation line may start with a descriptor.
+    ('git show HEAD:README.md \\\n2>/dev/null', v.ALLOW), ('grep -rn KEY src \\\n2>/dev/null', v.ALLOW),
+    ('git show HEAD:README.md \\\n\\\n2>/dev/null', v.ALLOW), ('git grep KEY -- \\\n2>/dev/null', v.RECURSIVE_UNPROVEN),
+    ('git log -p -- \\\n2>/dev/null', v.RECURSIVE_UNPROVEN), ('head -n 1\\\n2>o .env', v.PROTECTED),
+    # The last stdin redirect wins in bash; a split input target leaves a word behind.
+    ('rg KEY <README.md </dev/null 2>/dev/null', v.RECURSIVE_UNPROVEN),
+    ('git grep KEY < $(echo x)src', v.AMBIGUOUS_TARGET), ('git grep KEY -- src < README.md', v.ALLOW),
 ], root)
 `);
 });

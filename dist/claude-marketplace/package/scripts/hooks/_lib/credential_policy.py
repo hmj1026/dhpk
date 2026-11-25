@@ -280,17 +280,20 @@ def _without(words, *groups):
 
 
 def _stdin_file(tokens, cwd):
-    """True when the segment's stdin is redirected from a literal regular file."""
-    for i, token in enumerate(tokens[:-1]):
-        fd = tokens[i - 1].value if i and tokens[i - 1].descriptor else '0'
-        target = tokens[i + 1]
-        if token.operator and token.value == '<' and fd == '0' and not target.operator:
-            return cwd is not None and not target.dynamic and not target.glob and os.path.isfile(os.path.join(cwd, target.value))
-    return False
+    """True when the segment's one input redirect opens a literal regular file as stdin."""
+    opened = [i for i, token in enumerate(tokens[:-1]) if _is_redirect(token) and token.value not in OUTPUT_REDIRECTS]
+    if cwd is None or len(opened) != 1:
+        return False
+    index = opened[0]
+    fd = tokens[index - 1].value if index and tokens[index - 1].descriptor else '0'
+    target = tokens[index + 1]
+    if tokens[index].value != '<' or fd != '0' or target.operator or target.dynamic or target.glob:
+        return False
+    return os.path.isfile(os.path.join(cwd, target.value))
 
 
-def _split_output(targets):
-    """The output target whose file name continues in the next word, else None.
+def _split_target(targets):
+    """The redirect target whose file name continues in the next word, else None.
 
     zsh reads `>! file` as one redirect, and the suffix of an unquoted `$(...)` is a separate word.
     That word then looks like an operand and could narrow a recursive read.
@@ -300,9 +303,9 @@ def _split_output(targets):
 
 def _recursive_verdict(adapter, plan, args, inputs, outputs, tokens, patterns, cwd, wrapped):
     """Judge a recursive Reader again without the redirects that could stand in for its search root; None when they cannot."""
-    split = _split_output(outputs)
+    split = _split_target(outputs)
     if split is not None:
-        return verdict.ambiguous('output redirect %s' % ascii(split.value))
+        return verdict.ambiguous('redirect target %s' % ascii(split.value))
     if not inputs or (plan.reader == 'rg' and _stdin_file(tokens, cwd)):
         return None
     bare = adapter.plan(_without(args, inputs))
@@ -534,9 +537,9 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
         if plan is not None:
             if not isinstance(plan, ReadPlan):
                 return verdict.unsupported(None, plan.detail)
-            split = _split_output(outputs)
+            split = _split_target(outputs + inputs)
             if split is not None:
-                return verdict.ambiguous('output redirect %s' % ascii(split.value))
+                return verdict.ambiguous('redirect target %s' % ascii(split.value))
             return _output_verdict(outputs, patterns, cwd) or judge(plan, patterns, cwd, bool(before))
     if index is None:
         return verdict.allow()

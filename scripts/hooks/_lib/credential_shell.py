@@ -47,8 +47,6 @@ SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
 # 任何參數展開：值可能成為指令字、eval、trap 或函式本體的內容。
 PARAMETER = re.compile(r'\$[A-Za-z0-9_{@*#?!$-]')
 DESCRIPTORS = frozenset((digit, False) for digit in '0123456789')
-# The raw word is the digit alone: no empty quotes and no line continuation beside it.
-DESCRIPTOR_WORD = re.compile(r'(?:^|[ \t;&|()<>]|(?<!\\)\n)[0-9]\Z')
 # 其引數只會被當成資料的指令：雙引號中含 heredoc 的替換輸出在這些指令的引數位置才視為資料。
 DATA_COMMANDS = frozenset(('git', 'gh', 'glab', 'echo', 'printf'))
 # git、gh、glab 只在這些子命令的訊息選項中把值當成文字儲存；其他選項（--exec、-c、alias 等）可能執行它。
@@ -207,6 +205,16 @@ class _Cursor:
         return CHAR, ch
 
 
+def _lone_digit(text, end):
+    """True when the raw word before `end` is one digit; empty quotes or a split word beside it make it a word."""
+    i = end - 1
+    if text[i] not in '0123456789':
+        return False
+    while text[max(0, i - 2):i] == '\\\n':
+        i -= 2
+    return i == 0 or text[i - 1] in WORD_SPACES or text[i - 1] in OPERATOR_CHARS
+
+
 def tokenize(text):
     """Word view: words keep whether wildcard or expansion characters were active.
 
@@ -264,7 +272,7 @@ def tokenize(text):
                 tokens.append(Token(';', operator=True))
             continue
         if not quoted and ch in OPERATOR_CHARS:
-            descriptor = ch in '<>' and len(pieces) == 1 and pieces[0] in DESCRIPTORS and DESCRIPTOR_WORD.search(text[max(0, start - 3):start])
+            descriptor = ch in '<>' and len(pieces) == 1 and pieces[0] in DESCRIPTORS and _lone_digit(text, start)
             flush()
             if descriptor:
                 tokens[-1].descriptor = True
