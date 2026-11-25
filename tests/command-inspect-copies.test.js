@@ -131,4 +131,13 @@ for (const hook of GUARD_AND_DISPATCH) {
   }
 }
 
+test('a value with many substitutions is read in bounded time', () => {
+  withRepos(({ featureRepo }) => {
+    const value = `$(git a) ${'some text '.repeat(40)}`;
+    const started = Date.now();
+    bashHook('pre-bash-guard.sh', `v="${value}$(printf " x")"; w=$v; echo "$w"`, { cwd: featureRepo, env: BLOCK_MODE });
+    assert.ok(Date.now() - started < 15000, 'the copy scan must not grow the value');
+  });
+});
+
 run('command-inspect-copies');

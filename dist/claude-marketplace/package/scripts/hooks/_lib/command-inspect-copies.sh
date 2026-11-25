@@ -40,17 +40,21 @@ _dhpk_ci_cp_names_re() {
 
 # True when value $1 is risky only through the text of its own substitutions, which is run-time output.
 _dhpk_ci_cp_runtime_only() {
-    local v="$1" k=0
+    local v="$1" pre post k=0
     case "$v" in *'$('*|*'`'*) ;; *) return 1 ;; esac
+    # Each round drops one substitution, so the text only shrinks. A backtick or an unclosed
+    # substitution ends the readable part.
     while [ "$k" -lt 16 ]; do
         k=$((k + 1))
-        case "$v" in
-            *'$('*')'*) v="${v%'$('*}${v##*'$('*')'}" ;;
-            *'$('*) v="${v%%'$('*}" ;;
-            *'`'*) v="${v%%'`'*}" ;;
-            *) break ;;
+        case "$v" in *'$('*) ;; *) break ;; esac
+        pre="${v%%'$('*}"
+        post="${v#*'$('}"
+        case "$post" in
+            *')'*) v="$pre${post#*')'}" ;;
+            *) v="$pre" ;;
         esac
     done
+    v="${v%%'`'*}"
     _dhpk_ci_lower "$v"
     case "$_dhpk_ci_lc" in *git*) return 1 ;; esac
     return 0
