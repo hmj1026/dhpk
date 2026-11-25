@@ -1023,7 +1023,11 @@
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect-api.sh",
-      "sha256": "746d56cde70774eafade509adac71d9cc8295c5869328d98e1303d69bb1d268f"
+      "sha256": "3447d504d33ee7454b4c089675e2f991dfc32aa6ada00f3af553c7b7be799819"
+    },
+    {
+      "destination": "scripts/hooks/_lib/command-inspect-copies.sh",
+      "sha256": "3f04a4ab41c79748f22a95bc44f63011504f8d7fb50d2600d8483efdd60dfde3"
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect-fn.sh",
@@ -1035,11 +1039,11 @@
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect-unwrap.sh",
-      "sha256": "f95fc42ef3666b33d16babd126d6a5235a3f142a39b540dec429c9f5c1f43dc5"
+      "sha256": "9aef488ab9665ef61187a199fbaf5a26b667a01541c6966536e36c3cc6bcfbaf"
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect.sh",
-      "sha256": "6edfbc019fb9805a2d005202749a976aeac63af2e53e55428857bc68a469f74b"
+      "sha256": "bb97d2b9b2a9889cb899ead0bcbb12d234bc44af1b426cb1fc45cfeb101cdc70"
     },
     {
       "destination": "scripts/hooks/_lib/load-project-config.sh",

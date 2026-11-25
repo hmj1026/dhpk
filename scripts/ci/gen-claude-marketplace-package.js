@@ -60,7 +60,7 @@ const STACKS_ROOT_FILES = [
 // Each package resolves its own copy; the stacks package never reads the core cache.
 const STACKS_SHARED_HOOK_LIBS = [
   'activate-modules.py',
-  'command-inspect.sh', 'command-inspect-api.sh', 'command-inspect-fn.sh',
+  'command-inspect.sh', 'command-inspect-api.sh', 'command-inspect-copies.sh', 'command-inspect-fn.sh',
   'command-inspect-scan.sh', 'command-inspect-unwrap.sh',
   'load-project-config.sh', 'modules.sh', 'payload.sh', 'plugin-root.sh',
   'portable-timeout.sh', 'runtime-config.sh', 'session-env.sh',

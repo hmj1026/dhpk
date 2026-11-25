@@ -853,7 +853,7 @@ _dhpk_ci_unwrap_head() {
             elif [ "$k" -lt "$n" ] && [ "${_dhpk_ci_u_dyn[$k]}" = "1" ]; then
                 if _dhpk_ci_dyn_shell_c_literal "$k"; then
                     :
-                elif _dhpk_ci_word_uses_taint "${_dhpk_ci_u_words[$k]}"; then
+                elif _dhpk_ci_word_uses_taint "${_dhpk_ci_u_words[$k]}" "${_dhpk_ci_u_quoted[$k]:-0}"; then
                     _dhpk_ci_u_unsupported="dynamic command word"
                 elif _dhpk_ci_word_default_git "${_dhpk_ci_u_words[$k]}"; then
                     _dhpk_ci_u_unsupported="dynamic command word"
