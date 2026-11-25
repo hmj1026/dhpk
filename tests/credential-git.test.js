@@ -125,6 +125,22 @@ check([('git diff', v.INSPECTION_FAILURE), ('git status', v.ALLOW), ('git diff -
 `);
 });
 
+test('an unknown working directory names the cd cause instead of the pathspec', () => {
+  python(String.raw`
+root = repo(mk(), 'hint', ['src/a.js', '.env'])
+for command in ('cd %s; git grep -n x -- src' % root, 'cd src && git diff', 'git -C "$D" diff', 'timeout 5 git diff'):
+    result = analyze(command, [], root)
+    assert result.kind == v.RECURSIVE_UNPROVEN, (command, result.kind)
+    assert 'git -C <literal-path>' in result.hint and 'without cd' in result.hint and 'wrapper' in result.hint, (command, result.message())
+    assert 'narrow the git pathspec' not in result.hint, (command, result.message())
+# The advised form passes.
+assert analyze('git -C %s grep -n x -- src' % root, [], root).allowed
+# A listing that really names a Protected Path keeps the pathspec advice.
+listed = analyze('git grep -n x', [], root)
+assert listed.kind == v.RECURSIVE_UNPROVEN and 'narrow the git pathspec' in listed.hint, listed.message()
+`);
+});
+
 test('tracked custom protected file: listings name it, narrowed reads pass', () => {
   python(String.raw`
 prot = repo(base, 'prot', ['src/a.js', 'protected/config/db.php', '.env'])
