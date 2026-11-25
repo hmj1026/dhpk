@@ -764,6 +764,10 @@ _dhpk_ci_list() {
 
 _dhpk_ci_list_run() {
     local i="$2" _dhpk_ci_kind="$3"
+    # (#1515) A list nested in a function body keeps that function as the owner of $1 and $@.
+    local _dhpk_ci_cp_next=""
+    [ "$_dhpk_ci_kind" = "top" ] || _dhpk_ci_cp_find_owner
+    local _dhpk_ci_cp_owner="$_dhpk_ci_cp_next"
     # Each top-level inspection starts clean. Nested lists keep a visible
     # export so a later simple command in the same inspection still sees it.
     # set -a is the same kind of shell state for later commands here.
