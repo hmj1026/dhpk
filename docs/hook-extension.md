@@ -12,6 +12,7 @@ them; optional events are not registered by default and are not silently active.
 | Event | Script | Deterministic responsibility |
 |---|---|---|
 | `PreToolUse(Edit\|Write\|MultiEdit)` | `pre-edit-guard.sh` | protected-path and secret safety |
+| `PreToolUse(Edit\|Write\|MultiEdit)` | `validation-diagnostics.js` | pause native edits after repeated validation failures when a project opts into `block` |
 | `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety plus Git branch-safety gates |
 | `PostToolUse(Bash)` | `validation-diagnostics.js` | record validation passes and correlated successful read-only recovery evidence |
 | `PostToolUseFailure(Bash)` | `validation-diagnostics.js` | latch repeated validation failures; advisory by default, optionally edit-blocking |

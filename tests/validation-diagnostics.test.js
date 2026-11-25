@@ -8,8 +8,13 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const diagnostics = require('../scripts/hooks/validation-diagnostics');
 
+const fixtureDirs = [];
+process.on('exit', () => fixtureDirs.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })));
+
 function fixtureDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-validation-diagnostics-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-validation-diagnostics-'));
+  fixtureDirs.push(dir);
+  return dir;
 }
 
 function payload(overrides = {}) {
