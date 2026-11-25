@@ -581,7 +581,7 @@ sidecar runtime.
 ### Reviewer trigger table
 
 Resolve the diff's recommended roles with the `change-verdict` package's
-`scripts/resolve-review-triggers.js`. Its inputs are the selected Git scope,
+reviewer-trigger resolver. Its inputs are the selected Git scope,
 active stack modules, and `userConfig.review_trigger_extra_paths`. Use the
 back-stop below for semantic additions and to identify false positives.
 In the completion report retain the raw hits, actual dispatch, omitted roles

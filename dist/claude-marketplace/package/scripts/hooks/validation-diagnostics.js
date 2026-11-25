@@ -18,6 +18,7 @@ const DIRECT_TOOLS = new Set([
 const MAIN_SESSION = 'main';
 const STATE_LOCK_TIMEOUT_MS = 10000;
 const STATE_LOCK_POLL_MS = 10;
+const OWNERLESS_LOCK_GRACE_MS = 2000;
 const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 
 function sleepMs(milliseconds) {
@@ -125,10 +126,30 @@ function retireLock(lock, expected) {
   return true;
 }
 
-function withStateLock(file, fn) {
+function processIsAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; }
+}
+
+// A hook killed while holding the lock never releases it. Reclaim only a lock
+// whose recorded owner is gone, or one that never recorded an owner.
+function reclaimOrphanedLock(lock) {
+  const owner = lockOwner(lock);
+  if (owner) {
+    if (!processIsAlive(owner.pid)) retireLock(lock, owner);
+    return;
+  }
+  let stat;
+  try { stat = fs.lstatSync(lock); } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+  if (Date.now() - stat.mtimeMs > OWNERLESS_LOCK_GRACE_MS) retireLock(lock, null);
+}
+
+function withStateLock(file, fn, options = {}) {
   const lock = `${file}.lock`;
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-  const deadline = Date.now() + STATE_LOCK_TIMEOUT_MS;
+  const deadline = Date.now() + (options.lockTimeoutMs ?? STATE_LOCK_TIMEOUT_MS);
   let owner;
   while (!owner) {
     try {
@@ -142,6 +163,7 @@ function withStateLock(file, fn) {
         throw error;
       }
       if (error.code !== 'EEXIST') throw error;
+      reclaimOrphanedLock(lock);
       if (Date.now() >= deadline) throw new Error(`timed out waiting for validation state lock: ${lock}`);
       sleepMs(STATE_LOCK_POLL_MS);
     }
@@ -177,7 +199,7 @@ function cleanupSubagent(input, options) {
         if (current && current.session === session && current.project === project && current.subagent === subagent) {
           removeState(file);
         }
-      });
+      }, options);
     }
   }
 }
@@ -337,7 +359,7 @@ function processEvent(input, options = {}) {
       hookSpecificOutput: { hookEventName: event, additionalContext: diagnostic },
     } : null;
     return { message, record };
-  });
+  }, options);
 }
 
 function main() {

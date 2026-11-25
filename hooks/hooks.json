@@ -6,14 +6,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/validation-diagnostics.js"],
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh"],
+            "timeout": 5,
             "onFailure": "block"
           },
           {
             "type": "command",
-            "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh"],
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/validation-diagnostics.js"],
             "timeout": 5,
             "onFailure": "block"
           }

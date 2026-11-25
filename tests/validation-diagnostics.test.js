@@ -8,8 +8,13 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const diagnostics = require('../scripts/hooks/validation-diagnostics');
 
+const fixtureDirs = [];
+process.on('exit', () => fixtureDirs.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })));
+
 function fixtureDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-validation-diagnostics-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-validation-diagnostics-'));
+  fixtureDirs.push(dir);
+  return dir;
 }
 
 function payload(overrides = {}) {
@@ -351,6 +356,37 @@ test('recovery rejects a config swapped between path validation and read', () =>
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
     fs.rmSync(path.dirname(outside), { recursive: true, force: true });
+  }
+});
+
+test('a lock orphaned by a dead or ownerless hook is reclaimed while a live one is kept', () => {
+  const stateDir = fixtureDir();
+  const lockDirectory = () => {
+    const name = fs.readdirSync(stateDir).find((entry) => entry.endsWith('.json'));
+    return path.join(stateDir, `${name}.lock`);
+  };
+  const dead = spawnSync(process.execPath, ['-e', '']).pid;
+  try {
+    diagnostics.processEvent(payload(), { stateDir });
+    const lock = lockDirectory();
+    fs.mkdirSync(lock);
+    fs.writeFileSync(path.join(lock, 'owner.json'), JSON.stringify({ pid: dead, token: 'gone' }));
+    const started = Date.now();
+    assert.strictEqual(diagnostics.processEvent(payload(), { stateDir }).record.failures, 2);
+    assert.ok(Date.now() - started < 2000, 'a dead owner must not stall the hook');
+
+    fs.mkdirSync(lock);
+    const old = new Date(Date.now() - 60000);
+    fs.utimesSync(lock, old, old);
+    assert.strictEqual(diagnostics.processEvent(payload(), { stateDir }).record.failures, 3);
+    assert.ok(!fs.existsSync(lock));
+
+    fs.mkdirSync(lock);
+    fs.writeFileSync(path.join(lock, 'owner.json'), JSON.stringify({ pid: process.pid, token: 'live' }));
+    assert.throws(() => diagnostics.processEvent(payload(), { stateDir, lockTimeoutMs: 100 }), /timed out/);
+    assert.ok(fs.existsSync(lock), 'a live owner keeps its lock');
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });
 
