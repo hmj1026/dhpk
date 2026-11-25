@@ -334,8 +334,9 @@ function processEvent(input, options = {}) {
       return { message: null, record };
     }
     if (outcome === 'pass') {
-      const record = { ...id, failures: 0, latch };
-      if (latch) writeState(file, record);
+      const remaining = latch?.target === id.target ? undefined : latch;
+      const record = { ...id, failures: 0, latch: remaining };
+      if (remaining) writeState(file, record);
       else removeState(file);
       return { message: null, record };
     }

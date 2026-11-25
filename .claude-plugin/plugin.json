@@ -68,7 +68,7 @@
     "validation_failure_mode": {
       "type": "string",
       "title": "Validation failure mode",
-      "description": "Repeated validation failures remain advisory by default. Set to 'block' to deny Edit/Write/MultiEdit until a correlated targeted read-only recovery records premise, observation, proposed change, and the original validation rerun plan. Read-only checks remain available; unrelated reads, retries, and target switches do not clear the latch.",
+      "description": "Repeated validation failures remain advisory by default. Set to 'block' to deny Edit/Write/MultiEdit until a correlated targeted read-only recovery records premise, observation, proposed change, and the original validation rerun plan. Read-only checks remain available; a pass of the same target also resumes editing, while failing retries, unrelated reads, and other targets do not.",
       "default": "advisory"
     },
     "review_agents": {
