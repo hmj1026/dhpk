@@ -8,7 +8,10 @@ dhpk 刻意只註冊精簡的預設 lifecycle。完整 mapping 以
 | Event | Script | 確定性責任 |
 |---|---|---|
 | `PreToolUse(Edit\|Write\|MultiEdit)` | `pre-edit-guard.sh` | 受保護路徑與 secret safety |
+| `PreToolUse(Edit\|Write\|MultiEdit)` | `validation-diagnostics.js` | 專案選用 `block` 時，連續驗證失敗後暫停原生編輯 |
 | `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety 加 Git branch-safety gate |
+| `PostToolUse(Bash)` | `validation-diagnostics.js` | 記錄驗證通過與相符的唯讀恢復證據 |
+| `PostToolUseFailure(Bash)` | `validation-diagnostics.js` | 記錄連續驗證失敗；預設僅提示，可選擇阻擋編輯 |
 | `SessionStart` | `session-start.sh` | 驗證並啟用設定的 module；輸出固定的 dispatch delta（最多 6 行） |
 | `SubagentStop` | `subagent-stop-verify.sh` | 清理已停止 fast-worker 的 liveness state；並將每個 subagent 的 model（transcript 最後一則 assistant 的 model）與 effort（hook 輸入值，可能是 session 層級）附加寫入 `.claude/artifacts/sessions/subagent-dispatch.jsonl`，不產生任何輸出 |
 
