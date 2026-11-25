@@ -563,4 +563,87 @@ test('real-source directory package builds and fails check when a #! file is int
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 
+const NEXT_MAP = path.join('skills', 'flow-guide', 'references', 'skill-next-map.json');
+
+function topLevelSkillNames(runtime) {
+  return [...runtime.keys()].filter((file) => /^skills\/[^/]+\/SKILL\.md$/.test(file));
+}
+
+test('Full Plugin runtime map ships a dhpk.skill-next-map.v1 for its packaged top-level skills', () => {
+  const runtime = GENERATOR.buildCanonicalRuntimeMap(ROOT);
+  const entry = runtime.get('skills/flow-guide/references/skill-next-map.json');
+  assert.ok(entry, 'Full Plugin must ship skills/flow-guide/references/skill-next-map.json');
+  const map = JSON.parse(Buffer.from(entry.content).toString('utf8'));
+  assert.strictEqual(map.schema, 'dhpk.skill-next-map.v1');
+  const expected = [];
+  for (const file of topLevelSkillNames(runtime)) {
+    const text = Buffer.from(runtime.get(file).content).toString('utf8');
+    const head = text.split(/\r?\n---/)[0];
+    const name = /^name:\s*["']?([^"'\r\n]+?)["']?\s*$/m.exec(head);
+    if (name && /^\s*dhpk-(next|modes|invocation-class):/m.test(head)) expected.push(name[1]);
+  }
+  assert.ok(expected.length > 0, 'fixture sanity: some packaged skills declare routing data');
+  assert.deepStrictEqual(Object.keys(map.skills).sort(), expected.sort());
+});
+
+test('check fails when the Full Plugin next-action map is missing or has an invalid schema', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-next-map-'));
+  try {
+    const out = path.join(temp, 'package');
+    GENERATOR.materialize({ out });
+    assert.strictEqual(GENERATOR.check({ out }).ok, true);
+    const file = path.join(out, NEXT_MAP);
+    const original = fs.readFileSync(file);
+
+    fs.writeFileSync(file, '{"schema":"wrong.v0","skills":{}}\n');
+    const invalid = GENERATOR.check({ out });
+    assert.strictEqual(invalid.ok, false);
+    assert.match(invalid.error, /skill-next-map\.json.*schema/);
+
+    fs.rmSync(file);
+    const missing = GENERATOR.check({ out });
+    assert.strictEqual(missing.ok, false);
+    assert.match(missing.error, /skill-next-map\.json.*missing/);
+
+    fs.writeFileSync(file, original);
+    assert.strictEqual(GENERATOR.check({ out }).ok, true);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('Directory Plugin ships only its pruned root map and no flow-guide map', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-directory-map-'));
+  try {
+    const out = path.join(temp, 'directory-package');
+    GENERATOR.materialize({ out, kind: 'directory' });
+    const map = JSON.parse(fs.readFileSync(path.join(out, 'skill-next-map.json'), 'utf8'));
+    assert.strictEqual(map.schema, 'dhpk.skill-next-map.v1');
+    assert.ok(!fs.existsSync(path.join(out, NEXT_MAP)), 'no unpruned flow-guide map in Directory Plugin');
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('packaged Full Plugin flow-guide loads the shipped next-action map and agrees with frontmatter', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-next-load-'));
+  try {
+    const out = path.join(temp, 'package');
+    GENERATOR.materialize({ out });
+    const script = path.join(out, 'skills', 'flow-guide', 'scripts', 'skill-next-actions.js');
+    const { collectSkillMetadata } = require(script);
+    const shipped = JSON.parse(fs.readFileSync(path.join(out, NEXT_MAP), 'utf8')).skills;
+    const metadata = collectSkillMetadata();
+    for (const [name, entry] of Object.entries(shipped)) {
+      assert.ok(metadata[name], `${name} resolves in packaged metadata`);
+      if (entry.next !== undefined) assert.deepStrictEqual(metadata[name].values['dhpk-next'], entry.next);
+    }
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('Stacks package does not ship a flow-guide next-action map', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-stacks-map-'));
+  try {
+    const out = path.join(temp, 'stacks');
+    GENERATOR.materialize({ out, kind: 'stacks' });
+    assert.ok(!fs.existsSync(path.join(out, NEXT_MAP)));
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
 run('gen-claude-marketplace-package');
