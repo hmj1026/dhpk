@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const diagnostics = require('../scripts/hooks/validation-diagnostics');
@@ -35,6 +35,38 @@ test('same session, project, subagent and target advises only on the second fail
   assert.strictEqual(first.message, null);
   assert.ok(second.message && second.message.systemMessage.includes('read-only'));
   assert.strictEqual(second.record.failures, 2);
+});
+
+test('concurrent failures for one identity are all recorded atomically', async () => {
+  const stateDir = fixtureDir();
+  const cwd = fixtureDir();
+  const script = path.join(__dirname, '..', 'scripts/hooks/validation-diagnostics.js');
+  const child = `
+    const diagnostics = require(process.argv[1]);
+    diagnostics.processEvent(JSON.parse(process.argv[2]), { stateDir: process.argv[3] });
+  `;
+  const event = payload({ cwd });
+  const children = Array.from({ length: 16 }, () => new Promise((resolve, reject) => {
+    const childProcess = spawn(process.execPath, ['-e', child, script, JSON.stringify(event), stateDir], { cwd });
+    let stderr = '';
+    childProcess.stderr.on('data', (chunk) => { stderr += chunk; });
+    childProcess.on('error', reject);
+    childProcess.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`child exited ${code}: ${stderr}`));
+    });
+  }));
+  try {
+    await Promise.all(children);
+    const records = fs.readdirSync(stateDir)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => JSON.parse(fs.readFileSync(path.join(stateDir, name), 'utf8')));
+    assert.strictEqual(records.length, 1);
+    assert.strictEqual(records[0].failures, 16);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 test('success resets failures and target changes start at one', () => {

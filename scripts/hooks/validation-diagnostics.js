@@ -15,6 +15,13 @@ const DIRECT_TOOLS = new Set([
   'eslint', 'tsc', 'prettier', 'vitest', 'jest', 'pytest', 'phpunit',
   'mypy', 'ruff', 'flake8', 'cargo', 'go', 'swift',
 ]);
+const STATE_LOCK_TIMEOUT_MS = 10000;
+const STATE_LOCK_POLL_MS = 10;
+const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+function sleepMs(milliseconds) {
+  Atomics.wait(SLEEP_BUFFER, 0, 0, milliseconds);
+}
 
 function clean(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -96,6 +103,57 @@ function writeState(file, value) {
   fs.renameSync(temporary, file);
 }
 
+function lockOwner(file) {
+  try {
+    const owner = JSON.parse(fs.readFileSync(path.join(file, 'owner.json'), 'utf8'));
+    return owner && Number.isSafeInteger(owner.pid) && owner.pid > 0 ? owner : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function retireLock(lock, expected) {
+  const owner = lockOwner(lock);
+  if (expected && (!owner || owner.pid !== expected.pid || owner.token !== expected.token)) return false;
+  const aside = `${lock}.retired-${process.pid}-${Date.now()}`;
+  try {
+    fs.renameSync(lock, aside);
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+  fs.rmSync(aside, { recursive: true, force: true });
+  return true;
+}
+
+function withStateLock(file, fn) {
+  const lock = `${file}.lock`;
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  const deadline = Date.now() + STATE_LOCK_TIMEOUT_MS;
+  let owner;
+  while (!owner) {
+    try {
+      fs.mkdirSync(lock, { recursive: false, mode: 0o700 });
+      owner = { pid: process.pid, token: crypto.randomBytes(12).toString('hex'), createdAt: Date.now() };
+      fs.writeFileSync(path.join(lock, 'owner.tmp'), `${JSON.stringify(owner)}\n`, { mode: 0o600 });
+      fs.renameSync(path.join(lock, 'owner.tmp'), path.join(lock, 'owner.json'));
+    } catch (error) {
+      if (owner) {
+        try { fs.rmSync(lock, { recursive: true, force: true }); } catch (_) { /* best effort */ }
+        throw error;
+      }
+      if (error.code !== 'EEXIST') throw error;
+      if (Date.now() >= deadline) throw new Error(`timed out waiting for validation state lock: ${lock}`);
+      sleepMs(STATE_LOCK_POLL_MS);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    retireLock(lock, owner);
+  }
+}
+
 function removeState(file) {
   try { fs.unlinkSync(file); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
@@ -115,7 +173,12 @@ function cleanupSubagent(input, options) {
     const file = path.join(directory, name);
     const record = readState(file);
     if (record && record.session === session && record.project === project && record.subagent === subagent) {
-      removeState(file);
+      withStateLock(file, () => {
+        const current = readState(file);
+        if (current && current.session === session && current.project === project && current.subagent === subagent) {
+          removeState(file);
+        }
+      });
     }
   }
 }
@@ -205,46 +268,53 @@ function processEvent(input, options = {}) {
   const id = identity(input, bash ? deriveValidationTarget(input) : null);
   if (!id.session || !id.project) return { message: null, record: { ignored: true } };
   const file = statePath(id, options);
-  const prior = readState(file);
-  const latch = prior?.latch;
   const block = projectMode(id.project, options) === 'block';
   if (edit) {
+    const prior = readState(file);
+    const latch = prior?.latch;
     if (latch && block) return { message: blockMessage(latch), record: prior };
     return { message: null, record: { ...id, allowed: true } };
   }
 
   const outcome = validationOutcome(input, event);
   if (!outcome) return { message: null, record: { ignored: true } };
-  if (!id.target) {
-    const evidence = outcome === 'pass' && latch && !latch.stopped ? recoveryEvidence(input, id.project) : null;
-    if (evidence?.target !== latch?.target || !evidence) return { message: null, record: { ignored: true } };
-    const record = { ...id, failures: 0, recoveryEvidence: evidence };
-    writeState(file, record);
-    return { message: null, record };
+  if (!id.target && outcome === 'pass' && !readState(file)?.latch) {
+    return { message: null, record: { ignored: true } };
   }
-  if (outcome === 'pass') {
-    const record = { ...id, failures: 0, latch };
-    if (latch) writeState(file, record);
-    else removeState(file);
-    return { message: null, record };
-  }
+  return withStateLock(file, () => {
+    const prior = readState(file);
+    const latch = prior?.latch;
+    if (!id.target) {
+      const evidence = outcome === 'pass' && latch && !latch.stopped ? recoveryEvidence(input, id.project) : null;
+      if (evidence?.target !== latch?.target || !evidence) return { message: null, record: { ignored: true } };
+      const record = { ...id, failures: 0, recoveryEvidence: evidence };
+      writeState(file, record);
+      return { message: null, record };
+    }
+    if (outcome === 'pass') {
+      const record = { ...id, failures: 0, latch };
+      if (latch) writeState(file, record);
+      else removeState(file);
+      return { message: null, record };
+    }
 
-  const sameTarget = prior?.target === id.target;
-  const failures = sameTarget ? prior.failures + 1 : 1;
-  const signature = digest(String(input.error ?? input.tool_response?.exit_code ?? ''));
-  const repeats = sameTarget && prior.signature === signature ? prior.repeats + 1 : 1;
-  let activeLatch = latch || (block && failures >= 2 ? { target: id.target, stopped: false } : undefined);
-  if (activeLatch?.target === id.target && repeats >= 3) activeLatch = { ...activeLatch, stopped: true };
-  const record = { ...id, failures, signature, repeats, latch: activeLatch };
-  writeState(file, record);
-  const direction = block
-    ? 'Edits pause until correlated recovery. For a configuration check, call node \'' + __filename
-      + '\' recover with a single-quoted JSON argument containing target, premise, file, observation, proposed_change, and rerun_plan.'
-    : 'This is advisory. Escalate if no direction is available.';
-  const message = failures === 2 ? {
-    systemMessage: '[validation-diagnostics] ' + id.target + ' failed twice. Check the premise with a targeted read-only operation and record the observation, proposed change, and rerun plan. ' + direction,
-  } : null;
-  return { message, record };
+    const sameTarget = prior?.target === id.target;
+    const failures = sameTarget ? prior.failures + 1 : 1;
+    const signature = digest(String(input.error ?? input.tool_response?.exit_code ?? ''));
+    const repeats = sameTarget && prior.signature === signature ? prior.repeats + 1 : 1;
+    let activeLatch = latch || (block && failures >= 2 ? { target: id.target, stopped: false } : undefined);
+    if (activeLatch?.target === id.target && repeats >= 3) activeLatch = { ...activeLatch, stopped: true };
+    const record = { ...id, failures, signature, repeats, latch: activeLatch };
+    writeState(file, record);
+    const direction = block
+      ? 'Edits pause until correlated recovery. For a configuration check, call node \'' + __filename
+        + '\' recover with a single-quoted JSON argument containing target, premise, file, observation, proposed_change, and rerun_plan.'
+      : 'This is advisory. Escalate if no direction is available.';
+    const message = failures === 2 ? {
+      systemMessage: '[validation-diagnostics] ' + id.target + ' failed twice. Check the premise with a targeted read-only operation and record the observation, proposed change, and rerun plan. ' + direction,
+    } : null;
+    return { message, record };
+  });
 }
 
 function main() {
