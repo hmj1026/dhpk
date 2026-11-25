@@ -41,3 +41,11 @@ Use the project’s configured test instructions, Python floor, and test command
 **Check and act:** Follow the available instructions and runner configuration. Keep examples compatible with the configured Python and plugin versions.
 
 **Do not apply when:** The project does not provide the referenced tool or guidance. Do not invent a plugin requirement or a universal test-count target.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The new test is enough.” | Prove the expected failure before the fix and the same check passing afterward. | RED and GREEN commands, exit codes, the failed assertion, and the passing result. |

@@ -1,12 +1,12 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:57564d447a4cdbfd153a2d927f2ce6be76f954446f0b279f89a85d4ae1efc272",
+  "sourceInventoryRevision": "sha256:560469128847f107ddc939a9fff33ed82c77f85ffdfd2d4b9ec2beb165001c61",
   "entries": [
     {
       "id": "change-verdict",
       "name": "change-verdict",
       "usage": {
-        "display_name": "Change Verdict",
+        "display_name": "DHPK Change Verdict",
         "summary": "Review changes or audit dependencies with bounded explicit fixes",
         "syntax": "/dhpk-lite:change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
         "input_kind": "mixed",
@@ -159,7 +159,7 @@
           }
         ]
       },
-      "usageFingerprint": "1438a3b31e76f62c7a6050049854af2584fbe24c017673147a083892c358b1fe"
+      "usageFingerprint": "dc7f30de580718892ca0abb59ceae93254bb786ca9a6d4482c4401c7cd5b6834"
     },
     {
       "id": "code-trace",

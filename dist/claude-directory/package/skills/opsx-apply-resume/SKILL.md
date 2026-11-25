@@ -89,7 +89,7 @@ Return:
 ```text
 Phase → Save | Resume → explicit handoff path → change-id
 State → saved | consuming | consumed | BLOCKED | UNAVAILABLE | NOT_RUN
-Evidence → commit/precommit/compact/memory/provider details
+Evidence → commit/precommit/compact/memory/provider details plus shared verification records
 Next action → one recoverable Host-appropriate continuation
 ```
 
@@ -97,6 +97,11 @@ Include `commit: SKIPPED` when no explicit commit was requested; it is valid
 evidence, not a failure. A failed apply leaves the handoff in `consuming`
 state for manual recovery. Redact observation content, credentials, and
 private paths beyond the declared artifact path.
+Verification records use `check`, `status` (`PASS`/`FAIL`/`NOT_RUN`), `exit_code`
+when a command ran, redacted `evidence` or an evidence path, and `reason`.
+Static rules come first; in-progress work and the latest failed evidence are at
+the end. A successful Save is allowed after a failure or missing tool, but it
+must preserve `FAIL` or `NOT_RUN` and Resume must name the next action.
 
 ## Verification
 

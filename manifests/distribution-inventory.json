@@ -260,7 +260,7 @@
       "id": "codex-supporting-agent-traps-_common-trap-sheet-loader-md",
       "source": "codex/supporting/agent-traps/_common/trap-sheet-loader.md",
       "canonical_source": "agent-traps/_common/trap-sheet-loader.md",
-      "canonical_digest": "455bd99b50d68c2332a16dbdadc530a51767cccf4e29f6a3473a70c7929a3588",
+      "canonical_digest": "dd653354b6fdff33f03f3fff13b4b8171d50fa1c54b4384fc29e19d64ed113fd",
       "projection_digest": "a215bceb37660146caa1dd1191ea4efeea173564d03f301b55cc12d87382432b",
       "destination": "dhpk/agent-traps/_common/trap-sheet-loader.md"
     },
@@ -291,7 +291,7 @@
       "id": "codex-supporting-agent-traps-code-reviewer-php-md",
       "source": "codex/supporting/agent-traps/code-reviewer/php.md",
       "canonical_source": "agent-traps/code-reviewer/php.md",
-      "canonical_digest": "1860ee32ef2a1940bc289bea2da34c103cb91019c0f687a3993e178424430765",
+      "canonical_digest": "4537318d2572c25a7b4fea0f904f25b93172c2b1170d5f7b8b5aa1e74a518520",
       "projection_digest": "6a01de79036c827fd75443cbddbbc19ca6e68d5cb43f3574d7fc2ada7d5a523d",
       "destination": "dhpk/agent-traps/code-reviewer/php.md"
     },
@@ -314,7 +314,7 @@
       "id": "codex-supporting-agent-traps-code-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/code-reviewer/yii.md",
       "canonical_source": "agent-traps/code-reviewer/yii.md",
-      "canonical_digest": "e068009f38f29d81e42dfc23c28ac03eb6f0e07bd65696ea287eb3d0b789ed4c",
+      "canonical_digest": "1ae28faf4aa145149bba7cd472aac2ab9212f2a53b4d9ce8780a12c79304d992",
       "projection_digest": "7ec8063246c306b930e8e2b39c37b9b162ca1c8830b7121a376f44ee086c240a",
       "destination": "dhpk/agent-traps/code-reviewer/yii.md"
     },
@@ -370,7 +370,7 @@
       "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
       "canonical_source": "agent-traps/security-reviewer/yii.md",
-      "canonical_digest": "fd6f2e7f862e3fda0cda0fe7f45e3d25153db6dc9b6be0b64be1e863ec38e8d1",
+      "canonical_digest": "7191047dae06754e350cd702d4d3c8db6dd34b3b9edcf0fbf3f88e09ca486258",
       "projection_digest": "d1b204ec3b44571e13029667c14a02c1d65c1b3c1fdc23b8ddae521aaad6b15d",
       "destination": "dhpk/agent-traps/security-reviewer/yii.md"
     },
@@ -383,7 +383,7 @@
       "id": "codex-supporting-agent-traps-tdd-guide-php-md",
       "source": "codex/supporting/agent-traps/tdd-guide/php.md",
       "canonical_source": "agent-traps/tdd-guide/php.md",
-      "canonical_digest": "d5258bb3eee20aecd55caca165d1844146073190030d94ee4cf5a8fe87d0aaa0",
+      "canonical_digest": "fa4952be16718e0e746293afc2d7549de02f2322596dcbe6a4b83af945dab03d",
       "projection_digest": "b5c99d0447652b364c9c3e62799ec39a6a7e07c73acb84a95029406f1c6ba51b",
       "destination": "dhpk/agent-traps/tdd-guide/php.md"
     },
@@ -406,7 +406,7 @@
       "id": "codex-supporting-agent-traps-migration-reviewer-ios-md",
       "source": "codex/supporting/agent-traps/migration-reviewer/ios.md",
       "canonical_source": "agent-traps/migration-reviewer/ios.md",
-      "canonical_digest": "fe4df09c7c2a62ee41c2230fa2051ca684657d0d204d3c8e08396ecf5f600310",
+      "canonical_digest": "5139f2f9b9fe785f6eb300651395a82a1071f9f291a9b99e39b478116a724bb4",
       "projection_digest": "fe4df09c7c2a62ee41c2230fa2051ca684657d0d204d3c8e08396ecf5f600310",
       "destination": "dhpk/agent-traps/migration-reviewer/ios.md"
     },
@@ -414,7 +414,7 @@
       "id": "codex-supporting-agent-traps-migration-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/migration-reviewer/yii.md",
       "canonical_source": "agent-traps/migration-reviewer/yii.md",
-      "canonical_digest": "82dbbeb242a170a0ce00a05ea92a268e20d3379400dfa804e3bbd31d93043c5d",
+      "canonical_digest": "65458c445890e3619ca16f50afe5d7936ca4308de53de310dde93c1bc321b63a",
       "projection_digest": "de238b7f257df607f93da2a0d4a542a7632a2c7bab056d9d035a1487408685b5",
       "destination": "dhpk/agent-traps/migration-reviewer/yii.md"
     },
@@ -430,15 +430,30 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "edcaf3e59a5bc0334724c80a5709b11fcd6af0bd6f731b121ff3efe1736e0247",
+      "canonical_digest": "5167567009311060fe1b0fc4fbe691c442ce765d19fbb897fd5bad979bd7bef6",
       "projection_digest": "c28fe7bd0a96e3b92fe5247ac11e11ca515d5df19dedcbcde2b654419662b8ac",
       "destination": "dhpk/policies/execution-policy.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-build-resolver-python-md",
+      "source": "agent-traps/build-resolver/python.md",
+      "destination": "dhpk/agent-traps/build-resolver/python.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-build-resolver-rust-md",
+      "source": "agent-traps/build-resolver/rust.md",
+      "destination": "dhpk/agent-traps/build-resolver/rust.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-build-resolver-swift-md",
+      "source": "agent-traps/build-resolver/swift.md",
+      "destination": "dhpk/agent-traps/build-resolver/swift.md"
     },
     {
       "id": "codex-supporting-agent-traps-_common-build-resolver-skeleton-md",
       "source": "codex/supporting/agent-traps/_common/build-resolver-skeleton.md",
       "canonical_source": "agent-traps/_common/build-resolver-skeleton.md",
-      "canonical_digest": "c3ba6b42fe1893d9a53edc56f5747054e225e5c9da78b8094535ad97e7afd3e1",
+      "canonical_digest": "4550c91ac66c20ca690c2fd5613508bf8e1811711b0708369bfa8b77a5c8f62c",
       "projection_digest": "21b71a73d06407fb8a561b885a07d318630f0a44c93b91ac1b90ac0ddabd4041",
       "destination": "dhpk/agent-traps/_common/build-resolver-skeleton.md"
     },
@@ -446,7 +461,7 @@
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
       "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
       "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
-      "canonical_digest": "3292f4160f3778a38d5145c860b50d87205f678821026ce44fe2b7abaa0985d9",
+      "canonical_digest": "2ab3961d9ea7001721a4ef9559381d342f9546d157a7e63e5e82e4587e7a68e1",
       "projection_digest": "ce688871d91c199c68f8395ac8a6614237dca27dc94d651dfc5c2b98a46b879c",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
@@ -2553,7 +2568,7 @@
         "codex-native"
       ],
       "usage": {
-        "display_name": "Change Verdict",
+        "display_name": "DHPK Change Verdict",
         "summary": "Review changes or audit dependencies with bounded explicit fixes",
         "syntax": "$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
         "input_kind": "mixed",

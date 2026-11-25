@@ -49,3 +49,11 @@ Use configured project instructions and the declared Python runtime floor. This 
 **Check and act:** Send query, transaction, or storage details to database-reviewer. For FastAPI security paths, load [this role's FastAPI traps](fastapi.md); hand general lifecycle quality findings to code-reviewer with [its FastAPI traps](../code-reviewer/fastapi.md). For prompt content or tool-boundary behavior, use the shared [prompt-defense guidance](../_common/prompt-defense.md).
 
 **Do not apply when:** The evidence can be resolved within the language-level path already in scope.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The allowed request passed.” | Verify the denied case at the same authorization or input-validation boundary. | Executed negative-case command, exit code, and redacted rejection evidence, or `NOT_RUN` with the gap. |

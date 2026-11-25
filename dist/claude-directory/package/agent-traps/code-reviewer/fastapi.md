@@ -49,3 +49,11 @@ Confirm the installed FastAPI, Starlette, and validation-library versions before
 **Check and act:** Preserve the endpoint, caller, and observed input/output path, then hand off security questions to security-reviewer and persistence or transaction questions to database-reviewer.
 
 **Do not apply when:** The evidence is limited to a local schema or lifecycle behavior that this review can verify.
+
+## Terminal evidence contract
+
+See [the shared terminal evidence baseline](../_common/prompt-defense.md#terminal-evidence-contract).
+
+| Common excuse | Forced rebuttal | Required terminal evidence |
+| --- | --- | --- |
+| “The change looks right on inspection.” | Trace the changed behavior to a public seam and report the verification available for that seam. | Applicable test or lint result for the reviewed diff, or `NOT_RUN` with the gap. |

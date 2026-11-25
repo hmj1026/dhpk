@@ -112,53 +112,36 @@ applicability when the caller did not explicitly request a consult.
 
 #### Planner consult scope
 
-Scope selection is an orchestrator judgment for an already requested planner
-consult. A scope named in the caller's consult brief selects `auto`, `bounded`,
-or `discovery`; it does not select the planner's critique, blind-sketch,
-dual-plan, warm-review, or
-cold-review work mode. The caller validates its own option grammar; the orchestrator chooses scope and
-does not calculate risk with a runtime engine. An enabled handoff with no mode
-uses `auto`; a disabled plan has no consult scope. Resuming the planner for
-warm review keeps its pinned high effort; when warm review must run at medium,
-dispatch it with an explicit verified profile.
+For an already requested consult, the caller validates its grammar and the
+orchestrator chooses scope independently of the planner work mode. Use the
+brief to decide, without a runtime risk score or implementation `Decision` gate.
 
-For `auto`, the orchestrator selects **bounded** only when all three conditions hold:
-the consult question and intended outcome are clear; the named sources are
-sufficient to answer it within the bounded read limit, including mandatory
-role-protocol reads; and no named Material Risk Signal applies. If any condition
-is missing, select **discovery** and state which condition is unmet. This is a
-judgment from the supplied brief, not a separate implementation `Decision`
-gate or a runtime risk engine.
+| Request and evidence | Selected scope | Budget and required handling |
+| --- | --- | --- |
+| Disabled plan | No scope | No consult |
+| Enabled handoff with no mode | `auto` | Apply the `auto` rows |
+| `auto`: clear question and outcome, sufficient named sources within four reads, and no Material Risk Signal | `bounded` | Read only named sources, including mandatory role resources. Four direct reads total and zero children |
+| `auto`: any condition missing | `discovery` | State the unmet condition. At most 12 direct reads and two read-only children |
+| Explicit `bounded` or `discovery` | Requested scope | Apply that scope's limits. For `bounded`, disclose overridden Material Risk Signals |
 
 Material Risk Signals are irreversible or external actions; security, privacy,
 authentication, or money; database, schema, or migration work; public contract,
 release, or compatibility; cross-domain, shared-state, or multi-writer work;
-and high uncertainty, unknown root cause, or failed verification. Keep these
-categories available in this policy so scope selection does not depend on an
-ADR lookup.
+and high uncertainty, unknown root cause, or failed verification. Apply
+authorization, write prerequisites, and required specialist decisions in every
+scope.
 
-An explicit `bounded` or `discovery` selection takes precedence over `auto`.
-Disclose any Material Risk Signal an explicit bounded selection overrides.
-Bounded scope does not waive authorization, an unresolved write prerequisite,
-or a required specialist decision. A bounded brief names every permitted source,
-including mandatory role-protocol resources; all such reads count toward its
-four direct-read maximum. Read only named sources and spawn no discovery child.
-If an explicit bounded brief omits a source needed to establish a necessary
-fact, report that fact as a blocker; do not search, spawn a child, or upgrade the
-scope. A later scope change requires a new explicit request. Reaching four
-reads is not itself a blocker when the necessary facts are resolved; stop only
-for a missing necessary fact or unresolved judgment.
+In bounded scope, report missing necessary facts or unresolved judgment as
+blockers. Stay within the brief's named sources until a new explicit scope
+request. Finishing four reads with the facts resolved is valid. Manual warm
+review allows four new direct reads and the selected scope's child limit. Keep
+the pinned high effort, or dispatch at medium with an explicit verified profile.
 
-Discovery retains at most twelve direct reads and two read-only discovery
-children. Warm review remains manually requested and retains its separate
-maximum of four new direct reads, with the selected scope's child limit; this
-scope policy does not restore automatic review continuation. Planner evidence reports requested and
-selected scope, selection source, reason, any overridden signals, budgets,
-observed reads/children, and blockers. The planner supplies actual use and
-blockers within the existing verdict-first, telegraphic, `END`-terminated reply;
-it does not add a `VERDICT: BLOCKED` value. Unobserved actual counts are `null`
-with `NOT_RUN` or `UNAVAILABLE`, never the budget. Static guidance and package
-checks do not establish native quality, cache-token totals, billing, or savings.
+Report requested and selected scope, selection source and reason, overrides,
+budgets, actual reads and children, and blockers. Keep the planner's existing
+verdict-first, telegraphic, `END`-terminated protocol and verdict vocabulary.
+Report unobserved counts as `null` with `NOT_RUN` or `UNAVAILABLE`. Establish
+native quality, token counts, billing, and savings through runtime evidence.
 
 ## Invocation precedence & entry selection
 
@@ -597,10 +580,13 @@ sidecar runtime.
 
 ### Reviewer trigger table
 
-The orchestrator judges which reviewer(s) apply from the diff, using this
-default trigger table (project can extend via
-`userConfig.review_trigger_extra_paths`) plus the AI-judgment back-stop below
-for a semantic match the table misses. There is no hook-armed marker file.
+Resolve the diff's recommended roles with the `change-verdict` package's
+`scripts/resolve-review-triggers.js`. Its inputs are the selected Git scope,
+active stack modules, and `userConfig.review_trigger_extra_paths`. Use the
+back-stop below for semantic additions and to identify false positives.
+In the completion report retain the raw hits, actual dispatch, omitted roles
+with reasons, and added roles with reasons. Dispatch remains advisory under
+ADR-0026.
 
 A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash command — it is a markdown-interpolation token, not a shell variable.
 
@@ -616,7 +602,7 @@ A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash 
 
 ### Reviewer dispatch (when multiple roles are triggered)
 
-Dispatch every recommended reviewer for a wave together in one parallel batch,
+Dispatch the selected reviewers for a wave together in one parallel batch,
 then merge their findings into one bounded fix-spec while retaining each
 domain's independent verdict. Do not re-review each micro-fix as its own round.
 If an applicable external review already covers a domain, attach its scope,
@@ -638,7 +624,18 @@ optional events.
 | `PreToolUse(Bash)` → `pre-bash-dispatch.sh` | blocking safety gate | enabled; preserve shell safety plus protected-branch checks |
 | `SubagentStop` → `subagent-stop-verify.sh` | liveness cleanup | enabled; clear a stopped fast-worker's active-liveness marker |
 | `SessionStart` → `session-start.sh` | module activation and dispatch delta | enabled; validate and activate configured modules, and print the fixed 4-6 line dispatch delta (Explore model/effort, sub-agent role reassignment, general-purpose model) that points to `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`; static text, no config keys |
+| `PostToolUse(Bash)` + `PostToolUseFailure(Bash)` → `validation-diagnostics.js` | opt-in advisory | enabled; track validation failures and advise on the second failure |
 | Prompt hints, precompact/postcompact handoff, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
+
+Validation diagnostics use the Claude-native PostToolUse/PostToolUseFailure
+events when available. State is stored atomically outside the project and is
+keyed by session, project, and the actual Claude `agent_id`; a successful
+validation or target change resets the scoped counter, and SubagentStop removes
+only that agent's record. The second consecutive failure emits exactly one
+advisory asking for assumptions and read-only discriminating checks. Codex,
+Cursor, and AGY hosts without equivalent lifecycle events use their runner or
+workflow fallback; unavailable capabilities are `UNAVAILABLE`, and checks not
+performed are `NOT_RUN` rather than inferred as passing.
 
 ### Review output gate
 
@@ -657,9 +654,9 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 - Structural change (new module / renamed dir / new public service or API surface) → `doc-updater` (it runs `/dhpk-lite:doc-maintain codemap` + `/dhpk-lite:doc-maintain update`).
 - Needing current / up-to-date library / framework / API docs mid-task → `docs-lookup` (Context7).
 - Cleanup beyond a single file — a file > 800 lines to split, cross-file duplicate logic, or a multi-module dead-code sweep → `refactor-cleaner` (use `/simplify` for in-place single-file work).
-- `swift build` / `xcodebuild` / SPM resolution failure → `swift-build-resolver` (swift / xcode-tooling module active).
-- `ruff` / `mypy` / `pytest-asyncio` (and `pyright` / `pytest` / `uv sync`) error appears in Bash output → `python-build-resolver` (python / fastapi / pytest module active).
-- `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
+- `swift build` / `xcodebuild` / SPM resolution failure → `build-resolver` (swift / xcode-tooling module active).
+- `ruff` / `mypy` / `pytest-asyncio` (and `pyright` / `pytest` / `uv sync`) error appears in Bash output → `build-resolver` (python / fastapi / pytest module active).
+- `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `build-resolver` (Cargo remains eligible without a Rust module).
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
 
 ## Edit tool discipline
