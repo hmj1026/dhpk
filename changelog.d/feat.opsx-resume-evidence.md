@@ -1,2 +1,2 @@
-Add resumable verification evidence to OpenSpec apply handoffs, preserving
-failed and unavailable checks with an explicit next action.
+scope: opsx-apply-resume
+note: Preserve failed or unavailable verification in resumable handoffs together with the next action.

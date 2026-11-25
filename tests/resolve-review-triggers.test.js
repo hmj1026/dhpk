@@ -60,4 +60,9 @@ test('review triggers resolve exactly the requested Git scope and configuration'
     pluginConfigs: { 'dhpk@dhpk': { options: { review_trigger_extra_paths: ['db:src/'] } } },
   }));
   assert.equal(resolve(...unstagedArgs).stdout, '["database-reviewer","frontend-reviewer"]\n');
+
+  git('reset', '-q');
+  write('.claude/agents/example.md');
+  git('add', '.claude/agents/example.md');
+  assert.equal(resolve('--staged').stdout, '["doc-reviewer"]\n');
 });

@@ -16,14 +16,14 @@ const roles = {
   polyfill: 'polyfill-reviewer',
 };
 const moduleSlots = { ...roles, frontend: roles.fe, migration: roles.mig };
-const reviewDocs = /^(?:docs|openspec|\.codex\/(?:agents|rules|skills|commands|manifests|hooks|scripts))\//;
+const reviewDocs = /^(?:docs|openspec|\.(?:claude|codex)\/(?:agents|rules|skills|commands|manifests|hooks|scripts))\//;
 const builtin = {
   code: (file) => /(?:\.(?:php|js)$|(?:^|\/)CLAUDE\.md$)/.test(file),
   db: (file) => /(?:\.sql$|(?:^|\/)(?:repositories|repository|models?|migrations?)(?:\/|\.)|(?:Repository|Model|Migration)\.[^/]+$)/i.test(file),
   sec: (file) => !/\.(?:md|txt|lock)$/i.test(file)
     && /(?:^|\/)(?:controllers?|configs?)(?:\/|\.)|(?:Controller|Auth|Login|Acl|Upload|File)[^/]*\.[^/]+$/i.test(file),
   doc: (file) => /(?:^|\/)(?:CLAUDE|AGENTS)\.md$|^README[^/]*\.md$/.test(file)
-    || (/\.(?:md|json|ya?ml)$/.test(file) && reviewDocs.test(file) && !/\.sh$/.test(file)),
+    || (/\.(?:md|json|ya?ml)$/.test(file) && reviewDocs.test(file)),
 };
 
 function git(cwd, ...args) {
