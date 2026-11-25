@@ -202,7 +202,9 @@ test('an actual owned recovery command checks the observation and clears the mat
     diagnostics.processEvent(payload({
       cwd, tool_input: { command: 'npm run lint' },
     }), base);
-    diagnostics.processEvent(payload({ cwd, hook_event_name: 'PostToolUse' }), base);
+    diagnostics.processEvent(payload({
+      cwd, hook_event_name: 'PostToolUse', tool_input: { command: 'npm run lint' },
+    }), base);
     assert.strictEqual(diagnostics.processEvent(edit(cwd), base).record.latch.target, 'npm:test');
 
     const script = path.join(__dirname, '..', 'scripts/hooks/validation-diagnostics.js');
@@ -387,6 +389,24 @@ test('a lock orphaned by a dead or ownerless hook is reclaimed while a live one 
     assert.ok(fs.existsSync(lock), 'a live owner keeps its lock');
   } finally {
     fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('only a pass of the paused target resumes editing, even after the stop condition', () => {
+  for (const failures of [2, 3]) {
+    const stateDir = fixtureDir();
+    const base = { stateDir, mode: 'block' };
+    const passed = (command) => diagnostics.processEvent(payload({
+      hook_event_name: 'PostToolUse', error: undefined, tool_input: { command }, tool_response: { exit_code: 0 },
+    }), base);
+    for (let count = 0; count < failures; count += 1) diagnostics.processEvent(payload(), base);
+    assert.strictEqual(diagnostics.processEvent(edit(process.cwd()), base).record.latch.stopped, failures === 3);
+    passed('npm run lint');
+    passed('git status --short');
+    assert.ok(diagnostics.processEvent(edit(process.cwd()), base).message, `another pass must not resume after ${failures}`);
+    assert.strictEqual(passed('npm test').record.failures, 0);
+    assert.strictEqual(diagnostics.processEvent(edit(process.cwd()), base).message, null);
+    assert.strictEqual(diagnostics.processEvent(payload(), base).message, null, 'the next failure counts from one');
   }
 });
 
