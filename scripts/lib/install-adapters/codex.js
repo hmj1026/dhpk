@@ -2047,6 +2047,92 @@ function createInstaller(env, io) {
   let RUN_ENTRIES = null;
   let RUN_RECEIPT = null;
   let RUN_ORPHANED = null;
+  // A source checkout may already expose the review skill through the
+  // compatibility projection under .agents/skills.  Once that projection is
+  // independently proved, do not recreate a second physical Codex copy.
+  let COMPATIBILITY_REVIEW_SKILL_PROVED = false;
+
+  function retireCompatibilityReviewSkill(run) {
+    if (!relocatableProjectOverlapsSource() || UNINSTALL || sharedProjectionHost() !== 'codex' || ADOPT_PATHS.length) return;
+    for (const relative of ['.agents', '.agents/skills']) {
+      const ancestor = path.join(PROJECT_ROOT, relative);
+      try {
+        const stat = fs.lstatSync(ancestor);
+        if (!stat.isDirectory() || stat.isSymbolicLink()) return;
+      } catch (_) {
+        return;
+      }
+    }
+    const projectionPath = path.join(PROJECT_ROOT, '.agents', 'skills', '.dhpk-projection.json');
+    const compatibilitySkill = path.join(PROJECT_ROOT, '.agents', 'skills', 'change-verdict');
+    if (!isFileFollow(projectionPath) || isLink(projectionPath)
+      || !isDirFollow(compatibilitySkill) || isLink(compatibilitySkill)) return;
+    let projection;
+    try {
+      projection = loadJsonFile(projectionPath);
+    } catch (_) {
+      return;
+    }
+    if (!isDict(projection) || projection.schema !== 'dhpk.agents-skills-projection.v1'
+      || projection.fingerprint_algorithm !== TREE_FINGERPRINT_ALGORITHM
+      || !Array.isArray(projection.managedPaths) || !Array.isArray(projection.entries)) return;
+    const row = projection.entries.find((entry) => isDict(entry) && entry.id === 'change-verdict' && entry.source === 'skills/change-verdict');
+    if (!isDict(row) || row.name !== 'change-verdict' || !Array.isArray(projection.selectedIds)
+      || !projection.selectedIds.includes('change-verdict') || !isStr(row.sourceFingerprint) || !row.sourceFingerprint) return;
+    const source = path.join(PLUGIN_ROOT, 'skills', 'change-verdict');
+    if (!isDirFollow(source) || fingerprintSource(source) !== row.sourceFingerprint || containsSymlink(compatibilitySkill)) return;
+    // The compatibility projection applies portable metadata transforms, so
+    // its tree digest is intentionally different from the canonical source.
+    // Prove its bytes from the projection's generated-fingerprints ledger.
+    const generated = isDict(projection.generatedFingerprints) ? projection.generatedFingerprints : null;
+    const expected = generated
+      ? Object.entries(generated).filter(([relative]) => relative.startsWith('change-verdict/')
+        && projection.managedPaths.includes(relative))
+      : [];
+    if (!expected.some(([relative]) => relative === 'change-verdict/SKILL.md')) return;
+    const observed = [];
+    const visit = (current, relative) => {
+      for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+        const child = path.join(current, entry.name);
+        const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) {
+          if (visit(child, childRelative) === false) return false;
+        } else if (entry.isFile()) observed.push([childRelative, crypto.createHash('sha256').update(fs.readFileSync(child)).digest('hex')]);
+        else return false;
+      }
+      return true;
+    };
+    if (visit(compatibilitySkill, 'change-verdict') === false) return;
+    const expectedMap = new Map(expected);
+    if (observed.length !== expected.length || observed.some(([relative, digest]) => expectedMap.get(relative) !== digest)) return;
+
+    COMPATIBILITY_REVIEW_SKILL_PROVED = true;
+    const relative = 'skills/change-verdict';
+    const destination = targetFor(relative);
+    if (!lexists(destination)) return;
+    const old = Object.prototype.hasOwnProperty.call(run.entries.skills, 'change-verdict')
+      ? run.entries.skills['change-verdict'] : null;
+    const destinationFingerprint = safeDestinationFingerprint(destination);
+    if (!isOwned(old, destination, destinationFingerprint)) {
+      if (!run.collisions.includes(relative)) {
+        run.collisions.push(relative);
+        run.counts.skipped_collision += 1;
+        run.counts.preserved += 1;
+        recordPath('collisions', relative);
+        recordOwnership(relative, 'compatibility-review-conflict');
+      }
+      return;
+    }
+    if (!backupDestination(relative, destination, 'retire-compatibility-review')) {
+      throw new OSError(`cannot create rollback backup for managed destination: ${relative}`);
+    }
+    run.counts.backed_up += 1;
+    removeRelativePath(relative, destinationFingerprint);
+    delete run.entries.skills['change-verdict'];
+    run.counts.retired += 1;
+    recordPath('retired', relative);
+    recordOwnership(relative, 'retired-compatibility-review');
+  }
 
   function nativeSkillReceiptEntry(name) {
     const skills = isDict(RUN_ENTRIES) ? RUN_ENTRIES.skills : null;
@@ -3864,6 +3950,7 @@ function createInstaller(env, io) {
     const metadataFor = (kind, name) => (kind === 'skills' ? skillMetadata[name] || null : null);
     for (const kind of MANAGED_KINDS) {
       for (const [name, [source, relative]] of Object.entries(sources[kind])) {
+        if (COMPATIBILITY_REVIEW_SKILL_PROVED && kind === 'skills' && name === 'change-verdict') continue;
         const destination = guarded(() => targetFor(relative));
         const old = Object.prototype.hasOwnProperty.call(entries[kind], name) ? entries[kind][name] : null;
         if (ADOPT_PATHS.length && !Object.prototype.hasOwnProperty.call(adoptPaths, relative)) {
@@ -4004,6 +4091,7 @@ function createInstaller(env, io) {
     if ((UPDATE || MIGRATE) && !ADOPT_PATHS.length) migrateLegacySkillNames(run);
     if (UPDATE) pruneRemovedSources(run);
     if (UPDATE && !ADOPT_PATHS.length) preserveUnownedRetirements(run);
+    guarded(() => retireCompatibilityReviewSkill(run));
     if (sharedProjectionAvailable() && !UNINSTALL) {
       guarded(() => {
         handoverAdoptedLegacyNativeSkills(run.inventory, adoptPaths, counts);
