@@ -25,6 +25,15 @@ subagent's external atomic state, and emits one advisory on the second failure.
 Other Hosts use an equivalent runner/workflow fallback when available; record
 missing capabilities as `UNAVAILABLE` and skipped checks as `NOT_RUN`.
 
+Projects may opt into `validation_failure_mode:block`. In that mode, two
+correlated failures pause Edit/Write/MultiEdit while read-only diagnostics stay
+available. Follow the hook's recovery command with the original target,
+premise, observed configuration value, proposed change, and rerun plan. The
+hook verifies the observation in the reported project configuration before
+resuming the blocked editor. Escalate if the diagnosis has no direction or
+the existing stop conditions apply. Hosts without a registered blocking
+event use the advisory workflow and report hard gating as `UNAVAILABLE`.
+
 ## Invocation boundary
 
 Accept one task input and no execution-selection options. If a user supplies a retired Flow Drive role, backend, Provider, planning, or architecture option as invocation syntax, reject it before any dependent edits, explain that it is unsupported here, and point to [the migration guide](references/migration.md). Ask for one task-only input or a separate help invocation. Do not silently reinterpret a retired option as task text.

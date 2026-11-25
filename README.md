@@ -103,7 +103,7 @@ Reconfigure any time with `/dhpk:harness-setup` (or `/dhpk:harness-setup --show`
 | Slash entries | Skills invoked as `/dhpk:<skill-name>`; no `commands/` directory. | `/dhpk:precommit`, `/dhpk:harness-setup`, `/dhpk:change-verdict pending`, `/dhpk:git-smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:ui-ux-verify`, etc. |
 | Canonical skills | Inventory-owned packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract; portable families provide consolidated interfaces. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
-| Hooks | 3 events | PreToolUse (Edit guard and combined Bash safety/Git branch-safety gate), SessionStart (module activation), SubagentStop (fast-worker liveness cleanup) |
+| Hooks | 5 events | PreToolUse (edit safety and combined Bash safety/Git branch-safety gate), PostToolUse/PostToolUseFailure (validation diagnostics), SessionStart (module activation), SubagentStop (fast-worker liveness cleanup) |
 | Hook dispatchers | 1 | `pre-bash-dispatch.sh` combines deterministic shell and Git branch-safety gates |
 | Harness scripts | Repository-owned scripts | precommit-runner, verify-runner, codemap generator, dep-audit |
 | Codex distribution | Inventory-owned project and native surfaces | Project sync uses receipt-owned projections; the [distribution surfaces guide](./docs/distribution-surfaces.md) and [platform installation SSOT](./docs/platform-installation.md) document native packages and Host helpers. |

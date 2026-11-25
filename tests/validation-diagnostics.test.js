@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const diagnostics = require('../scripts/hooks/validation-diagnostics');
@@ -114,6 +115,96 @@ test('interrupted or missing-session failures are ignored', () => {
   diagnostics.processEvent(payload(), { stateDir });
   assert.strictEqual(diagnostics.processEvent(payload({ error: 'Could not start process' }), { stateDir }).record.ignored, true);
   assert.strictEqual(diagnostics.processEvent(payload(), { stateDir }).record.failures, 2);
+});
+
+function edit(cwd) {
+  return payload({ hook_event_name: 'PreToolUse', tool_name: 'Edit', cwd });
+}
+
+test('project block mode pauses editing while default advisory does not', () => {
+  const stateDir = fixtureDir();
+  const cwd = fixtureDir();
+  try {
+    const fixture = payload({ cwd });
+    diagnostics.processEvent(fixture, { stateDir });
+    diagnostics.processEvent(fixture, { stateDir });
+    assert.strictEqual(diagnostics.processEvent(edit(cwd), { stateDir }).message, null);
+
+    fs.mkdirSync(path.join(cwd, '.claude'));
+    fs.writeFileSync(path.join(cwd, '.claude/settings.local.json'), JSON.stringify({
+      pluginConfigs: { 'dhpk@dhpk': { options: { validation_failure_mode: 'block' } } },
+    }));
+    diagnostics.processEvent(fixture, { stateDir });
+    const read = diagnostics.processEvent(payload({
+      hook_event_name: 'PreToolUse', tool_name: 'Read', cwd,
+    }), { stateDir });
+    assert.strictEqual(read.message, null);
+    assert.strictEqual(diagnostics.processEvent(edit(cwd), { stateDir })
+      .message.hookSpecificOutput.permissionDecision, 'deny');
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test('an actual owned recovery command checks the observation and clears the matching latch', () => {
+  const stateDir = fixtureDir();
+  const cwd = fixtureDir();
+  try {
+    const base = { stateDir, mode: 'block' };
+    const failed = payload({ cwd });
+    diagnostics.processEvent(failed, base);
+    diagnostics.processEvent(payload({ cwd, error: 'Exit code 1\nsecond case' }), base);
+    diagnostics.processEvent(payload({
+      cwd, hook_event_name: 'PostToolUse', tool_input: { command: 'git status --short' },
+    }), base);
+    diagnostics.processEvent(payload({
+      cwd, tool_input: { command: 'npm run lint' },
+    }), base);
+    diagnostics.processEvent(payload({ cwd, hook_event_name: 'PostToolUse' }), base);
+    assert.strictEqual(diagnostics.processEvent(edit(cwd), base).record.latch.target, 'npm:test');
+
+    const script = path.join(__dirname, '..', 'scripts/hooks/validation-diagnostics.js');
+    const args = {
+      target: 'npm:test', premise: 'The runner selects the wrong config', file: 'package.json',
+      observation: 'jest --config jest.old.config.js', proposed_change: 'Use the current config',
+      rerun_plan: 'npm test',
+    };
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ scripts: { test: args.observation } }));
+    const bad = spawnSync(process.execPath, [script, 'recover', JSON.stringify({ ...args, observation: 'unobserved' })], { cwd });
+    assert.notStrictEqual(bad.status, 0);
+    const raw = JSON.stringify(args);
+    const recovered = spawnSync(process.execPath, [script, 'recover', raw], { cwd, encoding: 'utf8' });
+    assert.strictEqual(recovered.status, 0, recovered.stderr);
+    const event = payload({
+      cwd, hook_event_name: 'PostToolUse',
+      tool_input: { command: "node '" + script + "' recover '" + raw + "'" },
+      tool_response: { stdout: recovered.stdout, exit_code: 0 },
+    });
+    diagnostics.processEvent({ ...event, tool_response: { stdout: '{}' } }, base);
+    assert.ok(diagnostics.processEvent(edit(cwd), base).message);
+    const result = diagnostics.processEvent(event, base);
+    assert.strictEqual(result.record.recoveryEvidence.target, 'npm:test');
+    assert.strictEqual(diagnostics.processEvent(edit(cwd), base).message, null);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test('three identical failures require escalation, including after a target switch', () => {
+  const stateDir = fixtureDir();
+  try {
+    const base = { stateDir, mode: 'block' };
+    diagnostics.processEvent(payload(), base);
+    diagnostics.processEvent(payload(), base);
+    const stopped = diagnostics.processEvent(payload(), base);
+    assert.strictEqual(stopped.record.latch.stopped, true);
+    diagnostics.processEvent(payload({ tool_input: { command: 'npm run lint' } }), base);
+    assert.strictEqual(diagnostics.processEvent(edit(process.cwd()), base).record.latch.stopped, true);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
 });
 
 run('validation-diagnostics');

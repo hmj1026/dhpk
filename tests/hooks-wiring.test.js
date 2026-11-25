@@ -61,11 +61,16 @@ test('PostToolUse and PostToolUseFailure wire the validation diagnostics seam', 
   }
 });
 
-test('Edit|Write|MultiEdit wires only the protected-path guard', () => {
+test('Edit|Write|MultiEdit wires diagnostics before the protected-path guard', () => {
   const parsed = JSON.parse(raw);
   const edit = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Edit|Write|MultiEdit');
   assert.ok(edit, 'missing edit PreToolUse entry');
   assert.deepStrictEqual(edit.hooks, [{
+    type: 'command',
+    command: 'node',
+    args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/validation-diagnostics.js'],
+    onFailure: 'block',
+  }, {
     type: 'command',
     command: 'bash',
     args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh'],

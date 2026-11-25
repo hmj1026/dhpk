@@ -5,7 +5,7 @@
 dhpk registers a deliberately small default lifecycle. The complete default
 mapping is [`hooks/hooks.json`](../hooks/hooks.json). The machine-readable
 default event manifest is [`hooks/default-events.json`](../hooks/default-events.json):
-the three event groups listed there are wired by default. Events listed under
+the five event groups listed there are wired by default. Events listed under
 `optionalEvents` remain source assets until a consumer explicitly registers
 them; optional events are not registered by default and are not silently active.
 
@@ -13,6 +13,8 @@ them; optional events are not registered by default and are not silently active.
 |---|---|---|
 | `PreToolUse(Edit\|Write\|MultiEdit)` | `pre-edit-guard.sh` | protected-path and secret safety |
 | `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety plus Git branch-safety gates |
+| `PostToolUse(Bash)` | `validation-diagnostics.js` | record validation passes and correlated successful read-only recovery evidence |
+| `PostToolUseFailure(Bash)` | `validation-diagnostics.js` | latch repeated validation failures; advisory by default, optionally edit-blocking |
 | `SessionStart` | `session-start.sh` | validate and activate configured modules; print a fixed dispatch delta (at most 6 lines) |
 | `SubagentStop` | `subagent-stop-verify.sh` | clean up stopped fast-worker liveness state; append each subagent's model (last transcript assistant model) and effort (hook-input value, may be session-level) to `.claude/artifacts/sessions/subagent-dispatch.jsonl` with no output |
 
