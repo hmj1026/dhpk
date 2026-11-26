@@ -62,8 +62,10 @@ def protected(detail=''):
     return Verdict(PROTECTED, detail, DEFAULT_HINT)
 
 
-def unsupported(syntax, detail=''):
+def unsupported(syntax, detail='', recovery=None):
     """`syntax` is the Reader's exclusion syntax, or None when it cannot recurse."""
+    if recovery is not None:
+        return Verdict(UNSUPPORTED, detail, recovery)
     parts = ['rewrite with supported options and explicit non-protected files']
     if syntax:
         parts.append('for a recursive search, ' + _exclusion_clause(syntax))

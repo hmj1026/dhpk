@@ -19,7 +19,7 @@ INERT_HEADS = frozenset(('which', 'whereis', 'type', 'man', 'apt', 'apt-get', 'd
 EXCLUSION_SYNTAX = {'rg': '--glob "!pattern"', 'grep': '--exclude="pattern"', 'tar': '--exclude="pattern"'}
 
 AuxiliaryInput = namedtuple('AuxiliaryInput', 'value token')
-UnsupportedSyntax = namedtuple('UnsupportedSyntax', 'detail')
+UnsupportedSyntax = namedtuple('UnsupportedSyntax', 'detail recovery', defaults=(None,))
 
 
 @dataclass(frozen=True)

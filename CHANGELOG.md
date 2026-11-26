@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.83.0 — 2026-11-26 — Bash guard, CLI, and release verification improvements
+
+- **feat(bash-guard)** — Document safe read-only Bash forms, improve credential guard recovery hints, and allow non-content git diff --pathspec-from-file.
+- **fix(hooks)** — Guard empty array expansions under set -u in command-inspect helpers for Bash 3.2 compatibility.
+- **fix(hooks)** — Move heredocs out of command substitutions for Bash 3.2 compatibility and enforce in check-portability.
+- **fix(cli)** — Handle --help, -h, and zero arguments with usage output and exit 0 in dhpk install and dhpk distribution.
+- **fix(release-probe)** — Validate codex-native packages with verifyNativePackage and per-skill checksums in consumer-platform-probe.
+
 ## 0.82.0 — 2026-11-26 — Directory Plugin script-pointer cleanup, release PR notes, and Bash guard fixes
 
 - **feat(release-creator)** — Write the promoted changelog section into the release PR body at creation, so the body needs no later edit that restarts CI.
