@@ -3,13 +3,18 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseRequest, execute } = require('./lib/dhpk-install-lifecycle');
+const { parseRequest, helpFor, execute } = require('./lib/dhpk-install-lifecycle');
 
 const root = path.resolve(__dirname, '..');
-const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
-const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'install-profiles.json'), 'utf8'));
-const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'module-catalog.json'), 'utf8'));
-const plugin = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8'));
+
+function loadManifests() {
+  return {
+    inventory: JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8')),
+    profiles: JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'install-profiles.json'), 'utf8')),
+    moduleCatalog: JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'module-catalog.json'), 'utf8')),
+    plugin: JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8')),
+  };
+}
 
 const argv = process.argv.slice(2);
 if (argv.includes('--recover')) {
@@ -20,6 +25,11 @@ if (argv.includes('--recover')) {
   } catch (error) {
     process.stderr.write(`dhpk-install: ${error.message}\n`);
     process.exitCode = 64;
+    return;
+  }
+  if (options.help) {
+    process.stdout.write(helpFor({ recover: true }));
+    process.exitCode = 0;
     return;
   }
   try {
@@ -81,6 +91,11 @@ function hostWrite(request, host) {
 
 try {
   const request = parseRequest(argv);
+  if (request.help) {
+    process.stdout.write(helpFor(request));
+    process.exitCode = 0;
+    return;
+  }
   const writeHost = WRITE_HOSTS[request.surface];
   if (writeHost && request.scope === 'project' && ['install', 'update', 'uninstall'].includes(request.action)) {
     const result = hostWrite(request, writeHost);
@@ -96,6 +111,7 @@ try {
     process.exitCode = result.lifecycle.verdict === 'BLOCKED' ? 2 : 0;
     return;
   }
+  const { inventory, profiles, moduleCatalog, plugin } = loadManifests();
   const result = execute(request, inventory, { profiles, moduleCatalog, sourceVersion: plugin.version });
   if (request.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   else process.stdout.write(`${result.lifecycle.verdict}: ${request.surface} ${request.action}\n`);
