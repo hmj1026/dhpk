@@ -12,14 +12,14 @@ asset bytes are needed. Require these resources:
 
 - `data/module-catalog.json` — stack, version, review-slot, and hook
   profile source of truth.
-- `references/manual-procedure.md (install-assets.sh)` — Skill-local deterministic asset adapter.
+- `install-assets.sh` (not shipped in the Directory Plugin) — Skill-local deterministic asset adapter.
 - `templates/settings.local.example.json` — settings shape guidance.
 
 A missing local resource is `BLOCKED_RESOURCE_MISSING`. Do not search a
 plugin cache, consumer `.claude`, parent checkout, or a remote URL to replace
 it. The maintained writer is read only as artifact data at
-<source-artifact>/references/manual-procedure.md (install-assets.sh); synchronization places its
-bytes at references/manual-procedure.md (install-assets-writer.sh.)
+<source-artifact>/install-assets.sh; synchronization places its
+bytes at install-assets-writer.sh.
 
 ## Root and existing state
 
@@ -51,12 +51,7 @@ For `--install hooks|rules|scripts|all`, require an explicit
 `--source-artifact <distribution-root>`, then run the Skill-local adapter before
 any configuration question and stop:
 
-```bash
-bash references/manual-procedure.md (install-assets.sh) \
-  --source-artifact <distribution-root> \
-  --target <project-root>/.claude/dhpk \
-  --install <hooks|rules|scripts|all> [--dry-run] [--force] [--vendor]
-```
+> Not shipped in the Directory Plugin: `install-assets.sh`. Follow the matching stage in [the Manual Procedure](manual-procedure.md) and report `mode: manual`.
 
 `--install rules` (and the `rules` part of `--install all`) writes
 `<project-root>/.claude/rules/dhpk-overrides.md`, a project-delta stub that

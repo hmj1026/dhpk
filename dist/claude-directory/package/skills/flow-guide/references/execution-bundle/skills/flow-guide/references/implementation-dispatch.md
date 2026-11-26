@@ -113,9 +113,9 @@ shared `retry_budget`. Every fallback consumes one unit, switching providers
 does not reset it, and unavailable candidates are not probed again. The
 handoff retains the original role, assigned scope, read/write authority,
 model/effort contract, and reviewer contract. The pure decision seam is
-`decideFallback` in `references/manual-procedure.md (dispatch-engine.js)`; it is not a coordinator. Partial
+`decideFallback` in `dispatch-engine.js` (not shipped in the Directory Plugin); it is not a coordinator. Partial
 writer reconciliation is isolated in
-`references/manual-procedure.md (partial-writer-handoff.js)`.
+`partial-writer-handoff.js` (not shipped in the Directory Plugin).
 
 ## Parallel dispatch contract
 
@@ -266,7 +266,7 @@ Before dependent verification starts, require the writer's `RESULT: DONE` and
 an exact receipt for every assigned file. Run the downstream command through
 the shared verification handoff gate documented at
 `${POLICY_BUNDLE_ROOT}/docs/agent-guidance/verification-handoff.md` and
-implemented at `references/manual-procedure.md (verify-handoff.js)`.
+implemented at `verify-handoff.js` (not shipped in the Directory Plugin).
 It rejects a stale receipt before launch and any assigned-file snapshot change
 after the command completes. A post-check mismatch is not a verification PASS;
 obtain fresh writer completion evidence and a new receipt before retrying. The

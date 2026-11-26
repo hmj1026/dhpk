@@ -3,14 +3,12 @@
 1. Parse `[--fast] [--dry-run]`. With `--fast`, set `mode=fast`; with no option, set
    `mode=full`. An unknown option is a terminal usage failure.
 2. Resolve `$SKILL_DIR` to the installed directory containing this `SKILL.md`,
-   not the consumer repository. Resolve the adjacent `references/manual-procedure.md (runner-utils.js)`
+   not the consumer repository. Resolve the adjacent `runner-utils.js` (not shipped in the Directory Plugin)
    from the same Skill directory. A setup installation resolves the runner as
-   `references/manual-procedure.md (precommit-runner.js)`. Keep the
+   `precommit-runner.js` (not shipped in the Directory Plugin). Keep the
    consumer's current working directory unchanged and run:
 
-   ```bash
-   node "references/manual-procedure.md (precommit-runner.js)" --mode <fast|full> --tail 80
-   ```
+   > Not shipped in the Directory Plugin: `precommit-runner.js`. Follow the matching stage in [the Manual Procedure](manual-procedure.md) and report `mode: manual`.
 
    Append `--dry-run` when requested. Preview performs read-only repository
    discovery, validates configuration, and lists ordered commands with their

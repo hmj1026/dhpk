@@ -15,8 +15,7 @@ Directory Plugin) or cannot execute.
   `NOT_RUN` and MUST NEVER yield an overall `PASS`.
 - Every report produced by following this document MUST state `mode: manual`.
 - Choose exactly one action: `help`, `route`, `rules`, `next`, or `close`. The
-  first token is the action; a `/dhpk-lite:flow-guide<action>` prefix (for example
-  `/dhpk-lite:flow-guideroute`) supplies the action, and with a bare `/dhpk-lite:flow-guide` the next
+  first token is the action; after `/dhpk-lite:flow-guide` the next
   token is the action. No action, or an unknown action, is `BLOCKED`. A later
   action name is `BLOCKED` only when every other positional (non-`-`) token is
   also an action name; otherwise the remaining tokens are query text (`route fix

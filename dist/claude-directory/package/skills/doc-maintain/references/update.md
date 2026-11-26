@@ -60,7 +60,7 @@ and use the available local owner; never invent a replacement path.
 | Fact | Preferred owner |
 | --- | --- |
 | Public names, surfaces, counts | `$PROJECT_DIR/manifests/distribution-inventory.json` |
-| Route matching and invocation class | `$PROJECT_DIR/skills/flow-guide/route-table.json` and `packaged-route-result.js` |
+| Route matching and invocation class | `$PROJECT_DIR/skills/flow-guide/route-table.json` and `route-result.js` (not shipped in the Directory Plugin) |
 | Effective configuration | `$PROJECT_DIR/docs/configuration.md` and its Traditional Chinese pair |
 | Install, update, migration, rollback | `$PROJECT_DIR/docs/platform-installation.md` and `$PROJECT_DIR/docs/skill-platform-migration.md` |
 | Runtime workflow, receipts, gate outcomes | `$PROJECT_DIR/docs/harness-workflow.md` and owning harness scripts |

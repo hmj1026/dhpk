@@ -40,6 +40,10 @@ function validDirectoryFiles(overrides = {}) {
       'Install the Full Plugin from the Repository Marketplace with /plugin marketplace add hmj1026/dhpk',
       'and /plugin install dhpk@dhpk.',
       '',
+      '## What `dhpk-lite` runs and sends',
+      '',
+      'Claude runs local git, gh, and project commands only on request. No data goes elsewhere.',
+      '',
     ].join('\n'),
     'skill-next-map.json': JSON.stringify({
       schema: 'dhpk.skill-next-map.v1',
@@ -284,6 +288,55 @@ test('kept-skill text naming a removed scripts/ path fails validation with remov
     assert.strictEqual(res.ok, false);
     assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/SKILL.md' && e.rule === 'removed-script-reference' && e.message.includes('scripts/risk-analyze.js')), JSON.stringify(res.errors));
     assert.ok(res.errors.some((e) => e.file === 'skills/code-trace/SKILL.md' && e.rule === 'removed-script-reference' && e.message.includes('scripts/verify-runner.js')), JSON.stringify(res.errors));
+  });
+});
+
+test('a command or pointer to an unshipped script fails with unshipped-script-command', () => {
+  const body = [
+    '---',
+    'name: code-trace',
+    'description: "Trace"',
+    '---',
+    'bash "references/manual-procedure.md (release-runner.sh)" prepare',
+    '',
+    '```bash',
+    'node "packaged-verify-runner.js" $ARGUMENTS',
+    'python3 "$SCRIPTS/prepare_dev_scope.py"',
+    '```',
+    '',
+  ].join('\n');
+  withDir({ 'skills/code-trace/SKILL.md': body }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.strictEqual(res.ok, false);
+    const hits = res.errors.filter((e) => e.file === 'skills/code-trace/SKILL.md' && e.rule === 'unshipped-script-command');
+    for (const target of ['references/manual-procedure.md (release-runner.sh)', 'packaged-verify-runner.js', '$SCRIPTS/prepare_dev_scope.py']) {
+      assert.ok(hits.some((e) => e.target === target), `${target}: ${JSON.stringify(res.errors)}`);
+    }
+  });
+});
+
+test('a script name in prose and a not-shipped note pass the unshipped-script-command rule', () => {
+  const body = [
+    '---',
+    'name: code-trace',
+    'description: "Trace"',
+    '---',
+    'If `release-runner.sh` is absent, use the fallback.',
+    'See references/manual-procedure.md (Stage 2) for detail.',
+    '> Not shipped in the Directory Plugin: `verify-runner.js`. Report this step as `NOT_RUN` and use the documented fallback.',
+    '',
+  ].join('\n');
+  withDir({ 'skills/code-trace/SKILL.md': body }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.strictEqual(res.ok, true, JSON.stringify(res.errors));
+  });
+});
+
+test('README without the runs-and-sends disclosure fails readme-contract', () => {
+  const readme = validDirectoryFiles()['README.md'].replace(/## What `dhpk-lite` runs and sends[\s\S]*$/, '');
+  withDir({ 'README.md': readme }, (dir) => {
+    const res = validateDirectoryPlugin(dir, { version: PKG_VERSION });
+    assert.ok(res.errors.some((e) => e.rule === 'readme-contract' && e.message.includes('runs and sends')), JSON.stringify(res.errors));
   });
 });
 

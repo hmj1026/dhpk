@@ -24,7 +24,7 @@ commit, publication, or gate change.
    This skill adds no unrestricted shell or package-manager wildcard grant;
    a pattern that also accepts `--fix` or a fix subcommand is insufficient.
    Without a usable read-only audit capability, return `UNAVAILABLE`.
-4. Prefer `packaged-dep-audit.sh` when present. This is
+4. Prefer `dep-audit.sh` (not shipped in the Directory Plugin) when present. This is
    an explicit consumer input, not a bundled resource. Inspect its argument
    and write behavior first; invoke its read-only audit operation from the
    consumer root with the severity arguments and **without `--fix`**. If its

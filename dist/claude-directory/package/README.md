@@ -26,6 +26,18 @@ Keep only one active in a workspace.
 - **Omitted external CLI agents**: `codex-worker`, `codex-reasoner`, and `agy-worker`.
 - **Reduced frontmatter**: skills keep only `name` and `description` (routing data is packaged in `skill-next-map.json`), and agents keep only `name`, `description`, `model`, `color`, and `tools`. Skills lose `disable-model-invocation`, `argument-hint`, and `allowed-tools` (user-only skills carry explicit-request guards).
 
+## What `dhpk-lite` runs and sends
+
+`dhpk-lite` ships no code. Claude runs each command below through its normal Bash tool and permission prompts, in your project and only when a skill needs it:
+
+- **Local Git and project commands**: read-only `git` queries, `git add` and `git commit` after you confirm, and your project's own lint, build, test, and validation commands.
+- **GitHub through `git` and `gh`**: `release-creator` runs `git push`, `gh pr create`, `git tag` with a tag push, and `gh run watch`; `create-pr` opens pull requests; `proposal-analyze` reads issues with `gh issue view`. Each write runs only on your explicit request and stops for your confirmation first.
+- **Your project's own endpoints**: `repo-verify` feature verification can send read-only `curl` requests to health and API endpoints that your project lists, and skips that step when no endpoint list exists.
+- **Your project's release gate**: `release-creator` runs the publish or package gate script that your project names, by default under `scripts/release/` or through `DHPK_RELEASE_PUBLISH_GATE_SCRIPT` or `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`.
+- **Your memory tool (optional)**: `opsx-apply-resume` can save one handoff observation to a memory tool that is already connected to your session. It skips this step when no memory tool is available.
+
+The skills name no other destination: they reach only your Git remote, GitHub through your own `gh` login, your project's endpoints, and a memory tool that you connected.
+
 ## Install the Full Plugin (`dhpk`) and `dhpk-stacks`
 
 If you want command hooks, local safety gates, scripted runners, or stack modules (`dhpk-stacks`),

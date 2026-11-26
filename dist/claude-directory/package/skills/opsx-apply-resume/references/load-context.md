@@ -42,7 +42,7 @@ Stop at the first usable source; lower tiers remain unread.
 2. **Compact JSON.** Prefer the explicit handoff `compact_json_path`.
    Otherwise select the newest `compact-notes/compact-*.json` inside the
    declared live worktree, recording heuristic discovery. Resolve the
-   extractor only as `"references/manual-procedure.md (extract-compact.sh)"`; its absence or
+   extractor only as `extract-compact.sh` (not shipped in the Directory Plugin); its absence or
    non-executable mode records `BLOCKED_RESOURCE_MISSING`, not a service
    failure. Preserve that diagnostic and continue to the embedded handoff;
    never borrow an ambient extractor. This recovery does not pass package

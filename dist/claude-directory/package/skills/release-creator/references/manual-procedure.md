@@ -1,6 +1,6 @@
 # Release Creator — Manual Procedure
 
-Use this fallback when `packaged-release-runner.sh` is absent (such as in the
+Use this fallback when `release-runner.sh` (not shipped in the Directory Plugin) is absent (such as in the
 instruction-only Directory Plugin) or cannot execute.
 
 ## Safety Rules

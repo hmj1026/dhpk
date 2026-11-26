@@ -24,9 +24,7 @@ Docs -> Entrypoints -> Tests Map -> Next Steps
 
 ## Usage
 
-```bash
-node "packaged-intake_cached.js" --mode auto --top 10
-```
+> Not shipped in the Directory Plugin: `intake_cached.js`. Report this step as `NOT_RUN` and use the documented fallback.
 
 ## Cache Location
 
@@ -77,9 +75,9 @@ Cache stored at: `~/.claude/cache/repo-intake/<repoKey>/`
 
 | Script | Purpose |
 |--------|---------|
-| `packaged-intake_cached.js` | Main intake with caching |
-| `packaged-scan_repo.js` | Full repo scanner (framework-agnostic) |
-| `packaged-scan_delta.js` | Delta scan for changed files |
+| `intake_cached.js` (not shipped in the Directory Plugin) | Main intake with caching |
+| `scan_repo.js` (not shipped in the Directory Plugin) | Full repo scanner (framework-agnostic) |
+| `scan_delta.js` (not shipped in the Directory Plugin) | Delta scan for changed files |
 
 ## Examples
 
