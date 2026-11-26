@@ -14,6 +14,55 @@ const SCOPES = Object.freeze(['project', 'user', 'local']);
 const MODES = Object.freeze(['auto', 'copy', 'symlink', 'client-managed']);
 const AGENT_PROFILES = Object.freeze(['core', 'extended', 'full']);
 const LIFECYCLE_VERDICTS = Object.freeze(['INSTALL_PASS', 'CONSUMER_BLOCKED', 'NOT_RUN', 'BLOCKED']);
+const VALUE_OPTIONS = new Set(['--scope', '--mode', '--source', '--agent-profile', '--agent', '--project-root']);
+const INSTALL_OPTIONS_HELP = [
+  'options: --scope <project|user|local> --mode <auto|copy|symlink|client-managed> --project-root <dir> --source <source>',
+  '         --skill <id> --standalone <id> --agent-profile <core|extended|full> --agent <id> --offline --dry-run --yes --json --help',
+].join('\n');
+const HELP = [
+  'usage: dhpk install <surface> <action> [options]',
+  '       dhpk install --recover [--project-root <dir>] [--json]',
+  `surfaces: ${SURFACES.join(' | ')}`,
+  `actions: ${ACTIONS.join(' | ')}`,
+  INSTALL_OPTIONS_HELP,
+  '',
+].join('\n');
+
+function helpFor({ surface = null, action = null, recover = false } = {}) {
+  if (recover) {
+    return 'usage: dhpk install --recover [--project-root <dir>] [--json]\n'
+      + 'options: --project-root <dir> --json --help\n';
+  }
+  if (!surface) return HELP;
+  if (!action) {
+    return `usage: dhpk install ${surface} <action> [options]\n`
+      + `actions: ${ACTIONS.join(' | ')}\n`
+      + `${INSTALL_OPTIONS_HELP}\n`;
+  }
+  return `usage: dhpk install ${surface} ${action} [options]\n`
+    + `${INSTALL_OPTIONS_HELP}\n`;
+}
+
+function rejectLeadingOption(token, nextToken) {
+  if (token === '--profile' || token.startsWith('--profile=')) {
+    throw failure('--profile is no longer supported; the common collection is selected automatically');
+  }
+  const optionName = token.split('=')[0];
+  if ((VALUE_OPTIONS.has(optionName) || optionName === '--skill' || optionName === '--standalone')
+    && !token.includes('=')
+    && (!nextToken || nextToken.startsWith('--') || nextToken === '-h')) {
+    throw failure(`${optionName} requires a value`);
+  }
+  throw failure(`unknown option '${token}'`);
+}
+
+function validateTrailingHelpArgs(args) {
+  for (const arg of args) {
+    if (arg === '--help' || arg === '-h') continue;
+    if (arg.startsWith('-')) throw failure(`unknown option '${arg}'`);
+    throw failure(`unexpected argument '${arg}'`);
+  }
+}
 
 function failure(message, code = 'INVALID_ARGUMENT') {
   const error = new Error(message);
@@ -32,10 +81,23 @@ function defaultScope(surface) {
 }
 
 function parseRequest(argv) {
-  if (!Array.isArray(argv) || argv.length < 2) throw failure('usage: dhpk-install <surface> <action> [options]');
+  if (!Array.isArray(argv)) throw failure('usage: dhpk install <surface> <action> [options]');
+  if (argv.length === 0) return Object.freeze({ help: true, surface: null, action: null });
+  if (argv[0] === '--help' || argv[0] === '-h') {
+    validateTrailingHelpArgs(argv.slice(1));
+    return Object.freeze({ help: true, surface: null, action: null });
+  }
   const [surface, action, ...rest] = argv;
+  if (surface.startsWith('-')) rejectLeadingOption(surface, action);
   if (!SURFACES.includes(surface)) throw failure(`unknown surface '${surface}'`);
+  if (action === '--help' || action === '-h') {
+    validateTrailingHelpArgs(rest);
+    return Object.freeze({ help: true, surface, action: null });
+  }
+  if (!action) throw failure('usage: dhpk install <surface> <action> [options]');
+  if (action.startsWith('-')) rejectLeadingOption(action, rest[0]);
   if (!ACTIONS.includes(action)) throw failure(`unknown action '${action}'`);
+  let help = false;
   const request = {
     surface,
     action,
@@ -53,15 +115,16 @@ function parseRequest(argv) {
   };
   for (let index = 0; index < rest.length; index += 1) {
     const option = rest[index];
-    if (option === '--profile' || option.startsWith('--profile=')) {
+    if (option === '--help' || option === '-h') help = true;
+    else if (option === '--profile' || option.startsWith('--profile=')) {
       throw failure('--profile is no longer supported; the common collection is selected automatically');
     } else if (option === '--offline') request.offline = true;
     else if (option === '--dry-run') request.dryRun = true;
     else if (option === '--yes') request.yes = true;
     else if (option === '--json') request.json = true;
-    else if (['--scope', '--mode', '--source', '--agent-profile', '--agent', '--project-root'].includes(option)) {
+    else if (VALUE_OPTIONS.has(option)) {
       const value = rest[index + 1];
-      if (!value || value.startsWith('--')) throw failure(`${option} requires a value`);
+      if (!value || value.startsWith('--') || value === '-h') throw failure(`${option} requires a value`);
       index += 1;
       if (option === '--project-root') request.projectRoot = value;
       else if (option === '--scope') request.scope = value;
@@ -71,7 +134,7 @@ function parseRequest(argv) {
       else request.agents.push(value);
     } else if (option === '--skill') {
       const value = rest[index + 1];
-      if (!value || value.startsWith('--')) throw failure(`${option} requires a value`);
+      if (!value || value.startsWith('--') || value === '-h') throw failure(`${option} requires a value`);
       index += 1;
       request.skillIds.push(value);
     } else if (option.startsWith('--skill=')) {
@@ -80,7 +143,7 @@ function parseRequest(argv) {
       request.skillIds.push(value);
     } else if (option === '--standalone') {
       const value = rest[index + 1];
-      if (!value || value.startsWith('--')) throw failure('--standalone requires a value');
+      if (!value || value.startsWith('--') || value === '-h') throw failure('--standalone requires a value');
       index += 1;
       if (!request.standaloneSkillIds.includes(value)) request.standaloneSkillIds.push(value);
     } else if (option.startsWith('--standalone=')) {
@@ -93,8 +156,8 @@ function parseRequest(argv) {
     throw failure('--standalone cannot be combined with --skill');
   }
   request.scope = request.scope || defaultScope(surface);
-  if (!request.scope) throw failure(`--scope is required for '${surface}'`);
-  if (!SCOPES.includes(request.scope)) throw failure(`unsupported scope '${request.scope}'`);
+  if (!request.scope && !help) throw failure(`--scope is required for '${surface}'`);
+  if (request.scope && !SCOPES.includes(request.scope)) throw failure(`unsupported scope '${request.scope}'`);
   if (!MODES.includes(request.mode)) throw failure(`unsupported mode '${request.mode}'`);
   if (typeof request.source !== 'string' || request.source.length === 0) throw failure('source must be non-empty');
   if (surface === 'cursor') {
@@ -104,6 +167,7 @@ function parseRequest(argv) {
   } else if (request.agentProfile || request.agents.length > 0) {
     throw failure('--agent-profile and --agent are only valid for cursor');
   }
+  if (help) return Object.freeze({ help: true, surface, action });
   // Preserve repeated overlays so the centralized resolver can reject them
   // before planning or mutation instead of silently changing the request.
   request.skillIds = request.skillIds.slice().sort();
@@ -313,6 +377,7 @@ module.exports = {
   LIFECYCLE_VERDICTS,
   VERDICTS,
   parseRequest,
+  helpFor,
   compileLifecyclePlan,
   createLifecycleResult,
   execute,
