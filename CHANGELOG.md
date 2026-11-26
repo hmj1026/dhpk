@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.82.0 — 2026-11-26 — Directory Plugin script-pointer cleanup, release PR notes, and Bash guard fixes
+
+- **feat(release-creator)** — Write the promoted changelog section into the release PR body at creation, so the body needs no later edit that restarts CI.
+- **fix(directory-plugin)** — Keep consumer-project script paths such as $PROJECT_DIR/scripts/release/publish-gate.js in Directory Plugin procedures, so the manual release procedure finds the project gate.
+- **fix(directory-plugin)** — Replace Directory Plugin code blocks that ran an unshipped script, or a Manual Procedure written as a script, with a not-shipped note; disclose in the README what dhpk-lite runs and sends; block such pointers in the Directory Plugin gate.
+- **fix(hooks)** — Name the cd cause and the git -C form when the Bash guard blocks a git read because the working directory is unknown.
+- **fix(hooks)** — Stop the Bash guard from reading redirect targets as command operands, so a redirected git or search read is neither blocked by mistake nor allowed with its listing narrowed to the output file.
+- **fix(release-creator)** — Resume watching the Release run after a transient GitHub API error, and report an unknown result without asking to publish again.
+
 ## 0.81.0 — 2026-11-25 — Harness verification gates, unified build-resolver, and Bash guard value-copy tracking
 
 - **BREAKING(build-resolver)** — Replace python-build-resolver, rust-build-resolver, and swift-build-resolver with build-resolver; the retired names are not aliases.
