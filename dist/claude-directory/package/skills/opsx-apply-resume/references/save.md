@@ -11,20 +11,20 @@ lookup. Resolve it before invoking helpers from an arbitrary consumer cwd.
 
 Use the package-local `"$SKILL_DIR/scripts/"` helpers:
 
-- `"references/manual-procedure.md (detect-phase.sh)"` — phase token before entering Save.
-- `"references/manual-procedure.md (extract-compact.sh)"` — family-owned compact extractor.
-- `"references/manual-procedure.md (post-obs.sh)"` — family-owned optional observation client.
-- `"references/manual-procedure.md (set-handoff-state.sh)"` — recoverable `saved|consuming|consumed` transition.
-- `"references/manual-procedure.md (write-handoff.sh)"` — atomically writes the complete handoff payload from
+- `detect-phase.sh` (not shipped in the Directory Plugin) — phase token before entering Save.
+- `extract-compact.sh` (not shipped in the Directory Plugin) — family-owned compact extractor.
+- `post-obs.sh` (not shipped in the Directory Plugin) — family-owned optional observation client.
+- `set-handoff-state.sh` (not shipped in the Directory Plugin) — recoverable `saved|consuming|consumed` transition.
+- `write-handoff.sh` (not shipped in the Directory Plugin) — atomically writes the complete handoff payload from
   stdin to one explicit path; it requires the `python3` capability.
 
 Resolve `HANDOFF_PATH` as `.scratch/<change-id>/apply-resume.md` on every Host, using the `change-id` selected in step 5 (Identify the change); resolve the path before the first helper call and stop `BLOCKED` when no change can be selected.
 Pass that path explicitly
 as the helper's trailing handoff-path argument (for example,
-`"references/manual-procedure.md (detect-phase.sh)" "$HANDOFF_PATH"` or
-`"references/manual-procedure.md (set-handoff-state.sh)" consuming "$HANDOFF_PATH"`); never
+`detect-phase.sh` (not shipped in the Directory Plugin) or
+`set-handoff-state.sh` (not shipped in the Directory Plugin)); never
 let a helper infer it from the current directory. Call
-`"references/manual-procedure.md (write-handoff.sh)" "$HANDOFF_PATH"` with the complete
+`write-handoff.sh` (not shipped in the Directory Plugin) with the complete
 handoff bytes on stdin after the Save content is assembled. Missing package assets are
 `BLOCKED_RESOURCE_MISSING`; an unavailable `python3` writer capability is
 `BLOCKED` and does not permit a shell fallback.
@@ -43,7 +43,7 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    invoke it and verify the newest `compact-notes/compact-*.json` exists. No
    file records `compact: UNAVAILABLE` and the embedded summary remains the
    source. A file is recorded as `COMPACT_JSON_PATH`; use the package-local
-   `"references/manual-procedure.md (extract-compact.sh)"` to read `L0`, `session_goal`, `completed`, `in_progress`,
+   `extract-compact.sh` (not shipped in the Directory Plugin) to read `L0`, `session_goal`, `completed`, `in_progress`,
    `key_decisions`, and `failed_approaches`.
 4. **Optional memory provider.** When enabled and permitted, follow
    [post-observation](post-observation.md) to build the payload and launch the
@@ -103,7 +103,7 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    atomic handoff and make the failed check the latest-failure entry when
    applicable. Do not invent an exit code or evidence path.
    Pipe the complete payload to the package-local
-   `"references/manual-procedure.md (write-handoff.sh)" "$HANDOFF_PATH"` helper; its `python3` prerequisite must be available before
+   `write-handoff.sh` (not shipped in the Directory Plugin) helper; its `python3` prerequisite must be available before
    Save can pass.
 8. **Recommend the session boundary.** Continue in the current session when
    the next phase needs the discussion or decisions as its primary source and

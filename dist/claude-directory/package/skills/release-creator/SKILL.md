@@ -8,7 +8,7 @@ description: "Cuts a new release of a software project or plugin, coordinating r
 Run this skill only on an explicit user request; otherwise stop and ask before any stage or side effect.
 
 Resolve the project release contract first, then delegate fixed mechanics to the
-tested runner (if `references/manual-procedure.md (release-runner.sh)` is absent, such as in
+tested runner (if `release-runner.sh` (not shipped in the Directory Plugin) is absent, such as in
 the instruction-only Directory Plugin, or cannot run, follow
 [references/manual-procedure.md](references/manual-procedure.md) and report
 `mode: manual`). `RELEASE.md` is the complete route when the consumer provides it.
@@ -82,11 +82,7 @@ list so the runner derives its scope from `prepare-release.js paths`. For the
 generic fallback, pass every intended release file explicitly. The runner
 rejects unrelated worktree changes.
 
-```bash
-bash "references/manual-procedure.md (release-runner.sh)" \
-  "prepare" "<version>" "{BASE_BRANCH}" "{RELEASE_BRANCH}" "{TAG_PREFIX}" "{RELEASE_WORKFLOW}" \
-  {VERSION_FILES} {CHANGELOG}
-```
+> Not shipped in the Directory Plugin: `release-runner.sh`. Follow the matching stage in [the Manual Procedure](references/manual-procedure.md) and report `mode: manual`.
 
 Stop here for the human merge. Any route using this runner must use GitHub's
 **Create a merge commit** method because the runner requires exactly two merge
@@ -98,10 +94,7 @@ required gates fail. Generic projects retain their configured package-gate
 fallback through `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`, while a combined gate may
 be selected with `DHPK_RELEASE_PUBLISH_GATE_SCRIPT`.
 
-```bash
-bash "references/manual-procedure.md (release-runner.sh)" \
-  "publish" "<version>" "{BASE_BRANCH}" "{RELEASE_BRANCH}" "{TAG_PREFIX}" "{RELEASE_WORKFLOW}"
-```
+> Not shipped in the Directory Plugin: `release-runner.sh`. Follow the matching stage in [the Manual Procedure](references/manual-procedure.md) and report `mode: manual`.
 
 For dhpk, the publish runner automatically runs the SOURCE+PACKAGE gate after
 the human merge and before creating the tag. Invoke the publish runner once for

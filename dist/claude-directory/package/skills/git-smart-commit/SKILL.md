@@ -25,13 +25,11 @@ Commit only within explicit user authorization. Reuse existing authorization for
 
 ### 1. 收集摘要並閱讀相關變更
 
-從 consumer 專案根目錄或子目錄執行唯讀收集器（若 `references/manual-procedure.md (collect-changes.js)` 不存在或無法執行，例如純指引 Directory Plugin 環境，請依 [manual procedure](references/manual-procedure.md) 執行對應階段並標記 `mode: manual`）：
+從 consumer 專案根目錄或子目錄執行唯讀收集器（若 `collect-changes.js` (not shipped in the Directory Plugin) 不存在或無法執行，例如純指引 Directory Plugin 環境，請依 [manual procedure](references/manual-procedure.md) 執行對應階段並標記 `mode: manual`）：
 
-```bash
-node "references/manual-procedure.md (collect-changes.js)" [--scope <path>]
-```
+> Not shipped in the Directory Plugin: `collect-changes.js`. Follow the matching stage in [the Manual Procedure](references/manual-procedure.md) and report `mode: manual`.
 
-`$SKILL_DIR` 是已安裝技能目錄。收集器原始碼見 [`references/manual-procedure.md (collect-changes.js)`](references/manual-procedure.md)。`--scope` 是 repo-relative literal path；它限制檔案清單，但仍會回報範圍外的 staged 內容。收集器只讀取 Git 狀態與統計，不輸出 diff 或檔案內容，也不執行 hooks。
+`$SKILL_DIR` 是已安裝技能目錄。收集器原始碼見 [`collect-changes.js` (not shipped in the Directory Plugin)](references/manual-procedure.md)。`--scope` 是 repo-relative literal path；它限制檔案清單，但仍會回報範圍外的 staged 內容。收集器只讀取 Git 狀態與統計，不輸出 diff 或檔案內容，也不執行 hooks。
 
 摘要提供 `repoRoot`、起始 `head`、`files`、`safety` 與 `hooks`；hook 資訊不代表已執行或通過。解讀欄位或處理收集失敗時，閱讀 [collector contract](references/collector.md)。
 

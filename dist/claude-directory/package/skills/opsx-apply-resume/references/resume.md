@@ -25,7 +25,7 @@ lookup. Resolve it before invoking helpers from an arbitrary consumer cwd.
 
 Pass `HANDOFF_PATH` explicitly as the phase/state helpers' trailing path
 argument and to the local context procedure. The package-local
-`"references/manual-procedure.md (set-handoff-state.sh)"` accepts the explicit path for
+`set-handoff-state.sh` (not shipped in the Directory Plugin) accepts the explicit path for
 `consuming` and `saved` recovery. Missing required package assets are
 `BLOCKED_RESOURCE_MISSING`. Missing state/continuation resources stop before
 dependent mutation or external apply. The context procedure preserves the
@@ -65,7 +65,7 @@ Codex may continue in the current turn or start a new turn, with no required
    command. `NOT_RUN` remains `NOT_RUN` when the tool is still missing.
 5. **Mark in flight.** After the handoff and external capability are valid,
    update its state to `consuming` through
-   `"references/manual-procedure.md (set-handoff-state.sh)" consuming "$HANDOFF_PATH"` with
+   `set-handoff-state.sh` (not shipped in the Directory Plugin) with
    the explicit path. The handoff remains on disk. If apply fails, leave
    `consuming` for retry; recovery uses the same helper to set `saved`.
 6. **Invoke external apply.** Use the canonical `openspec-apply-change` Skill

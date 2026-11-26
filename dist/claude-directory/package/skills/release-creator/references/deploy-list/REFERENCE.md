@@ -6,8 +6,8 @@ verbatim. No post-processing.
 
 ## Package surfaces
 
-The package keeps the immutable generator in `references/manual-procedure.md (deploy-list.sh)`, its golden
-runner in `references/manual-procedure.md (check-golden.sh)`, ecosystem rules in `presets/`, structural labels
+The package keeps the immutable generator in `deploy-list.sh` (not shipped in the Directory Plugin), its golden
+runner in `check-golden.sh` (not shipped in the Directory Plugin), ecosystem rules in `presets/`, structural labels
 in `i18n/`, and preset guidance in `references/`. Copy `config.sh.example` to a
 project-local `config.sh` when defaults need to be pinned. The `evals/` fixtures are
 the regression surface for schema changes.
@@ -168,18 +168,12 @@ The skill is self-contained. To use in another repo:
    - `DEFAULT_AUTHOR=` optional team-wide author pin.
 3. Optional: add a custom preset at `presets/<your-name>.sh` following
    the worked example at `references/extended-presets.example/`.
-4. Smoke test: `bash references/manual-procedure.md (check-golden.sh)` — all generic fixtures
+4. Smoke test: `check-golden.sh` (not shipped in the Directory Plugin) — all generic fixtures
    should pass.
 
 ## Verification
 
-```bash
-# Run the bundled fixture suite
-bash references/manual-procedure.md (check-golden.sh)
-
-# Update goldens after an intentional schema change
-bash references/manual-procedure.md (check-golden.sh) --update
-```
+> Not shipped in the Directory Plugin: `check-golden.sh`. Follow the matching stage in [the Manual Procedure](../manual-procedure.md) and report `mode: manual`.
 
 Manual checks after running deploy-list:
 

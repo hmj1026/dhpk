@@ -116,6 +116,7 @@ const DIRECTORY_REWRITE_TOKEN = new RegExp(
   `(https?:\\/\\/[^\\s)>\\]"'\`]+)|(?<![A-Za-z0-9_-])dhpk:([a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_-])|(?<![A-Za-z0-9_/-])\\$(${SKILL_TOKEN_ALTERNATION})(?:(?![A-Za-z0-9_-])|(?=(?:route|help|rules|next|close)\\b))`,
   'g',
 );
+const FLOW_GUIDE_CODEX_ACTION_PREFIX = /a `\$flow-guide<action>` prefix \(for example\s+`\$flow-guideroute`\) supplies the action, and with a bare `\$flow-guide` the next/;
 const FLOW_GUIDE_NEXT_MAP_REF = /(?:skills\/flow-guide\/)?references\/skill-next-map\.json/g;
 // `$PROJECT_DIR/scripts/` names a file of the consumer's own project, which the
 // reduction never removes, so it keeps its path.
@@ -287,23 +288,75 @@ function rewriteNestedSkillMentions(filePath, text, entries, dirs) {
     : resolved;
 }
 
+// A removed script is first replaced by this sentinel. Then each code block that
+// would run it becomes a not-shipped note, and each prose mention keeps only the
+// script name. No Directory Plugin text then tells Claude to execute a document
+// or a file the package does not ship.
+const UNSHIPPED_SCRIPT = '\u0000unshipped-script:';
+const UNSHIPPED_SCRIPT_END = '\u0000';
+const UNSHIPPED_SENTINEL = /\u0000unshipped-script:([^\u0000]+)\u0000/g;
+const SCRIPTS_VARIABLE_REF = /\$\{?SCRIPTS\}?\/([A-Za-z0-9_.-]+)/g;
+const FENCED_CODE_BLOCK = /^([ \t]*)(`{3,}|~{3,})[^\n]*\n([\s\S]*?)^[ \t]*\2[ \t]*$/gm;
+// A command line, optionally after a `$ ` prompt or a `cmd &&` / `cmd;` prefix.
+const COMMAND_LINE = /^([ \t]*)(?:\$[ \t]+)?(?:[^\n`]*?(?:&&|;)[ \t]*)?(?:bash|node|python3?|sh)[ \t][^\n]*$/gm;
+const CODE_SPAN = /`[^`\n]*`/g;
+
+function unshippedNames(text) {
+  const names = [...String(text).matchAll(UNSHIPPED_SENTINEL)].map((m) => m[1]);
+  return [...new Set(names)].map((name) => `\`${name}\``).join(', ');
+}
+
+function unshippedFallback(destination, manualProcedurePath) {
+  if (!manualProcedurePath) return 'Report this step as `NOT_RUN` and use the documented fallback.';
+  if (destination === manualProcedurePath) return 'Follow the matching stage in this procedure and report `mode: manual`.';
+  const link = path.posix.relative(path.posix.dirname(destination), manualProcedurePath);
+  return `Follow the matching stage in [the Manual Procedure](${link}) and report \`mode: manual\`.`;
+}
+
+// Remove the four-column indent that makes an indented code block, so the note
+// renders as prose at the enclosing level.
+function outdentCodeIndent(indent) {
+  if (indent.endsWith('\t')) return indent.slice(0, -1);
+  return indent.length >= 4 ? indent.slice(4) : indent;
+}
+
+function finalizeUnshippedScripts(destination, text, manualProcedurePath) {
+  if (!String(text).includes(UNSHIPPED_SCRIPT)) return String(text);
+  const fallback = unshippedFallback(destination, manualProcedurePath);
+  const note = (indent, body) => `${indent}> Not shipped in the Directory Plugin: ${unshippedNames(body)}. ${fallback}`;
+  return String(text)
+    .replace(FENCED_CODE_BLOCK, (block, indent, _fence, body) => (body.includes(UNSHIPPED_SCRIPT) ? note(indent, body) : block))
+    .replace(COMMAND_LINE, (line, indent) => (
+      line.includes(UNSHIPPED_SCRIPT) ? note(outdentCodeIndent(indent), line) : line
+    ))
+    .replace(CODE_SPAN, (span) => {
+      const first = [...span.matchAll(UNSHIPPED_SENTINEL)][0];
+      return first ? `\`${first[1]}\` (not shipped in the Directory Plugin)` : span;
+    })
+    .replace(UNSHIPPED_SENTINEL, (_whole, name) => name);
+}
+
 function rewriteDirectorySkillScripts(destination, text, hasManualProcedure = false) {
   if (!destination.startsWith('skills/') || !(destination.endsWith('.md') || destination.endsWith('.json'))) {
     return String(text);
   }
+  const manualProcedurePath = hasManualProcedure ? `skills/${destination.split('/')[1]}/references/manual-procedure.md` : null;
   const normalizedMap = String(text).replace(FLOW_GUIDE_NEXT_MAP_REF, SKILL_NEXT_MAP_PATH);
-  const useManualRef = hasManualProcedure && !destination.endsWith('/references/manual-procedure.md');
-  return normalizedMap.replace(DIRECTORY_SCRIPT_REF, (match, url, scriptPath, offset, full) => {
-    if (url) return url;
-    const base = path.posix.basename(scriptPath);
-    if (useManualRef) {
-      if (offset >= 2 && full.slice(offset - 2, offset) === '](') {
-        return 'references/manual-procedure.md';
+  const marked = normalizedMap
+    .replace(DIRECTORY_SCRIPT_REF, (_match, url, scriptPath, offset, full) => {
+      if (url) return url;
+      const base = path.posix.basename(scriptPath);
+      // A path without an extension names a directory or a word, not a script.
+      if (!base.includes('.')) return base;
+      if (manualProcedurePath && offset >= 2 && full.slice(offset - 2, offset) === '](') {
+        return path.posix.relative(path.posix.dirname(destination), manualProcedurePath);
       }
-      return `references/manual-procedure.md (${base})`;
-    }
-    return `packaged-${base}`;
-  });
+      return `${UNSHIPPED_SCRIPT}${base}${UNSHIPPED_SCRIPT_END}`;
+    })
+    .replace(SCRIPTS_VARIABLE_REF, (_whole, base) => `${UNSHIPPED_SCRIPT}${base}${UNSHIPPED_SCRIPT_END}`);
+  return destination.endsWith('.json')
+    ? marked.replace(UNSHIPPED_SENTINEL, (_whole, name) => name)
+    : finalizeUnshippedScripts(destination, marked, manualProcedurePath);
 }
 
 function rewriteDirectoryNamespace(text) {
@@ -366,6 +419,18 @@ function renderDirectoryReadme({ skillCount = DIRECTORY_SKILL_NAMES.length, agen
     '- **Manual Procedures (`mode: manual`)**: `flow-guide`, `opsx-apply-resume`, `git-smart-commit`, `harness-setup`, `precommit`, and `release-creator` use their packaged `references/manual-procedure.md` workflows with standard tools and consumer project commands, reporting `mode: manual`.',
     '- **Omitted external CLI agents**: `codex-worker`, `codex-reasoner`, and `agy-worker`.',
     '- **Reduced frontmatter**: skills keep only `name` and `description` (routing data is packaged in `skill-next-map.json`), and agents keep only `name`, `description`, `model`, `color`, and `tools`. Skills lose `disable-model-invocation`, `argument-hint`, and `allowed-tools` (user-only skills carry explicit-request guards).',
+    '',
+    '## What `dhpk-lite` runs and sends',
+    '',
+    '`dhpk-lite` ships no code. Claude runs each command below through its normal Bash tool and permission prompts, in your project and only when a skill needs it:',
+    '',
+    '- **Local Git and project commands**: read-only `git` queries, `git add` and `git commit` after you confirm, and your project\'s own lint, build, test, and validation commands.',
+    '- **GitHub through `git` and `gh`**: `release-creator` runs `git push`, `gh pr create`, `git tag` with a tag push, and `gh run watch`; `create-pr` opens pull requests; `proposal-analyze` reads issues with `gh issue view`. Each write runs only on your explicit request and stops for your confirmation first.',
+    '- **Your project\'s own endpoints**: `repo-verify` feature verification can send read-only `curl` requests to health and API endpoints that your project lists, and skips that step when no endpoint list exists.',
+    '- **Your project\'s release gate**: `release-creator` runs the publish or package gate script that your project names, by default under `scripts/release/` or through `DHPK_RELEASE_PUBLISH_GATE_SCRIPT` or `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`.',
+    '- **Your memory tool (optional)**: `opsx-apply-resume` can save one handoff observation to a memory tool that is already connected to your session. It skips this step when no memory tool is available.',
+    '',
+    'The skills name no other destination: they reach only your Git remote, GitHub through your own `gh` login, your project\'s endpoints, and a memory tool that you connected.',
     '',
     '## Install the Full Plugin (`dhpk`) and `dhpk-stacks`',
     '',
@@ -490,6 +555,10 @@ function reduceToDirectoryPlugin(files, { version } = {}) {
       }
       if (outDestination.endsWith('.md')) {
         text = rewriteNestedSkillMentions(destination, text, nestedEntries, nestedDirs);
+      }
+      if (destination === 'skills/flow-guide/references/manual-procedure.md') {
+        // The Codex `$flow-guide<action>` prefix form has no Claude equivalent.
+        text = text.replace(FLOW_GUIDE_CODEX_ACTION_PREFIX, 'after `$flow-guide` the next');
       }
       text = rewriteDirectoryNamespace(text);
       if (outDestination.startsWith('skills/') && (outDestination.endsWith('.md') || outDestination.endsWith('.json'))) {

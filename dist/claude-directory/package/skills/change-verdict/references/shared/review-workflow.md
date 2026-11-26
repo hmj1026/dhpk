@@ -37,7 +37,7 @@ reproduced from the recorded point, return `INCONCLUSIVE`.
 ## Step 2: collect mode-specific metadata
 
 For reviewer dispatch on a Git-backed wave, run the package-local
-`node <skill-dir>/packaged-resolve-review-triggers.js` with exactly one of
+`resolve-review-triggers.js` (not shipped in the Directory Plugin) with exactly one of
 `--staged`, `--unstaged`, or `--base <ref>`. For a wave spanning the index
 and the working tree, run both scopes and take the union. The base scope
 compares the merge base with `HEAD`. Untracked files are outside these Git

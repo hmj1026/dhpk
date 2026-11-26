@@ -1,6 +1,6 @@
 # Git Smart Commit — Manual Procedure
 
-Use this fallback when `packaged-collect-changes.js` is absent (such as in the
+Use this fallback when `collect-changes.js` (not shipped in the Directory Plugin) is absent (such as in the
 instruction-only Directory Plugin) or cannot execute. The result must match what
 the script reports.
 

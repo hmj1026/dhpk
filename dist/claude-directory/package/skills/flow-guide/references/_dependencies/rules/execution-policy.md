@@ -455,7 +455,7 @@ policy state, not a coordinator.
 ### Fast-worker selector contract
 
 Mechanical implementation waves resolve through the canonical `worker` Role
-request. `references/manual-procedure.md (fast-worker-selector.js)` is the command
+request. `fast-worker-selector.js` (not shipped in the Directory Plugin) is the command
 line entry to that request; it keeps no backend table of its own:
 
 1. It detects the current Host (`DHPK_HOST` override, otherwise exactly one of

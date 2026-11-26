@@ -6,7 +6,7 @@ Each preset defines four pieces of behavior:
    matched in list order (first hit wins for the file's category), then output is sorted
    by sort-key (lexicographic — keep them monotonic).
 2. **`PRESET_FILTER_EXTRA`** — ERE alternation appended to the universal filter base
-   (defined in `references/manual-procedure.md (deploy-list.sh):FILTER_BASE`). Files matching the composed filter
+   (defined in `deploy-list.sh` (not shipped in the Directory Plugin)). Files matching the composed filter
    are excluded from both main and warning groups.
 3. **`PRESET_ROLLBACK_TRIGGER`** — awk regex tested against the main group; if any line
    matches, the `🔁 Rollback hints` section is emitted.

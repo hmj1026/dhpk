@@ -6,12 +6,10 @@
    explicit single-file opt-ins for their matching full-mode stages; an absent
    optional path remains a normal stage skip.
 2. Check for
-   `packaged-verify-runner.js` at the consumer
+   `verify-runner.js` (not shipped in the Directory Plugin) at the consumer
    project root. If present, run:
 
-   ```bash
-   node packaged-verify-runner.js $ARGUMENTS
-   ```
+   > Not shipped in the Directory Plugin: `verify-runner.js`. Report this step as `NOT_RUN` and use the documented fallback.
 
    The project runner owns package-manager detection, stages, logs, skips, and
    the overall line. `PASS` passes; `FAIL`, a crash, an execution error, or a
@@ -19,15 +17,13 @@
    or `summary.json` `overallPass=false` is terminal even when the process exits
    zero. Keep the project runner selected once found.
 3. If the project runner is absent and the consumer has `package.json`, check
-   the installed package for `packaged-verify-runner.js` and run:
+   the installed package for `verify-runner.js` (not shipped in the Directory Plugin) and run:
 
-   ```bash
-   node "packaged-verify-runner.js" $ARGUMENTS
-   ```
+   > Not shipped in the Directory Plugin: `verify-runner.js`. Report this step as `NOT_RUN` and use the documented fallback.
 
    Apply the same authoritative-output and terminal-failure rules. `$SKILL_DIR`
    is the resolved installed directory containing this `SKILL.md`, and its
-   adjacent `packaged-runner-utils.js` is part of the local runtime closure;
+   adjacent `runner-utils.js` (not shipped in the Directory Plugin) is part of the local runtime closure;
    the consumer cwd is unchanged.
 4. If no runner applies, detect the first recognized manifest and run the
    available fallback commands in order: lint, typecheck when applicable,
@@ -42,7 +38,7 @@
    | `build.gradle`/`pom.xml` | project lint/test tasks when present | build/typecheck is implicit |
 
    For Node, detect the package manager from its lockfile and read
-   `package.json`. Missing packaged-tools are `SKIP` with their exact reason;
+   `package.json`. Missing tools are `SKIP` with their exact reason;
    a manifest with no recognized fallback is terminal `FAIL`.
 5. Emit:
 

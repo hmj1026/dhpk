@@ -27,10 +27,7 @@ through the Host's file writer to its `payload.json`. Keep `OBS_WORK_DIR`,
 the optional payload records `memory: FAILED` and leaves `OBS_PID=null`.
 Resolve the observer from this family's physical directory, then launch:
 
-```bash
-bash "references/manual-procedure.md (post-obs.sh)" "$OBS_PAYLOAD_FILE" > "$OBS_RESULT_FILE" &
-OBS_PID=$!
-```
+> Not shipped in the Directory Plugin: `post-obs.sh`. Follow the matching stage in [the Manual Procedure](manual-procedure.md) and report `mode: manual`.
 
 Return PID and result path immediately. Continue Save's change identification
 and risk/model snapshot while the bounded POST runs. The local helper reports

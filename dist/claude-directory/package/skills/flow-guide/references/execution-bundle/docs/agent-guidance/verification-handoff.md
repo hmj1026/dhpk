@@ -29,14 +29,7 @@ stops before the downstream command starts.
 
 Wrap the downstream command as an argv vector:
 
-```text
-node references/manual-procedure.md (verify-handoff.js) \
-  --root <writer-repository> \
-  --handoff <receipt.json> \
-  --assigned-file relative/path/to/changed-file \
-  --assigned-file relative/path/to/deleted-file \
-  -- <verification-command> [arguments...]
-```
+> Not shipped in the Directory Plugin: `verify-handoff.js`. Follow the matching stage in [the Manual Procedure](../../../manual-procedure.md) and report `mode: manual`.
 
 `--assigned-file` is mandatory and repeatable. Supply every path from the
 parent's original assignment, including a path the writer deleted. The options

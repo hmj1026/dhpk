@@ -16,7 +16,7 @@ version guidance out of context.
 
 The family-local resolver and portable CLI implement this contract:
 
-    node packaged-resolve-version.js --json [--version 9|10|11]
+> Not shipped in the Directory Plugin: `resolve-version.js`. Report this step as `NOT_RUN` and use the documented fallback.
 
 The JSON result reports status, family, selector, source, reference,
 loadedReferences, and the selected guidance. An unresolved result reports
@@ -66,8 +66,8 @@ relevant suite. For migration work, list every remaining scan match as a TODO
 and state the PHP/PHPUnit floor. For a copied family directory, run the
 family-local CLI with NODE_PATH empty and an explicit selector.
 
-The family-local `packaged-resolve-version.js` is the JSON CLI entrypoint. It
+The family-local `resolve-version.js` (not shipped in the Directory Plugin) is the JSON CLI entrypoint. It
 accepts an optional explicit selector and exits non-zero when resolution asks
-for input or encounters an error. `packaged-version-resolver.js` is the
+for input or encounters an error. `version-resolver.js` (not shipped in the Directory Plugin) is the
 programmatic resolver used by the CLI and returns the selected reference,
 loaded contents, or an ask result with no loaded references.
