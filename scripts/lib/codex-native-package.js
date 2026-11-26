@@ -1134,6 +1134,60 @@ function recognizesLegacyCodexNativeReceipt({ receipt, root, inventory } = {}) {
     && Array.isArray(inventory && inventory.skills);
 }
 
+/**
+ * Verify per-skill `tree-merkle-v1` hashes recorded in `fingerprints.json`
+ * against each candidate skill directory when `fingerprints.json` is present.
+ */
+function validateNativeSkillFingerprints({
+  packageRoot,
+  skillsRoot,
+  manifestSkillsField,
+  candidateSkillNames,
+  algorithm,
+}) {
+  const fingerprintsPath = path.join(packageRoot, 'fingerprints.json');
+  const fingerprintsStat = lstatOrNull(fingerprintsPath);
+  if (!fingerprintsStat) return { ok: true, errors: [] };
+
+  const errors = [];
+  if (fingerprintsStat.isSymbolicLink() || !fingerprintsStat.isFile()) {
+    errors.push('fingerprints.json must be a regular non-symlink file');
+    return { ok: false, errors };
+  }
+
+  let recorded;
+  try {
+    recorded = JSON.parse(readFileBounded(fingerprintsPath).toString('utf8'));
+  } catch (error) {
+    errors.push(`fingerprints.json is not valid JSON: ${error.message}`);
+    return { ok: false, errors };
+  }
+  if (!recorded || typeof recorded !== 'object' || Array.isArray(recorded)) {
+    errors.push('fingerprints.json must be a JSON object');
+    return { ok: false, errors };
+  }
+
+  if (algorithm && resolvesInsidePackage(manifestSkillsField, packageRoot)) {
+    for (const skillName of candidateSkillNames) {
+      const expected = Object.prototype.hasOwnProperty.call(recorded, skillName) ? recorded[skillName] : undefined;
+      if (typeof expected !== 'string' || expected.length === 0) {
+        errors.push(`missing fingerprint entry for skill '${skillName}' in fingerprints.json`);
+        continue;
+      }
+      try {
+        const actual = fingerprintDir(path.join(skillsRoot, skillName), { algorithm });
+        if (actual !== expected) {
+          errors.push(`fingerprint drifted for skill '${skillName}'`);
+        }
+      } catch (error) {
+        errors.push(`skill '${skillName}' fingerprint failed: ${error.message}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 function verifyNativePackage({
   packageRoot,
   sourceRoot = null,
@@ -1229,13 +1283,27 @@ function verifyNativePackage({
     });
     if (!routingParity.ok) errors.push(...routingParity.diagnostics.map((diagnostic) => `routing projection drift: ${diagnostic}`));
   }
+  let fingerprintAlgorithm = null;
   let artifactFingerprint = 'codex-native-unobserved';
   try {
-    artifactFingerprint = fingerprintDir(resolvedPackageRoot, { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') });
+    fingerprintAlgorithm = requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm');
+    artifactFingerprint = fingerprintDir(resolvedPackageRoot, { algorithm: fingerprintAlgorithm });
   } catch (error) {
     const diagnostic = `native package fingerprint failed: ${error.message}`;
     errors.push(diagnostic);
     structural.errors.push(diagnostic);
+    structural.ok = false;
+  }
+  const skillFingerprints = validateNativeSkillFingerprints({
+    packageRoot: resolvedPackageRoot,
+    skillsRoot,
+    manifestSkillsField,
+    candidateSkillNames,
+    algorithm: fingerprintAlgorithm,
+  });
+  if (!skillFingerprints.ok) {
+    errors.push(...skillFingerprints.errors);
+    structural.errors.push(...skillFingerprints.errors);
     structural.ok = false;
   }
   const planFingerprint = provenance && typeof provenance.inventoryDigest === 'string'

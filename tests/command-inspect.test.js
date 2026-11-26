@@ -1122,4 +1122,60 @@ for (const [id, command] of GIT_GATE_NO_VERIFY_1468) {
   });
 }
 
+// #1571: Bash 3.2 set -u treats empty-array "${arr[@]}" expansions and past-end slices as
+// unbound variables; exercise the flag/taint/copy helpers directly under set -euo pipefail.
+test('#1571 flag helpers handle empty and whitespace inputs cleanly under set -u', () => {
+  const res = spawnSync('bash', ['-c', `
+    set -euo pipefail
+    . "$DHPK_CI_LIB"
+    check_rc1() {
+      local rc=0
+      if "$@"; then rc=0; else rc=$?; fi
+      printf '%s=%s\\n' "$1:$2" "$rc"
+    }
+    check_rc1 _dhpk_ci_flag_value_no_verify "" commit
+    check_rc1 _dhpk_ci_flag_value_no_verify "   " commit
+    check_rc1 _dhpk_ci_flag_value_no_verify "" push
+    check_rc1 _dhpk_ci_flag_words_glob "" commit
+    check_rc1 _dhpk_ci_flag_words_glob "   " push
+    check_rc1 _dhpk_ci_flag_abbrev ""
+    check_rc1 _dhpk_ci_flag_abbrev "   "
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB } });
+  assert.strictEqual(res.status, 0, res.stderr || res.stdout);
+  assert.strictEqual(res.stderr, '', res.stderr);
+  assert.deepStrictEqual(res.stdout.trim().split('\n'), [
+    '_dhpk_ci_flag_value_no_verify:=1',
+    '_dhpk_ci_flag_value_no_verify:   =1',
+    '_dhpk_ci_flag_value_no_verify:=1',
+    '_dhpk_ci_flag_words_glob:=1',
+    '_dhpk_ci_flag_words_glob:   =1',
+    '_dhpk_ci_flag_abbrev:=1',
+    '_dhpk_ci_flag_abbrev:   =1',
+  ]);
+});
+
+test('#1571 empty-array paths in flag, printf, taint, and copy scanners stay clean under set -u', () => {
+  const res = spawnSync('bash', ['-c', `
+    set -euo pipefail
+    . "$DHPK_CI_LIB"
+    _dhpk_ci_flag_clear
+    _dhpk_ci_fs_printf "printf -v o '\\\\x2d'"
+    _dhpk_ci_fs_printf "printf -v o %d"
+    _dhpk_ci_fs_nfn=1
+    _dhpk_ci_fs_funcs=" f "
+    _dhpk_ci_fs_indirect_call eval ""
+    _dhpk_ci_scan_flag_sources "commit"
+    _dhpk_ci_scan_flag_sources "push"
+    _dhpk_ci_git_taint=" "
+    _dhpk_ci_git_named=" "
+    _dhpk_ci_nonascii_names=" "
+    _dhpk_ci_scan_git_taint "printf -v ; git status"
+    _dhpk_ci_cp_collect "for x in; do :; done"
+    printf 'OK'
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB } });
+  assert.strictEqual(res.status, 0, res.stderr || res.stdout);
+  assert.strictEqual(res.stderr, '', res.stderr);
+  assert.strictEqual(res.stdout, 'OK');
+});
+
 run('command-inspect');

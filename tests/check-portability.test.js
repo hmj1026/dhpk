@@ -140,4 +140,54 @@ test('flags positional and indirect case-conversion expansions', () => {
   }
 });
 
+test('flags single-line heredoc inside $(...) command substitution', () => {
+  const res = gateOnFixture([
+    '#!/usr/bin/env bash',
+    "out=\"$(python3 - <<'PY'",
+    'print("hi")',
+    'PY',
+    ')"',
+    '',
+  ].join('\n'));
+  assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+  assert.ok(res.stderr.includes("NON-PORTABLE IDIOM 'heredoc inside $(...)'"), res.stderr);
+});
+
+test('flags multi-line heredoc inside $(...) command substitution', () => {
+  const res = gateOnFixture([
+    '#!/usr/bin/env bash',
+    'out="$(',
+    '    VAR=1 \\',
+    "    python3 <<'PY'",
+    'print("hi")',
+    'PY',
+    ')"',
+    '',
+  ].join('\n'));
+  assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+  assert.ok(res.stderr.includes("NON-PORTABLE IDIOM 'heredoc inside $(...)'"), res.stderr);
+});
+
+test('ignores heredoc outside $(...), here-strings, arithmetic <<, comments, and quoted "<<-" literals', () => {
+  const res = gateOnFixture([
+    '#!/usr/bin/env bash',
+    'helper() {',
+    "    python3 - <<'PY'",
+    's = "$(cat <<EOF)"',
+    'PY',
+    '}',
+    'out="$(helper)"',
+    'ch="<<-"',
+    'inside="$(',
+    '    # comment mentioning <<EOF',
+    '    ch="<<-"',
+    '    lit=\'<<EOF\'',
+    '    n=$(( 1 << 2 ))',
+    '    cat <<< "$n"',
+    ')"',
+    '',
+  ].join('\n'));
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+});
+
 run('check-portability');

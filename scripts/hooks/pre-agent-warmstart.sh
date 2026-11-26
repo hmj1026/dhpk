@@ -55,7 +55,7 @@ HANDOFF_PACKET="$(extract_tool_input prompt "$PAYLOAD")"
 
 command -v python3 >/dev/null 2>&1 || { printf '{}'; exit 0; }
 
-out="$(
+_dhpk_render_warmstart_json() {
     CLAUDE_PROJECT_DIR="$ROOT" \
     DHPK_PKG_ROOT="$PKG_ROOT" \
     REVIEWER_AGENTS="${REVIEWER_AGENTS[*]}" \
@@ -170,7 +170,9 @@ print(json.dumps({
     }
 }))
 PY
-)"
+}
+
+out="$(_dhpk_render_warmstart_json)"
 
 if [ -z "$out" ]; then
     printf '{}'

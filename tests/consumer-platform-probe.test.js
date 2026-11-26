@@ -821,4 +821,130 @@ test('diagnostic redaction removes complete authorization and connection credent
   assert.match(redacted, /<redacted>@/);
 });
 
+function copyTrackedCodexNativePackage() {
+  const copyRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-native-copy-')));
+  fs.cpSync(path.join(ROOT, 'plugins', 'dhpk'), copyRoot, { recursive: true, dereference: false });
+  return copyRoot;
+}
+
+test('tracked plugins/dhpk codex-native package passes structural validation under --platform codex', () => {
+  const packageRoot = path.join(ROOT, 'plugins', 'dhpk');
+  const packageVersion = JSON.parse(fs.readFileSync(path.join(packageRoot, '.codex-plugin', 'plugin.json'), 'utf8')).version;
+  const result = runProbe('codex', packageRoot, ['--version', packageVersion]);
+  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.ok(['UNAVAILABLE', 'NOT_RUN'].includes(payload.status), JSON.stringify(payload));
+  assert.notStrictEqual(payload.status, 'FAIL', JSON.stringify(payload));
+  assert.strictEqual(payload.manifest, fs.realpathSync(path.join(packageRoot, '.codex-plugin', 'plugin.json')));
+  assert.strictEqual(payload.surfaceEvidence.surface, 'codex-marketplace', JSON.stringify(payload));
+  assert.strictEqual(payload.surfaceResults[0].surface, 'codex-marketplace', JSON.stringify(payload));
+});
+
+test('codex-native copy with drifted skill content or corrupted fingerprints.json fails structural validation', () => {
+  const driftedRoot = copyTrackedCodexNativePackage();
+  const corruptJsonRoot = copyTrackedCodexNativePackage();
+  const missingEntryRoot = copyTrackedCodexNativePackage();
+  try {
+    fs.appendFileSync(path.join(driftedRoot, 'skills', 'tdd-workflow', 'SKILL.md'), '\n<!-- drifted -->\n');
+    const drifted = runProbe('codex', driftedRoot);
+    assert.strictEqual(drifted.status, 1, drifted.stdout + drifted.stderr);
+    const driftedPayload = JSON.parse(drifted.stdout);
+    assert.strictEqual(driftedPayload.status, 'FAIL', JSON.stringify(driftedPayload));
+    assert.ok(driftedPayload.errors.some((error) => /fingerprint drifted.*tdd-workflow/i.test(error)), JSON.stringify(driftedPayload));
+
+    fs.writeFileSync(path.join(corruptJsonRoot, 'fingerprints.json'), '{not-valid-json');
+    const corrupt = runProbe('codex', corruptJsonRoot);
+    assert.strictEqual(corrupt.status, 1, corrupt.stdout + corrupt.stderr);
+    const corruptPayload = JSON.parse(corrupt.stdout);
+    assert.strictEqual(corruptPayload.status, 'FAIL', JSON.stringify(corruptPayload));
+    assert.ok(corruptPayload.errors.some((error) => /fingerprints\.json is not valid JSON/i.test(error)), JSON.stringify(corruptPayload));
+
+    const fingerprints = JSON.parse(fs.readFileSync(path.join(missingEntryRoot, 'fingerprints.json'), 'utf8'));
+    delete fingerprints['tdd-workflow'];
+    fs.writeFileSync(path.join(missingEntryRoot, 'fingerprints.json'), `${JSON.stringify(fingerprints, null, 2)}\n`);
+    const missingEntry = runProbe('codex', missingEntryRoot);
+    assert.strictEqual(missingEntry.status, 1, missingEntry.stdout + missingEntry.stderr);
+    const missingPayload = JSON.parse(missingEntry.stdout);
+    assert.strictEqual(missingPayload.status, 'FAIL', JSON.stringify(missingPayload));
+    assert.ok(missingPayload.errors.some((error) => /missing fingerprint entry.*tdd-workflow/i.test(error)), JSON.stringify(missingPayload));
+  } finally {
+    fs.rmSync(driftedRoot, { recursive: true, force: true });
+    fs.rmSync(corruptJsonRoot, { recursive: true, force: true });
+    fs.rmSync(missingEntryRoot, { recursive: true, force: true });
+  }
+});
+
+test('codex-native probe fails closed on surface/manifest contradictions and prioritizes .codex-plugin/plugin.json', () => {
+  const wrongSurfaceRoot = copyTrackedCodexNativePackage();
+  const missingProvenanceRoot = copyTrackedCodexNativePackage();
+  const missingManifestRoot = copyTrackedCodexNativePackage();
+  const dualManifestRoot = copyTrackedCodexNativePackage();
+  try {
+    // 1. .codex-plugin/plugin.json with provenance.surface === 'agent-plugin'
+    const wrongProv = JSON.parse(fs.readFileSync(path.join(wrongSurfaceRoot, 'provenance.json'), 'utf8'));
+    wrongProv.surface = 'agent-plugin';
+    fs.writeFileSync(path.join(wrongSurfaceRoot, 'provenance.json'), JSON.stringify(wrongProv));
+    const wrongSurface = runProbe('codex', wrongSurfaceRoot);
+    assert.strictEqual(wrongSurface.status, 1, wrongSurface.stdout + wrongSurface.stderr);
+    const wrongPayload = JSON.parse(wrongSurface.stdout);
+    assert.strictEqual(wrongPayload.status, 'FAIL', JSON.stringify(wrongPayload));
+    assert.ok(wrongPayload.errors.some((error) => /surface.*codex-native.*agent-plugin/i.test(error)), JSON.stringify(wrongPayload));
+
+    // 2. .codex-plugin/plugin.json with missing provenance.json
+    fs.rmSync(path.join(missingProvenanceRoot, 'provenance.json'));
+    const missingProv = runProbe('codex', missingProvenanceRoot);
+    assert.strictEqual(missingProv.status, 1, missingProv.stdout + missingProv.stderr);
+    const missingProvPayload = JSON.parse(missingProv.stdout);
+    assert.strictEqual(missingProvPayload.status, 'FAIL', JSON.stringify(missingProvPayload));
+    assert.ok(missingProvPayload.errors.some((error) => /provenance\.json/i.test(error)), JSON.stringify(missingProvPayload));
+
+    // 3. provenance.surface === 'codex-native' without .codex-plugin/plugin.json
+    fs.rmSync(path.join(missingManifestRoot, '.codex-plugin'), { recursive: true, force: true });
+    const missingManifest = runProbe('codex', missingManifestRoot);
+    assert.strictEqual(missingManifest.status, 1, missingManifest.stdout + missingManifest.stderr);
+    const missingManifestPayload = JSON.parse(missingManifest.stdout);
+    assert.strictEqual(missingManifestPayload.status, 'FAIL', JSON.stringify(missingManifestPayload));
+    assert.ok(missingManifestPayload.errors.some((error) => /\.codex-plugin\/plugin\.json.*missing/i.test(error)), JSON.stringify(missingManifestPayload));
+
+    // 4. codex-native prioritizes .codex-plugin/plugin.json over stray root plugin.json
+    fs.writeFileSync(path.join(dualManifestRoot, 'plugin.json'), JSON.stringify({ name: 'stray', version: '0.0.0' }));
+    const dual = runProbe('codex', dualManifestRoot);
+    assert.strictEqual(dual.status, 0, dual.stdout + dual.stderr);
+    const dualPayload = JSON.parse(dual.stdout);
+    assert.strictEqual(dualPayload.manifest, path.join(dualManifestRoot, '.codex-plugin', 'plugin.json'));
+  } finally {
+    fs.rmSync(wrongSurfaceRoot, { recursive: true, force: true });
+    fs.rmSync(missingProvenanceRoot, { recursive: true, force: true });
+    fs.rmSync(missingManifestRoot, { recursive: true, force: true });
+    fs.rmSync(dualManifestRoot, { recursive: true, force: true });
+  }
+});
+
+test('--platform agent-plugin continues to reject plugins/dhpk codex-native package', () => {
+  const result = runProbe('agent-plugin', path.join(ROOT, 'plugins', 'dhpk'));
+  assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.strictEqual(payload.status, 'FAIL', JSON.stringify(payload));
+  assert.ok(payload.errors.some((error) => /provenance surface must be agent-plugin, got 'codex-native'/i.test(error)), JSON.stringify(payload));
+});
+
+test('built agent-plugin package remains valid under --platform codex', () => {
+  const packageRoot = builtPackage('agent-plugin');
+  const result = runProbe('codex', packageRoot);
+  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.ok(['UNAVAILABLE', 'NOT_RUN'].includes(payload.status), JSON.stringify(payload));
+  assert.notStrictEqual(payload.status, 'FAIL', JSON.stringify(payload));
+  assert.strictEqual(payload.manifest, path.join(packageRoot, 'plugin.json'));
+  assert.strictEqual(payload.surfaceEvidence.surface, 'codex-marketplace', JSON.stringify(payload));
+});
+
+test('codex-native probe fails closed when --inventory cannot be read or parsed', () => {
+  const missingInv = runProbe('codex', path.join(ROOT, 'plugins', 'dhpk'), ['--inventory', path.join(ROOT, 'manifests', 'does-not-exist.json')]);
+  assert.strictEqual(missingInv.status, 1, missingInv.stdout + missingInv.stderr);
+  const missingPayload = JSON.parse(missingInv.stdout);
+  assert.strictEqual(missingPayload.status, 'FAIL', JSON.stringify(missingPayload));
+  assert.ok(missingPayload.errors.some((error) => /distribution inventory/i.test(error)), JSON.stringify(missingPayload));
+});
+
 run('consumer-platform-probe');

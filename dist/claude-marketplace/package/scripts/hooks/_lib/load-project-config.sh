@@ -44,7 +44,8 @@ fi
 # 憑證讀取政策不能因設定損壞而靜默失效；旗標只交給安全閘判斷，
 # 其他 advisory hook 仍可繼續載入並沿用原有預設行為。
 if [ -n "$_dhpk_settings" ] && command -v python3 >/dev/null 2>&1; then
-    if _dhpk_exports="$(python3 - "$_dhpk_settings" <<'PY' 2>/dev/null
+    _dhpk_load_project_config_exports() {
+        python3 - "$1" <<'PY' 2>/dev/null
 import json, shlex, sys
 try:
     with open(sys.argv[1]) as f:
@@ -94,13 +95,15 @@ for key, val in opts.items():
     project_env = "DHPK_PROJECT_OPTION_" + key.upper()
     print(f"export {project_env}={quoted}")
 PY
-    )"; then
+    }
+    if _dhpk_exports="$(_dhpk_load_project_config_exports "$_dhpk_settings")"; then
         if [ -n "$_dhpk_exports" ]; then
             eval "$_dhpk_exports"
         fi
     else
         export DHPK_CREDENTIAL_CONFIG_ERROR=1
     fi
+    unset -f _dhpk_load_project_config_exports
     unset _dhpk_exports
 elif [ -n "$_dhpk_settings" ]; then
     export DHPK_CREDENTIAL_CONFIG_ERROR=1
