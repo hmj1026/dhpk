@@ -328,7 +328,7 @@ _dhpk_ci_git_value_risky() {
     local raw="$1" val ifs="$2" i=1 n sub
     _dhpk_ci_lower "$1"
     val="$_dhpk_ci_lc"
-    local -a ws_a
+    local -a ws_a=()
     # Folded: ${l,,}, ${l^^}, ${l~~} and ${l@L} can rebuild git from other case.
     if [ "$ifs" = "1" ]; then
         case "$val" in *git*) return 0 ;; esac
@@ -517,9 +517,9 @@ _dhpk_ci_note_flag_var() {
 # True when a stored flag value holds --no-verify, or (commit only) a short cluster with n.
 _dhpk_ci_flag_value_no_verify() {
     local fw
-    local -a fv_a
+    local -a fv_a=()
     read -r -a fv_a <<<"$1"
-    for fw in "${fv_a[@]}"; do
+    for fw in ${fv_a[@]+"${fv_a[@]}"}; do
         case "$fw" in
             --no-verify|--no-verify=*|--no-veri|--no-verif|--no-veri=*|--no-verif=*) return 0 ;;
         esac
@@ -655,9 +655,9 @@ _dhpk_ci_flag_bound_transform() {
 # (#1468) True when a word of the stored flag value $1 is a glob that can expand to a flag.
 _dhpk_ci_flag_words_glob() {
     local gw
-    local -a gw_a
+    local -a gw_a=()
     read -r -a gw_a <<<"$1"
-    for gw in "${gw_a[@]}"; do
+    for gw in ${gw_a[@]+"${gw_a[@]}"}; do
         _dhpk_ci_glob_may_flag "$gw" "$2" && return 0
     done
     return 1
@@ -766,9 +766,9 @@ _dhpk_ci_glob_may_flag() {
 # git accepts as an abbreviation.
 _dhpk_ci_flag_abbrev() {
     local fw
-    local -a fa_a
+    local -a fa_a=()
     read -r -a fa_a <<<"$1"
-    for fw in "${fa_a[@]}"; do
+    for fw in ${fa_a[@]+"${fa_a[@]}"}; do
         [ "${#fw}" -ge 3 ] && [ "$fw" != "--no-verify" ] && [[ "--no-verify" == "$fw"* ]] && return 0
     done
     return 1
@@ -1087,7 +1087,7 @@ _dhpk_ci_fs_read() {
     if [ "$readable" != "1" ] && _dhpk_ci_fs_read_cut "$1"; then
         cut=1
     fi
-    for name in "${rnames[@]}"; do
+    for name in ${rnames[@]+"${rnames[@]}"}; do
         if [[ "$name" == *[\$\`]* ]]; then
             _dhpk_ci_fs_anyname=1
         elif [ "$readable" = "1" ]; then
@@ -1152,7 +1152,11 @@ _dhpk_ci_fs_printf() {
         val=" $_dhpk_ci_fs_uq"
     else
         opaque=1
-        _dhpk_ci_printf_unreadable_force "${_dhpk_ci_fs_raw[$i]-}" "${_dhpk_ci_fs_raw[@]:$((i + 1))}" && force=1
+        if [ "$((i + 1))" -lt "$n" ]; then
+            _dhpk_ci_printf_unreadable_force "${_dhpk_ci_fs_raw[$i]-}" "${_dhpk_ci_fs_raw[@]:$((i + 1))}" && force=1
+        else
+            _dhpk_ci_printf_unreadable_force "${_dhpk_ci_fs_raw[$i]-}" && force=1
+        fi
         for ((i = i + 1; i < n; i++)); do args="$args ${_dhpk_ci_fs_raw[$i]}"; done
     fi
     if [ "$force" = "1" ]; then
@@ -1407,9 +1411,9 @@ _dhpk_ci_fs_indirect_call() {
             ;;
     esac
     local seg="${2//[\"\'\\]/}" w
-    local -a ic_a
+    local -a ic_a=()
     read -r -a ic_a <<<"$seg"
-    for w in "${ic_a[@]}"; do
+    for w in ${ic_a[@]+"${ic_a[@]}"}; do
         case "$_dhpk_ci_fs_funcs" in
             *" $w "*) _dhpk_ci_pos_opaque=1; return 0 ;;
         esac
@@ -1442,7 +1446,7 @@ _dhpk_ci_scan_flag_sources() {
     while IFS= read -r seg; do
         segs+=("$seg")
     done <<<"$text"
-    for seg in "${segs[@]}"; do
+    for seg in ${segs[@]+"${segs[@]}"}; do
         _dhpk_ci_fs_strip "$seg" 1
         stripped+=("$_dhpk_ci_fs_seg")
     done
@@ -1450,7 +1454,7 @@ _dhpk_ci_scan_flag_sources() {
     case "$_dhpk_ci_fs_funcs" in
         *" command_not_found_handle "*) _dhpk_ci_pos_opaque=1 ;;
     esac
-    for seg in "${stripped[@]}"; do
+    for seg in ${stripped[@]+"${stripped[@]}"}; do
         _dhpk_ci_fs_apply "$seg"
     done
     _dhpk_ci_fs_default_assigns
@@ -1493,7 +1497,7 @@ _dhpk_ci_scan_git_taint() {
     local re_more='^([^[:space:];&|<>()"'$sq']+)(.*)$' seg_n sub more
     local re_build='(printf[[:space:]]+-v)[[:space:]]+([^;&|<]*)'
     local re_id='^[A-Za-z_][A-Za-z0-9_]*$'
-    local -a ws_a
+    local -a ws_a=()
     _dhpk_ci_taint_ifs=0
     case "$rest" in
         *IFS=*|*IFS+=*) _dhpk_ci_taint_ifs=1 ;;
@@ -1604,7 +1608,7 @@ _dhpk_ci_scan_git_taint() {
         _dhpk_ci_lower "$1"
         if [ "$_dhpk_ci_taint_ifs" = "1" ] || _dhpk_ci_word_mentions_git "$_dhpk_ci_lc"; then
             read -r -a ws_a <<<"$seg"
-            for w in "${ws_a[@]}"; do
+            for w in ${ws_a[@]+"${ws_a[@]}"}; do
                 [[ "$w" =~ $re_id ]] && _dhpk_ci_taint_add "$w"
             done
         fi

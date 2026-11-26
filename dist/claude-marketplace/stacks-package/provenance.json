@@ -1027,7 +1027,7 @@
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect-copies.sh",
-      "sha256": "0d270033d20302757083d7e22cfc34bb7255d73e515f6f82f4fd2466613329b2"
+      "sha256": "35fa8d067aff82ae4ced50b6fcfe13288139a9dfc7d939cdc806b5b0ac9e1f81"
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect-fn.sh",
@@ -1043,7 +1043,7 @@
     },
     {
       "destination": "scripts/hooks/_lib/command-inspect.sh",
-      "sha256": "d47649cf9c8391870e1dddcdb3bc32013d7392c2856faae4c73aec17ebd5a60b"
+      "sha256": "1173d66031bfb1b5eee6af1e2617908ef71d7e91f7e195e26da5f03141957533"
     },
     {
       "destination": "scripts/hooks/_lib/load-project-config.sh",

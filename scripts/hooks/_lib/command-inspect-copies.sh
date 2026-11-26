@@ -149,7 +149,7 @@ _dhpk_ci_cp_classify() {
 # wrapper words, its first word is git.
 _dhpk_ci_cp_literal_risky() {
     local w re_asg='^[A-Za-z_][A-Za-z0-9_]*='
-    local -a lit_a
+    local -a lit_a=()
     case "$1" in *[\"\'\\]*) ;; *) return 1 ;; esac
     _dhpk_ci_fs_value "$1" || return 1
     case "$_dhpk_ci_fs_uq" in *[[:space:]]*) ;; *) return 1 ;; esac
@@ -285,7 +285,7 @@ _dhpk_ci_cp_collect() {
             *$'\002'*|*'function '*) _dhpk_ci_fs_strip "$seg" 1 ;;
         esac
     done <<<"$text"
-    for seg in "${segs[@]}"; do
+    for seg in ${segs[@]+"${segs[@]}"}; do
         [[ "$seg" == *[![:space:]]* ]] || continue
         _dhpk_ci_fs_strip "$seg" 0
         seg="$_dhpk_ci_fs_seg"
@@ -311,7 +311,7 @@ _dhpk_ci_cp_collect() {
 # command is read once. Past 256 names the scan is cut and fails closed.
 _dhpk_ci_cp_attr_names() {
     local text="$1" line w on k=0 sq="'" re_id='^[A-Za-z_][A-Za-z0-9_]*$' re_opt='^-[A-Za-z]*[lu][A-Za-z]*$'
-    local -a ws_a
+    local -a ws_a=()
     _dhpk_ci_cp_attr=" "
     case "$text" in *declare*|*typeset*|*local*) ;; *) return 0 ;; esac
     text="${text//[;&|()\`]/$'\n'}"
