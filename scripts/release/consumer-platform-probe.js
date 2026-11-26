@@ -12,6 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
+const { verifyNativePackage } = require('../lib/codex-native-package');
 const {
   assertPhysicalPackageRoot,
   networkSandboxProbe,
@@ -219,11 +220,93 @@ function executeWithSandbox(command, args, options) {
   });
 }
 
+/**
+ * Inspect whether a Codex package root signals `codex-native` and verify that
+ * `.codex-plugin/plugin.json` and `provenance.json` do not contradict each other.
+ */
+function inspectCodexPackageSurface(root) {
+  const nativeManifestPath = path.join(root, '.codex-plugin', 'plugin.json');
+  let nativeManifestStat = null;
+  let nativeManifestAccessError = null;
+  try {
+    nativeManifestStat = fs.lstatSync(nativeManifestPath);
+  } catch (error) {
+    if (!error || error.code !== 'ENOENT') nativeManifestAccessError = error;
+  }
+  const hasNativeManifestEntry = Boolean(nativeManifestStat);
+  const hasRegularNativeManifest = Boolean(nativeManifestStat && !nativeManifestStat.isSymbolicLink() && nativeManifestStat.isFile());
+
+  const provenancePath = path.join(root, 'provenance.json');
+  let provenanceStat = null;
+  let provenanceMissing = false;
+  let provenanceError = null;
+  let provenance = null;
+  try {
+    provenanceStat = fs.lstatSync(provenancePath);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') provenanceMissing = true;
+    else provenanceError = `provenance.json cannot be inspected: ${error && error.message ? error.message : String(error)}`;
+  }
+  if (provenanceStat) {
+    if (provenanceStat.isSymbolicLink() || !provenanceStat.isFile()) {
+      provenanceError = 'provenance.json must be a regular non-symlink file';
+    } else {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          provenanceError = 'provenance.json must be a JSON object';
+        } else {
+          provenance = parsed;
+        }
+      } catch (error) {
+        provenanceError = `provenance.json is not valid JSON: ${error.message}`;
+      }
+    }
+  }
+
+  const surface = provenance ? provenance.surface : undefined;
+  const isNativeCandidate = hasNativeManifestEntry || surface === 'codex-native';
+  const errors = [];
+  if (isNativeCandidate) {
+    if (hasNativeManifestEntry && !hasRegularNativeManifest) {
+      errors.push('.codex-plugin/plugin.json must be a regular non-symlink file');
+    } else if (!hasRegularNativeManifest) {
+      errors.push(
+        nativeManifestAccessError
+          ? `.codex-plugin/plugin.json cannot be inspected for codex-native package: ${nativeManifestAccessError.message}`
+          : '.codex-plugin/plugin.json is missing for codex-native package',
+      );
+    }
+    if (provenanceMissing) {
+      errors.push('codex-native package requires provenance.json');
+    } else if (provenanceError) {
+      errors.push(provenanceError);
+    } else if (surface !== 'codex-native') {
+      errors.push(`codex-native package provenance surface must be 'codex-native', got '${surface === undefined ? '(missing)' : surface}'`);
+    }
+  }
+
+  return { isNativeCandidate, hasRegularNativeManifest, provenance, errors };
+}
+
 function packageManifest(platform, root) {
-  const rel = platform === 'cursor' ? ['.cursor-plugin/plugin.json', 'plugin.json'] : ['plugin.json', '.codex-plugin/plugin.json'];
+  let rel;
+  if (platform === 'cursor') {
+    rel = ['.cursor-plugin/plugin.json', 'plugin.json'];
+  } else if (platform === 'codex' && inspectCodexPackageSurface(root).isNativeCandidate) {
+    rel = ['.codex-plugin/plugin.json', 'plugin.json'];
+  } else {
+    rel = ['plugin.json', '.codex-plugin/plugin.json'];
+  }
   for (const candidate of rel) {
     const file = path.join(root, candidate);
-    if (!fs.existsSync(file)) continue;
+    let stat = null;
+    try {
+      stat = fs.lstatSync(file);
+    } catch (_) {
+      continue;
+    }
+    if (stat.isSymbolicLink() || !stat.isFile()) continue;
     try {
       return { path: file, data: JSON.parse(fs.readFileSync(file, 'utf8')) };
     } catch (error) {
@@ -650,23 +733,63 @@ function runClaudeProjectProbe(root, structural, execute = false) {
   }
 }
 
-const DEFAULT_DISTRIBUTION_INVENTORY = path.join(__dirname, '..', '..', 'manifests', 'distribution-inventory.json');
+const DEFAULT_SOURCE_ROOT = path.join(__dirname, '..', '..');
+const DEFAULT_DISTRIBUTION_INVENTORY = path.join(DEFAULT_SOURCE_ROOT, 'manifests', 'distribution-inventory.json');
 
 function resolveCursorInventoryPath(inventoryPath) {
   if (inventoryPath) return inventoryPath;
   return fs.existsSync(DEFAULT_DISTRIBUTION_INVENTORY) ? DEFAULT_DISTRIBUTION_INVENTORY : null;
 }
 
+/**
+ * Resolve and parse the distribution inventory JSON together with the
+ * corresponding repository sourceRoot for codex-native verification.
+ */
+function resolveCodexNativeInventory(inventoryPath) {
+  const resolvedCandidate = resolveCursorInventoryPath(inventoryPath);
+  if (!resolvedCandidate) {
+    return { ok: false, errors: ['distribution inventory could not be resolved'] };
+  }
+  const resolvedInv = path.resolve(resolvedCandidate);
+  let inventory;
+  try {
+    inventory = JSON.parse(fs.readFileSync(resolvedInv, 'utf8'));
+  } catch (error) {
+    return { ok: false, errors: [`distribution inventory cannot be read or parsed (${resolvedInv}): ${error.message}`] };
+  }
+  if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) {
+    return { ok: false, errors: [`distribution inventory must be a JSON object: ${resolvedInv}`] };
+  }
+  const sourceRoot = path.basename(resolvedInv) === 'distribution-inventory.json'
+    && path.basename(path.dirname(resolvedInv)) === 'manifests'
+    ? path.dirname(path.dirname(resolvedInv))
+    : DEFAULT_SOURCE_ROOT;
+  return { ok: true, inventory, sourceRoot };
+}
+
 function validatePackage(platform, root, inventoryPath = null) {
   if (platform === 'agy-project' || platform === 'claude-project') {
     return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
+  }
+  if (platform === 'codex') {
+    const codexSurface = inspectCodexPackageSurface(root);
+    if (!codexSurface.isNativeCandidate) return validateAgentPluginPackage(root);
+    if (codexSurface.errors.length > 0) return { ok: false, errors: codexSurface.errors };
+    const resolved = resolveCodexNativeInventory(inventoryPath);
+    if (!resolved.ok) return { ok: false, errors: resolved.errors };
+    return verifyNativePackage({
+      packageRoot: root,
+      sourceRoot: resolved.sourceRoot,
+      inventory: resolved.inventory,
+      stage: 'structural',
+    });
   }
   let inventory = null;
   if (platform === 'cursor') {
     const resolved = resolveCursorInventoryPath(inventoryPath);
     if (resolved) inventory = JSON.parse(fs.readFileSync(path.resolve(resolved), 'utf8'));
   }
-  return platform === 'codex' || platform === 'agent-plugin'
+  return platform === 'agent-plugin'
     ? validateAgentPluginPackage(root)
     : validateCursorPackage({ packageRoot: root, expectedManifestName: 'dhpk-cursor', inventory });
 }
@@ -758,8 +881,9 @@ function main() {
     emit({ ...blocked, ...normalized }, 1);
   }
   const manifest = args.platform === 'agy-project' || args.platform === 'claude-project' ? null : packageManifest(args.platform, root);
-  if (args.platform !== 'agy-project' && args.platform !== 'claude-project' && !manifest) emit({ platform: args.platform, status: 'BLOCKED', packageRoot: root, reason: 'package manifest is missing', commands: [] }, 1);
-  if (args.platform !== 'agy-project' && args.platform !== 'claude-project' && manifest.error) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: manifest.error, commands: [] }, 1);
+  const codexNativeCandidate = args.platform === 'codex' && inspectCodexPackageSurface(root).isNativeCandidate;
+  if (args.platform !== 'agy-project' && args.platform !== 'claude-project' && !manifest && !codexNativeCandidate) emit({ platform: args.platform, status: 'BLOCKED', packageRoot: root, reason: 'package manifest is missing', commands: [] }, 1);
+  if (args.platform !== 'agy-project' && args.platform !== 'claude-project' && manifest && manifest.error) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: manifest.error, commands: [] }, 1);
   let structural;
   try {
     structural = validatePackage(args.platform, root, args.inventory || null);

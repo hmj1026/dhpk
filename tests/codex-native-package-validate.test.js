@@ -184,6 +184,49 @@ test('native structural verification returns stage-bound evidence instead of a l
   }
 });
 
+test('verifyNativePackage checks per-skill tree-merkle-v1 hashes in fingerprints.json when present', () => {
+  const dir = makeTempPackage();
+  try {
+    const { fingerprintDir } = require('../scripts/lib/codex-native-package');
+    const { buildSkillRoutingProjection } = require('../scripts/lib/skill-routing-projection');
+    const inventory = {
+      skills: [{
+        id: 'hello',
+        name: 'hello-skill',
+        path: 'skills/hello-skill',
+        lifecycle: 'promoted',
+        surfaces: ['codex-native'],
+      }],
+    };
+    fs.writeFileSync(path.join(dir, 'provenance.json'), `${JSON.stringify({
+      fingerprintAlgorithm: 'tree-merkle-v1',
+      routingProjection: buildSkillRoutingProjection({ inventory, surface: 'codex-native' }),
+    })}\n`);
+    const expectedHash = fingerprintDir(path.join(dir, 'skills', 'hello-skill'), { algorithm: 'tree-merkle-v1' });
+    fs.writeFileSync(path.join(dir, 'fingerprints.json'), JSON.stringify({ 'hello-skill': expectedHash }));
+    const pass = verifyNativePackage({ packageRoot: dir, inventory, stage: 'structural' });
+    assert.strictEqual(pass.ok, true, pass.errors.join('\n'));
+
+    fs.writeFileSync(path.join(dir, 'fingerprints.json'), JSON.stringify({ 'hello-skill': '0'.repeat(64) }));
+    const drifted = verifyNativePackage({ packageRoot: dir, inventory, stage: 'structural' });
+    assert.strictEqual(drifted.ok, false);
+    assert.strictEqual(drifted.structural.ok, false);
+    assert.ok(drifted.errors.some((e) => /fingerprint drifted.*hello-skill/i.test(e)), drifted.errors.join('\n'));
+
+    fs.writeFileSync(path.join(dir, 'fingerprints.json'), JSON.stringify({}));
+    const missing = verifyNativePackage({ packageRoot: dir, inventory, stage: 'structural' });
+    assert.strictEqual(missing.ok, false);
+    assert.ok(missing.errors.some((e) => /missing fingerprint entry.*hello-skill/i.test(e)), missing.errors.join('\n'));
+
+    fs.writeFileSync(path.join(dir, 'fingerprints.json'), '{bad json');
+    const malformed = verifyNativePackage({ packageRoot: dir, inventory, stage: 'structural' });
+    assert.strictEqual(malformed.ok, false);
+    assert.ok(malformed.errors.some((e) => /fingerprints\.json is not valid JSON/i.test(e)), malformed.errors.join('\n'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // Consolidated from tests/codex-native-activation.test.js; imports and helpers stay local.
 {
   const { test, assert } = require('./_lib/tinytest');

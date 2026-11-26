@@ -17,6 +17,14 @@ function invoke(args, options = {}) {
   });
 }
 
+function invokeViaDhpk(args, options = {}) {
+  return spawnSync('bash', [path.join(ROOT, 'bin', 'dhpk'), 'install', ...args], {
+    cwd: options.cwd || ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, ...(options.env || {}) },
+  });
+}
+
 function json(result) {
   return JSON.parse(result.stdout);
 }
@@ -248,6 +256,70 @@ test('lifecycle aggregate codes stay separate from EvidenceResult verdicts', () 
     () => lifecycle.createLifecycleResult({ lifecycleVerdict: 'PASS' }),
     /lifecycle verdict/i,
   );
+});
+
+test('help flags, zero args, and valid prefixes emit canonical usage on stdout without mutation', () => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-help-'));
+  try {
+    const runners = [
+      ['bin/dhpk-install', (args) => invoke(args, { cwd: project })],
+      ['bin/dhpk install', (args) => invokeViaDhpk(args, { cwd: project })],
+    ];
+    for (const [name, runCli] of runners) {
+      for (const args of [[], ['--help'], ['-h']]) {
+        const result = runCli(args);
+        const label = `${name} ${args.join(' ') || '(no args)'}`;
+        assert.strictEqual(result.status, 0, `${label}: ${result.stderr}`);
+        assert.strictEqual(result.stderr, '', label);
+        assert.match(result.stdout, /^usage: dhpk install <surface> <action> \[options\]/m, label);
+        assert.match(result.stdout, /dhpk install --recover/, label);
+        assert.match(result.stdout, /surfaces: claude \| codex-sync \| codex-native \| agent-plugin \| cursor \| agy-plugin/, label);
+        assert.match(result.stdout, /actions: plan \| install \| verify \| update \| uninstall \| rollback \| status/, label);
+      }
+      const validPrefixes = [
+        ['--recover', '--help'],
+        ['--recover', '-h'],
+        ['--recover', '--json', '--help'],
+        ['codex-sync', '--help'],
+        ['codex-sync', '-h'],
+        ['claude', 'plan', '--help'],
+        ['cursor', 'plan', '--help'],
+        ['cursor', 'plan', '--scope', 'project', '--help'],
+        ['cursor', 'plan', '--scope', 'project', '-h'],
+      ];
+      for (const args of validPrefixes) {
+        const result = runCli(args);
+        const label = `${name} ${args.join(' ')}`;
+        assert.strictEqual(result.status, 0, `${label}: ${result.stderr}`);
+        assert.strictEqual(result.stderr, '', label);
+        assert.match(result.stdout, /^usage: dhpk install /m, label);
+      }
+      const invalidWithHelp = [
+        ['help'],
+        ['cursor', 'help'],
+        ['--bogus', '--help'],
+        ['bogus', '--help'],
+        ['--recover', '--bogus', '--help'],
+        ['--recover', '--project-root', '--help'],
+        ['--scope', '--help'],
+        ['cursor', 'plan', '--scope', '--help'],
+        ['cursor', 'plan', '--scope', '-h'],
+        ['cursor', 'bogus', '--help'],
+        ['cursor', 'plan', '--bogus', '--help'],
+        ['cursor', 'plan', '--profile', 'full', '--help'],
+      ];
+      for (const args of invalidWithHelp) {
+        const result = runCli(args);
+        const label = `${name} ${args.join(' ')}`;
+        assert.strictEqual(result.status, 64, label);
+        assert.strictEqual(result.stdout, '', label);
+        assert.match(result.stderr, /^dhpk-install: /, label);
+      }
+    }
+    assert.deepStrictEqual(fs.readdirSync(project), []);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
 });
 
 run('dhpk-install-lifecycle');
