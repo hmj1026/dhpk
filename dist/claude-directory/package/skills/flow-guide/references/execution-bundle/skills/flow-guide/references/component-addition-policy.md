@@ -12,4 +12,4 @@ Before adding a reviewer agent, sentinel slot, or hook, document in the relevant
 Removal is symmetric: delete its INDEX row and every reference, slot token,
 sentinel literal, and count claim in the same change.
 `$PROJECT_DIR/tests/sentinel-slots.test.js` and
-`$PROJECT_DIR/references/manual-procedure.md (catalog.js)` enforce the mechanical integrity.
+`$PROJECT_DIR/scripts/ci/catalog.js` enforce the mechanical integrity.

@@ -125,6 +125,109 @@ check([('git diff', v.INSPECTION_FAILURE), ('git status', v.ALLOW), ('git diff -
 `);
 });
 
+test('an unknown working directory names the cd cause instead of the pathspec', () => {
+  python(String.raw`
+root = repo(mk(), 'hint', ['src/a.js', '.env'])
+for command in ('cd %s; git grep -n x -- src' % root, 'cd src && git diff', 'git -C "$D" diff', 'timeout 5 git diff'):
+    result = analyze(command, [], root)
+    assert result.kind == v.RECURSIVE_UNPROVEN, (command, result.kind)
+    assert 'git -C <literal-path>' in result.hint and 'without cd' in result.hint and 'wrapper' in result.hint, (command, result.message())
+    assert 'narrow the git pathspec' not in result.hint, (command, result.message())
+# The advised form passes.
+assert analyze('git -C %s grep -n x -- src' % root, [], root).allowed
+# A listing that really names a Protected Path keeps the pathspec advice.
+listed = analyze('git grep -n x', [], root)
+assert listed.kind == v.RECURSIVE_UNPROVEN and 'narrow the git pathspec' in listed.hint, listed.message()
+`);
+});
+
+test('redirect operands are not git operands: they neither block a safe read nor narrow a listing', () => {
+  python(String.raw`
+root = repo(base, 'redirects', ['src/a.js', 'README.md', '.env'])
+check([
+    # A safe read stays allowed with any redirect form.
+    ('git show HEAD:README.md > out', v.ALLOW), ('git show HEAD:README.md >> out', v.ALLOW),
+    ('git show HEAD:README.md 2>/dev/null', v.ALLOW), ('git show HEAD:README.md >/dev/null 2>&1', v.ALLOW),
+    ('git show HEAD:README.md &> out', v.ALLOW), ('git show > out HEAD:README.md', v.ALLOW),
+    ('git show HEAD:README.md > "$OUT"', v.ALLOW), ('git show HEAD:README.md < README.md', v.ALLOW),
+    ('git grep -n x -- src 2>/dev/null', v.ALLOW), ('git grep -n x -- src > out', v.ALLOW),
+    ('git diff HEAD -- src > out', v.ALLOW), ('git cat-file -p HEAD:README.md > out', v.ALLOW),
+    ('> out git grep -n x -- src', v.ALLOW),
+    # The redirect operand is not a pathspec: the whole tree is still listed.
+    ('git grep -n x > src', v.RECURSIVE_UNPROVEN), ('git grep -n x > README.md', v.RECURSIVE_UNPROVEN),
+    ('git grep -n x >> README.md', v.RECURSIVE_UNPROVEN), ('git grep -n x < README.md', v.RECURSIVE_UNPROVEN),
+    ('git grep -n x <<< README.md', v.RECURSIVE_UNPROVEN), ('git grep -n x -- > src', v.RECURSIVE_UNPROVEN),
+    ('git grep -n x 2>src', v.RECURSIVE_UNPROVEN), ('git grep -n x <<EOF\nsrc\nEOF', v.RECURSIVE_UNPROVEN),
+    ('git log -p > README.md', v.RECURSIVE_UNPROVEN), ('git log -p -- > README.md', v.RECURSIVE_UNPROVEN),
+    ('git diff HEAD~0 -- > README.md', v.ALLOW), ('git show HEAD > README.md', v.RECURSIVE_UNPROVEN),
+    ('git -C src grep -n x -- .. > ../README.md', v.RECURSIVE_UNPROVEN),
+    # Words after a redirect operand are still operands; a quoted or spaced digit is a word.
+    ('git show HEAD:README.md > out HEAD:.env', v.PROTECTED), ('git show > out HEAD:.env', v.PROTECTED),
+    ('git show HEAD:README.md 2>out HEAD:.env', v.PROTECTED), ('git show HEAD:.env > out', v.PROTECTED),
+    ('git show HEAD:README.md 2 > out', v.INSPECTION_FAILURE), ('git show "2">out', v.INSPECTION_FAILURE),
+    (r'git show \2>out', v.INSPECTION_FAILURE),
+    ("X='out HEAD:.env'; git show HEAD:README.md > $X", v.PROTECTED),
+    # The redirect operand itself keeps the protection other Readers give it.
+    ('git show HEAD:README.md > .env', v.PROTECTED), ('git show HEAD:README.md < .env', v.PROTECTED),
+    ('X=.env; git show HEAD:README.md > $X', v.PROTECTED),
+    ('git show HEAD:README.md > *.txt', v.AMBIGUOUS_TARGET),
+    ('git show HEAD:README.md > "$DIR"/.env', v.PROTECTED),
+    ('git show HEAD:README.md > out; cat .env', v.PROTECTED),
+    ('git cat-file --batch < README.md', v.UNSUPPORTED), ('git log -p --stdin < README.md', v.UNSUPPORTED),
+    ('git grep -n -f - < README.md', v.UNSUPPORTED),
+], root)
+`);
+});
+
+test('redirect operands are not operands of other Readers either', () => {
+  python(String.raw`
+root = repo(base, 'reader-redirects', ['src/a.js', 'README.md', '.env'])
+check([
+    ('rg x src 2>/dev/null', v.ALLOW), ('rg x src > out', v.ALLOW), ('grep -rn x src > out 2>&1', v.ALLOW),
+    ('cat README.md 2>/dev/null', v.ALLOW), ('cat README.md > "$OUT"', v.ALLOW), ('cat < README.md > out', v.ALLOW),
+    ('rg x < README.md', v.ALLOW),
+    ('rg x > README.md', v.RECURSIVE_UNPROVEN), ('rg x > src', v.RECURSIVE_UNPROVEN),
+    ('rg x 2>src', v.RECURSIVE_UNPROVEN), ('grep -rn x > README.md', v.RECURSIVE_UNPROVEN),
+    ('cat README.md > .env', v.PROTECTED), ('cat README.md 2> .env', v.PROTECTED), ('cat > out .env', v.PROTECTED),
+    ('cat < .env > out', v.PROTECTED), ('cat README.md 2>out .env', v.PROTECTED),
+    ('cat README.md > *.txt', v.AMBIGUOUS_TARGET), ('cat README.md > "$DIR"/.env', v.PROTECTED),
+], root)
+`);
+});
+
+test('a redirect never hides the directory a recursive Reader searches', () => {
+  python(String.raw`
+root = repo(base, 'narrowing', ['src/a.js', 'README.md', '.env'])
+check([
+    # grep -r ignores stdin, and rg ignores stdin when it is not a regular file.
+    *[(reader + ' KEY ' + redirect, v.RECURSIVE_UNPROVEN)
+      for reader in ('grep -rn', 'rg -n', 'rg -n --hidden')
+      for redirect in ('</dev/null', '</dev/null 2>/dev/null', '< /dev/null > out', '</dev/null 2>&1', '0</dev/null', '3<README.md')],
+    ('grep -rn KEY <README.md 2>/dev/null', v.RECURSIVE_UNPROVEN),
+    ('rg KEY < README.md 2>/dev/null', v.ALLOW), ('grep -rn KEY src </dev/null 2>/dev/null', v.ALLOW),
+    ('cat < README.md 2>/dev/null', v.ALLOW), ('grep KEY < README.md 2>/dev/null', v.ALLOW),
+    # zsh reads >! as >| and takes the next word as the output file; bash keeps that word as an operand.
+    *[(reader + ' ' + op + ' README.md', v.AMBIGUOUS_TARGET)
+      for reader in ('rg KEY', 'grep -rn KEY', 'git log -p', 'git grep KEY') for op in ('>!', '>>!', '&>!')],
+    ('cat README.md >! out', v.ALLOW), ('cat README.md >! .env', v.PROTECTED),
+    # The suffix of an unquoted substitution target is lexed as a separate word.
+    ('grep -rn KEY > $(date +%F)src', v.AMBIGUOUS_TARGET), ('git log -p > $(date +%F)README.md', v.AMBIGUOUS_TARGET),
+    ('git show HEAD:README.md > "$(mktemp)"', v.ALLOW), ('cat README.md > $(mktemp)', v.ALLOW),
+    # Only a digit that touches the operator is a descriptor.
+    ("head -n ''2>o .env", v.PROTECTED), ('head -n ""2>o .env', v.PROTECTED),
+    ('head -n 2\\\n>o .env', v.PROTECTED), ("head -n ''\\\n2>o .env", v.PROTECTED),
+    ('git show HEAD:README.md;2>o git show HEAD:README.md', v.ALLOW),
+    # A continuation line may start with a descriptor.
+    ('git show HEAD:README.md \\\n2>/dev/null', v.ALLOW), ('grep -rn KEY src \\\n2>/dev/null', v.ALLOW),
+    ('git show HEAD:README.md \\\n\\\n2>/dev/null', v.ALLOW), ('git grep KEY -- \\\n2>/dev/null', v.RECURSIVE_UNPROVEN),
+    ('git log -p -- \\\n2>/dev/null', v.RECURSIVE_UNPROVEN), ('head -n 1\\\n2>o .env', v.PROTECTED),
+    # The last stdin redirect wins in bash; a split input target leaves a word behind.
+    ('rg KEY <README.md </dev/null 2>/dev/null', v.RECURSIVE_UNPROVEN),
+    ('git grep KEY < $(echo x)src', v.AMBIGUOUS_TARGET), ('git grep KEY -- src < README.md', v.ALLOW),
+], root)
+`);
+});
+
 test('tracked custom protected file: listings name it, narrowed reads pass', () => {
   python(String.raw`
 prot = repo(base, 'prot', ['src/a.js', 'protected/config/db.php', '.env'])

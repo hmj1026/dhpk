@@ -33,7 +33,7 @@ Read these at the indicated phase:
 ## P0 — Scope and Safety
 
 1. Select `--env`, defaulting to test, and load its configuration.
-2. Run `packaged-health-probe.sh <health-url>` (3 attempts, 2-second timeout).
+2. Run `health-probe.sh` (not shipped in the Directory Plugin) (3 attempts, 2-second timeout).
 3. Compare local HEAD with the deployed version and warn on mismatch.
 4. Confirm every planned operation is read-only.
 5. Determine L4/L3/L2-API/L2-OBS/L1 using the playbook matrix.
@@ -54,7 +54,7 @@ Run only for L2-API/L3/L4 after approval. For each allowlisted case:
 
 1. Confirm method and endpoint exactly match the allowlist.
 2. Run one request at a time with fixed, non-PII test parameters:
-   `packaged-api-exec.sh <GET|POST> <allowlisted-url> [json-payload]`
+   `api-exec.sh` (not shipped in the Directory Plugin)
 3. Record its request ID, HTTP status, response fields, and latency.
 
 The script rejects methods other than GET and POST; the operator must separately confirm that POST is allowlisted and read-only. L2-OBS always skips P3.

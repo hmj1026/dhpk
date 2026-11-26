@@ -33,6 +33,9 @@ const OMITTED_ALL = [...OMITTED_AGENTS];
 const OMITTED_REF_PATTERN = new RegExp(`(?<![A-Za-z0-9_-])(${OMITTED_ALL.join('|')})(?![A-Za-z0-9_-])`, 'g');
 const SKILL_TOKEN_PATTERN = new RegExp(`(?<![A-Za-z0-9_/-])\\$(${DIRECTORY_SKILL_NAMES.join('|')})(?![A-Za-z0-9_-])`, 'g');
 const TOP_LEVEL_SKILL_MARKDOWN = /^skills\/[^/]+\/SKILL\.md$/;
+// Pointers the reduction must never leave behind: a Manual Procedure written as if
+// it were a script, a packaged-* runner name, or a $SCRIPTS/ helper path.
+const UNSHIPPED_SCRIPT_COMMAND = /references\/manual-procedure\.md \([A-Za-z0-9_.-]+\.(?:js|cjs|mjs|sh|py)\)|(?<![A-Za-z0-9_-])packaged-[A-Za-z0-9_.-]+\.(?:js|cjs|mjs|sh|py)(?![A-Za-z0-9_-])|\$\{?SCRIPTS\}?\/[A-Za-z0-9_.-]+/g;
 const REFERENCE_FRONTMATTER = /^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
 
 function readPackageFiles(packageDir) {
@@ -174,6 +177,9 @@ function validateReadme(files, errors) {
   if (!/do not enable|keep only one|not.*both/i.test(text) || !text.includes('dhpk-lite')) {
     errors.push({ file: 'README.md', rule: 'readme-contract', message: 'README.md must state that dhpk and dhpk-lite should not be enabled together' });
   }
+  if (!text.includes('## What `dhpk-lite` runs and sends')) {
+    errors.push({ file: 'README.md', rule: 'readme-contract', message: 'README.md must disclose what dhpk-lite runs and sends' });
+  }
   if (!text.includes('mode: manual')) {
     errors.push({ file: 'README.md', rule: 'readme-contract', message: 'README.md must explain Manual Procedures (mode: manual)' });
   }
@@ -228,6 +234,7 @@ function validateSkillNextMap(files, errors) {
 // A scripts/ reference counts as removed when the Full Plugin ships it (relative
 // to the skill directory or the package root) and the Directory Plugin does not.
 // Without a Full Plugin tree to compare, every scripts/ reference is reported.
+// `$PROJECT_DIR/scripts/` is the consumer's own file and is never a reference to one.
 function isRemovedScriptPath(file, ref, files, fullDir) {
   const skillRoot = file.split('/').slice(0, 2).join('/');
   const candidates = [`${skillRoot}/${ref}`, ref];
@@ -328,8 +335,14 @@ function validateDirectoryPlugin(packageDir = DEFAULT_DIR, { root = ROOT, versio
         }
       }
       if (file.startsWith('skills/') && (file.endsWith('.md') || file.endsWith('.json'))) {
+        const reportedCommands = new Set();
+        for (const m of stripped.matchAll(UNSHIPPED_SCRIPT_COMMAND)) {
+          if (reportedCommands.has(m[0])) continue;
+          reportedCommands.add(m[0]);
+          errors.push({ file, rule: 'unshipped-script-command', target: m[0], message: `points Claude at unshipped script '${m[0]}'` });
+        }
         const reportedScripts = new Set();
-        for (const m of stripped.matchAll(/(?<![A-Za-z0-9_-])(scripts\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g)) {
+        for (const m of stripped.matchAll(/(?<![A-Za-z0-9_-])(?<!\$PROJECT_DIR\/)(scripts\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)/g)) {
           if (!reportedScripts.has(m[1]) && isRemovedScriptPath(file, m[1], files, fullPluginKnown ? resolvedFullDir : null)) {
             reportedScripts.add(m[1]);
             errors.push({ file, rule: 'removed-script-reference', target: m[1], message: `references removed script path '${m[1]}'` });

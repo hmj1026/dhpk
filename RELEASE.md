@@ -258,6 +258,16 @@ requirement stands.
    older than this change still requires the explicit file list; pass the
    changed paths that `prepare-release.js paths` covers if you must use it.
 
+   The runner writes the promoted `CHANGELOG.md` section into the PR body.
+   Keep that body: a title or body edit restarts the release PR's CI.
+
+   The runner pushes the bump commit straight to `develop`, before any check
+   has run on it, so GitHub reports `Bypassed rule violations`. This is the
+   one accepted bypass of the `develop` ruleset. It needs a repository-admin
+   credential and covers only the release bump commit; the same SHA must then
+   pass `Validate harness assets` on the release PR before the merge. Every
+   other change reaches `develop` through a pull request.
+
    The release PR must pass the `validate`, `release-rehearsal`, and Markdown
    `lint` jobs. `release-rehearsal` runs only on pull requests into `main`. It
    runs `release-verify.sh --mode dry-run` and then the consumer gate:
@@ -310,7 +320,7 @@ failure logs. Set `TIMEOUT_SECONDS` for a diagnostic run with another budget.
 Once the checks pass, publish the tag:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
+bash skills/release-creator/scripts/release-runner.sh \
   publish X.Y.Z develop main v release.yml
 ```
 
@@ -323,7 +333,8 @@ The publish phase:
   merged `main` before creating a tag;
 - refuses an existing tag because tags are immutable;
 - creates an annotated `vX.Y.Z` tag on `main`;
-- pushes the tag and watches the Release workflow run for that exact tag; and
+- pushes the tag and watches the Release workflow run for that exact tag,
+  resuming when a GitHub API error interrupts the watch; and
 - returns to `develop` only after the workflow succeeds.
 
 The Release workflow accepts only `vX.Y.Z` tags, verifies that the tag commit
@@ -340,6 +351,11 @@ The Release workflow also builds the Agent, Cursor and AGY packages on demand
 Release. Those trees are not committed; an asset that already exists on the
 release is preserved on rerun. The post-publish consumer job downloads the
 published archives and probes them.
+
+If the runner reports that the run's result is unknown, the tag is already
+pushed and publish must not be run again. Observe that run to its conclusion,
+confirm the states in [Release completion and recovery](#release-completion-and-recovery),
+and return the checkout to `develop`.
 
 If the pre-tag SOURCE+PACKAGE gate fails, no tag is created. Diagnose the
 provenance or merge topology, preserve any existing immutable tag, and use a
@@ -359,10 +375,11 @@ A release is complete only when all of these states hold:
    released `main` using `--force-with-lease`.
 
 The `develop` ruleset requires the `Validate harness assets` check on every
-pushed commit. Pull-request CI never runs on the release merge commit, so the
-Release workflow's `release-check` job reports that check on the tag commit,
-passing only when the same run's `release` and `publish` jobs succeeded.
-`sync-develop` waits for it before pushing.
+pushed commit except the release bump commit's documented bypass. Pull-request
+CI never runs on the release merge commit, so the Release workflow's
+`release-check` job reports that check on the tag commit, passing only when the
+same run's `release` and `publish` jobs succeeded. `sync-develop` waits for it
+before pushing.
 
 Idle-align requires `DHPK_RELEASE_EXPECTED_DEVELOP_SHA`, supplied by the release
 workflow from the merged release PR head. It first verifies that the fetched

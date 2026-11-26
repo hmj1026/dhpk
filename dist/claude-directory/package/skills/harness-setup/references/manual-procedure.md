@@ -1,7 +1,7 @@
 # Harness Setup — Manual Procedure
 
-Use this fallback when `packaged-install-assets.sh` or
-`packaged-install-codex-project.sh` is absent (such as in the instruction-only
+Use this fallback when `install-assets.sh` (not shipped in the Directory Plugin) or
+`install-codex-project.sh` (not shipped in the Directory Plugin) is absent (such as in the instruction-only
 Directory Plugin) or cannot execute. The result must match what the scripts
 produce.
 
@@ -58,13 +58,13 @@ produce.
 2. Validate the payload for the selected group; a missing item is
    `SOURCE_ARTIFACT_INVALID` and nothing is written:
    - `hooks`: `hooks/hooks.json` is a regular file (not a symlink) and
-     `packaged-hooks/` is a directory.
+     `hooks/` is a directory.
    - `rules`: `rules/` is a directory.
    - `scripts`: `scripts/`, `skills/precommit/scripts/`, and
      `skills/repo-verify/scripts/` are directories.
    - `all`: every check above.
    For `scripts` and `all`, also require `skills/<skill>/scripts/<runner>` and
-   `packaged-runner-utils.js` to exist as physical files, for
+   `runner-utils.js` (not shipped in the Directory Plugin) to exist as physical files, for
    `precommit` (`precommit-runner.js`) and `repo-verify` (`verify-runner.js`).
    The script reports a missing runner or `runner-utils.js` (writer exit 66) or
    an unsafe symlinked one (writer exit 4) as `BLOCKED` `WRITER_FAILED`, not
@@ -79,7 +79,7 @@ produce.
    Compare each other destination with its source: identical files are skipped,
    a differing file is a conflict that stops the install with nothing written
    unless the operator confirmed `--force`.
-   - `hooks` copies `hooks/` and `packaged-hooks/`.
+   - `hooks` copies `hooks/` and `hooks/`.
    - `scripts` copies `scripts/`, `skills/precommit/scripts/`, and
      `skills/repo-verify/scripts/`.
    - `rules` and `all` (without `--vendor`) write the project-delta stub at

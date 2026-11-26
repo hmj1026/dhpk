@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk-stacks",
   "displayName": "DHPK Stack Modules",
-  "version": "0.81.0",
+  "version": "0.82.0",
   "description": "Stack modules and stack skills for the dhpk harness: PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift hooks, references, reviewers, and skills. Requires the dhpk core plugin.",
   "author": {
     "name": "hmj1026",

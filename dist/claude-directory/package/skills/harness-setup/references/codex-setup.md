@@ -12,7 +12,7 @@ copy of the shell entry and one generated JS bundle of the
 same installer a checkout runs, in the Skill's script tree. Node.js is required; python3 is not.
 
 In a checkout, the wrapper may use
-`references/manual-procedure.md (install-codex-skills.sh)` only when its resolved Skill root
+`install-codex-skills.sh` (not shipped in the Directory Plugin) only when its resolved Skill root
 is exactly `$REPO/skills/harness-setup` according to Git. A similarly named
 Skill under another directory cannot use that fallback. The checkout does not
 store a second writer under the Skill.
@@ -37,12 +37,7 @@ runtime availability; an unprobed runtime remains `NOT_RUN`.
 Resolve the consumer project root and inspect the existing receipt before any
 write. The Skill-local wrapper supports the following safe delegation:
 
-```bash
-bash references/manual-procedure.md (install-codex-project.sh) \
-  --source-artifact <distribution-root> --plan --json
-bash references/manual-procedure.md (install-codex-project.sh) \
-  --source-artifact <distribution-root> --update
-```
+> Not shipped in the Directory Plugin: `install-codex-project.sh`. Follow the matching stage in [the Manual Procedure](manual-procedure.md) and report `mode: manual`.
 
 Use `--plan --json` for `--show` and `--dry-run`; it is read-only. An `--update`
 requires an explicit operator confirmation after the plan. Preserve the

@@ -9,52 +9,21 @@
 > 也不向 plugin cache、repository root 或 `~/.claude` 推測。以下用 `$SCRIPTS`
 > 代表該目錄；目錄或腳本不存在時回報 `BLOCKED_RESOURCE_MISSING`。
 
-1. `python3 $SCRIPTS/prepare_workflow_profile.py`
+1. `prepare_workflow_profile.py` (not shipped in the Directory Plugin)
    - 建立或更新 `profile.yaml`
-2. `python3 $SCRIPTS/prepare_dev_scope.py`
+2. `prepare_dev_scope.py` (not shipped in the Directory Plugin)
    - 建立 `dev-scope.md`、`legacy-reference.md`，必要時建立 Generic Docs 模板
    - 若 `--work-item-system openspec`，預設要求對應的 change directory 已存在
-3. `python3 $SCRIPTS/workflow_gate_check.py`
+3. `workflow_gate_check.py` (not shipped in the Directory Plugin)
    - `feature` / `bugfix`：檢查 profile、work-item、legacy、RED gate
    - `lightweight`：只確認 heavy gate 應該被 skip，仍需另外回報 targeted verification
-4. `python3 $SCRIPTS/openspec_gate_check.py --change <name>`
+4. `openspec_gate_check.py` (not shipped in the Directory Plugin)
    - OpenSpec change 的 apply-ready adapter
    - 前置條件：需安裝 `openspec` CLI；若不存在，腳本回報 `Result: ERROR` 並以 exit 2 結束（不會丟出 traceback）
 
 ## Command Templates
 
-```bash
-SCRIPTS="$SKILL_DIR/scripts"
-
-# 建立/更新 profile
-python3 "$SCRIPTS/prepare_workflow_profile.py" \
-  --language "<language>" \
-  --runtime "<runtime>" \
-  --current-version "<current>" \
-  --target-version "<target>" \
-  --architecture "<architecture>" \
-  --test-strategy "<test-strategy>" \
-  --style "<style-summary>" \
-  --dependency-policy "<policy-summary>" \
-  --work-item-system "<openspec|docs|other>"
-
-# 建立 change scope
-python3 "$SCRIPTS/prepare_dev_scope.py" \
-  --change "<name>" \
-  --reason "<reason>" \
-  --ticket "<ticket>" \
-  --path "<impacted-path>" \
-  --work-item-system "<openspec|docs|other>"
-
-# 通用 gate 檢查
-# feature / bugfix 必填；lightweight 只做 skip confirmation
-python3 "$SCRIPTS/workflow_gate_check.py" \
-  --workflow-type "<feature|bugfix|lightweight>" \
-  --profile ".workflow/profile.yaml" \
-  --work-item "<path-or-id>" \
-  --legacy-reference "<path>" \
-  --red-proof "<path>"
-```
+> Not shipped in the Directory Plugin: `prepare_workflow_profile.py`, `prepare_dev_scope.py`, `workflow_gate_check.py`. Follow the matching stage in [the Manual Procedure](manual-procedure.md) and report `mode: manual`.
 
 ## Project-Specific Shortcuts
 

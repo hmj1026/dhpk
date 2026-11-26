@@ -42,7 +42,8 @@ class ReadPlan:
 
 # failure: None, 'unknown', 'limit', or 'error'; detail explains a failure or ambiguity.
 ListingResult = namedtuple('ListingResult', 'failure detail ambiguous targets listed')
-Recovery = namedtuple('Recovery', 'ambiguous recursive')
+# unknown_cwd replaces `recursive` when the command text hides where the Reader runs.
+Recovery = namedtuple('Recovery', 'ambiguous recursive unknown_cwd', defaults=(None,))
 
 
 def exclusion_syntax(reader):

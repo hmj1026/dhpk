@@ -12,10 +12,10 @@ stages and `fast` to lint + unit; accept only `fast` or `full`. Attach
 `--integration <path>` and `--e2e <path>` only to their matching stages.
 
 Use a project-installed
-`packaged-verify-runner.js` when present. If it
-is absent, use the package-local `packaged-verify-runner.js` for a
+`verify-runner.js` (not shipped in the Directory Plugin) when present. If it
+is absent, use the package-local `verify-runner.js` (not shipped in the Directory Plugin) for a
 Node project. `$SKILL_DIR` is the installed directory containing this
-`SKILL.md`; its adjacent `packaged-runner-utils.js` is part of the same
+`SKILL.md`; its adjacent `runner-utils.js` (not shipped in the Directory Plugin) is part of the same
 local closure, and the consumer cwd remains unchanged. A runner's crash,
 missing overall verdict, execution error, or explicit semantic `FAIL` is
 terminal and does not fall through. A Markdown `FAIL` or `summary.json`

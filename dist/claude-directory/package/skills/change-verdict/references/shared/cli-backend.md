@@ -1,13 +1,10 @@
 # CLI backend
 
-Use `packaged-review-cli.sh` when the Codex CLI is available and a full-disk read
+Use `review-cli.sh` (not shipped in the Directory Plugin) when the Codex CLI is available and a full-disk read
 review is appropriate. It validates `--backend cli`, `--scope`, and `--depth`,
 passes arguments as a shell array, and returns the CLI's exit status.
 
-```bash
-bash packaged-review-cli.sh \
-  --backend cli --scope diff --depth fast
-```
+> Not shipped in the Directory Plugin: `review-cli.sh`. Report this step as `NOT_RUN` and use the documented fallback.
 
 The wrapper accepts `diff`, `branch`, `doc`, `security`, or `tests` scopes and
 `fast` or `full` depth. A branch review requires `--base`; the wrapper resolves

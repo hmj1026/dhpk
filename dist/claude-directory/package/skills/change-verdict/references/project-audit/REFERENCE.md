@@ -12,7 +12,7 @@ lookup. Resolve it before running the audit from an arbitrary consumer cwd.
 
 ## Procedure
 
-1. Run `node "packaged-audit.js" --json` to collect deterministic scores
+1. Run `audit.js` (not shipped in the Directory Plugin) to collect deterministic scores
 2. Parse the JSON output — overall_score, status, dimensions, checks, findings, next_actions
 3. **If status = Blocked** (P0 findings) — highlight critical gaps, suggest immediate fixes
 4. **If status = Needs Work** (P1 findings) — format improvement roadmap by dimension
@@ -50,9 +50,7 @@ The audit script runs 12 deterministic checks across 5 dimensions:
 
 If the script fails, report the error and suggest running manually:
 
-```bash
-node "packaged-audit.js" --json
-```
+> Not shipped in the Directory Plugin: `audit.js`. Report this step as `NOT_RUN` and use the documented fallback.
 
 ## Output
 

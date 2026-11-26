@@ -17,6 +17,31 @@ tag="${tag_prefix}${version}"
 shift 6
 release_files=("$@")
 
+# `gh run watch` can fail on a transient API error after the tag is pushed, so a
+# failed watch is judged by the run's own state instead of by the watch exit.
+watch_release_run() {
+    local run_id="$1" attempts="$2" interval="$3" attempt state
+    for ((attempt = 1; attempt <= attempts; attempt++)); do
+        # --exit-status makes a failed GitHub Actions run fail this release
+        # runner instead of allowing a tag to be reported as published.
+        if gh run watch "$run_id" --exit-status; then
+            return 0
+        fi
+        state="$(gh run view "$run_id" --json status,conclusion --jq '"\(.status) \(.conclusion)"')" || state=""
+        case "$state" in
+            "completed success") return 0 ;;
+            "completed "*)
+                echo "release-runner: run $run_id completed with conclusion '${state#completed }'" >&2
+                return 1
+                ;;
+        esac
+        echo "release-runner: watch of run $run_id was interrupted (attempt $attempt of $attempts)" >&2
+        [ "$attempt" -lt "$attempts" ] && sleep "$interval"
+    done
+    echo "release-runner: result of run $run_id is unknown; tag $tag is already pushed, so observe that run and verify branch alignment instead of running publish again" >&2
+    return 1
+}
+
 if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "release-runner: version must match X.Y.Z" >&2
     exit 2
@@ -104,9 +129,25 @@ case "$phase" in
                 exit 1
             fi
         done
+        # The PR body is final at creation: editing it later restarts CI. A
+        # project with release-preparation and notes scripts supplies the notes.
+        pr_body="Release version $version"
+        notes_script="scripts/release/extract-notes.sh"
+        if [ -f "$scope_script" ] && [ -f "$notes_script" ]; then
+            notes="$(bash "$notes_script" CHANGELOG.md "$version")"
+            # GitHub caps a body at 65536 characters and the OS caps one argument in
+            # bytes; a failed PR creation would leave the bump commit pushed without
+            # a pull request. Bytes bound both limits.
+            notes_bytes="$(printf '%s' "$notes" | wc -c)"
+            if [ "$notes_bytes" -le 60000 ]; then
+                pr_body="$(printf '%s\n\n%s' "$pr_body" "$notes")"
+            else
+                echo "release-runner: release notes exceed the PR body limit; using the short body" >&2
+            fi
+        fi
         git commit -m "chore(release): bump version to $version and update changelog"
         git push origin "$base_branch"
-        gh pr create --head "$base_branch" --base "$release_branch" --title "Release $tag" --body "Release version $version"
+        gh pr create --head "$base_branch" --base "$release_branch" --title "Release $tag" --body "$pr_body"
         ;;
     publish)
         if [ "${#release_files[@]}" -ne 0 ]; then
@@ -183,17 +224,15 @@ case "$phase" in
 
         run_id=""
         for ((attempt = 1; attempt <= poll_attempts; attempt++)); do
-            run_id="$(gh run list --workflow "$workflow" --branch "$tag" --event push --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+            run_id="$(gh run list --workflow "$workflow" --branch "$tag" --event push --limit 1 --json databaseId --jq '.[0].databaseId // empty')" || run_id=""
             [ -n "$run_id" ] && break
             [ "$attempt" -lt "$poll_attempts" ] && sleep "$poll_interval"
         done
         if [ -z "$run_id" ]; then
-            echo "release-runner: workflow run not found for tag $tag" >&2
+            echo "release-runner: workflow run not found for tag $tag; the tag is already pushed, so find that run instead of running publish again" >&2
             exit 1
         fi
-        # --exit-status makes a failed GitHub Actions run fail this release
-        # runner instead of allowing a tag to be reported as published.
-        gh run watch "$run_id" --exit-status
+        watch_release_run "$run_id" "$poll_attempts" "$poll_interval"
 
         git fetch origin "$release_branch" "$base_branch"
         main_sha="$(git rev-parse "origin/${release_branch}")"

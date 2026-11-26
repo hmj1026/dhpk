@@ -353,10 +353,118 @@ test('renderDirectoryReadme describes manual-procedure skills, omissions, mutual
   ]) {
     assert.ok(readme.includes(name), `README must mention ${name}`);
   }
+  for (const action of ['git push', 'gh pr create', 'git tag', 'gh run watch', 'gh issue view', 'curl', 'memory tool', 'DHPK_RELEASE_PUBLISH_GATE_SCRIPT']) {
+    assert.ok(readme.includes(action), `README must disclose ${action}`);
+  }
+  assert.match(readme, /## What `dhpk-lite` runs and sends/);
   assert.match(readme, /dhpk-lite/);
   assert.match(readme, /\/plugin install dhpk-lite/);
   assert.match(readme, /\/plugin marketplace add hmj1026\/dhpk/);
   assert.match(readme, /\/plugin install dhpk@dhpk/);
+});
+
+test('consumer-project script paths survive reduction while packaged script paths are rewritten', () => {
+  const input = sampleFullPluginMap();
+  const line = [
+    'Run `node $PROJECT_DIR/scripts/release/publish-gate.js` in the project.',
+    'Then `bash "$PROJECT_DIR/scripts/release/extract-notes.sh"` and `$PROJECT_DIR/scripts/`.',
+    'Packaged: `$SKILL_DIR/scripts/a.js`, `scripts/b.js`, `$PROJECT_DIR/.claude/scripts/c.sh`, `$PROJECT_DIR/skills/precommit/scripts/d.js`.',
+    '',
+  ].join('\n');
+  const documents = ['skills/flow-guide/references/manual-procedure.md', 'skills/flow-guide/references/consumer-paths.md'];
+  for (const file of documents) input.set(file, { mode: 0o644, content: Buffer.from(`# Doc\n${line}`) });
+  const output = reduceToDirectoryPlugin(input, { version: VERSION });
+  for (const file of documents) {
+    const text = output.get(file).content.toString('utf8');
+    for (const kept of ['node $PROJECT_DIR/scripts/release/publish-gate.js`', '"$PROJECT_DIR/scripts/release/extract-notes.sh"', '`$PROJECT_DIR/scripts/`']) {
+      assert.ok(text.includes(kept), `${file}: ${kept}\n${text}`);
+    }
+    assert.ok(!text.includes('$PROJECT_DIR/packaged-'), text);
+    assert.strictEqual(/(?<!\$PROJECT_DIR\/)(?<![A-Za-z0-9_-])scripts\/[A-Za-z0-9_.-]+/.test(text), false, text);
+  }
+});
+
+test('unshipped script commands become a not-shipped note and prose keeps only the script name', () => {
+  const input = sampleFullPluginMap();
+  const doc = [
+    '# Doc',
+    'If `$SKILL_DIR/scripts/release-runner.sh` is absent, follow the fallback.',
+    '',
+    '```bash',
+    'bash "$SKILL_DIR/scripts/release-runner.sh" \\',
+    '  "prepare" "<version>"',
+    '```',
+    '',
+    '   ```bash',
+    '   node "$SKILL_DIR/scripts/verify-runner.js" $ARGUMENTS',
+    '   ```',
+    '',
+    'The resolver is:',
+    '',
+    '    node $SKILL_DIR/scripts/resolve-version.js --json',
+    '',
+    '```bash',
+    'SCRIPTS="$SKILL_DIR/scripts"',
+    'python3 "$SCRIPTS/prepare_dev_scope.py" --x',
+    '```',
+    '',
+    '```bash',
+    'git status --short',
+    '```',
+    '',
+    'Run `"$SKILL_DIR/scripts/set-handoff-state.sh" consuming "$HANDOFF_PATH"` next.',
+    'See [the source](${CLAUDE_SKILL_DIR}/scripts/collect-changes.js).',
+    'Read `package.json`. Missing scripts/tools are `SKIP` with a reason.',
+    '',
+    '$ bash "$SKILL_DIR/scripts/prompted.sh" --x',
+    'cd repo && node "$SKILL_DIR/scripts/chained.sh"',
+    'sh',
+    'kept line after a bare runner word',
+    '',
+  ].join('\n');
+  const manualDoc = 'skills/flow-guide/references/consumer-paths.md';
+  const plainDoc = 'skills/code-trace/references/plain.md';
+  input.set(manualDoc, entry(doc));
+  input.set(plainDoc, entry(doc));
+  const output = reduceToDirectoryPlugin(input, { version: VERSION });
+  for (const file of [manualDoc, plainDoc]) {
+    const text = output.get(file).content.toString('utf8');
+    assert.ok(!text.includes('manual-procedure.md ('), `${file}\n${text}`);
+    assert.ok(!/packaged-[A-Za-z0-9_.-]+/.test(text), `${file}\n${text}`);
+    assert.ok(!text.includes('$SCRIPTS/'), `${file}\n${text}`);
+    assert.ok(!/^\s*(?:bash|node|python3?)\s/m.test(text), `${file}\n${text}`);
+    assert.ok(text.includes('If `release-runner.sh` (not shipped in the Directory Plugin) is absent'), `${file}\n${text}`);
+    assert.ok(text.includes('> Not shipped in the Directory Plugin: `prompted.sh`.'), `${file}\n${text}`);
+    assert.ok(text.includes('> Not shipped in the Directory Plugin: `chained.sh`.'), `${file}\n${text}`);
+    assert.ok(text.includes('sh\nkept line after a bare runner word'), `${file}\n${text}`);
+    assert.ok(text.includes('```bash\ngit status --short\n```'), `${file}\n${text}`);
+    assert.ok(text.includes('   > Not shipped in the Directory Plugin: `verify-runner.js`.'), `${file}\n${text}`);
+    assert.ok(text.includes('Run `set-handoff-state.sh` (not shipped in the Directory Plugin) next.'), `${file}\n${text}`);
+    assert.ok(text.includes('Read `package.json`. Missing tools are `SKIP` with a reason.'), `${file}\n${text}`);
+  }
+  const manualText = output.get(manualDoc).content.toString('utf8');
+  assert.ok(manualText.includes('> Not shipped in the Directory Plugin: `release-runner.sh`. Follow the matching stage in [the Manual Procedure](manual-procedure.md) and report `mode: manual`.'), manualText);
+  assert.ok(manualText.includes('See [the source](manual-procedure.md).'), manualText);
+  const plainText = output.get(plainDoc).content.toString('utf8');
+  assert.ok(plainText.includes('> Not shipped in the Directory Plugin: `release-runner.sh`. Report this step as `NOT_RUN` and use the documented fallback.'), plainText);
+  assert.ok(plainText.includes('> Not shipped in the Directory Plugin: `prepare_dev_scope.py`.'), plainText);
+});
+
+test('flow-guide Manual Procedure keeps only the Claude action form in the Directory Plugin', () => {
+  const input = sampleFullPluginMap();
+  input.set('skills/flow-guide/references/manual-procedure.md', entry([
+    '# Flow Guide',
+    '- Choose exactly one action. The',
+    '  first token is the action; a `$flow-guide<action>` prefix (for example',
+    '  `$flow-guideroute`) supplies the action, and with a bare `$flow-guide` the next',
+    '  token is the action. No action is `BLOCKED`.',
+    '',
+  ].join('\n')));
+  const text = reduceToDirectoryPlugin(input, { version: VERSION })
+    .get('skills/flow-guide/references/manual-procedure.md').content.toString('utf8');
+  assert.ok(!text.includes('flow-guideroute'), text);
+  assert.ok(!text.includes('flow-guide<action>'), text);
+  assert.ok(text.includes('first token is the action; after `/dhpk-lite:flow-guide` the next\n  token is the action.'), text);
 });
 
 test('reduceToDirectoryPlugin reduces a Full Plugin map purely, admits manual-procedure skills, normalizes nested references, and strips scripts/', () => {

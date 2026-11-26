@@ -221,7 +221,9 @@ def listing_verdict(plan, patterns, cwd):
             return verdict.protected()
     if result.ambiguous:
         return verdict.ambiguous(result.ambiguous, recovery and recovery.ambiguous)
-    if result.failure in ('unknown', 'limit'):
+    if result.failure == 'unknown':
+        return verdict.recursive_unproven(None, result.detail, recovery and (recovery.unknown_cwd or recovery.recursive))
+    if result.failure == 'limit':
         return verdict.recursive_unproven(None, result.detail, recovery and recovery.recursive)
     if result.failure == 'unsupported':
         return verdict.unsupported(None, result.detail)
@@ -250,12 +252,80 @@ def _invokes_reader(names, i):
 # judged by their own rules and never planned as Readers. Startup-file variables may reuse the same
 # executed_file_verdict for the file they name.
 EXECUTION_ENTRANCES = ('source', '.')
+OUTPUT_REDIRECTS = ('>', '>>', '>&')
 ENTRANCE_PREFIXES = {'!', '{', 'time', 'if', 'then', 'elif', 'else', 'do', 'while', 'until', 'command', 'builtin'}
 ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*\+?=')
 
 
 def _is_redirect(token):
     return token.operator and token.value not in SEPARATORS and token.value not in ('&', '&!')
+
+
+def _redirect_operands(tokens):
+    """`(descriptors, inputs, outputs)`: the words of a segment that the shell consumes for its redirects.
+
+    The command never receives them as arguments. An input target is still what a stdin Reader reads.
+    """
+    descriptors = [token for token in tokens if token.descriptor]
+    inputs, outputs = [], []
+    for token, target in zip(tokens, tokens[1:]):
+        if _is_redirect(token) and not target.operator:
+            (outputs if token.value in OUTPUT_REDIRECTS else inputs).append(target)
+    return descriptors, inputs, outputs
+
+
+def _without(words, *groups):
+    dropped = {id(token) for group in groups for token in group}
+    return [word for word in words if id(word) not in dropped]
+
+
+def _stdin_file(tokens, cwd):
+    """True when the segment's one input redirect opens a literal regular file as stdin."""
+    opened = [i for i, token in enumerate(tokens[:-1]) if _is_redirect(token) and token.value not in OUTPUT_REDIRECTS]
+    if cwd is None or len(opened) != 1:
+        return False
+    index = opened[0]
+    fd = tokens[index - 1].value if index and tokens[index - 1].descriptor else '0'
+    target = tokens[index + 1]
+    if tokens[index].value != '<' or fd != '0' or target.operator or target.dynamic or target.glob:
+        return False
+    return os.path.isfile(os.path.join(cwd, target.value))
+
+
+def _split_target(targets):
+    """The redirect target whose file name continues in the next word, else None.
+
+    zsh reads `>! file` as one redirect, and the suffix of an unquoted `$(...)` is a separate word.
+    That word then looks like an operand and could narrow a recursive read.
+    """
+    return next((t for t in targets if t.value == '!' or (t.substitution and t.substitution not in t.value)), None)
+
+
+def _recursive_verdict(adapter, plan, args, inputs, outputs, tokens, patterns, cwd, wrapped):
+    """Judge a recursive Reader again without the redirects that could stand in for its search root; None when they cannot."""
+    split = _split_target(outputs)
+    if split is not None:
+        return verdict.ambiguous('redirect target %s' % ascii(split.value))
+    if not inputs or (plan.reader == 'rg' and _stdin_file(tokens, cwd)):
+        return None
+    bare = adapter.plan(_without(args, inputs))
+    if not isinstance(bare, ReadPlan):
+        return verdict.unsupported(adapter.exclusion_syntax, bare.detail)
+    found = judge(bare, patterns, cwd, wrapped)
+    return None if found.allowed else found
+
+
+def _output_verdict(targets, patterns, cwd):
+    """Judge the files a segment's output redirects open; None when none is protected."""
+    for target in targets:
+        if target.glob:
+            return verdict.ambiguous('output redirect %s' % ascii(target.value))
+        if protected(target.value, patterns, cwd):
+            return verdict.protected()
+        found = opaque_expansion_verdict(target, patterns, cwd)
+        if found is not None:
+            return found
+    return None
 
 
 def _entrance_index(tokens):
@@ -457,23 +527,33 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
+    # 重導向的目標與檔案描述子由 shell 取走；留在引數中會被誤認為讀取目標，或把遞迴範圍縮小成該路徑。
+    descriptors, inputs, outputs = _redirect_operands(tokens)
     if git_index is not None and (index is None or git_index < index):
-        plan = GIT_ADAPTER.plan(words[git_index + 1:], words[:git_index], git_relocated)
+        before = _without(words[:git_index], descriptors, inputs, outputs)
+        plan = GIT_ADAPTER.plan(_without(words[git_index + 1:], descriptors, inputs, outputs), before, git_relocated)
         # 不是 git 讀取時仍要判定後面的 Reader：`git bisect run cat .env`、`git submodule foreach`
         # 與 `sudo -u git cat .env` 都會執行後面的指令。
         if plan is not None:
             if not isinstance(plan, ReadPlan):
                 return verdict.unsupported(None, plan.detail)
-            return judge(plan, patterns, cwd, git_index != 0)
+            split = _split_target(outputs + inputs)
+            if split is not None:
+                return verdict.ambiguous('redirect target %s' % ascii(split.value))
+            return _output_verdict(outputs, patterns, cwd) or judge(plan, patterns, cwd, bool(before))
     if index is None:
         return verdict.allow()
     if names[index] == 'ssh':
         return remote_wrapper_verdict(words[index + 1:], patterns, cwd)
     adapter = ADAPTERS[names[index]]
-    plan = adapter.plan(words[index + 1:])
+    args = _without(words[index + 1:], descriptors, outputs)
+    plan = adapter.plan(args)
     if not isinstance(plan, ReadPlan):
         return verdict.unsupported(adapter.exclusion_syntax, plan.detail)
-    return judge(plan, patterns, cwd, index != 0)
+    found = _output_verdict(outputs, patterns, cwd) or judge(plan, patterns, cwd, index != 0)
+    if not found.allowed or not plan.recursive:
+        return found
+    return _recursive_verdict(adapter, plan, args, inputs, outputs, tokens, patterns, cwd, index != 0) or found
 
 
 TRANSFORM_MARKS = tuple('@/#%:^,~')
