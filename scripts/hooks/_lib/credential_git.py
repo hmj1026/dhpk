@@ -18,13 +18,27 @@ from credential_scan import MAX_ENTRIES
 from credential_shell import Token
 
 RECOVERY = Recovery(
-    ambiguous='name literal paths without wildcards, expansions, or pathspec magic; for a search, pass the '
-              'directory itself (git grep -n PATTERN -- <directory>); read a blob as <rev>:<path>.',
-    recursive='narrow the git pathspec to paths without protected files, add -n to limit history, '
-              'or read an explicit non-protected <rev>:<path>.',
+    ambiguous='name explicit literal targets without wildcards, expansions, or pathspec magic, or assign the '
+              'variable visibly earlier in the same command; for a search, pass the directory itself '
+              '(git grep -n PATTERN -- <directory>); read a blob as <rev>:<path>.',
+    recursive='narrow the git pathspec to paths without protected files (e.g., git grep -n PATTERN -- <directory>), '
+              'add -n to limit history, or read an explicit non-protected <rev>:<path>.',
     unknown_cwd='run git as the first word without cd, pushd, popd, eval, source, or a wrapper such as env or '
                 'timeout in the same command; select another repository with git -C <literal-path>.',
 )
+RELOCATE_RECOVERY = (
+    'remove GIT_* relocation or relocating git options, and use git -C <literal-path> '
+    'or git worktree add --detach <dir> <ref>.'
+)
+
+
+def _unsupported_hint(subcommand=None, pathspec_file=False):
+    if pathspec_file:
+        return ('rewrite git %s with supported options and explicit non-protected paths, '
+                'or use --stat or --name-only with --pathspec-from-file.' % subcommand)
+    if subcommand:
+        return 'rewrite git %s with supported options and explicit non-protected paths.' % subcommand
+    return 'rewrite with supported git options and explicit non-protected paths.'
 
 # Global options that move the repository or change pathspec meaning; the
 # listing could not see the same repository, so a read with them is unsupported.
@@ -80,7 +94,7 @@ DIFF_OPTIONS = {
     '--default-prefix': (False, OUTPUT), '--line-prefix': (True, OUTPUT), '-z': (False, OUTPUT),
     '-O': (True, OUTPUT), '--skip-to': (True, OUTPUT), '--rotate-to': (True, OUTPUT),
     '--submodule': ('=', UNSUPPORTED), '--no-ext-diff': (False, OUTPUT), '--no-textconv': (False, OUTPUT),
-    '--no-indent': (False, OUTPUT),
+    '--no-indent': (False, OUTPUT), '--pathspec-from-file': (True, AUX), '--pathspec-file-nul': (False, OUTPUT),
 }
 DIFF_ONLY = {'--cached': (False, SELECT), '--staged': (False, SELECT), '--merge-base': (False, SELECT),
              '--no-index': (False, SELECT), '--base': (False, SELECT), '--ours': (False, SELECT),
@@ -244,7 +258,10 @@ def _parse_options(subcommand, args):
             i += 1
             continue
         if token.dynamic and arg.startswith('-'):
-            return None, None, None, 'git %s option with a dynamic value' % subcommand
+            key, sep, _ = arg.partition('=')
+            spec = grammar.get(key) if (arg.startswith('--') and sep) else None
+            if not (spec and spec[1] == AUX):
+                return None, None, None, 'git %s option with a dynamic value' % subcommand
         if arg.startswith('--') and len(arg) > 2:
             key, sep, value = arg.partition('=')
             spec = grammar.get(key)
@@ -537,7 +554,7 @@ class GitAdapter:
             if arg == '-C':
                 i += 1
                 if i >= len(args):
-                    return UnsupportedSyntax('git option -C needs a value')
+                    return UnsupportedSyntax('git option -C needs a value', _unsupported_hint())
                 if args[i].dynamic or args[i].glob:
                     location_unknown = True
                 else:
@@ -547,7 +564,7 @@ class GitAdapter:
                 value = arg.split('=', 1)[1] if '=' in arg else (args[i + 1].value if i + 1 < len(args) else '')
                 # 當場定義的 alias 可把讀取包成未知的子指令，無法判定，不論子指令為何都拒絕。
                 if key in ('-c', '--config-env') and value.lower().startswith('alias.'):
-                    return UnsupportedSyntax('git option %s defines an alias' % ascii(key))
+                    return UnsupportedSyntax('git option %s defines an alias' % ascii(key), _unsupported_hint())
                 if '=' not in arg and key in ('--git-dir', '--work-tree', '--namespace', '-c', '--config-env', '--exec-path', '--super-prefix'):
                     i += 1
             elif arg in PLAIN_GLOBALS:
@@ -559,7 +576,7 @@ class GitAdapter:
                 return None
             else:
                 # 不認得的全域選項可能帶值，無法確定子指令；一律拒絕。
-                return UnsupportedSyntax('git option %s' % ascii(key))
+                return UnsupportedSyntax('git option %s' % ascii(key), _unsupported_hint())
             i += 1
         if i >= len(args):
             return None
@@ -579,16 +596,32 @@ class GitAdapter:
         effects, operands, dashdash, error = _parse_options(subcommand, rest)
         if error:
             # 非讀取用法（例如 git diff --frobnicate）仍無法確認，維持拒絕。
-            return UnsupportedSyntax(error)
+            return UnsupportedSyntax(error, _unsupported_hint(subcommand))
         kinds = {effect for effect, *_ in effects}
         if UNSUPPORTED in kinds:
             option = next(key for effect, key, *_ in effects if effect == UNSUPPORTED)
-            return UnsupportedSyntax('git %s option %s' % (subcommand, ascii(option)))
+            return UnsupportedSyntax('git %s option %s' % (subcommand, ascii(option)), _unsupported_hint(subcommand))
+
+        def located(value):
+            return posixpath.normpath(posixpath.join(*directories, value)) if directories else value
+
+        auxiliary = [
+            AuxiliaryInput(located(value), token)
+            for effect, key, value, token, _ in effects
+            if effect == AUX and not (key == '--pathspec-from-file' and value == '-')
+        ]
         reads = self._reads(subcommand, kinds, effects, operands)
         if not reads:
+            if auxiliary:
+                return ReadPlan('git', (), tuple(auxiliary), False, False, (), False,
+                                None, location_unknown, RECOVERY)
             return None
+        pathspec_opt = next((key for _, key, *_ in effects if key in ('--pathspec-from-file', '--pathspec-file-nul')), None)
+        if pathspec_opt is not None:
+            return UnsupportedSyntax('git %s option %s' % (subcommand, ascii(pathspec_opt)),
+                                     _unsupported_hint(subcommand, pathspec_file=True))
         if relocated:
-            return UnsupportedSyntax('%s relocates the repository' % relocated)
+            return UnsupportedSyntax('%s relocates the repository' % relocated, RELOCATE_RECOVERY)
         return self._plan(subcommand, effects, operands, dashdash, directories, location_unknown)
 
     @staticmethod

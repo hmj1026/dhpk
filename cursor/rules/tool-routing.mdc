@@ -86,6 +86,18 @@ The packet author supplies required evidence the recipient cannot obtain.
 Never require shell commands or child-agent dispatch unless the matching tool
 is available and authorized.
 
+## Safe read-only Bash routing
+
+Pre-execution guards judge command text only (ADR-0037 `Text Guard Scope`): keep targets and repository selection visible as literals so `pre-bash-guard` can verify safety without resolving runtime expansions.
+
+| Need | Preferred Bash form | Avoid (blocked or unproven) |
+|---|---|---|
+| Read / inspect a known file | Explicit literal path, or visible literal assignment earlier in the same command (`f=path/file; head -n 40 "$f"`) | Unset `$VAR` expansions, wildcards, or `$(...)` in target paths |
+| Search a directory in a git repo | `git grep -n PATTERN -- <dir>` | Recursive `grep -r` / `rg` without full credential exclusions |
+| Inspect another checkout / repo | `git -C <literal-path> <subcommand>` | `cd <dir> && git ...` or `GIT_DIR=` / `GIT_WORK_TREE=` |
+| Diff / inspect a ref without altering index | `git diff --stat <A> <B>` or `git worktree add --detach <dir> <ref>` | `GIT_INDEX_FILE=... git read-tree` with diff/content commands |
+| Filter `git diff` stat/names from a list file | `git diff --stat <A> <B> --pathspec-from-file=<non-protected-file>` | `--pathspec-from-file` on content-printing diff (`-p` / default) |
+
 ## Top anti-patterns
 
 - Read large file to find one function → use `cx definition`
@@ -97,4 +109,4 @@ is available and authorized.
 ## Not in scope
 
 - **Carries no worked examples or sub-agent prompt boilerplate** — this file is the compact decision card only.
-- **Not a general coding-style guide** — covers tool selection for code exploration/navigation only.
+- **Not a general coding-style guide** — covers tool selection for code exploration/navigation and safe read-only Bash routing only.

@@ -470,4 +470,66 @@ assert budget({'DHPK_TEST_MODE': '1', KEY: 'nan'}, default=PRODUCTION_SECONDS[0]
 `);
 });
 
+test('recovery hints guide parameterized git args, GIT_* relocation, and unsupported diff options (#1572)', () => {
+  python(String.raw`
+repo_dir = repo(base, 'hints-1572', ['src/a.js', '.env'])
+write(repo_dir, 'src/a.js', 'v2\n')
+git(repo_dir, 'commit', '-qam', 'v2')
+os.chdir(repo_dir)
+
+# Parameterized git arguments suggest literal targets or visible in-command assignment.
+for command in ('git diff $c^ $c', 'git show "$REV":src/a.js'):
+    res = analyze(command, [], repo_dir)
+    assert res.kind == v.AMBIGUOUS_TARGET, (command, res)
+    assert 'explicit literal targets' in res.hint and 'assign the variable visibly earlier' in res.hint, (command, res.hint)
+assert analyze('c=HEAD; git diff $c^ $c', [], repo_dir).allowed
+
+# Relocating GIT_* variables and global flags stay unsupported with git -C / worktree add --detach advice.
+for command in (
+    'GIT_INDEX_FILE=/tmp/idx git diff',
+    'GIT_INDEX_FILE=/tmp/idx git read-tree HEAD && git diff --cached',
+    'GIT_DIR=/elsewhere git diff',
+    'git --git-dir=/elsewhere/.git show HEAD',
+):
+    res = analyze(command, [], repo_dir)
+    assert res.kind == v.UNSUPPORTED, (command, res)
+    assert 'GIT_*' in res.hint and 'git -C <literal-path>' in res.hint and 'git worktree add --detach' in res.hint, (command, res.hint)
+
+# Unsupported git diff options give a concrete recovery hint.
+for command in ('git diff --frobnicate', 'git diff -C HEAD~1'):
+    res = analyze(command, [], repo_dir)
+    assert res.kind == v.UNSUPPORTED, (command, res)
+    assert 'supported options' in res.hint and 'explicit non-protected paths' in res.hint, (command, res.hint)
+`);
+});
+
+test('non-content git diff --pathspec-from-file checks auxiliary input while content mode stays unsupported (#1572)', () => {
+  python(String.raw`
+repo_dir = repo(base, 'pathspec-file-1572', ['src/a.js', 'README.md', '.env'])
+write(repo_dir, 'src/a.js', 'v2\n')
+git(repo_dir, 'commit', '-qam', 'v2')
+write(repo_dir, 'safe.list', 'src/a.js\n')
+write(repo_dir, 'src/sub.list', 'a.js\n')
+os.symlink(os.path.join(repo_dir, '.env'), os.path.join(repo_dir, 'alias.list'))
+os.chdir(repo_dir)
+
+check([
+    ('git diff --stat HEAD~1 HEAD --pathspec-from-file=safe.list', v.ALLOW),
+    ('git diff --name-only HEAD~1 HEAD --pathspec-from-file safe.list --pathspec-file-nul', v.ALLOW),
+    ('git diff --numstat HEAD~1 HEAD --pathspec-from-file=-', v.ALLOW),
+    ('git -C src diff --stat HEAD~1 HEAD --pathspec-from-file=sub.list', v.ALLOW),
+    ('LIST=safe.list; git diff --stat HEAD~1 HEAD --pathspec-from-file=$LIST', v.ALLOW),
+    ('git diff --stat HEAD~1 HEAD --pathspec-from-file=.env', v.PROTECTED),
+    ('git diff --stat HEAD~1 HEAD --pathspec-from-file=alias.list', v.PROTECTED),
+    ('git diff --stat HEAD~1 HEAD --pathspec-from-file=$LIST', v.AMBIGUOUS_TARGET),
+    ('git diff --stat HEAD~1 HEAD --pathspec-from-file $LIST', v.AMBIGUOUS_TARGET),
+    ('git diff --stat HEAD~1 HEAD --pathspec-from-file=missing.list', v.UNSUPPORTED),
+    ('git diff HEAD~1 HEAD --pathspec-from-file=safe.list', v.UNSUPPORTED),
+    ('git diff -p --stat HEAD~1 HEAD --pathspec-from-file=safe.list', v.UNSUPPORTED),
+    ('git diff HEAD~1 HEAD --pathspec-from-file=-', v.UNSUPPORTED),
+    ('git diff HEAD~1 HEAD --pathspec-file-nul', v.UNSUPPORTED),
+], repo_dir)
+`);
+});
+
 run('credential-git');

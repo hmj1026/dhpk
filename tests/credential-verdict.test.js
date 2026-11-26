@@ -154,10 +154,49 @@ with tempfile.TemporaryDirectory() as root:
         hint = analyze(command, [], root).hint
         assert 'explicit literal path' in hint and 'git grep' not in hint, (command, hint)
 # #1260: hints name only shell forms; no Verdict assumes an agent tool exists.
-for built in (v.protected(), v.unsupported(None), v.unsupported('--exclude="pattern"'), v.ambiguous(),
-              v.recursive_unproven(None), v.recursive_unproven('--glob "!pattern"'), v.inspection_failure()):
+for built in (v.protected(), v.unsupported(None), v.unsupported('--exclude="pattern"'), v.unsupported(None, 'reloc', 'use git -C <literal-path>.'),
+              v.ambiguous(), v.recursive_unproven(None), v.recursive_unproven('--glob "!pattern"'), v.inspection_failure()):
     assert 'Grep' not in built.hint and 'Read ' not in built.hint and 'if available' not in built.hint, built
 assert 'None' not in v.recursive_unproven(None).hint
+`);
+});
+
+test('recursive_unproven hints tailor advice for local git repos vs remote ssh (#1572)', () => {
+  python(String.raw`
+import os, subprocess, tempfile
+from credential_policy import analyze
+import credential_verdict as v
+
+with tempfile.TemporaryDirectory() as root:
+    root = os.path.realpath(root)
+    open(os.path.join(root, '.env'), 'w').close()
+    open(os.path.join(root, 'ordinary'), 'w').close()
+    subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+    subprocess.run(['git', 'config', 'user.email', 't@e'], cwd=root, check=True)
+    subprocess.run(['git', 'config', 'user.name', 't'], cwd=root, check=True)
+    subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+    subprocess.run(['git', 'commit', '-qm', 'init'], cwd=root, check=True)
+    os.chdir(root)
+
+    for command, syntax in [('rg needle .', '--glob'), ('grep -r needle .', '--exclude')]:
+        res = analyze(command, [], root)
+        assert res.kind == v.RECURSIVE_UNPROVEN, (command, res)
+        assert syntax in res.hint and 'git grep -n PATTERN -- <directory>' in res.hint, (command, res.hint)
+
+    git_res = analyze('git grep -n needle', [], root)
+    assert git_res.kind == v.RECURSIVE_UNPROVEN
+    assert 'git grep -n PATTERN -- <directory>' in git_res.hint, git_res.hint
+
+    for command, syntax in [('ssh host "rg needle ."', '--glob'), ('ssh host "grep -r needle ."', '--exclude')]:
+        res = analyze(command, [], root)
+        assert res.kind == v.RECURSIVE_UNPROVEN, (command, res)
+        assert syntax in res.hint and 'explicit non-protected files' in res.hint, (command, res.hint)
+        assert 'git grep' not in res.hint, (command, res.hint)
+
+    cp_remote = analyze('ssh host "cp -r dir out"', [], root)
+    assert cp_remote.kind == v.RECURSIVE_UNPROVEN
+    assert 'exclude every default and custom credential pattern' in cp_remote.hint
+    assert 'explicit non-protected files' in cp_remote.hint
 `);
 });
 
