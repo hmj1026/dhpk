@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.82.0",
-  "sourceCommit": "d1dd91845f43783d2356fbe203b3d43dfc975496",
-  "generatedFromCommit": "d1dd91845f43783d2356fbe203b3d43dfc975496",
-  "generatedFromTree": "37cc12d3cf1c8a51541a88c7fff1acecfac598e5",
+  "sourceCommit": "6c09a641729572b947a5702884dbd1bdfa171116",
+  "generatedFromCommit": "6c09a641729572b947a5702884dbd1bdfa171116",
+  "generatedFromTree": "0ac62a2f7580c2278332b98e5b83879009fc5e0d",
   "inventoryDigest": "5216484fba021e152828ce8409efd1339fb1dec1927d8ee8d82a7031338bab1f",
   "inventoryRevision": "sha256:d1df445ed4792f847acd07dd3d754c705cc1de5ee17687b710c52d5b1a21c98a",
   "generatorVersion": "2.4.0",
@@ -1475,7 +1475,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
-        "originalGitBlobDigest": "a3980935fb045c02fbc618a9c129affdc1786599"
+        "originalGitBlobDigest": "c7e6c1da52e5fd2a76e2ff81af4da9773b2d4da4"
       },
       {
         "ownerId": "flow-guide",
@@ -4933,7 +4933,7 @@
     "create-pr": "4f1045b4b1968a78fc8e199e0131fd922f48239356d74c2bdd2e14cc0d59b9ec",
     "doc-maintain": "a606ad626865600214a7d00c1703a5ab3d852d07583f0f5385b043068764aeb6",
     "flow-drive": "2e01b162b89f6f9208881882779f92fd68c3579e0373246a213396922b62658e",
-    "flow-guide": "187fa63985b20b523880950bc389b8221eb286525c72f80cf86873297b5a96f5",
+    "flow-guide": "04e9eaa04271f22006e8d0ea3721ef9dd47e17a5974ed19b00efc961003c5add",
     "git-smart-commit": "bba14c6579dc9bcb9f80e0cb5180997c9b836d67f8f23cb65ca3b8fcd3f95fea",
     "git-worktree": "937ecd20112e34ac279e56ba9de95e7c533fdb9b7c0d82b9661496e3d8651388",
     "precommit": "86dbc4b393ec4c09ff38e04f66fd8504baa87017c2f9cfe2d9ac65831ee0a090",

@@ -139,6 +139,20 @@ def safe_extraction(tokens, remote):
 SEPARATORS = (';', '&&', '||', '|', '|&', '(', ')', ';;')
 
 
+def _in_git_repo(cwd):
+    """True when `cwd` sits inside a git working tree (.git dir or linked worktree file)."""
+    if cwd is None:
+        return False
+    cur = os.path.abspath(cwd)
+    while True:
+        if os.path.exists(os.path.join(cur, '.git')):
+            return True
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            return False
+        cur = parent
+
+
 def judge(plan, patterns, cwd, wrapped):
     """Judge one Read Plan: auxiliary inputs, then targets, then recursion.
 
@@ -197,7 +211,11 @@ def judge(plan, patterns, cwd, wrapped):
         details.append('patterns ' + ', '.join(ascii(p) for p in sorted(hits)))
     if paths:
         details.append('paths ' + ', '.join(ascii(p) for p in paths))
-    return verdict.recursive_unproven(syntax, '; '.join(details), recovery and recovery.recursive)
+    hint = recovery and recovery.recursive
+    if hint is None and plan.reader in ('rg', 'grep') and _in_git_repo(cwd):
+        hint = '%s, or target explicit non-protected files; %s.' % (
+            verdict._exclusion_clause(syntax), verdict.DIRECTORY_SEARCH)
+    return verdict.recursive_unproven(syntax, '; '.join(details), hint)
 
 
 def _hit_details(hits, paths):
@@ -310,7 +328,7 @@ def _recursive_verdict(adapter, plan, args, inputs, outputs, tokens, patterns, c
         return None
     bare = adapter.plan(_without(args, inputs))
     if not isinstance(bare, ReadPlan):
-        return verdict.unsupported(adapter.exclusion_syntax, bare.detail)
+        return verdict.unsupported(adapter.exclusion_syntax, bare.detail, bare.recovery)
     found = judge(bare, patterns, cwd, wrapped)
     return None if found.allowed else found
 
@@ -536,7 +554,7 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
         # 與 `sudo -u git cat .env` 都會執行後面的指令。
         if plan is not None:
             if not isinstance(plan, ReadPlan):
-                return verdict.unsupported(None, plan.detail)
+                return verdict.unsupported(None, plan.detail, plan.recovery)
             split = _split_target(outputs + inputs)
             if split is not None:
                 return verdict.ambiguous('redirect target %s' % ascii(split.value))
@@ -549,7 +567,7 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     args = _without(words[index + 1:], descriptors, outputs)
     plan = adapter.plan(args)
     if not isinstance(plan, ReadPlan):
-        return verdict.unsupported(adapter.exclusion_syntax, plan.detail)
+        return verdict.unsupported(adapter.exclusion_syntax, plan.detail, plan.recovery)
     found = _output_verdict(outputs, patterns, cwd) or judge(plan, patterns, cwd, index != 0)
     if not found.allowed or not plan.recursive:
         return found

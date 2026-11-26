@@ -821,4 +821,62 @@ test('pre-bash-dispatch fails closed (exit 2) when the package root cannot be re
   } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
 
+test('bash guard enforces #1572 recovery hints and non-content git diff --pathspec-from-file end-to-end', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { execFileSync } = require('node:child_process');
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-1572-e2e-')));
+  const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@e', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@e' };
+  const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...env }, stdio: 'pipe' });
+  try {
+    git('init', '-q');
+    fs.mkdirSync(path.join(dir, 'src'));
+    fs.writeFileSync(path.join(dir, 'src', 'a.txt'), 'v1\n');
+    fs.writeFileSync(path.join(dir, '.env'), 'SECRET=1\n');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'init');
+    fs.writeFileSync(path.join(dir, 'src', 'a.txt'), 'v2\n');
+    git('commit', '-qam', 'v2');
+    fs.writeFileSync(path.join(dir, 'safe.list'), 'src/a.txt\n');
+
+    const hookEnv = { DHPK_TEST_MODE: '1', DHPK_CREDENTIAL_TEST_MAX_SECONDS: '5', DHPK_BRANCH_SAFETY: 'off' };
+    const invoke = (hook, command) => runHookRaw(hook, {
+      cwd: dir,
+      projectDir: dir,
+      env: hookEnv,
+      payload: { tool_input: { command } },
+    });
+
+    for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+      for (const allowed of [
+        'f=src/a.txt; head -n 5 "$f"',
+        'git grep -n v2 -- src',
+        `git -C ${dir} grep -n v2 -- src`,
+        'git diff --stat HEAD~1 HEAD --pathspec-from-file=safe.list',
+        'git diff --stat HEAD~1 HEAD --pathspec-from-file safe.list --pathspec-file-nul',
+      ]) {
+        const res = invoke(hook, allowed);
+        assert.strictEqual(res.status, 0, `${hook} ${allowed}: ${res.stderr}`);
+      }
+
+      for (const [blocked, pattern] of [
+        ['git diff $c^ $c', /ambiguous read target:.*explicit literal targets.*assign the variable visibly earlier/],
+        ['GIT_INDEX_FILE=/tmp/idx git diff', /unsupported reader syntax:.*git -C <literal-path>.*git worktree add --detach/],
+        ['GIT_INDEX_FILE=/tmp/idx git read-tree HEAD && git diff --cached', /unsupported reader syntax:.*git -C <literal-path>.*git worktree add --detach/],
+        ['git diff --frobnicate', /unsupported reader syntax:.*supported options.*explicit non-protected paths/],
+        ['git diff --stat HEAD~1 HEAD --pathspec-from-file=.env', /protected path/],
+        ['git diff --stat HEAD~1 HEAD --pathspec-from-file=$LIST', /ambiguous read target:.*auxiliary input/],
+        ['git diff HEAD~1 HEAD --pathspec-from-file=safe.list', /unsupported reader syntax:.*--pathspec-from-file/],
+        ['rg v2 .', /recursive read without credential exclusions:.*git grep -n PATTERN -- <directory>/],
+        ['ssh host "rg v2 ."', /recursive read without credential exclusions;.*--glob.*explicit non-protected files/],
+      ]) {
+        const res = invoke(hook, blocked);
+        assert.strictEqual(res.status, 2, `${hook} ${blocked}: expected block, got ${res.status} / ${res.stderr}`);
+        assert.match(res.stderr, pattern, `${hook} ${blocked}`);
+      }
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 run('pre-bash-guard');
