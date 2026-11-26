@@ -20,28 +20,8 @@ DHPK_JS_CORE_FILES=()
 DHPK_JS_VENDOR_GLOBS=()
 _dhpk_js_config_loaded=0
 
-_dhpk_js_load_config() {
-    [ "$_dhpk_js_config_loaded" -eq 1 ] && return 0
-    _dhpk_js_config_loaded=1
-
-    # Derive the root from this library's own location (ADR 0038); the
-    # process-wide CLAUDE_PLUGIN_ROOT may name another plugin or dhpk copy.
-    local plugin_root
-    plugin_root="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../../.." 2>/dev/null && pwd)"
-    local yaml="$plugin_root/modules/js/module.yaml"
-
-    # Safe defaults — JS files under js/ or src/ subdirs become frontend.
-    DHPK_JS_FRONTEND_ROOTS=("js" "src")
-    DHPK_JS_CORE_FILES=()
-    DHPK_JS_VENDOR_GLOBS=()
-
-    [ -f "$yaml" ] || return 0
-    command -v python3 >/dev/null 2>&1 || return 0
-
-    # Parse the `js:` block. Output three newline-separated sections marked
-    # with sentinel headers so bash can split deterministically.
-    local parsed
-    parsed="$(python3 - "$yaml" <<'PY' 2>/dev/null || true
+_dhpk_js_parse_module_yaml() {
+    python3 - "$1" <<'PY' 2>/dev/null || true
 import sys
 try:
     with open(sys.argv[1]) as f:
@@ -88,7 +68,30 @@ print("VENDORS")
 for v in (vendors or []):
     print(v)
 PY
-    )"
+}
+
+_dhpk_js_load_config() {
+    [ "$_dhpk_js_config_loaded" -eq 1 ] && return 0
+    _dhpk_js_config_loaded=1
+
+    # Derive the root from this library's own location (ADR 0038); the
+    # process-wide CLAUDE_PLUGIN_ROOT may name another plugin or dhpk copy.
+    local plugin_root
+    plugin_root="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../../.." 2>/dev/null && pwd)"
+    local yaml="$plugin_root/modules/js/module.yaml"
+
+    # Safe defaults — JS files under js/ or src/ subdirs become frontend.
+    DHPK_JS_FRONTEND_ROOTS=("js" "src")
+    DHPK_JS_CORE_FILES=()
+    DHPK_JS_VENDOR_GLOBS=()
+
+    [ -f "$yaml" ] || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+
+    # Parse the `js:` block. Output three newline-separated sections marked
+    # with sentinel headers so bash can split deterministically.
+    local parsed
+    parsed="$(_dhpk_js_parse_module_yaml "$yaml")"
 
     [ -z "$parsed" ] && return 0
 

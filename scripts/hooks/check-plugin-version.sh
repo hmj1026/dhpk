@@ -68,7 +68,8 @@ fi
 VERSIONS="$(echo "$VERSIONS" | xargs)"
 [ -z "$VERSIONS" ] && exit 0
 
-result="$(PIN_JSON="$PIN_JSON" VERSIONS="$VERSIONS" python3 <<'PY'
+_dhpk_check_pin_versions() {
+    PIN_JSON="$1" VERSIONS="$2" python3 <<'PY'
 import json, os, sys
 
 try:
@@ -105,7 +106,9 @@ for ver in versions:
 if flagged:
     print(" ".join(flagged))
 PY
-)"
+}
+
+result="$(_dhpk_check_pin_versions "$PIN_JSON" "$VERSIONS")"
 
 if [ -n "$result" ]; then
     echo "[session-start] dhpk version advisory: $result — review .claude/dhpk-versions.json (or run scripts/version-diff.sh for a config/CHANGELOG diff); if the pin file is a symlink, Write to its realpath (realpath .claude/dhpk-versions.json) — the Write tool refuses symlinks"
