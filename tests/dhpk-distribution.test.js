@@ -35,6 +35,14 @@ function invoke(args, cwd = ROOT) {
   });
 }
 
+function invokeStandalone(args, cwd = ROOT) {
+  return spawnSync('bash', [path.join(cwd, 'bin', 'dhpk-distribution'), ...args], {
+    cwd,
+    encoding: 'utf8',
+    timeout: DISTRIBUTION_CHILD_TIMEOUT_MS,
+  });
+}
+
 function withTmpdirSymlinkAlias(callback) {
   const originalTmpdir = os.tmpdir;
   const hadTmpdirEnvironment = Object.prototype.hasOwnProperty.call(process.env, 'TMPDIR');
@@ -588,6 +596,60 @@ test('build refuses surfaces that are committed Published Packages', () => {
   const result = invoke(['build', 'codex-native', '--json']);
   assert.strictEqual(result.status, 64, result.stderr);
   assert.match(result.stderr, /build is supported only for/);
+});
+
+test('help flags, zero args, and valid prefixes emit canonical usage on stdout while invalid args fail 64', () => {
+  const runners = [
+    ['bin/dhpk distribution', (args) => invoke(args)],
+    ['bin/dhpk-distribution', (args) => invokeStandalone(args)],
+  ];
+  for (const [name, runCli] of runners) {
+    for (const args of [[], ['--help'], ['-h']]) {
+      const result = runCli(args);
+      const label = `${name} ${args.join(' ') || '(no args)'}`;
+      assert.strictEqual(result.status, 0, `${label}: ${result.stderr}`);
+      assert.strictEqual(result.stderr, '', label);
+      assert.match(result.stdout, /^usage: dhpk distribution <surface> <operation> \[options\]/m, label);
+      assert.match(result.stdout, /dhpk distribution build <surface> \[options\]/, label);
+      assert.match(result.stdout, /surfaces: openai-submission \| agent-plugin \| cursor-plugin \| codex-native \| agy-plugin/, label);
+      assert.match(result.stdout, /operations: generate \| preview \| validate \| verify/, label);
+    }
+    const validPrefixes = [
+      ['build', '--help'],
+      ['build', '-h'],
+      ['build', 'agent-plugin', '--help'],
+      ['codex-native', '--help'],
+      ['codex-native', 'validate', '--help'],
+      ['agent-plugin', 'validate', '--json', '--help'],
+      ['agent-plugin', 'validate', '--json', '-h'],
+    ];
+    for (const args of validPrefixes) {
+      const result = runCli(args);
+      const label = `${name} ${args.join(' ')}`;
+      assert.strictEqual(result.status, 0, `${label}: ${result.stderr}`);
+      assert.strictEqual(result.stderr, '', label);
+      assert.match(result.stdout, /^usage: dhpk distribution /m, label);
+    }
+    const invalidWithHelp = [
+      ['help'],
+      ['--bogus', '--help'],
+      ['bogus', '--help'],
+      ['--output', '--help'],
+      ['--output', '-h'],
+      ['build', 'codex-native', '--help'],
+      ['codex-native', 'bogus', '--help'],
+      ['openai-submission', 'preview', '--help'],
+      ['agent-plugin', 'validate', '--bogus', '--help'],
+      ['agent-plugin', 'validate', 'extra', '--help'],
+    ];
+    for (const args of invalidWithHelp) {
+      const result = runCli(args);
+      const label = `${name} ${args.join(' ')}`;
+      assert.strictEqual(result.status, 64, label);
+      assert.strictEqual(result.stdout, '', label);
+      assert.match(result.stderr, /^dhpk distribution: /, label);
+    }
+  }
 });
 
 // v1 GREEN contract (tests above): distribution CLI validate/generate/verify

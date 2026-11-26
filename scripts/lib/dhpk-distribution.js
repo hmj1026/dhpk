@@ -53,6 +53,50 @@ const SURFACES = Object.freeze({
   'agy-plugin': Object.freeze({ output: onDemandRelativeDir('agy-plugin'), adapter: 'agy-plugin-package', runtimeProbe: 'AGY native client discovery', run: runAgy }),
 });
 
+const DISTRIBUTION_OPTIONS_HELP = 'options: --output <dir> --version <version> --manifest <path> --skill <id> --standalone <id> --json --help';
+
+function helpFor({ building = false, surface = null, operation = null } = {}) {
+  if (!building && !surface) {
+    return [
+      'usage: dhpk distribution <surface> <operation> [options]',
+      '       dhpk distribution build <surface> [options]',
+      `surfaces: ${Object.keys(SURFACES).join(' | ')}`,
+      `operations: ${OPERATIONS.join(' | ')}`,
+      `build surfaces: ${ON_DEMAND_SURFACES.join(' | ')}`,
+      DISTRIBUTION_OPTIONS_HELP,
+      '',
+    ].join('\n');
+  }
+  if (building && !surface) {
+    return [
+      'usage: dhpk distribution build <surface> [options]',
+      `build surfaces: ${ON_DEMAND_SURFACES.join(' | ')}`,
+      DISTRIBUTION_OPTIONS_HELP,
+      '',
+    ].join('\n');
+  }
+  if (building && surface) {
+    return [
+      `usage: dhpk distribution build ${surface} [options]`,
+      DISTRIBUTION_OPTIONS_HELP,
+      '',
+    ].join('\n');
+  }
+  if (!operation) {
+    return [
+      `usage: dhpk distribution ${surface} <operation> [options]`,
+      `operations: ${OPERATIONS.join(' | ')}`,
+      DISTRIBUTION_OPTIONS_HELP,
+      '',
+    ].join('\n');
+  }
+  return [
+    `usage: dhpk distribution ${surface} ${operation} [options]`,
+    DISTRIBUTION_OPTIONS_HELP,
+    '',
+  ].join('\n');
+}
+
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
@@ -64,77 +108,19 @@ function resolveSourceCommit(root) {
   return commit;
 }
 
-function parseRequest(argv) {
-  const positional = [];
-  const options = { json: false, output: null, version: null, manifest: null, skillIds: [], standaloneSkillIds: [] };
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--json') options.json = true;
-    else if (arg === '--profile' || arg.startsWith('--profile=')) {
-      return { ok: false, status: 64, error: '--profile is no longer supported; the common collection is selected automatically' };
-    }
-    else if (arg === '--manifest') {
-      const value = argv[++index];
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'a manifest option value is required' };
-      options.manifest = value;
-    }
-    else if (arg.startsWith('--manifest=')) {
-      const value = arg.slice('--manifest='.length);
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'a manifest option value is required' };
-      options.manifest = value;
-    }
-    else if (arg === '--output') {
-      const value = argv[++index];
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.output = value;
-    }
-    else if (arg.startsWith('--output=')) {
-      const value = arg.slice('--output='.length);
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.output = value;
-    }
-    else if (arg === '--version') {
-      const value = argv[++index];
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.version = value;
-    }
-    else if (arg.startsWith('--version=')) {
-      const value = arg.slice('--version='.length);
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.version = value;
-    }
-    else if (arg === '--skill') {
-      const value = argv[++index];
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.skillIds.push(value);
-    }
-    else if (arg.startsWith('--skill=')) {
-      const value = arg.slice('--skill='.length);
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.skillIds.push(value);
-    }
-    else if (arg === '--standalone') {
-      const value = argv[++index];
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      if (!options.standaloneSkillIds.includes(value)) options.standaloneSkillIds.push(value);
-    }
-    else if (arg.startsWith('--standalone=')) {
-      const value = arg.slice('--standalone='.length);
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      if (!options.standaloneSkillIds.includes(value)) options.standaloneSkillIds.push(value);
-    }
-    else if (arg.startsWith('--')) return { ok: false, status: 64, error: `unknown option '${arg}'` };
-    else positional.push(arg);
-  }
-  // `build <surface>` is the on-demand form: generate, validate, archive.
-  const building = positional[0] === 'build';
-  const [surface, operation] = building ? [positional[1], 'build'] : positional;
-  if (building && !isOnDemandSurface(surface)) {
-    return { ok: false, status: 64, error: `build is supported only for ${ON_DEMAND_SURFACES.join(', ')}; other surfaces use generate` };
-  }
-  if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface || ''}'` };
-  if (!building && !OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
-  if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|preview|validate|verify> | build <surface> [--output <dir>] [--version <version>] [--json]' };
+const VALUE_OPTION_HANDLERS = {
+  '--manifest': (options, value) => { options.manifest = value; },
+  '--output': (options, value) => { options.output = value; },
+  '--version': (options, value) => { options.version = value; },
+  '--skill': (options, value) => { options.skillIds.push(value); },
+  '--standalone': (options, value) => { if (!options.standaloneSkillIds.includes(value)) options.standaloneSkillIds.push(value); },
+};
+
+function missingValueError(optionName) {
+  return optionName === '--manifest' ? 'a manifest option value is required' : 'an option value is required';
+}
+
+function validateDistributionOptions({ surface = null, operation = null, options }) {
   if (surface === 'openai-submission') {
     if (operation === 'preview') {
       return { ok: false, status: 64, error: 'preview is supported only for agent-plugin, cursor-plugin, codex-native, and agy-plugin' };
@@ -151,15 +137,89 @@ function parseRequest(argv) {
   if (options.standaloneSkillIds.length > 0 && options.skillIds.length > 0) {
     return { ok: false, status: 64, error: '--standalone cannot be combined with --skill' };
   }
+  return null;
+}
+
+function parseRequest(argv = []) {
+  const positional = [];
+  let help = false;
+  const options = { json: false, output: null, version: null, manifest: null, skillIds: [], standaloneSkillIds: [] };
+  if (argv.length === 0) {
+    return {
+      ok: true,
+      help: true,
+      building: false,
+      surface: null,
+      operation: null,
+      options: Object.freeze({
+        ...options,
+        skillIds: Object.freeze([]),
+        standaloneSkillIds: Object.freeze([]),
+      }),
+    };
+  }
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--help' || arg === '-h') help = true;
+    else if (arg === '--json') options.json = true;
+    else if (arg === '--profile' || arg.startsWith('--profile=')) {
+      return { ok: false, status: 64, error: '--profile is no longer supported; the common collection is selected automatically' };
+    } else {
+      const equalsIndex = arg.indexOf('=');
+      const optionName = equalsIndex === -1 ? arg : arg.slice(0, equalsIndex);
+      const handler = VALUE_OPTION_HANDLERS[optionName];
+      if (handler) {
+        const value = equalsIndex === -1 ? argv[++index] : arg.slice(equalsIndex + 1);
+        if (!value || value.startsWith('--') || value === '-h') {
+          return { ok: false, status: 64, error: missingValueError(optionName) };
+        }
+        handler(options, value);
+      } else if (arg.startsWith('-')) {
+        return { ok: false, status: 64, error: `unknown option '${arg}'` };
+      } else {
+        positional.push(arg);
+      }
+    }
+  }
+  const frozenOptions = Object.freeze({
+    ...options,
+    skillIds: Object.freeze(options.skillIds.slice()),
+    standaloneSkillIds: Object.freeze(options.standaloneSkillIds.slice()),
+  });
+  // `build <surface>` is the on-demand form: generate, validate, archive.
+  const building = positional[0] === 'build';
+  if (help && positional.length <= 1) {
+    if (positional.length === 0) {
+      const optionError = validateDistributionOptions({ options: frozenOptions });
+      if (optionError) return optionError;
+      return { ok: true, help: true, building: false, surface: null, operation: null, options: frozenOptions };
+    }
+    if (building) {
+      const optionError = validateDistributionOptions({ operation: 'build', options: frozenOptions });
+      if (optionError) return optionError;
+      return { ok: true, help: true, building: true, surface: null, operation: 'build', options: frozenOptions };
+    }
+    const surface = positional[0];
+    if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface}'` };
+    const optionError = validateDistributionOptions({ surface, options: frozenOptions });
+    if (optionError) return optionError;
+    return { ok: true, help: true, building: false, surface, operation: null, options: frozenOptions };
+  }
+  const [surface, operation] = building ? [positional[1], 'build'] : positional;
+  if (building && !isOnDemandSurface(surface)) {
+    return { ok: false, status: 64, error: `build is supported only for ${ON_DEMAND_SURFACES.join(', ')}; other surfaces use generate` };
+  }
+  if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface || ''}'` };
+  if (!building && !OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
+  if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|preview|validate|verify> | build <surface> [--output <dir>] [--version <version>] [--json]' };
+  const optionError = validateDistributionOptions({ surface, operation, options: frozenOptions });
+  if (optionError) return optionError;
   return {
     ok: true,
+    ...(help ? { help: true, building } : {}),
     surface,
     operation,
-    options: Object.freeze({
-      ...options,
-      skillIds: Object.freeze(options.skillIds.slice()),
-      standaloneSkillIds: Object.freeze(options.standaloneSkillIds.slice()),
-    }),
+    options: frozenOptions,
   };
 }
 
@@ -401,6 +461,7 @@ function executeBuild(request, root) {
 function execute(argv, root) {
   const request = parseRequest(argv);
   if (!request.ok) return request;
+  if (request.help) return { ok: true, status: 0, help: helpFor(request) };
   if (request.operation === 'build') return executeBuild(request, root);
   let snapshot = null;
   let previewOutput = null;
@@ -512,4 +573,4 @@ function execute(argv, root) {
   }
 }
 
-module.exports = { OPERATIONS, SURFACES, parseRequest, execute };
+module.exports = { OPERATIONS, SURFACES, parseRequest, helpFor, execute };
