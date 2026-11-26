@@ -126,6 +126,24 @@ PROFILE="$(dhpk_config_profile)"
 [ "$PROFILE" = "minimal" ] && exit 0
 [ "$(dhpk_config_bool skill_hint_enabled true)" = "false" ] && exit 0
 
+_dhpk_resolve_skill_action_command() {
+    node - "$1" "$2" "$3" "$4" <<'NODE' 2>/dev/null
+'use strict';
+const [modulePath, prompt, tablePath, skillAction] = process.argv.slice(2);
+const { createRouteResult, validateRouteResult } = require(modulePath);
+const result = createRouteResult({
+  argv: [prompt],
+  ...(tablePath ? { routeTablePath: tablePath } : {}),
+});
+validateRouteResult(result);
+if (result.target && result.target.skillAction === skillAction
+  && result.disposition !== 'blocked' && result.disposition !== 'unavailable'
+  && result.target.command.startsWith('$')) {
+  process.stdout.write('/dhpk:' + result.target.command.slice(1));
+}
+NODE
+}
+
 # ---- Delegate the actual pattern match to the shared router ----
 HINT="$(bash "$PRE_ROUTE" "$PROMPT" 2>/dev/null || true)"
 case "$HINT" in
@@ -145,22 +163,7 @@ case "$HINT" in
             bare_skill="${skill#dhpk:}"
             routed_command="/dhpk:$bare_skill"
             if [ -n "$skill_action" ]; then
-                routed_command="$(node - "$PLUGIN_ROOT/skills/flow-guide/scripts/route-result.js" "$PROMPT" "${DHPK_ROUTE_TABLE:-}" "$skill_action" <<'NODE' 2>/dev/null
-'use strict';
-const [modulePath, prompt, tablePath, skillAction] = process.argv.slice(2);
-const { createRouteResult, validateRouteResult } = require(modulePath);
-const result = createRouteResult({
-  argv: [prompt],
-  ...(tablePath ? { routeTablePath: tablePath } : {}),
-});
-validateRouteResult(result);
-if (result.target && result.target.skillAction === skillAction
-  && result.disposition !== 'blocked' && result.disposition !== 'unavailable'
-  && result.target.command.startsWith('$')) {
-  process.stdout.write('/dhpk:' + result.target.command.slice(1));
-}
-NODE
-)"
+                routed_command="$(_dhpk_resolve_skill_action_command "$PLUGIN_ROOT/skills/flow-guide/scripts/route-result.js" "$PROMPT" "${DHPK_ROUTE_TABLE:-}" "$skill_action")"
                 [ -z "$routed_command" ] && exit 0
             fi
             case "$invocation_class" in

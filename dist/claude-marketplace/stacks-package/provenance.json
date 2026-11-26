@@ -63,7 +63,7 @@
     },
     {
       "destination": "modules/js/hooks/_lib/js-tier-detect.sh",
-      "sha256": "3a6d725cc19881b28daf0bc4d65f4157423060c97de911812956ebc326ab86a6"
+      "sha256": "89389d4964087f1647cf315eeee6bde7fbdc5ebd43347401a357ade4ea5feb18"
     },
     {
       "destination": "modules/js/hooks/post-edit-js-lint.sh",
@@ -1047,7 +1047,7 @@
     },
     {
       "destination": "scripts/hooks/_lib/load-project-config.sh",
-      "sha256": "59bd4b98e0daaead94711f8fb83504b0746b0af57acb9c795cf5cfbbc54520cc"
+      "sha256": "5edf1991e431829d9013243e86f05b06a94217d1fd2cab6e65c0fe5595dd501a"
     },
     {
       "destination": "scripts/hooks/_lib/modules.sh",
