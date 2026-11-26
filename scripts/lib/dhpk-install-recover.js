@@ -17,14 +17,15 @@ const HOST_JOURNAL_PHASES = Object.freeze(['committed', 'rolled_back', 'active',
 const JOURNAL_NAME = /^\.dhpk-transaction-(\d{8}T\d{6}Z-\d+)\.json$/;
 
 function parseRecoverArgs(argv) {
-  const options = { projectRoot: process.cwd(), json: false };
+  const options = { projectRoot: process.cwd(), json: false, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--recover') continue;
-    if (arg === '--json') options.json = true;
+    if (arg === '--help' || arg === '-h') options.help = true;
+    else if (arg === '--json') options.json = true;
     else if (arg === '--project-root') {
       const value = argv[++index];
-      if (!value || value.startsWith('--')) throw new Error('--project-root requires a value');
+      if (!value || value.startsWith('--') || value === '-h') throw new Error('--project-root requires a value');
       options.projectRoot = value;
     } else throw new Error(`unknown --recover option: ${arg}`);
   }

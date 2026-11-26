@@ -23,6 +23,14 @@ function invoke(args, cwd = ROOT) {
   });
 }
 
+function invokeEntrypoint(executable, prefix, args, cwd = ROOT) {
+  return spawnSync('bash', [path.join(ROOT, 'bin', executable), ...prefix, ...args], {
+    cwd,
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+}
+
 test('testDhpkCli_helpForms_exitZeroAndListSubcommands', () => {
   for (const args of [[], ['--help'], ['-h'], ['help']]) {
     const label = args.length === 0 ? '(no args)' : args[0];
@@ -121,5 +129,83 @@ for (const linkKind of ['absolute', 'relative', 'chain']) {
     }
   });
 }
+
+test('testDhpkCli_subcommandHelp_handlesZeroArgsFlagsPrefixesAndErrorsAcrossAllEntrypoints', () => {
+  const specs = [
+    {
+      name: 'install',
+      entrypoints: [['dhpk', ['install']], ['dhpk-install', []]],
+      canonical: 'usage: dhpk install ',
+      topLevelTokens: ['--recover', 'claude', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor', 'agy-plugin', 'plan', '--scope'],
+      validPrefixCases: [
+        ['--recover', '--help'],
+        ['codex-sync', '--help'],
+        ['cursor', 'plan', '--help'],
+        ['cursor', 'plan', '--scope', 'project', '-h'],
+      ],
+      invalidCases: [
+        ['help'],
+        ['--bogus', '--help'],
+        ['bogus', '--help'],
+        ['--recover', '--bogus', '--help'],
+        ['--scope', '--help'],
+        ['cursor', 'bogus', '--help'],
+      ],
+    },
+    {
+      name: 'distribution',
+      entrypoints: [['dhpk', ['distribution']], ['dhpk-distribution', []]],
+      canonical: 'usage: dhpk distribution ',
+      topLevelTokens: ['build <surface>', 'openai-submission', 'agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin', 'generate', 'preview', 'validate', 'verify'],
+      validPrefixCases: [
+        ['build', '--help'],
+        ['build', 'agent-plugin', '--help'],
+        ['codex-native', '--help'],
+        ['codex-native', 'validate', '--help'],
+        ['agent-plugin', 'validate', '--json', '-h'],
+      ],
+      invalidCases: [
+        ['help'],
+        ['--bogus', '--help'],
+        ['bogus', '--help'],
+        ['--output', '--help'],
+        ['build', 'codex-native', '--help'],
+        ['codex-native', 'bogus', '--help'],
+      ],
+    },
+  ];
+  for (const spec of specs) {
+    const baselineByEntrypoint = [];
+    for (const [executable, prefix] of spec.entrypoints) {
+      for (const args of [[], ['--help'], ['-h']]) {
+        const result = invokeEntrypoint(executable, prefix, args);
+        const label = `${executable} ${prefix.join(' ')} ${args.join(' ') || '(no args)'}`;
+        assert.strictEqual(result.status, 0, `${label}: ${result.stderr}`);
+        assert.strictEqual(result.stderr, '', label);
+        assert.ok(result.stdout.includes(spec.canonical), label);
+        for (const token of spec.topLevelTokens) {
+          assert.ok(result.stdout.includes(token), `${label} missing ${token}`);
+        }
+        if (args.length === 0) baselineByEntrypoint.push(result.stdout);
+        else assert.strictEqual(result.stdout, baselineByEntrypoint[baselineByEntrypoint.length - 1], label);
+      }
+      for (const args of spec.validPrefixCases) {
+        const result = invokeEntrypoint(executable, prefix, args);
+        const label = `${executable} ${prefix.join(' ')} ${args.join(' ')}`;
+        assert.strictEqual(result.status, 0, `${label}: ${result.stderr}`);
+        assert.strictEqual(result.stderr, '', label);
+        assert.ok(result.stdout.includes(spec.canonical), label);
+      }
+      for (const args of spec.invalidCases) {
+        const result = invokeEntrypoint(executable, prefix, args);
+        const label = `${executable} ${prefix.join(' ')} ${args.join(' ')}`;
+        assert.strictEqual(result.status, 64, label);
+        assert.strictEqual(result.stdout, '', label);
+        assert.ok(result.stderr.trim().length > 0, label);
+      }
+    }
+    assert.strictEqual(baselineByEntrypoint[0], baselineByEntrypoint[1], `${spec.name} wrapper parity`);
+  }
+});
 
 run('dhpk-cli');
