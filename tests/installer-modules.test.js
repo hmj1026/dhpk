@@ -35,6 +35,9 @@ test('testClosure_holdsTheInstallerEntryAndItsModulesAndNothingOutsideScripts', 
   assert.ok(ids.includes('scripts/lib/install-adapters/codex.js'));
   assert.ok(ids.includes('scripts/lib/project-agent-projection-publisher.js'), 'the Shared Project Projection publisher is part of the installer');
   assert.ok(ids.includes('scripts/lib/portable-skill-metadata.js'));
+  assert.ok(ids.includes('scripts/lib/host-cli-probe.js'), 'the shared Host CLI probe stays in the installer');
+  assert.ok(ids.includes('scripts/lib/terminate-process-group.js'), 'the probe reaps its process group from a module that does not spawn');
+  assert.ok(!ids.includes('scripts/lib/bounded-child-process.js'), 'the Node test runner stays out of the installer');
   assert.deepStrictEqual([...ids].sort(), ids, 'modules must be listed in path order');
   assert.ok(ids.every((id) => id.startsWith('scripts/')), ids.filter((id) => !id.startsWith('scripts/')).join(','));
 });
@@ -107,13 +110,20 @@ test('testClosure_leavesOutThePackagingPipeline', () => {
   }
 });
 
-// The installer runs one program of its own at most: the Codex provider probe
-// (codex.js) and the Python-compatible helpers it uses (python-compat.js).
+// The installer runs one program of its own at most: the Codex provider probe.
+// codex.js owns that probe and delegates the spawn to the shared Host CLI probe
+// runner. python-compat.js exposes child_process for the Python-compatible
+// helpers. bounded-child-process.js imports child_process only to run Node
+// tests, so it must stay outside this closure.
 test('testClosure_onlyTheProviderProbeModulesImportChildProcess', () => {
   const importers = collectClosure(REPO_ROOT, ENTRY)
     .filter((record) => /require\(\s*['"](?:node:)?child_process['"]\s*\)/.test(record.source))
     .map((record) => record.id);
-  assert.deepStrictEqual(importers, ['scripts/lib/install-adapters/codex.js', 'scripts/lib/install-adapters/python-compat.js']);
+  assert.deepStrictEqual(importers, [
+    'scripts/lib/host-cli-probe.js',
+    'scripts/lib/install-adapters/codex.js',
+    'scripts/lib/install-adapters/python-compat.js',
+  ]);
 });
 
 // The packaged layout: the closure copied as plain files at their scripts/lib/

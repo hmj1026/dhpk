@@ -76,7 +76,7 @@ function legacyHostJournals(projectRoot) {
 // per project. Recovery runs the installer of the Host the journal (or the
 // lock) names with --recover, which removes a stale lock, finishes or undoes
 // the journal by its commit point, and recovers that Host's older journals.
-function recoverProjectionJournal(projectRoot, installerRoot) {
+function recoverProjectionJournal(projectRoot, installerRoot, { historyDelegated = false } = {}) {
   const agents = path.join(projectRoot, '.agents');
   const journalPath = path.join(agents, '.dhpk-projection-journal.json');
   const lockPath = path.join(agents, '.dhpk-install.lock');
@@ -99,7 +99,7 @@ function recoverProjectionJournal(projectRoot, installerRoot) {
   try {
     const { HOSTS, installerEnv, runCaptured } = require('./install-adapters/codex-cli');
     if (!HOSTS[host]) return { ok: false, state: 'BLOCKED', code: 'UNKNOWN_HOST', message: `the Projection Journal names an unknown Host: ${host}` };
-    const outcome = runCaptured(installerEnv({ host, pluginRoot: installerRoot, installerRoot, projectRoot, recover: true }));
+    const outcome = runCaptured(installerEnv({ host, pluginRoot: installerRoot, installerRoot, projectRoot, recover: true, historyDelegated }));
     const output = `${outcome.stdout}${outcome.stderr}`.trim();
     if (outcome.code === 0) return { ok: true, state: 'RECOVERED', host };
     return { ok: false, state: 'BLOCKED', code: 'RECOVERY_FAILED', host, message: output };
@@ -112,7 +112,7 @@ function pathExists(file) {
   return lstatOrNull(file) !== null;
 }
 
-function recoverProject({ projectRoot, installerRoot }) {
+function recoverProject({ projectRoot, installerRoot, historyDelegated = false }) {
   // Host journals first: when one blocks, neither mutating recovery may run
   // (it would change the tree this release then tells the user to hand to 0.74.x).
   const installerJournals = legacyHostJournals(projectRoot);
@@ -120,7 +120,7 @@ function recoverProject({ projectRoot, installerRoot }) {
     const skipped = { ok: false, state: 'SKIPPED', code: 'LEGACY_HOST_JOURNAL', message: 'not run: a Host journal this release cannot recover blocks every mutating recovery' };
     return { ok: false, projectRoot, projectionJournal: { ...skipped }, sharedProjection: { ...skipped }, installerJournals };
   }
-  const projectionJournal = recoverProjectionJournal(projectRoot, installerRoot);
+  const projectionJournal = recoverProjectionJournal(projectRoot, installerRoot, { historyDelegated });
   const sharedProjection = recoverSharedProjection({ projectRoot });
   return {
     ok: projectionJournal.ok && sharedProjection.ok && installerJournals.length === 0,

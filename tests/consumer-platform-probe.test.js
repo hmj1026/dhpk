@@ -947,4 +947,97 @@ test('codex-native probe fails closed when --inventory cannot be read or parsed'
   assert.ok(missingPayload.errors.some((error) => /distribution inventory/i.test(error)), JSON.stringify(missingPayload));
 });
 
+function claudeProjectFixture(label) {
+  const sourceRoot = projectSourceFixture();
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-claude-project-${label}-`));
+  const inventory = projectProbeInventory();
+  inventory.skills[0].surfaces.push('claude-core');
+  inventory.surface_membership['claude-core'] = ['probe'];
+  inventory.project_agent_projection.profiles['portable-core'].hosts = ['claude'];
+  materializeAgentsSkillsProjection({
+    root: sourceRoot,
+    sourceRoot,
+    projectRoot,
+    inventory,
+    profileId: 'portable-core',
+    requestedHosts: ['claude'],
+  });
+  return { sourceRoot, projectRoot: fs.realpathSync(projectRoot) };
+}
+
+test('Claude project probe inner exit 124 is BLOCKED with outer exit 124, not an exit-0 UNAVAILABLE', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
+  const { sourceRoot, projectRoot } = claudeProjectFixture('inner-124');
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-124-bin-'));
+  try {
+    fs.writeFileSync(path.join(bin, 'claude'), '#!/bin/sh\necho "request timeout after 30s" >&2\nexit 124\n', { mode: 0o755 });
+    const result = runProbe('claude-project', projectRoot, ['--execute'], {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_EXECUTE: '',
+    });
+    assert.strictEqual(result.status, 124, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.strictEqual(payload.probe.exitCode, 124, JSON.stringify(payload));
+    assert.strictEqual(payload.probe.timedOut, true);
+    assert.ok(Number.isInteger(payload.probe.durationMs));
+    assert.match(payload.probe.stderrTail, /request timeout after 30s/);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('Claude project probe non-zero exit keeps the exact inner exit code in the envelope', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
+  const { sourceRoot, projectRoot } = claudeProjectFixture('inner-7');
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-7-bin-'));
+  try {
+    fs.writeFileSync(path.join(bin, 'claude'), '#!/bin/sh\necho "skill loader crashed" >&2\nexit 7\n', { mode: 0o755 });
+    const result = runProbe('claude-project', projectRoot, ['--execute'], {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_EXECUTE: '',
+    });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'FAIL', JSON.stringify(payload));
+    assert.strictEqual(payload.probe.exitCode, 7, JSON.stringify(payload));
+    assert.strictEqual(payload.probe.timedOut, false);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('Codex probe timeout keeps bounded partial stderr and exits 124', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-partial-timeout-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-partial-bin-'));
+  try {
+    writeAgentManifest(root);
+    fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\necho "PARTIAL_CODEX_DIAG" >&2\nsleep 30\n', { mode: 0o755 });
+    const startedAt = Date.now();
+    const result = runProbe('codex', root, ['--execute'], {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_EXECUTE: '',
+      DHPK_CONSUMER_PROBE_TIMEOUT_MS: '1000',
+    });
+    assert.ok(Date.now() - startedAt < 15000, 'a hung Codex probe must not wait for the child to finish');
+    assert.strictEqual(result.status, 124, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.strictEqual(payload.probe.timedOut, true, JSON.stringify(payload));
+    assert.strictEqual(payload.probe.exitCode, null);
+    assert.match(payload.probe.stderrTail, /PARTIAL_CODEX_DIAG/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 run('consumer-platform-probe');

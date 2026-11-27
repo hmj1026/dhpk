@@ -39,8 +39,8 @@ test('a foreign CLAUDE_PLUGIN_ROOT is ignored; the installer package is the data
   try {
     const result = install(project, { CLAUDE_PLUGIN_ROOT: foreign });
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.ok(fs.existsSync(path.join(project, '.codex', 'skills', 'flow-drive')), 'own package payload installed');
-    assert.ok(!fs.existsSync(path.join(project, '.codex', 'skills', 'dhpk-codex-only')), 'foreign payload must not be installed');
+    assert.ok(fs.existsSync(path.join(project, '.agents', 'skills', 'flow-drive')), 'own package payload installed');
+    assert.ok(!fs.existsSync(path.join(project, '.agents', 'skills', 'dhpk-codex-only')), 'foreign payload must not be installed');
   } finally {
     cleanup(foreign, project);
   }
@@ -52,8 +52,8 @@ test('a valid explicit DHPK_INSTALLER_ROOT selects both payload and validation s
   try {
     const result = install(project, { DHPK_INSTALLER_ROOT: explicit, CLAUDE_PLUGIN_ROOT: ROOT });
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.ok(fs.existsSync(path.join(project, '.codex', 'skills', 'dhpk-codex-only')), 'explicit payload installed');
-    assert.ok(!fs.existsSync(path.join(project, '.codex', 'skills', 'flow-drive')), 'own package payload must not leak in');
+    assert.ok(fs.existsSync(path.join(project, '.agents', 'skills', 'dhpk-codex-only')), 'explicit payload installed');
+    assert.ok(!fs.existsSync(path.join(project, '.agents', 'skills', 'flow-drive')), 'own package payload must not leak in');
   } finally {
     cleanup(explicit, project);
   }

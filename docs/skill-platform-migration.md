@@ -56,9 +56,10 @@ progression remains configured.
 | Public identity | Stable IDs and public names are owned by the distribution inventory |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | Inventory-selected relative symlinks under `modules/*/skills/` |
-| Codex project projection | Receipt-owned projections under `codex/skills/`, including internal transport and dispatch-context runtimes |
+| Codex project projection | Direct `.agents/skills/` discovery ([ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)) plus physical `.codex/agents/*.toml` and supporting assets; `--update` retires unchanged `.codex/skills/<name>` links |
 | Codex native package | Inventory-selected physical packages under `plugins/dhpk/skills/`; no symlinks |
-| Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
+| Codex project receipt | `.codex/.dhpk-installed.json` schema v3 (with `DHPK_INSTALLER_ROOT` as the explicit data-source selector per [ADR-0038](adr/0038-resolve-runtime-resources-from-the-owning-package.md), never `CLAUDE_PLUGIN_ROOT`) |
+| Claude project assets | Standalone Asset Receipt `.claude/dhpk/.dhpk-asset-receipt.json` (`dhpk.asset-receipt.v1`) via `scripts/setup/install-assets.sh` (auto-updates unchanged snapshots; timestamped backup before `--force`) |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
 | Main installation default | The `common` collection from `manifests/install-profiles.json`; legacy selections remain historical receipt metadata |
 | Host publication | Membership and required Host helpers are owned by the distribution inventory and projection manifests |
@@ -103,7 +104,7 @@ Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`
 commands. `flow-guide` owns read-only usage help, routing, policy, progression,
 and closeout; `flow-drive` is an explicit native task/help entry that uses the
 current Host and Model. It has no dispatch selectors. Availability evidence is a
-receipt-owned `.codex/skills/flow-guide` or `.codex/skills/flow-drive` that
+receipt-owned `.agents/skills/flow-guide` or `.agents/skills/flow-drive` that
 resolves as the corresponding `$name`; `codex plugin list` is management
 evidence only. If a family is not discovered, instruction routing and explicit
 `/opsx:*` OpenSpec commands remain available — do not claim the missing `$name`
@@ -375,24 +376,50 @@ recoverable.
 
 ## Upgrade a project-local Codex projection
 
-Run from the project root after updating the Claude plugin:
+Run from the project root after updating the Claude plugin (set
+`DHPK_INSTALLER_ROOT=/path/to/dhpk` when selecting an explicit data source per
+[ADR-0038](adr/0038-resolve-runtime-resources-from-the-owning-package.md);
+`CLAUDE_PLUGIN_ROOT` never selects Codex/Cursor installer data):
 
 ```bash
+DHPK_INSTALLER_ROOT=/path/to/dhpk bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --update --plan --json
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --migrate --update
+# Or through the unified lifecycle CLI:
+dhpk-install codex-sync update --project-root "$PWD"
 ```
+
+Under [ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md), Codex
+discovers project skills directly from `.agents/skills/`, and `--update`
+retires unchanged receipt-owned `.codex/skills/<name>` links or copies once
+their Skill Identity is verified in `.agents/skills/` (reporting
+`COMPATIBILITY_PROJECTION_STALE` if a source-checkout `.agents/skills` tree
+needs `npm run sync:local-skills`).
 
 The schema-v3 receipt records stable id, public name, destination, source,
 mode, and fingerprint for every managed skill, agent, and supporting asset.
-Migration adopts only unchanged exact legacy matches. It preserves and reports
-user-owned, edited, retargeted, malformed, ambiguous, or colliding content.
+`--plan --json` emits structured remediation (`READY` exit `0`,
+`CHANGES_PENDING` exit `1`, `BLOCKED` exit `2`, naming `reasonCode`,
+`receiptVersion`, `journalVersion`, `affectedPaths`, and transition versions
+such as `0.69.x` or `0.74.x`). Migration adopts only unchanged exact legacy
+matches. It preserves and reports user-owned, edited, retargeted, malformed,
+ambiguous, or colliding content.
+
+For Claude project assets (`.claude/dhpk`), `scripts/setup/install-assets.sh`
+tracks a standalone Asset Receipt (`.claude/dhpk/.dhpk-asset-receipt.json`,
+`dhpk.asset-receipt.v1`) and supports `--plan --json`, auto-updating unchanged
+receipt-owned snapshots and saving differing files to
+`.claude/dhpk/.dhpk-asset-backups/<UTC timestamp>/` before `--force` overwrite.
+All lifecycle entrypoints append de-identified diagnostic records to Install
+History (`DHPK_INSTALL_HISTORY_FILE`, opt out with `DHPK_NO_INSTALL_HISTORY=1`).
 
 Available operations:
 
 | Flag | Contract |
 |---|---|
 | `--copy` | Materialize regular files; portable when the plugin root may disappear. |
-| `--update` | Reconcile receipt-owned entries with the current plugin root. |
+| `--update` | Reconcile receipt-owned entries with the current plugin root and retire unchanged `.codex/skills/<name>` duplicates. |
 | `--migrate` | Adopt exact unchanged legacy destinations and rename them to the current public names. |
+| `--plan --json` | Read-only reconciliation plan with structured `READY` / `CHANGES_PENDING` / `BLOCKED` remediation. |
 | `--uninstall` | Remove only unchanged receipt-owned entries; preserve edited/orphaned/unrelated files. |
 | `--force` | Bypass only the project-root heuristic; never bypass ownership or filesystem safety. |
 
@@ -401,12 +428,15 @@ agents, skills, MCP configuration, and hooks.
 
 ## Verification
 
-Maintainers should run:
+Maintainers and operators should run:
 
 ```bash
+dhpk-install status --all --project-root "$PWD" --strict --json
+node scripts/ci/check-duplicate-discovery.js --project-root "$PWD"
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
 bin/dhpk distribution codex-native verify --json
+node scripts/release/release-rehearsal.js --offline --json
 node tests/run-all.js
 ```
 

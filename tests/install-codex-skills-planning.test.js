@@ -341,8 +341,11 @@ test('historical Codex profile receipts remain readable and block every live upd
     const beforePlan = fs.readFileSync(receiptPath, 'utf8');
     const projectionBeforePlan = completeTreeFingerprint(codexRoot);
     const planned = runInstaller(scratch, ['--update', '--plan', '--json', '--force']);
-    assert.notStrictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    // The plan reports the block the update stops at (#1584).
+    assert.strictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
     const report = JSON.parse(planned.stdout);
+    assert.strictEqual(report.verdict, 'BLOCKED');
+    assert.strictEqual(report.reasonCode, 'LEGACY_PROFILE_UPDATE_UNSUPPORTED');
     assert.strictEqual(report.receipt_profile_id, profileId);
     assert.deepStrictEqual(report.receipt_selected_stable_ids, historicalIds,
       'planning must report the selection stored in the old receipt, including retired IDs');
@@ -833,7 +836,7 @@ test('--plan and --adopt cannot be combined, and adoption requires --update', ()
   try {
     const token = `skills/${fixture.collision}@${'0'.repeat(64)}@${'0'.repeat(64)}`;
     const planned = runInstaller(fixture.scratch, ['--plan', '--json', `--adopt=${token}`, '--force'], fixture.fakePlugin);
-    assert.strictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    assert.strictEqual(planned.status, 64, `${planned.stdout}\n${planned.stderr}`);
     assert.match(`${planned.stdout}\n${planned.stderr}`, /cannot be combined|--plan.*--adopt/i);
     const withoutUpdate = runInstaller(fixture.scratch, ['--adopt', token, '--force'], fixture.fakePlugin);
     assert.strictEqual(withoutUpdate.status, 2, `${withoutUpdate.stdout}\n${withoutUpdate.stderr}`);

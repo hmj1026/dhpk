@@ -14,6 +14,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { TIMEOUT_EXIT_CODE, refusedHostCliProbe, runHostCliProbe } = require('./host-cli-probe');
 const { SECRET_PATTERNS: SHARED_SECRET_PATTERNS } = require('./secret-patterns');
 const {
   RECEIPT_SCHEMA,
@@ -1717,8 +1718,8 @@ function preflightCursorConsumer({
 
 function commandVersionForProbe(executable) {
   try {
-    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 5000, maxBuffer: 16 * 1024 });
-    if (result.error || result.status !== 0) return null;
+    const result = runHostCliProbe(executable, ['--version'], { timeoutMs: 5000, maxBuffer: 16 * 1024 });
+    if (result.error || result.exitCode !== 0) return null;
     const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim().split(/\r?\n/, 1)[0];
     return output ? redactSensitiveText(output, { maxLength: 128 }) : null;
   } catch (_) {
@@ -1774,12 +1775,6 @@ function cursorAuthenticationRequired(result) {
 function cursorNetworkUnavailable(result) {
   const output = `${result && result.stdout ? result.stdout : ''}\n${result && result.stderr ? result.stderr : ''}`;
   return /(?:EAI_[A-Z]+|ENOTFOUND|ENETUNREACH|EHOSTUNREACH|ECONNREFUSED|ECONNRESET|ECONNABORTED|ETIMEDOUT|ENETDOWN|network is unreachable|network unreachable|could not resolve|dns resolution|name resolution|connection (?:refused|reset|timed out)|socket hang up|network request failed)/i.test(output);
-}
-
-function terminateProbeGroup(result) {
-  if (process.platform === 'win32' || !result || !result.pid) return;
-  try { process.kill(-result.pid, 'SIGTERM'); } catch (_) { /* child group already exited */ }
-  try { process.kill(-result.pid, 'SIGKILL'); } catch (_) { /* child group already exited */ }
 }
 
 function cursorProbeEnvironment(packageRoot, { probeHome } = {}) {
@@ -2191,27 +2186,22 @@ function runCursorConsumerProbeRaw({
       if (!loaderProbe || typeof arg !== 'string') return arg;
       return path.resolve(arg) === path.resolve(packageRoot) ? loaderProbe.packageRoot : arg;
     });
-    const spawnOptions = {
+    const probeOptions = {
       cwd: cwd || packageRoot,
-      encoding: 'utf8',
-      timeout: probeTimeoutMs,
+      timeoutMs: probeTimeoutMs,
       maxBuffer: probeMaxOutputBytes,
-      killSignal: 'SIGKILL',
-      detached: process.platform !== 'win32',
-      stdio: ['ignore', 'pipe', 'pipe'],
       env: cursorProbeEnvironment(loaderProbe ? loaderProbe.packageRoot : packageRoot, { probeHome }),
     };
     const writablePaths = [
-      spawnOptions.cwd,
-      spawnOptions.env && spawnOptions.env.HOME,
+      probeOptions.cwd,
+      probeOptions.env && probeOptions.env.HOME,
       loaderProbe && loaderProbe.packageRoot,
     ];
     const privateRoot = ['disabled', 'shared'].includes(networkMode) || authenticatedSessionRequired ? os.tmpdir() : null;
     let result;
     if (privateRoot && !safeWritablePaths(writablePaths, privateRoot)) {
       result = {
-        status: 125,
-        error: Object.assign(new Error('sandbox paths are outside the private temporary root'), { code: 'DHPK_SANDBOX_PATH_UNSAFE' }),
+        ...refusedHostCliProbe(Object.assign(new Error('sandbox paths are outside the private temporary root'), { code: 'DHPK_SANDBOX_PATH_UNSAFE' })),
         network: 'unknown',
       };
     } else if (networkMode === 'disabled' || networkMode === 'shared') {
@@ -2224,11 +2214,10 @@ function runCursorConsumerProbeRaw({
         // network-disabled route; a shared-network request must never fall
         // back to an unrestricted process.
         if (networkMode === 'disabled' && !authenticatedSessionRequired && process.env.DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION === '1') {
-          result = { ...spawnSync(client, probeArgs, spawnOptions), network: 'unrestricted' };
+          result = { ...runHostCliProbe(client, probeArgs, probeOptions), network: 'unrestricted' };
         } else {
           result = {
-            status: 125,
-            error: Object.assign(new Error('OS network sandbox is unavailable'), { code: 'DHPK_NETWORK_SANDBOX_UNAVAILABLE' }),
+            ...refusedHostCliProbe(Object.assign(new Error('OS network sandbox is unavailable'), { code: 'DHPK_NETWORK_SANDBOX_UNAVAILABLE' })),
             network: 'unknown',
           };
         }
@@ -2242,20 +2231,19 @@ function runCursorConsumerProbeRaw({
         );
         if (!sandboxInvocationResult) {
           result = {
-            status: 125,
-            error: Object.assign(new Error('sandbox paths are outside the private temporary root'), { code: 'DHPK_SANDBOX_PATH_UNSAFE' }),
+            ...refusedHostCliProbe(Object.assign(new Error('sandbox paths are outside the private temporary root'), { code: 'DHPK_SANDBOX_PATH_UNSAFE' })),
             network: 'unknown',
           };
         } else {
           const [sandboxCommand, sandboxArgs] = sandboxInvocationResult;
           result = {
-            ...spawnSync(sandboxCommand, sandboxArgs, spawnOptions),
+            ...runHostCliProbe(sandboxCommand, sandboxArgs, probeOptions),
             network: networkMode,
           };
         }
       }
     } else {
-      result = { ...spawnSync(client, probeArgs, spawnOptions), network: 'unrestricted' };
+      result = { ...runHostCliProbe(client, probeArgs, probeOptions), network: 'unrestricted' };
     }
     const evidence = {
       packageRoot,
@@ -2265,28 +2253,30 @@ function runCursorConsumerProbeRaw({
       output_limit_bytes: probeMaxOutputBytes,
       output_format: outputFormat || null,
       session_files: session.copiedFiles,
-      exit_code: result.status === undefined ? null : result.status,
-      signal: result.signal || null,
+      exit_code: result.exitCode,
+      signal: result.signal,
+      duration_ms: result.durationMs,
       diagnostic: probeDiagnostic(result),
     };
-    if (result.error && result.error.code === 'ETIMEDOUT') {
-      terminateProbeGroup(result);
+    if (result.timedOut) {
       const noStdout = !evidence.diagnostic;
       const streamObserved = cursorStreamFrame(evidence.diagnostic);
+      const timeoutReason = result.exitCode === TIMEOUT_EXIT_CODE
+        ? `Cursor consumer probe reported a timeout (exit ${TIMEOUT_EXIT_CODE})`
+        : `Cursor consumer probe timed out after ${probeTimeoutMs} ms`;
       return {
         surface: 'cursor-plugin',
         status: noStdout ? 'SKIP_INCOMPATIBLE' : 'BLOCKED',
         reason: noStdout
           ? `Cursor consumer probe produced no stdout/stderr before timeout (${probeTimeoutMs} ms); CLI has no non-LLM plugin list`
-          : `Cursor consumer probe timed out after ${probeTimeoutMs} ms`,
+          : timeoutReason,
         timed_out: true,
         no_stdout: noStdout,
         stream_observed: streamObserved,
         ...evidence,
       };
     }
-    if (result.error && result.error.code === 'ENOBUFS') {
-      terminateProbeGroup(result);
+    if (result.outputLimited) {
       return {
         surface: 'cursor-plugin',
         status: 'BLOCKED',
@@ -2321,14 +2311,14 @@ function runCursorConsumerProbeRaw({
     if (!allowUnauthenticatedFixture && session.copiedFiles.length === 0) {
       return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer login session is unavailable', ...evidence };
     }
-    if (result.status !== 0) {
+    if (result.exitCode !== 0) {
       if (cursorAuthenticationRequired(result)) {
-        return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer requires authentication; use an already-logged-in session', exit_code: result.status, ...evidence };
+        return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer requires authentication; use an already-logged-in session', ...evidence };
       }
       if (cursorNetworkUnavailable(result)) {
-        return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor consumer network transport is unavailable', exit_code: result.status, ...evidence };
+        return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor consumer network transport is unavailable', ...evidence };
       }
-      return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, exit_code: result.status, ...evidence };
+      return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.exitCode}`, ...evidence };
     }
     const streamResponse = streamOutput ? parseCursorStreamOutput(result.stdout || '') : null;
     const responseText = streamOutput && streamResponse

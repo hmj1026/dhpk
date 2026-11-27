@@ -13,21 +13,52 @@ canary 與 registry diagnostics 仍可供這些情境使用；必要檢查不可
 SSOT。package 或 manifest 只能證明結構；只有指定的 consumer probe 找到
 projection 內容後，才能宣稱 client 可呼叫。
 
+<a id="surface-matrix"></a>
+
 ## Surface matrix
 
 | Surface | 安裝 | 更新／移除 | 驗證 | 支援邊界 |
 |---|---|---|---|---|
-| Claude Code 預設 | `/plugin marketplace add hmj1026/dhpk`，再 `/plugin install dhpk@dhpk`（checkout：`bash scripts/install.sh`） | `/plugin marketplace update dhpk`，再 `/reload-plugins`；移除用 `/plugin uninstall dhpk@dhpk` | Fresh-session `/dhpk:flow-guide help` | 結構檢查可通過；consumer discovery 在實際觀察前維持 `NOT_RUN` |
+| Claude Code 預設（Repository Marketplace） | `/plugin marketplace add hmj1026/dhpk`，再 `/plugin install dhpk@dhpk`（checkout：`bash scripts/install.sh`） | `/plugin marketplace update dhpk`，再 `/reload-plugins`；移除用 `/plugin uninstall dhpk@dhpk` | Fresh-session `/dhpk:flow-guide help`；`dhpk-install claude status --strict` | 結構檢查可通過；consumer discovery 在實際觀察前維持 `NOT_RUN` |
 | Claude Code 技術棧模組 | `/plugin install dhpk-stacks@dhpk`（需要 `dhpk`） | 同上；`modules` 在此 plugin 的設定 | Fresh-session `/dhpk:harness-setup --show` | 只含技術棧 skill 與模組；`modules` 選取前沒有任何模組啟用 |
-| Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `codex/` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
-| Codex Public Plugin（native） | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| Claude Code Directory Plugin（`dhpk-lite`，純指引） | 官方 Claude Plugin Directory（`dist/claude-directory/package`）；與 Full Plugin `dhpk` 互斥 | 安裝 `dhpk@dhpk` 前先透過 `/plugin uninstall dhpk-lite` 停用／移除 `dhpk-lite` | Fresh-session `/dhpk-lite:flow-drive` | 純指引（`/dhpk-lite:<skill>`）；隨附全部 17 個 catalog skills（其中 6 個透過 `mode: manual` 的 Manual Procedure 執行）與 29 個 agents；不含 hooks、scripts、`userConfig`、`agents/INDEX.md` 與外部 CLI agents |
+| Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh` 或 `dhpk-install codex-sync install --project-root <dir>`（資料來源：`DHPK_INSTALLER_ROOT`，絕不用 `CLAUDE_PLUGIN_ROOT`）。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `codex/` | `--update`、`--migrate`、`--uninstall`（或 `dhpk-install codex-sync update\|uninstall --project-root <dir>`）；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、`.agents/skills/` 直接探索、`$dhpk-<name>` / `$change-verdict` discovery、`dhpk-install codex-sync status` | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
+| Codex Public Plugin（native） | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe、`dhpk-install codex-native status` | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | OpenAI Public Plugin Directory（Codex 與 ChatGPT Work） | 公開 listing 出現後，在產品 Plugins Directory 搜尋 DHPK | 使用該產品的 plugin manager | 核准的公開 listing，以及每個 Host 的 fresh-session workflow probe | 目前僅為 candidate，狀態 `NOT_PUBLISHED`；local/repository marketplace 僅供開發 |
-| Standard Agent Plugin | 從 GitHub Release 下載 `dhpk-agent-<version>.tar.gz`，或執行 `bin/dhpk distribution build agent-plugin`；再透過已驗證 client route 安裝 `dist/on-demand/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
+| Standard Agent Plugin | 從 GitHub Release 下載 `dhpk-agent-<version>.tar.gz`，或執行 `bin/dhpk distribution build agent-plugin`；再透過已驗證 client route 安裝 `dist/on-demand/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance、`dhpk-install agent-plugin status` | 結構合規不等於 Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | 從 GitHub Release 下載 `dhpk-cursor-<version>.tar.gz`，或執行 `bin/dhpk distribution build cursor-plugin`；複製到 `~/.cursor/plugins/local/dhpk-cursor`，並另安裝 `dhpk-agent` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
-| Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `cursor/` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
+| Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh` 或 `dhpk-install cursor install --project-root <dir>`（資料來源：`DHPK_INSTALLER_ROOT`，絕不用 `CLAUDE_PLUGIN_ROOT`）。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `cursor/` | `--update`、`--migrate`、`--uninstall`（或 `dhpk-install cursor update\|uninstall --project-root <dir>`）；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries、`dhpk-install cursor status` | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；release probe 使用隔離的 shared-network bubblewrap namespace，不得 unrestricted 執行 |
-| AGY native plugin | 從 GitHub Release 下載 `dhpk-agy-<version>.tar.gz`，或執行 `bin/dhpk distribution build agy-plugin`，再由 receipt-owned installer 安裝至 inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`、明確的 `migrate`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
+| AGY native plugin | 從 GitHub Release 下載 `dhpk-agy-<version>.tar.gz`，或執行 `bin/dhpk distribution build agy-plugin`，再由 receipt-owned installer 安裝至 inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`、明確的 `migrate`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；`dhpk-install agy-plugin status`；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
+
+<a id="cross-host-installation-matrix"></a>
+
+## Cross-Host installation and verification matrix
+
+此矩陣作為所有 Host 入口、明確 installer 資料來源選擇、遷移與復原邊界，以及驗證指令的單一可連結索引（與英文 SSOT 同步）。
+
+| Host／surface | Canonical entrypoint(s) | 資料來源選擇器（ADR-0038） | 遷移與所有權備註 | 驗證指令 |
+|---|---|---|---|---|
+| Claude Code（`claude`） | `/plugin install dhpk@dhpk`、`/plugin install dhpk-stacks@dhpk`、`bash scripts/install.sh`、`scripts/setup/install-assets.sh`（或 Skill 內 `skills/harness-setup/scripts/install-assets.sh`） | 所屬 plugin/package root（`dhpk_plugin_root` / `package-root.js`）；`install-assets.sh` 使用 `--source <dir>` / `--source-artifact <dir>` | 勿同時啟用 `dhpk@dhpk` 與 `dhpk-lite`；專案 asset 使用獨立 Asset Receipt `.claude/dhpk/.dhpk-asset-receipt.json`（`dhpk.asset-receipt.v1`） | `dhpk-install claude status --project-root <dir> --strict --json`、`node scripts/ci/check-duplicate-discovery.js --host claude --project-root <dir>`、`claude plugin validate /path/to/dhpk --strict` |
+| Claude Code Directory（`dhpk-lite`） | 官方 Claude Plugin Directory（`dist/claude-directory/package`） | 自包含精簡套件（script-backed skill 使用 `mode: manual`） | 安裝 `dhpk@dhpk` 前先移除 `dhpk-lite` | `npm run validate:directory-plugin`、fresh-session `/dhpk-lite:flow-drive` |
+| Codex project-local sync（`codex-sync`） | `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh` 或 `dhpk-install codex-sync <plan\|install\|update\|uninstall> --project-root <dir>` | `DHPK_INSTALLER_ROOT`（絕不用 `CLAUDE_PLUGIN_ROOT`）；可執行碼永遠從 installer 自身套件載入 | 直接由 `.agents/skills/` 探索（[ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)）；`--update` 退役未變更的 `.codex/skills/<name>` link；若 native `dhpk@dhpk` 已啟用則阻擋 | `dhpk-install codex-sync status --project-root <dir> --strict`、`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --update --plan --json`、`node scripts/ci/check-duplicate-discovery.js --host codex --project-root <dir>` |
+| Codex Public Plugin（`codex-native`） | `codex plugin marketplace add <repo-or-path>` + `codex plugin add dhpk@dhpk` | 實體 `plugins/dhpk/` 套件（零 symlink） | Experimental；僅限 disposable isolated `CODEX_HOME`；與 `codex-sync` 互斥 | `bin/dhpk distribution codex-native verify --json`、`dhpk-install codex-native status --strict`、`node tests/codex-native-install-smoke.test.js` |
+| Cursor project-local sync（`cursor`） | `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh` 或 `dhpk-install cursor <plan\|install\|update\|uninstall> --project-root <dir>` | `DHPK_INSTALLER_ROOT`（絕不用 `CLAUDE_PLUGIN_ROOT`）；可執行碼永遠從 installer 自身套件載入 | Schema-v3 `.cursor/.dhpk-installed.json` + shared `.agents/.dhpk-installed.json`；保留 Consumer Evidence gate（[ADR-0023](adr/0023-native-installers-delegate-skills-to-the-shared-projection.md)） | `dhpk-install cursor status --project-root <dir> --strict`、`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --update --plan --json`、`node scripts/ci/validate-cursor-sync.js` |
+| Cursor／Standard Agent Plugin（`agent-plugin`、`cursor-plugin`） | `bin/dhpk distribution build agent-plugin` / `cursor-plugin` -> `~/.cursor/plugins/local/dhpk-{agent,cursor}` | 隨選建置封存檔或 `dist/on-demand/dhpk-{agent,cursor}` | Portable skills 由 `dhpk-agent` 擁有；Cursor UI marketplace hash cache（`~/.cursor/plugins/cache/dhpk/`）非 SSOT（`CACHE_DRIFT`） | `bin/dhpk distribution agent-plugin validate --json`、`bin/dhpk distribution cursor-plugin validate --json`、`dhpk-install agent-plugin status --strict` |
+| AGY native plugin（`agy-plugin`） | `bin/dhpk distribution build agy-plugin` + `node scripts/ci/install-agy-plugin.js install --source dist/on-demand/dhpk-agy --json` | `--source <package>`（建置產物或 staging 目錄）；canonical target 為 `~/.gemini/antigravity-cli/plugins/dhpk/` | 舊版 `$HOME/.gemini/config/plugins/dhpk/` 需明確執行 `install-agy-plugin.js migrate`；`FOREIGN_CHECKOUT` 與 `AMBIGUOUS_TARGETS` fail closed | `bin/dhpk distribution agy-plugin validate --json`、`node scripts/ci/install-agy-plugin.js status --json`、`dhpk-install agy-plugin status --strict` |
+| 跨 Host 診斷與復原 | `dhpk-install status --all`、`dhpk-install --recover`、`node scripts/ci/check-duplicate-discovery.js`、`node scripts/release/release-rehearsal.js` | 所屬 checkout／套件根目錄（`scripts/lib/package-root.js`）；Install History 使用 `DHPK_INSTALL_HISTORY_FILE` / `XDG_STATE_HOME` | 不可傳入裸 `codex` 給 `dhpk-install`（exit 64）；請改用 `codex-sync` 或 `codex-native` | `dhpk-install status --all --project-root <dir> --strict --json`、`node scripts/ci/check-duplicate-discovery.js --project-root <dir>` |
+
+<a id="dhpk-installer-root-contract"></a>
+
+### 資料來源選擇契約（`DHPK_INSTALLER_ROOT`，ADR-0038）
+
+依 [ADR-0038](adr/0038-resolve-runtime-resources-from-the-owning-package.md)，可執行程式碼與 installer payload 資料有嚴格邊界：
+
+- **可執行程式碼根目錄**：Bash 腳本（`dhpk_plugin_root` / `$HERE`）與 Node.js 模組（`scripts/lib/package-root.js` `resolveOwningPackageRoot`）永遠從自身所屬的實體套件解析可執行碼，**絕不**讀取或注入 `CLAUDE_PLUGIN_ROOT` 來選取執行期腳本或 installer 邏輯。
+- **明確 installer 資料來源選擇器（`DHPK_INSTALLER_ROOT`）**：`scripts/hooks/install-codex-skills.sh`、`scripts/hooks/install-cursor-harness.sh` 與 `scripts/lib/install-adapters/codex-cli.js` 接受 `DHPK_INSTALLER_ROOT` 作為唯一明確的 payload 資料來源覆寫（`codex/`、`cursor/`、`manifests/`、`skills/`）。`CLAUDE_PLUGIN_ROOT` **絕不**用於選取 Codex 或 Cursor installer 的資料來源。
+- **無效來源 fail-closed 停止**：若 `DHPK_INSTALLER_ROOT` 指向不存在、只透過 `CDPATH` 找到，或不完整的目錄（例如缺少 `codex/` 或 `cursor/`），安裝會立即停止，不進行 fallback 搜尋也不寫入目標。
+- **Checkout validator 變數（`DHPK_ROOT`）**：在 consumer 專案外執行 repository validator 或測試（`scripts/ci/...`、`tests/...`）時，維護者命令慣例會設 `DHPK_ROOT=/absolute/path/to/dhpk`；Codex/Cursor installer 本身讀取的是 `DHPK_INSTALLER_ROOT`，不是 `DHPK_ROOT`。
 
 只需要 Flow Drive 的 Codex 使用者，可將完整且固定版本的 canonical skill
 安裝到目前專案。安裝、明確更新／移除，以及 managed installation 切換方式，請見
@@ -82,6 +113,13 @@ DHPK review capability 保留公開名稱 `change-verdict` 與能力識別碼
 
 Discovery 與實際呼叫要分開記錄。套件、receipt 或選取列只算 discovery
 證據；尚未執行的呼叫維持 `NOT_RUN`，Host 缺少能力則記 `UNAVAILABLE`。
+
+## Claude Code 安裝路徑
+
+DHPK 提供兩種 Claude Code 發布版本。請只安裝其中**一種**（切勿同時啟用 `dhpk` 與 `dhpk-lite`，因為兩者的 skill 與 agent 名稱重疊）：
+
+1. **Full Plugin（`dhpk`，Repository Marketplace — 本機開發推薦）：**包含執行期 hooks、guardrails、helper scripts、`userConfig`、技術棧模組（`dhpk-stacks`）與 `/dhpk:<skill>` 入口。
+2. **Directory Plugin（`dhpk-lite`，官方 Claude Plugin Directory — 純指引版）：**隨附全部 17 個 catalog skills 與 29 個 agents，省略 hooks、scripts、`manifests/`、`userConfig`、`agents/INDEX.md` 與 3 個外部 CLI agent（`codex-worker`、`codex-reasoner`、`agy-worker`）。6 個 script-backed skill（`flow-guide`、`git-smart-commit`、`harness-setup`、`precommit`、`release-creator`、`opsx-apply-resume`）透過各自的 `references/manual-procedure.md`（`mode: manual`）執行，`skill-next-map.json` 置於套件根目錄供 `/dhpk-lite:<skill>` 純指引路由使用。若要從 `dhpk-lite` 升級為 Full Plugin，請先執行 `/plugin uninstall dhpk-lite`，再依下方 marketplace 步驟安裝。
 
 ## Claude Code marketplace 安裝（推薦）
 
@@ -154,6 +192,44 @@ Generic `dhpk-install` 寫入仍是 `BLOCKED` / `NOT_IMPLEMENTED`；請使用下
 host-specific adapters。Rollback 應恢復 previous receipt 的 package identity，
 或使用 version-pinned compatibility package；rollback 不會恢復 alias。
 
+<a id="claude-asset-installer"></a>
+
+### Claude 專案資產安裝程式與獨立 Asset Receipt
+
+若要將選定的 Claude 專案資產（`hooks`、`rules`、`scripts` 或 `all`）複製到
+`<project>/.claude/dhpk`，請使用 `scripts/setup/install-assets.sh`（或透過
+`/dhpk:harness-setup --source-artifact <dir> --install <group>` 呼叫 Skill 內的
+`skills/harness-setup/scripts/install-assets.sh`）：
+
+```bash
+bash scripts/setup/install-assets.sh \
+  --source /path/to/dhpk \
+  --target /path/to/project/.claude/dhpk \
+  --install all --plan --json
+```
+
+`TARGET/.dhpk-asset-receipt.json`（`schema: dhpk.asset-receipt.v1`）是獨立的
+**Asset Receipt**（獨立於跨 Host 的 Projection Journal）。每個目標檔案會分類為：
+
+- `updatable`：目標不存在，或自 Asset Receipt 記錄其 SHA-256 後未曾修改（不需
+  `--force` 即自動更新）。
+- `unchanged`：與新來源位元組完全相同（略過，且即使其他衝突中止執行也會被納管進
+  receipt）。
+- `user-modified`：由 receipt 納管但已被使用者本地修改。
+- `unmanaged-existing`：不在 Asset Receipt 中且與新來源內容不同。
+
+`--plan --json` 會輸出 `schema: dhpk.asset-plan.v1`（`verdict: READY | CONFLICT | BLOCKED`）
+而不寫入檔案。`user-modified` 與 `unmanaged-existing` 衝突會在未提供 `--force` 時以
+exit `3` 中止；提供 `--force` 時，覆寫前會先將差異檔案備份至
+`TARGET/.dhpk-asset-backups/<UTC timestamp>/`。路徑中任何 symlink 元件一律 fail
+closed（exit `4`），即使加 `--force` 亦然；未納管的舊版 runner（`TARGET/scripts/` 下的
+`precommit-runner.js`、`verify-runner.js`、`harness-audit.js`）以 exit `3`
+（`LEGACY_RUNNER_CONFLICT`）中止且無法以 `--force` 覆寫。缺少 `python3` descriptor
+能力時在任何變更前以 exit `2` 停止（純文字 `--dry-run` 可在無 `python3` 時執行）。
+預設 `--install rules` / `--install all` 只寫入
+`<parent-of-TARGET>/rules/dhpk-overrides.md` 覆寫檔，不複製上游政策（`--vendor`
+可恢復不建議使用的逐字複製）。
+
 ## 受控 authenticated runner preflight
 
 Issue #237 release evidence 必須從 exact merged commit 的 clean checkout 開始。
@@ -189,16 +265,20 @@ receipt，只移除 receipt-owned temporary files，透過 provider refresh/revo
 session，再 rollback deployment 後重試。不可重用 dirty checkout，也不可把
 preflight `PASS` 升級成 `COMPLETE`。
 
-## Unified lifecycle CLI（唯讀 slice）
+<a id="unified-lifecycle-cli"></a>
 
-`dhpk-install <surface> <action>` 是共同 lifecycle entrypoint。允許的 surface
-為 `claude`、`codex-sync`、`codex-native`、`agent-plugin`、`cursor`、`agy-plugin`；action 為
-`plan`、`install`、`verify`、`update`、`uninstall`、`rollback`、`status`。此初始
-slice 只啟用 deterministic、唯讀的 `plan`、`status` 與 `verify` result
-construction，例如：
+## Unified lifecycle CLI
+
+`dhpk-install <surface> <action>` 是共同 lifecycle entrypoint（並提供跨 surface 的
+`dhpk-install status --all` 與 `dhpk-install --recover`）。允許的 canonical surface
+為 `claude`、`codex-sync`、`codex-native`、`agent-plugin`、`cursor` 與 `agy-plugin`；
+action 為 `plan`、`install`、`verify`、`update`、`uninstall`、`rollback` 與 `status`。
+傳入有歧義的裸名稱 `codex` 會以 exit `64`（`INVALID_ARGUMENT`）拒絕，並指示改用
+`codex-sync`、`codex-native` 或 `dhpk-install status --all`。例如：
 
 ```bash
 dhpk-install cursor plan --scope project --json
+dhpk-install status --all --project-root /path/to/project --strict --json
 ```
 
 從 source checkout 執行時，直接使用 bundled entrypoint：
@@ -221,6 +301,78 @@ CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。proj
 與 stable `NOT_IMPLEMENTED` diagnostic。兩支 installer script 仍是受支援的
 route。Generic route 會持續 fail-closed，直到未來變更明確
 移交 ArtifactStore write ownership；只有 adapter characterization 絕不會啟用 mutation。
+
+<a id="dhpk-install-status"></a>
+
+### 跨 Host 唯讀檢查（`dhpk-install status`）
+
+`dhpk-install status --all [--project-root <dir>] [--scope <project|user|local>] [--offline] [--strict] [--json]`
+（以及 `dhpk-install <surface> status [...]`）不對檔案系統進行任何寫入
+（`schema: dhpk.install-status.v1`、`mutation.performed: false`）：
+
+- **Scope 與 surface 涵蓋範圍**：檢查全部六個 canonical surface（`claude`、
+  `codex-sync`、`codex-native`、`agent-plugin`、`cursor`、`agy-plugin`）、
+  `project`/`user`/`local`/`managed` scope、symlink 健康度（`BROKEN_LINK`、
+  `LEGACY_MIGRATED_LINK`）、Asset Receipt（`.claude/dhpk/.dhpk-asset-receipt.json`）、
+  version pins（`.claude/dhpk-versions.json`）、Cursor hash cache 漂移、AGY 候選路徑與雙層
+  Duplicate Discovery。
+- **Claude 雙重證據比對**：並列比對純文字 `claude plugin list`、JSON
+  `claude plugin list --json` 與 `~/.claude/plugins/installed_plugins.json`，偵測並附帶
+  原始 CLI 證據回報 `VERSION_DRIFT`、`SOURCE_MISMATCH` 與 `ENABLED_STATE_MISMATCH`。
+- **`--offline` 與即時探測**：`--offline` 會略過即時 Host CLI 探測，使其狀態維持
+  `NOT_RUN`（`reason: 'offline'`）。找不到 CLI 時回報 `CLI_NOT_INSTALLED`；探測失敗或
+  無法解析則回報 `PROBE_FAILED`／`CLAUDE_TEXT_PROBE_FAILED`／`CLAUDE_JSON_PROBE_FAILED`／
+  `CODEX_PROBE_FAILED`，絕不把失敗誤判為 `PASS`。
+- **Exit codes**：預設執行以 `0` 結束（無效參數如裸 `codex` 回傳 `64`）。加上 `--strict`
+  時，無診斷且為 `CURRENT`/`ABSENT` 回傳 `0`；存在漂移診斷（`VERSION_DRIFT`、
+  `SOURCE_MISMATCH`、`ENABLED_STATE_MISMATCH`、`CACHE_DRIFT`、`SURFACE_STALE`、
+  `DUPLICATE_DISCOVERY`、`COLLISION`、`BROKEN_LINK`、`LEGACY_MIGRATED_LINK`、
+  `ASSET_RECEIPT_STALE`、`VERSION_PIN_MISMATCH`）回傳 `1`；存在阻擋診斷（邊界阻擋、探測失敗、
+  無效 registry 或 receipt、`AMBIGUOUS_TARGETS`）回傳 `2`。
+
+<a id="plan-json-boundary-remediation"></a>
+
+### 結構化 `--plan --json` 邊界修復建議
+
+`install-codex-skills.sh --update --plan --json`、
+`install-cursor-harness.sh --update --plan --json`、
+`install-agy-plugin.js plan --json` 與
+`dhpk-install <codex-sync|cursor> plan --project-root <dir> --json` 共用同一份
+fail-closed 邊界輸出信封（`scripts/lib/plan-boundary-envelope.js`）：
+
+- **Verdict 與 exit codes**：`READY`（exit `0`）、`CHANGES_PENDING`（exit `1`）、
+  `BLOCKED`（exit `2`，且專案檔案位元組完全維持不變）。
+- **信封欄位**：`verdict`、`reasonCode`、`receiptVersion`、`journalVersion`、
+  `affectedPaths`、`remediation[]`（每筆含 `kind`、`summary`、`command`、
+  `transitionVersion`、`releasesEntries`），以及觸發 fail-closed 阻擋時的 `blockers[]`。
+- **邊界過渡指引**：缺少或不支援的 `fingerprint_algorithm`（本版僅讀 `tree-merkle-v1`）
+  或舊版 generator 會回報 `MISSING_FINGERPRINT_ALGORITHM`／
+  `UNSUPPORTED_FINGERPRINT_ALGORITHM`／`SUPERSEDED_GENERATOR_VERSION`，並提供
+  `transitionVersion: "0.69.x"` 或 `--uninstall`（`releasesEntries: true`）。未完成的
+  0.72/0.73 Python Host journal（`LEGACY_HOST_JOURNAL`）或 held projection journal
+  （`HELD_PROJECTION_JOURNAL`）會回報 `transitionVersion: "0.74.x"` 並建議執行
+  `dhpk-install --recover`。已退休的 named-profile receipt 回報
+  `LEGACY_PROFILE_UPDATE_UNSUPPORTED`，建議先 `--uninstall` 再重新安裝。
+
+<a id="install-history"></a>
+
+### Install History JSONL
+
+各生命週期入口（`dhpk-install`、`install-codex-skills.sh`、
+`install-cursor-harness.sh`、`install-agy-plugin.js`、`install-assets.sh` 與
+`install.sh`）每次執行會附加一筆去識別化 JSONL 紀錄（`schema: dhpk.install-history.v1`）：
+
+- **預設路徑**：`$XDG_STATE_HOME/dhpk/install-history.jsonl`；未設定
+  `XDG_STATE_HOME` 時為 `~/.local/state/dhpk/install-history.jsonl`。
+- **環境變數**：
+  - `DHPK_INSTALL_HISTORY_FILE`：覆寫 JSONL 輸出檔案路徑。
+  - `DHPK_NO_INSTALL_HISTORY=1`（或 `true`）：停用 Install History 紀錄。
+  - `DHPK_INSTALL_HISTORY_DELEGATED=1`：內部去重複旗標，當 `dhpk-install` 委派給
+    `codex-cli.js` 時設定，確保單次呼叫只寫一筆紀錄。
+- **去識別化與失敗契約**：將 `projectRoot` 雜湊為 `projectId: "sha256:..."`，遮罩家目錄
+  前綴、使用者名稱、憑證與 token，絕不寫入原始專案路徑或密鑰。寫入為 best-effort、失敗僅
+  警告（印出已遮罩的 warning 到 stderr，絕不改變指令 exit code）。Install History 不擁有任何
+  專案檔案，也絕不取代 Projection Journal 作為崩潰復原依據。
 
 ### Cutover 計畫與 owned-path recovery
 
@@ -373,10 +525,13 @@ bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 `.codex/agents/*.toml` materialize 為實體檔；Codex 必須把後者作為
 configuration layer 載入。Supporting asset 預設仍使用 relative symlink，
 `--copy` 會一併將它們改為實體檔。此規則適用於 source-directory materialization；
-Codex 從 `.agents/skills` 探索 project skill
-（[Codex skills](https://developers.openai.com/codex/skills)），native Shared
-Project 在 `.codex/skills/<name>` 建立的 discovery binding 是 installer 建立並由
-receipt 擁有、指向 `../../.agents/skills/<name>` 的 compatibility symlink：
+Codex 直接從 `.agents/skills` 探索 project skill
+（[Codex skills](https://developers.openai.com/codex/skills)），因此 installer
+不建立逐一 skill 的 `.codex/skills/<name>` link
+（[ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)）。`--update`
+會退役先前安裝留下、未變更且由 receipt 擁有的 `.codex/skills/<name>` link 或副本；
+在 source checkout 中，若 `.agents/skills` 需要 `npm run sync:local-skills`，
+會回報 `COMPATIBILITY_PROJECTION_STALE` 並保留該副本：
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy
@@ -498,7 +653,25 @@ Rollback 使用 `--uninstall` 或還原已保存的 `.codex/` receipt；不要�
 
 Project-local sync 與 experimental native package 是分開發布、分開取得的
 surface，但 runtime activation 互斥。使用 `codex-sync` 的 host 不可同時啟用
-`dhpk@dhpk`，否則同一個 public skill name 可能顯示兩次。先設定 `DHPK_ROOT`
+`dhpk@dhpk`，否則同一個 public skill name 可能顯示兩次。
+
+<a id="duplicate-discovery-diagnostics"></a>
+
+#### 跨 Host 雙層 Duplicate Discovery 診斷（`check-duplicate-discovery.js`）
+
+針對 Codex 與 Claude 執行共用的雙層 Duplicate Discovery 診斷（`schema: dhpk.duplicate-discovery.v1`）：
+
+```bash
+node "$DHPK_ROOT/scripts/ci/check-duplicate-discovery.js" \
+  --project-root "$PWD" \
+  --host all
+```
+
+- **Baseline 層**：唯讀掃描檔案系統、receipt（`.agents/.dhpk-installed.json`、`.agents/skills/.dhpk-projection.json`、`.codex/.dhpk-installed.json`、`.claude/.dhpk-installed.json`）與已啟用 plugin，依 `ownershipClass`（`plugin`、`receipt-owned`、`third-party`、`unmanaged`）分類；`--offline` 時仍獨立產生 `PASS` 或 `DUPLICATE`。
+- **Live 層**：執行即時 Host CLI 探測（Codex 使用 `codex debug prompt-input`，Claude 使用 `claude plugin list --json`），獨立輸出 `PASS`、`DUPLICATE`、`NOT_RUN`（`--offline`）或 `UNAVAILABLE`（`host-cli-missing`、`host-cli-timeout`、`host-cli-failed`、`host-cli-unparseable`）。兩層判定互不覆寫。
+- **Exit codes**：無重複為 `0`，任一 Host 的 `baseline` 或 `live` 為 `DUPLICATE` 時回傳 `1`，參數錯誤回傳 `2`。`dhpk-install status` 也會內嵌此報告。
+
+針對 Codex provider 專屬的 `check-codex-discovery.js` 檢查，可先設定 `DHPK_ROOT`
 為 source checkout，再從 consumer project root 執行下列唯讀檢查：
 
 ```bash
@@ -655,8 +828,12 @@ node "$DHPK_ROOT/scripts/ci/validate-agents-skills.js" \
 取得 `<name>.md` direct-file。唯一的 schema-v3 lifecycle receipt
 `$PROJECT_ROOT/.agents/.dhpk-installed.json` 管理兩棵 tree 與所有 Host binding。
 Claude discovery 使用 receipt-owned `.claude/skills/<name>` symlink 指向結構化的
-Claude sibling；Codex/Cursor discovery binding 則可能是指向實體 portable tree
-的 symlink。Portable tree 將 metadata value 保持為字串；Claude sibling 保留
+Claude sibling；Codex 依 [ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)
+直接從 `.agents/skills/` 探索實體 portable tree（不再預設建立逐一 `.codex/skills/<name>`
+link，除非為相容測試明確傳入非 PASS 的 `DHPK_CODEX_CONSUMER_EVIDENCE` 覆寫），而
+Cursor 保留 [ADR-0023](adr/0023-native-installers-delegate-skills-to-the-shared-projection.md)
+的 Consumer Evidence 閘門並使用指向實體 portable tree 的 symlink。Portable tree
+將 metadata value 保持為字串；Claude sibling 保留
 structured metadata value。`.agents/skills/.dhpk-projection.json` 若存在只是一份
 generated manifest。AGY 使用內嵌 direct-file body；generated instruction 不會指回
 source checkout。
@@ -1186,3 +1363,25 @@ result 及所有未執行 gate。版本控管的規範見
 `openspec/specs/`（特別是 `agy-cli-subagent-plugin/spec.md` 與
 `platform-installation-documentation/spec.md`）與
 [distribution surface guide](./distribution-surfaces.zh-TW.md)。
+
+<a id="cross-version-release-rehearsal"></a>
+
+### 跨版本 Release Rehearsal（`v(N-1)` -> `HEAD`）
+
+每次發布候選皆透過 `scripts/release/release-rehearsal.js`（以及在
+`scripts/release/release-verify.sh --mode dry-run --rehearse-upgrade` 中執行）
+演練跨版本升級與回滾（`schema: dhpk.release-rehearsal.v1`）：
+
+```bash
+node scripts/release/release-rehearsal.js \
+  --repo-root /path/to/dhpk \
+  --offline \
+  --json
+```
+
+Rehearsal 會從完整 Git 歷史自動解析先前的 release tag `v(N-1)`（或使用明確傳入的
+`--prior-tag <vX.Y.Z>`），在隔離沙箱中驗證 `v(N-1)` -> `HEAD` 升級、冪等重跑、
+rollback、`generated/` -> `dist/` marketplace 遷移、Cursor 本機連結驗證、AGY
+Package Receipt 更新／回滾，以及雙層 Duplicate Discovery。`--offline` 會誠實保留
+即時探測為 `NOT_RUN`／`UNAVAILABLE` 而非偽造 `PASS`；僅在明確授權即時 CLI 驗證時使用
+`--execute-live`。支援 `--out-file <path>` 以 `0600` 權限寫出結果。

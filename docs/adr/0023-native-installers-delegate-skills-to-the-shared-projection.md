@@ -1,6 +1,6 @@
 # Native installers delegate skills to the shared projection
 
-Status: accepted
+Status: accepted (Codex discovery gate amended by [ADR-0042](0042-codex-direct-shared-projection-discovery.md))
 
 [ADR-0019](0019-shared-project-projection-with-host-adapters.md) made `.agents/skills` the Shared Project Projection, but `dhpk-install cursor|codex-sync` still write skills as real files into `.cursor/skills` and `.codex/skills`, using a separate install-profile selection. Two writers with two selections let the copies drift. We decided that native installers stop owning skill content: they select skills into the shared projection and give their Host a Host Binding to it, one skill at a time, owned by the Projection Receipt. ADR-0019 stays accepted and unchanged; this ADR refines how its Host Adapters are wired for skills.
 

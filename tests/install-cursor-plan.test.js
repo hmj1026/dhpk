@@ -159,7 +159,7 @@ test('testCursorPlan_adapterPlanJson_carriesTheDriftWarningForCursorOnly', () =>
     assert.strictEqual(cursor.code, 0, cursor.stderr);
     const cursorReport = JSON.parse(cursor.stdout);
     assert.deepStrictEqual(cursorReport.warnings.map((item) => item.code), ['cursor_marketplace_hash_cache_drift']);
-    assert.match(cursor.stdout, /^\{\n  "collisions": \[\],\n/, 'indent 2, sorted keys');
+    assert.match(cursor.stdout, /^\{\n  "affectedPaths": \[\],\n/, 'indent 2, sorted keys');
     const codex = planOutput('codex', dir, project);
     assert.strictEqual(codex.code, 0, codex.stderr);
     assert.strictEqual((JSON.parse(codex.stdout).warnings || []).some((item) => item.code === 'cursor_marketplace_hash_cache_drift'), false);

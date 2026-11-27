@@ -53,4 +53,19 @@ test('missing observation is NOT_RUN and denied client is BLOCKED', () => {
   }
 });
 
+test('a real client exit 124 is recorded as a timeout, never as an available model list', () => {
+  const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-model-discovery-124-')));
+  try {
+    const agy = path.join(bin, 'agy');
+    fs.writeFileSync(agy, '#!/bin/sh\nif [ "$1" = "--version" ]; then echo "agy 1.2.3"; exit 0; fi\necho "fixture-model - partial"\nexit 124\n', { mode: 0o755 });
+    const result = discoverModels({ agent: 'agy', executable: agy, listArgs: ['models'], versionArgs: ['--version'] });
+    assert.strictEqual(result.status, 'UNAVAILABLE');
+    assert.deepStrictEqual(result.model_ids, []);
+    assert.strictEqual(result.client_version, 'agy 1.2.3');
+    assert.match(result.evidence, /timed out \(exit 124\)/);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 run('discover-models');

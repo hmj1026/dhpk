@@ -806,4 +806,45 @@ test('unconfigured Claude consumer probe stays non-pass and supplies resume evid
 }
 // END lexical source block: tests/gen-claude-user-config.test.js
 
+test('Claude inventory exit 124 is a timed-out UNAVAILABLE and the CLI exits 124, never 0', () => {
+  const { spawnSync } = require('node:child_process');
+  const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-124-')));
+  try {
+    const claude = path.join(bin, 'claude');
+    fs.writeFileSync(claude, [
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo "claude 9.9.9"; exit 0; fi',
+      'echo "inventory deadline reached" >&2',
+      'exit 124',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const fingerprint = digest(activeManifest);
+    const result = probe().runClaudeUserConfigProbe({
+      executable: claude,
+      manifestPath: MANIFEST_PATH,
+      manifestFingerprint: fingerprint,
+      version: '9.9.9',
+      execute: true,
+    });
+    assert.strictEqual(result.status, 'UNAVAILABLE', JSON.stringify(result));
+    assert.strictEqual(result.probe.exitCode, 124);
+    assert.strictEqual(result.probe.timedOut, true);
+    assert.ok(Number.isInteger(result.probe.durationMs));
+    assert.match(result.probe.stderrTail, /inventory deadline reached/);
+
+    const cli = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'release', 'claude-user-config-probe.js'),
+      '--manifest', MANIFEST_PATH,
+      '--fingerprint', fingerprint,
+      '--command', claude,
+      '--version', '9.9.9',
+      '--execute',
+    ], { encoding: 'utf8' });
+    assert.strictEqual(cli.status, 124, cli.stdout + cli.stderr);
+    assert.strictEqual(JSON.parse(cli.stdout).probe.timedOut, true);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 run('plugin-user-config-metadata');

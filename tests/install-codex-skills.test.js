@@ -59,7 +59,8 @@ test('fresh Codex install selects the common collection and keeps Flow Drive por
     for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport', 'dhpk-codex-bridge', 'dhpk-agy-fast-worker']) {
       assert.ok(!receipt.managed_entries.skills[name], `${name} must remain retired`);
     }
-    const flowDrive = path.join(scratch, '.codex', 'skills', 'flow-drive');
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'flow-drive')));
+    const flowDrive = path.join(scratch, '.agents', 'skills', 'flow-drive');
     assert.strictEqual(fs.existsSync(path.join(flowDrive, 'scripts')), false,
       'the native task skill does not install a separate runtime');
     assert.ok(fs.statSync(path.join(flowDrive, 'references', 'migration.md')).isFile());
@@ -458,6 +459,23 @@ test('unavailable Codex provider query is reported but does not block planning',
   }
 });
 
+test('a provider query exit 124 is reported with its inner exit code and timeout flag', () => {
+  const scratch = projectRoot();
+  try {
+    const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
+      DHPK_TEST_CODEX_PLUGIN_LIST_EXIT: '124',
+    });
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.providerCheck.status, 'UNAVAILABLE');
+    assert.strictEqual(report.providerCheck.probe.exitCode, 124, JSON.stringify(report.providerCheck));
+    assert.strictEqual(report.providerCheck.probe.timedOut, true);
+    assert.strictEqual(report.providerCheck.probe.signal, null);
+    assert.ok(Number.isInteger(report.providerCheck.probe.durationMs));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('provider query slower than 3 seconds still reports AVAILABLE', () => {
   const scratch = projectRoot();
   try {
@@ -485,7 +503,10 @@ test('DHPK_CODEX_PROBE_TIMEOUT_SECONDS bounds a hung provider query', () => {
     });
     const elapsedMs = Date.now() - startedAt;
     assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
-    assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'UNAVAILABLE');
+    const providerCheck = JSON.parse(result.stdout).providerCheck;
+    assert.strictEqual(providerCheck.status, 'UNAVAILABLE');
+    assert.strictEqual(providerCheck.probe.timedOut, true, JSON.stringify(providerCheck));
+    assert.strictEqual(providerCheck.probe.exitCode, null);
     assert.ok(elapsedMs < 2500, `expected the 1s override to expire promptly, took ${elapsedMs}ms`);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -576,7 +597,7 @@ test('Codex sync installs Flow Drive as instructions without a transport runtime
     assert.ok(!receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
     assert.ok(!receipt.managed_entries.skills['dhpk-cli-transport']);
     assert.ok(receipt.emittedStableIds.includes('flow-drive'));
-    const flowDrive = path.join(scratch, '.codex/skills/flow-drive');
+    const flowDrive = path.join(scratch, '.agents/skills/flow-drive');
     assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
     assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
     assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'references')), ['migration.md']);
