@@ -76,9 +76,15 @@ produce.
    under `<target>/scripts`, and stop on a file that already exists at one of
    those paths (legacy conflict). `--force` cannot override a legacy conflict;
    the operator must review and remove or relocate the file, then re-run.
-   Compare each other destination with its source: identical files are skipped,
-   a differing file is a conflict that stops the install with nothing written
-   unless the operator confirmed `--force`.
+   Compare each other destination with its source (and consult
+   `<target>/.dhpk-asset-receipt.json` when present): identical files are
+   skipped; unchanged receipt-owned files from an earlier snapshot are
+   updatable; `user-modified` or `unmanaged-existing` differing files are
+   conflicts that stop the install with exit 3 (while byte-identical files are
+   adopted into the receipt) unless the operator confirmed `--force`, which first
+   saves differing files under `<target>/.dhpk-asset-backups/<UTC timestamp>/`.
+   Executable bits are retained, and any symlink component fails closed even
+   with `--force`.
    - `hooks` copies `hooks/` and `hooks/`.
    - `scripts` copies `scripts/`, `skills/precommit/scripts/`, and
      `skills/repo-verify/scripts/`.

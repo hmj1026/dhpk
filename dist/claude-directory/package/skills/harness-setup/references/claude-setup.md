@@ -8,7 +8,9 @@ instructions for the active Claude Host. An unprobed Host run remains
 
 The installed Skill contains its executable adapter and local procedure
 resources. Native packaging supplies a distribution artifact explicitly when
-asset bytes are needed. Require these resources:
+asset bytes are needed. For the cross-Host installation, `DHPK_INSTALLER_ROOT`,
+and verification matrix, see the [platform installation SSOT](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.md).
+Require these resources:
 
 - `data/module-catalog.json` — stack, version, review-slot, and hook
   profile source of truth.
@@ -18,8 +20,12 @@ asset bytes are needed. Require these resources:
 A missing local resource is `BLOCKED_RESOURCE_MISSING`. Do not search a
 plugin cache, consumer `.claude`, parent checkout, or a remote URL to replace
 it. The maintained writer is read only as artifact data at
-<source-artifact>/install-assets.sh; synchronization places its
-bytes at install-assets-writer.sh.
+`install-assets.sh` (not shipped in the Directory Plugin); synchronization places its
+bytes at `install-assets-writer.sh` (not shipped in the Directory Plugin). Note that
+`DHPK_INSTALLER_ROOT` governs Codex/Cursor project-local data selection
+(ADR-0038), while Claude asset installation always uses `--source-artifact`
+(or `--source` when calling `install-assets.sh` (not shipped in the Directory Plugin) directly) and
+never borrows `CLAUDE_PLUGIN_ROOT` for cross-Host asset selection.
 
 ## Root and existing state
 
@@ -63,15 +69,33 @@ and left in place.
 The adapter prints a structured result containing `status`, `code`, the
 physical artifact and target, operation flags, and the Skill-relative writer.
 The artifact is read as data; an installer beneath it is never sourced or
-executed. `--dry-run` writes nothing; identical files are skipped; differing
-files are conflicts unless the operator explicitly supplied `--force`; and
-executable bits are retained.
-Any destination path with a symlink component is rejected even with `--force`.
-Do not combine this operation with interactive reconfiguration or claim a write
-from a plan.
-Real installation requires Python 3 with the physical descriptor capabilities
-used by the writer; if unavailable, installation stops before target mutation
-with exit 2. `--dry-run` remains available without Python 3.
+executed. The underlying writer (`install-assets.sh` (not shipped in the Directory Plugin), synced at
+`install-assets-writer.sh` (not shipped in the Directory Plugin)) tracks a standalone **Asset
+Receipt** at `<target>/.dhpk-asset-receipt.json` (`dhpk.asset-receipt.v1`) and
+retains executable bits:
+
+- `--dry-run` (and `install-assets.sh` (not shipped in the Directory Plugin), which emits
+  `dhpk.asset-plan.v1`) writes nothing and classifies each destination as
+  `unchanged` (identical to the new source, skipped), `updatable` (absent, or
+  unchanged since the Asset Receipt recorded it — auto-updated without
+  `--force`), `user-modified` (receipt-owned but edited locally), or
+  `unmanaged-existing` (no receipt entry and differs from the source).
+- `user-modified` and `unmanaged-existing` files are conflicts that leave
+  conflicting assets untouched and stop with exit `3` (while adopting
+  byte-identical files into the receipt) unless `--force` is supplied.
+- When `--force` is supplied for conflicting files, differing files are first
+  backed up to `<target>/.dhpk-asset-backups/<UTC timestamp>/` before
+  overwriting.
+- Any destination path with a symlink component is rejected (exit `4`) even
+  with `--force`. Unowned legacy runners (`precommit-runner.js`,
+  `verify-runner.js`, `harness-audit.js` under `<target>/scripts/`) stop with
+  exit `3` (`LEGACY_RUNNER_CONFLICT`) and cannot be overwritten with `--force`.
+- Do not combine this operation with interactive reconfiguration or claim a write
+  from a plan. Real installation requires Python 3 with the physical
+  descriptor capabilities used by the writer; if unavailable, installation stops
+  before target mutation with exit `2`. `--dry-run` remains available without
+  Python 3.
+- For direct checkout use: `install-assets.sh` (not shipped in the Directory Plugin).
 
 ## Stack detection and dhpk-stacks
 

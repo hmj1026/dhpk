@@ -10,6 +10,18 @@ not the Skill directory or an ambient checkout. The adapter itself is a
 physical Skill-local executable. A standalone package also contains a physical
 copy of the shell entry and one generated JS bundle of the
 same installer a checkout runs, in the Skill's script tree. Node.js is required; python3 is not.
+For the full cross-Host installation and verification matrix, see the
+[platform installation SSOT](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.md).
+
+Under ADR-0038, `DHPK_INSTALLER_ROOT` selects the artifact data source passed by
+the Skill wrapper (`--source-artifact` -> `DHPK_INSTALLER_ROOT`), while
+executable code comes from the Skill's own physical tree; `CLAUDE_PLUGIN_ROOT`
+is never used to select Codex/Cursor installer data or code. Under ADR-0042,
+Codex discovers project skills directly from `.agents/skills/`, and `--update`
+retires unchanged receipt-owned `.codex/skills/<name>` links or copies once
+their Skill Identity is proven present in `.agents/skills/` (reporting
+`COMPATIBILITY_PROJECTION_STALE` if a source-checkout `.agents/skills` tree is
+stale).
 
 In a checkout, the wrapper may use
 `$REPO/scripts/hooks/install-codex-skills.sh` only when its resolved Skill root
