@@ -1,2 +1,0 @@
-scope: install-assets
-note: The standalone project-asset installer now records an Asset Receipt (`.dhpk-asset-receipt.json`) with source version and SHA-256 digests, classifies each destination as `updatable`, `unchanged`, `user-modified`, or `unmanaged-existing` through `--plan --json`, updates unchanged earlier snapshots without `--force`, adopts byte-identical pre-receipt files, and saves a timestamped backup under `.dhpk-asset-backups/` before `--force` overwrites differing files.

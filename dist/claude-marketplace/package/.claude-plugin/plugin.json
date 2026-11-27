@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.83.0",
+  "version": "0.84.0",
   "description": "Reusable Claude Code harness with role-based agents, skills, hooks, and advisory reviewer dispatch, plus a parallel Codex CLI projection. Stack modules and stack skills ship separately in dhpk-stacks.",
   "author": {
     "name": "hmj1026",
