@@ -221,8 +221,8 @@ function scanHost({ host, projectRoot, home, codexHome, inventoryNames }) {
   if (host === 'codex') {
     scanRoots(entries, seen, [
       { dir: path.join(projectRoot, '.agents', 'skills'), scope: 'project', discoverySource: 'shared-projection', owned: projectAgents },
-      { dir: path.join(projectRoot, '.codex', 'skills'), scope: 'project', discoverySource: 'codex-project-skills', owned: unionNames([path.join(projectRoot, '.codex', '.dhpk-installed.json')]) },
-      { dir: path.join(codexHome, 'skills'), scope: 'user', discoverySource: 'codex-user-skills', owned: unionNames([path.join(codexHome, '.dhpk-installed.json')]) },
+      { dir: path.join(projectRoot, '.codex', 'skills'), scope: 'project', discoverySource: 'codex-project-skills', owned: receiptNames(path.join(projectRoot, '.codex', '.dhpk-installed.json')) },
+      { dir: path.join(codexHome, 'skills'), scope: 'user', discoverySource: 'codex-user-skills', owned: receiptNames(path.join(codexHome, '.dhpk-installed.json')) },
       { dir: path.join(home, '.agents', 'skills'), scope: 'user', discoverySource: 'user-agents-skills', owned: userAgents },
     ], { plugin: false, pluginId: null, inventoryNames });
     for (const plugin of codexPluginRoots(codexHome)) {
@@ -236,15 +236,13 @@ function scanHost({ host, projectRoot, home, codexHome, inventoryNames }) {
       }));
     }
   } else {
-    const claudeProject = unionNames([
-      path.join(projectRoot, '.agents', '.dhpk-installed.json'),
-      path.join(projectRoot, '.agents', 'skills', '.dhpk-projection.json'),
-      path.join(projectRoot, '.claude', '.dhpk-installed.json'),
+    const claudeProject = new Set([
+      ...projectAgents,
+      ...receiptNames(path.join(projectRoot, '.claude', '.dhpk-installed.json')),
     ]);
-    const claudeUser = unionNames([
-      path.join(home, '.claude', '.dhpk-installed.json'),
-      path.join(home, '.agents', '.dhpk-installed.json'),
-      path.join(home, '.agents', 'skills', '.dhpk-projection.json'),
+    const claudeUser = new Set([
+      ...receiptNames(path.join(home, '.claude', '.dhpk-installed.json')),
+      ...userAgents,
     ]);
     scanRoots(entries, seen, [
       { dir: path.join(projectRoot, '.claude', 'skills'), scope: 'project', discoverySource: 'claude-project-skills', owned: claudeProject },
@@ -362,21 +360,20 @@ function parseClaudePluginListing(stdout) {
 }
 
 function codexLiveDuplicates(skills) {
-  const groups = new Map();
+  const pathsByName = new Map();
   for (const skill of skills) {
     if (!SKILL_NAME.test(skill.name)) continue;
-    const group = groups.get(skill.name) || [];
-    group.push(skill);
-    groups.set(skill.name, group);
+    const paths = pathsByName.get(skill.name) || new Set();
+    paths.add(skill.path);
+    pathsByName.set(skill.name, paths);
   }
   const duplicates = [];
-  for (const skillIdentity of [...groups.keys()].sort()) {
-    const grouped = groups.get(skillIdentity);
-    const paths = [...new Set(grouped.map((skill) => skill.path))].sort();
-    if (paths.length < 2) continue;
+  for (const skillIdentity of [...pathsByName.keys()].sort()) {
+    const paths = pathsByName.get(skillIdentity);
+    if (paths.size < 2) continue;
     duplicates.push({
       skillIdentity,
-      entries: paths.map((skillPath) => ({
+      entries: [...paths].sort().map((skillPath) => ({
         path: skillPath,
         scope: null,
         discoverySource: 'host-skill-list',
