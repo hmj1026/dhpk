@@ -2533,7 +2533,7 @@
       "sourcePath": "skills/harness-setup/references/claude-setup.md",
       "destination": "skills/harness-setup/references/claude-setup.md",
       "kind": "entry",
-      "sha256": "21fc236897a9287c958f2bb5d638f1c52d55b24a6368171c4255f5d785d13be5"
+      "sha256": "2c376564964d1deb9b524eac33e3d058144604bf3c42919c53d4abcb47344ae3"
     },
     {
       "skillId": "harness-setup",
@@ -2541,7 +2541,7 @@
       "sourcePath": "skills/harness-setup/references/codex-setup.md",
       "destination": "skills/harness-setup/references/codex-setup.md",
       "kind": "entry",
-      "sha256": "aaeff933b8783b64054cef7657731604605fc26b066b27c7feddb3867e051b07"
+      "sha256": "9f8eb1ae37df9a58bb5ff33961e861676c32ad254926c29c48fa2647d1b6edb8"
     },
     {
       "skillId": "harness-setup",
@@ -2557,7 +2557,7 @@
       "sourcePath": "skills/harness-setup/references/manual-procedure.md",
       "destination": "skills/harness-setup/references/manual-procedure.md",
       "kind": "entry",
-      "sha256": "4d650c7527fa552c331a9b1b90fe85f72432224224009a7d275f0630b65ce0b4"
+      "sha256": "5a29b099da3fd7c99e2b41cbd565d4a77a0a63a7f0b3305bdec580415fb2e2a1"
     },
     {
       "skillId": "harness-setup",

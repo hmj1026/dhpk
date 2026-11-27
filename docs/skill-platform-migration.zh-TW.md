@@ -50,9 +50,10 @@ caller 並終止；Public Workflow 保留既有 progression。
 | Public identity | Stable ID 與 public name 由 distribution inventory 管理 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下由 inventory 選取的相對 symlink |
-| Codex 專案 projection | `codex/skills/` 下由 receipt 管理的 projection，含內部 transport 與 dispatch-context runtime |
+| Codex 專案 projection | 直接從 `.agents/skills/` 探索（[ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)）加上實體 `.codex/agents/*.toml` 與 supporting assets；`--update` 會退役未變更的 `.codex/skills/<name>` 連結 |
 | Codex native package | `plugins/dhpk/skills/` 下由 inventory 選取的實體 package，不使用 symlink |
-| Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
+| Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3（依 [ADR-0038](adr/0038-resolve-runtime-resources-from-the-owning-package.md) 使用 `DHPK_INSTALLER_ROOT` 指定資料來源，絕不用 `CLAUDE_PLUGIN_ROOT`） |
+| Claude 專案資產 | 透過 `scripts/setup/install-assets.sh` 維護獨立 Asset Receipt `.claude/dhpk/.dhpk-asset-receipt.json`（`dhpk.asset-receipt.v1`；未修改快照自動更新、`--force` 先時間戳記備份） |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
 | 主要安裝預設 | `manifests/install-profiles.json` 的 `common` collection；舊選擇只保留為歷史 receipt metadata |
 | Host publication | Membership 與必要 Host helper 由 distribution inventory 與 projection manifest 管理 |
@@ -331,24 +332,46 @@ TTY 的環境（例如 CI）執行更新時，請加上 `-y`／`--yes`。
 
 ## 升級專案本地 Codex projection
 
-更新 Claude plugin 後，在專案根目錄執行：
+更新 Claude plugin 後，在專案根目錄執行（依
+[ADR-0038](adr/0038-resolve-runtime-resources-from-the-owning-package.md) 以
+`DHPK_INSTALLER_ROOT=/path/to/dhpk` 明確指定資料來源；`CLAUDE_PLUGIN_ROOT` 絕不
+用於選擇 Codex/Cursor 安裝資料）：
 
 ```bash
+DHPK_INSTALLER_ROOT=/path/to/dhpk bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --update --plan --json
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --migrate --update
+# 或透過統一生命週期 CLI：
+dhpk-install codex-sync update --project-root "$PWD"
 ```
 
+依 [ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)，Codex 直接由
+`.agents/skills/` 探索專案技能，`--update` 會在驗證 Skill Identity 存在於
+`.agents/skills/` 後，自動退役未修改且由 receipt 擁有的 `.codex/skills/<name>` 連結或
+副本（若 source checkout 的 `.agents/skills` 需要執行 `npm run sync:local-skills`，則回報
+`COMPATIBILITY_PROJECTION_STALE`）。
+
 Schema-v3 receipt 會記錄每個 managed skill、agent 與 supporting asset 的 stable id、
-public name、destination、source、mode 與 fingerprint。Migration 只接管內容未變更且
-完全吻合的 legacy destination；使用者自有、已編輯、重新指向、格式錯誤、無法判定
-或 collision 的內容一律保留並回報。
+public name、destination、source、mode 與 fingerprint。`--plan --json` 會輸出結構化
+修復建議（`READY` exit `0`、`CHANGES_PENDING` exit `1`、`BLOCKED` exit `2`，含
+`reasonCode`、`receiptVersion`、`journalVersion`、`affectedPaths` 及 `0.69.x`／
+`0.74.x` 等過渡版本指引）。Migration 只接管內容未變更且完全吻合的 legacy destination；
+使用者自有、已編輯、重新指向、格式錯誤、無法判定或 collision 的內容一律保留並回報。
+
+針對 Claude 專案資產（`.claude/dhpk`），`scripts/setup/install-assets.sh` 維護獨立的
+Asset Receipt（`.claude/dhpk/.dhpk-asset-receipt.json`，`dhpk.asset-receipt.v1`）並支援
+`--plan --json`，會自動更新未修改的舊快照，並在 `--force` 覆寫前將差異檔案備份至
+`.claude/dhpk/.dhpk-asset-backups/<UTC timestamp>/`。所有生命週期入口皆會將去識別化診斷
+紀錄附加至 Install History（`DHPK_INSTALL_HISTORY_FILE`，可用
+`DHPK_NO_INSTALL_HISTORY=1` 停用）。
 
 可用操作：
 
 | Flag | 契約 |
 |---|---|
 | `--copy` | Materialize 實體檔；適合 plugin root 可能消失的可攜情境。 |
-| `--update` | 依目前 plugin root 對齊 receipt-owned entry。 |
+| `--update` | 依目前 plugin root 對齊 receipt-owned entry，並退役未修改的 `.codex/skills/<name>` 重複項目。 |
 | `--migrate` | 接管完全吻合且未變更的 legacy destination，重新命名為目前 public name。 |
+| `--plan --json` | 唯讀對齊計畫，回傳結構化 `READY`／`CHANGES_PENDING`／`BLOCKED` 修復建議。 |
 | `--uninstall` | 只移除未變更且 receipt-owned 的 entry；保留已編輯、orphan 與無關檔案。 |
 | `--force` | 只略過 project-root heuristic；永遠不繞過 ownership 或 filesystem safety。 |
 
@@ -356,12 +379,15 @@ public name、destination、source、mode 與 fingerprint。Migration 只接管�
 
 ## 驗證
 
-維護者應執行：
+維護者與操作者應執行：
 
 ```bash
+dhpk-install status --all --project-root "$PWD" --strict --json
+node scripts/ci/check-duplicate-discovery.js --project-root "$PWD"
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
 bin/dhpk distribution codex-native verify --json
+node scripts/release/release-rehearsal.js --offline --json
 node tests/run-all.js
 ```
 
