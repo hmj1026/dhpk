@@ -1649,6 +1649,78 @@ function unsupportedTransactionSchema(transaction) {
   return fail('UNSAFE_TRANSACTION', `project projection transaction has an unsupported schema (${schema}); this release recovers only ${PROJECT_TRANSACTION_SCHEMA}. Run \`dhpk-install --recover\` (or the installer's --recover) with ${release}, then retry`, { schema });
 }
 
+// The version boundaries a publication or recovery would refuse, read without
+// changing a file, so a plan can report them (#1584). An unheld v3 journal is
+// not one: the next publication recovers it.
+function inspectProjectProjectionBoundaries(options = {}) {
+  const findings = [];
+  let roots;
+  try {
+    roots = operationRoots(options);
+  } catch (error) {
+    return [{ kind: 'unsafe-root', code: error.projectionCode || 'UNSAFE_PATH', path: '.agents', message: error.message }];
+  }
+  const relative = (absolute) => path.relative(roots.projectRoot, absolute).split(path.sep).join('/');
+  const journalPath = relative(transactionPath(roots));
+  try {
+    const transaction = readTransactionJournal(roots);
+    if (transaction && transaction.schema !== PROJECT_TRANSACTION_SCHEMA) {
+      const schema = transaction && typeof transaction.schema === 'string' ? transaction.schema : null;
+      findings.push({
+        kind: 'journal-schema',
+        code: 'UNSAFE_TRANSACTION',
+        path: journalPath,
+        schema,
+        recoveryRelease: FLAG_TRANSACTION_SCHEMAS.includes(schema) ? FLAG_TRANSACTION_RECOVERY_RELEASE : null,
+        message: unsupportedTransactionSchema(transaction).message,
+      });
+    } else if (transaction && transaction.hold !== undefined) {
+      findings.push({
+        kind: 'journal-held',
+        code: 'UNSAFE_TRANSACTION',
+        path: journalPath,
+        schema: PROJECT_TRANSACTION_SCHEMA,
+        recoveryRelease: LEGACY_JOURNAL_RECOVERY_RELEASE,
+        message: heldTransactionError().message,
+      });
+    }
+  } catch (error) {
+    findings.push({ kind: 'journal-unreadable', code: error.projectionCode || 'UNSAFE_TRANSACTION', path: journalPath, message: error.message });
+  }
+  const receiptPath = relative(roots.receiptPath);
+  const stat = lstatOrNull(roots.receiptPath);
+  if (!stat) return findings;
+  let receipt;
+  try {
+    if (stat.isSymbolicLink() || !stat.isFile()) throw fail('INVALID_RECEIPT', `project projection receipt is not a regular file: ${roots.receiptPath}`);
+    receipt = readJsonFile(roots.receiptPath, 'project projection receipt');
+    if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) throw fail('INVALID_RECEIPT', 'project projection receipt must be an object');
+  } catch (error) {
+    findings.push({ kind: 'receipt-unreadable', code: 'INVALID_RECEIPT', path: receiptPath, message: error.message });
+    return findings;
+  }
+  const versions = {
+    generatorVersion: typeof receipt.generatorVersion === 'string' ? receipt.generatorVersion : null,
+    sourceVersion: typeof receipt.sourceVersion === 'string' ? receipt.sourceVersion : null,
+  };
+  try {
+    requireTreeMerkle(receipt.fingerprint_algorithm, 'fingerprint_algorithm');
+  } catch (error) {
+    findings.push({
+      kind: Object.prototype.hasOwnProperty.call(receipt, 'fingerprint_algorithm') ? 'receipt-fingerprint-unsupported' : 'receipt-fingerprint-missing',
+      code: 'INVALID_RECEIPT',
+      path: receiptPath,
+      ...versions,
+      message: `project projection receipt ${error.message}`,
+    });
+    return findings;
+  }
+  if (!ACCEPTED_GENERATOR_VERSIONS.includes(receipt.generatorVersion)) {
+    findings.push({ kind: 'receipt-generator-superseded', code: 'INVALID_RECEIPT', path: receiptPath, ...versions, message: `project projection receipt must use generator ${GENERATOR_VERSION}` });
+  }
+  return findings;
+}
+
 // Only v3 is read; any other journal blocks before a file changes.
 function supportedTransaction(transaction) {
   if (!transaction || transaction.schema !== PROJECT_TRANSACTION_SCHEMA) throw unsupportedTransactionSchema(transaction);
@@ -2807,6 +2879,7 @@ module.exports = {
   projectionJournalParticipant,
   recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options), { afterStep: options.afterStep || null }),
   readProjectProjectionReceipt,
+  inspectProjectProjectionBoundaries,
   // Test seams for the effect journal; not part of the installer contract.
   __testing: { SimulatedCrash },
 };

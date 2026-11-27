@@ -181,14 +181,14 @@ test('testGoldenTable_coversEveryCaseOfEveryTarget', () => {
 test('testGoldenTable_pinsTheDocumentedExitStatuses', () => {
   for (const { key } of TARGETS) {
     assert.strictEqual(golden[`${key}:profile-retired`].status, 64);
-    assert.strictEqual(golden[`${key}:unknown-flag`].status, 2);
+    assert.strictEqual(golden[`${key}:unknown-flag`].status, 64);
     assert.strictEqual(golden[`${key}:help-long`].status, 0);
     assert.strictEqual(golden[`${key}:plan-json`].stdoutJson, true);
     assert.strictEqual(golden[`${key}:update-reconciliation-incomplete`].status, 1, 'an update left incomplete exits 1');
     assert.strictEqual(golden[`${key}:node-missing-install`].status, 2);
   }
   for (const host of ['codex', 'cursor']) {
-    assert.strictEqual(golden[`${host}:plan-with-adopt`].status, 2);
+    assert.strictEqual(golden[`${host}:plan-with-adopt`].status, 64);
     assert.strictEqual(golden[`${host}:not-a-project-root`].status, 2);
     assert.strictEqual(golden[`${host}:source-tree-missing`].status, 2);
     assert.strictEqual(golden[`${host}:collision-preserved`].status, 0, 'a preserved unowned file does not fail the install');

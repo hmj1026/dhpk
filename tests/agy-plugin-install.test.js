@@ -1645,9 +1645,11 @@ const { test, run, assert } = require('./_lib/tinytest');
       fs.writeFileSync(path.join(target, 'plugin.json'), '{"name":"dhpk","version":"0.38.0"}\n');
       for (const action of ['plan', 'status']) {
         const { result, report } = invokeReportForSource(action, source, target);
-        assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+        assert.strictEqual(result.status, action === 'plan' ? 2 : 1, `${result.stdout}\n${result.stderr}`);
         assert.strictEqual(report.status, 'BLOCKED');
         assert.strictEqual(report.classification, 'FOREIGN_CHECKOUT');
+        assert.strictEqual(report.verdict, 'BLOCKED');
+        assert.strictEqual(report.reasonCode, 'FOREIGN_CHECKOUT');
         assert.strictEqual(report.mutation.performed, false);
       }
       assert.ok(!fs.existsSync(path.join(target, 'provenance.json')));
@@ -1696,7 +1698,9 @@ const { test, run, assert } = require('./_lib/tinytest');
 
       const plan = invokeReportForSource('plan', sourceNext, target);
       const status = invokeReportForSource('status', sourceNext, target);
-      assert.strictEqual(plan.result.status, 0, `${plan.result.stdout}\n${plan.result.stderr}`);
+      // A pending update is the plan's non-fatal reconciliation exit (#1584).
+      assert.strictEqual(plan.result.status, 1, `${plan.result.stdout}\n${plan.result.stderr}`);
+      assert.strictEqual(plan.report.verdict, 'CHANGES_PENDING');
       assert.strictEqual(status.result.status, 0, `${status.result.stdout}\n${status.result.stderr}`);
       assert.deepStrictEqual({ ...plan.report, action: undefined }, { ...status.report, action: undefined });
       assert.strictEqual(plan.report.status, 'PASS');

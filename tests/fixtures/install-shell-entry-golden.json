@@ -147,7 +147,7 @@
       "--bogus"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] unknown arg: --bogus",
     "stdoutJson": false
   },
@@ -156,7 +156,7 @@
       "extra"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] unknown arg: extra",
     "stdoutJson": false
   },
@@ -165,7 +165,7 @@
       "--skill"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] --skill requires a stable ID",
     "stdoutJson": false
   },
@@ -175,7 +175,7 @@
       "--copy"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] --skill requires a stable ID",
     "stdoutJson": false
   },
@@ -184,7 +184,7 @@
       "--skill="
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] --skill requires a stable ID",
     "stdoutJson": false
   },
@@ -193,7 +193,7 @@
       "--adopt"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] --adopt requires a relative path",
     "stdoutJson": false
   },
@@ -215,7 +215,7 @@
       "a@b@c"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] ERROR: --plan cannot be combined with --adopt",
     "stdoutJson": false
   },
@@ -225,7 +225,7 @@
       "--adopt=a@b@c"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] ERROR: --plan cannot be combined with --adopt",
     "stdoutJson": false
   },
@@ -479,7 +479,7 @@
       "--bogus"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] unknown arg: --bogus",
     "stdoutJson": false
   },
@@ -488,7 +488,7 @@
       "extra"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] unknown arg: extra",
     "stdoutJson": false
   },
@@ -497,7 +497,7 @@
       "--skill"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] --skill requires a stable ID",
     "stdoutJson": false
   },
@@ -507,7 +507,7 @@
       "--copy"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] --skill requires a stable ID",
     "stdoutJson": false
   },
@@ -516,7 +516,7 @@
       "--skill="
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] --skill requires a stable ID",
     "stdoutJson": false
   },
@@ -525,7 +525,7 @@
       "--adopt"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] --adopt requires a relative path",
     "stdoutJson": false
   },
@@ -547,7 +547,7 @@
       "a@b@c"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] ERROR: --plan cannot be combined with --adopt",
     "stdoutJson": false
   },
@@ -557,7 +557,7 @@
       "--adopt=a@b@c"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-cursor-harness] ERROR: --plan cannot be combined with --adopt",
     "stdoutJson": false
   },
@@ -686,7 +686,7 @@
       "--bogus"
     ],
     "setup": "project",
-    "status": 2,
+    "status": 64,
     "firstStderr": "[install-codex-skills] unknown arg: --bogus",
     "stdoutJson": false
   },

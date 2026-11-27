@@ -72,6 +72,7 @@ const publisherModule = require('../project-agent-projection-publisher');
 const nativeSharedSkillInstall = require('../native-shared-skill-install');
 const cursorConsumerEvidence = require('../cursor-consumer-evidence');
 const portableSkillMetadata = require('../portable-skill-metadata');
+const planBoundary = require('../plan-boundary-envelope');
 
 const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 const O_NONBLOCK = fs.constants.O_NONBLOCK || 0;
@@ -215,6 +216,14 @@ function createInstaller(env, io) {
   const exit = (code) => {
     throw new InstallerExit(code);
   };
+
+  // Remediation commands a `--plan --json` envelope names (#1584).
+  const PROJECT_ARG = `--project-root ${planBoundary.shellWord(PROJECT_ROOT)}`;
+  const lifecycleCommand = (action) => (HOST
+    ? `dhpk-install ${HOST.declaredProjectionHostKey} ${action} ${PROJECT_ARG}`
+    : `${INSTALLER_SCRIPT}${action === 'install' ? '' : ` --${action}`}`);
+  const RECOVER_COMMAND = `dhpk-install --recover ${PROJECT_ARG}`;
+  const projectRelative = (absolute) => path.relative(PROJECT_ROOT, absolute).split(path.sep).join('/');
 
   // Evidence collections persisted in the receipt; paths are relative to the
   // project or the destination root.
@@ -763,10 +772,20 @@ function createInstaller(env, io) {
 
   // tree-merkle-v1 for a record that names it; anything else fails closed.
   function recordFingerprintAlgorithm(record) {
-    if (!isDict(record) || !Object.prototype.hasOwnProperty.call(record, 'fingerprint_algorithm')) throw new ValueError(versionBoundaryMessage('fingerprint_algorithm'));
+    if (!isDict(record) || !Object.prototype.hasOwnProperty.call(record, 'fingerprint_algorithm')) {
+      throw withReasonCode(new ValueError(versionBoundaryMessage('fingerprint_algorithm')), 'MISSING_FINGERPRINT_ALGORITHM');
+    }
     const value = record.fingerprint_algorithm;
-    if (value !== TREE_FINGERPRINT_ALGORITHM) throw new ValueError(versionBoundaryMessage('fingerprint_algorithm', value));
+    if (value !== TREE_FINGERPRINT_ALGORITHM) {
+      throw withReasonCode(new ValueError(versionBoundaryMessage('fingerprint_algorithm', value)), 'UNSUPPORTED_FINGERPRINT_ALGORITHM');
+    }
     return TREE_FINGERPRINT_ALGORITHM;
+  }
+
+  // A stable plan reasonCode on a fail-closed error (#1584).
+  function withReasonCode(error, reasonCode) {
+    error.reasonCode = reasonCode;
+    return error;
   }
 
   function safeInventoryRelative(relative, label) {
@@ -893,7 +912,13 @@ function createInstaller(env, io) {
 
   // Block writes when a receipt belongs to a retired or unknown collection.
   function receiptProfileUpdateBlock(receipt) {
-    if (!isDict(receipt) || Object.keys(receipt).length === 0 || PLAN || UNINSTALL) return null;
+    if (PLAN || UNINSTALL) return null;
+    return receiptProfileBlock(receipt);
+  }
+
+  // A plan reports the same block the update would stop at.
+  function receiptProfileBlock(receipt) {
+    if (!isDict(receipt) || Object.keys(receipt).length === 0) return null;
     const profileId = receipt.profileId;
     if (!isStr(profileId) || !profileId) return null;
     if (profileId === 'common') return null;
@@ -909,6 +934,16 @@ function createInstaller(env, io) {
       receipt_profile_id: profileId,
       next_action: 'run this installer with --uninstall, then perform a fresh install without --profile',
     };
+  }
+
+  function receiptProfileBlocker(receipt, block) {
+    return planBoundary.blocker({
+      reasonCode: block.reasonCode,
+      message: `receipt profile ${block.receipt_profile_id} is ${block.receipt_state === 'legacy_profile' ? 'a retired named profile' : 'not a supported profile'}; ${block.next_action}`,
+      receiptVersion: isStr(receipt.plugin_version) ? receipt.plugin_version : null,
+      affectedPaths: [projectRelative(MANIFEST)],
+      remediation: planBoundary.retiredProfileRemediation({ uninstallCommand: lifecycleCommand('uninstall'), installCommand: lifecycleCommand('install') }),
+    });
   }
 
   // The `--json` report of a run. A Cursor plan also carries the marketplace
@@ -2572,8 +2607,29 @@ function createInstaller(env, io) {
     return report;
   }
 
+  // Collisions are the non-fatal reconciliation the plan exits 1 for; each
+  // names the fresh-plan adoption that resolves it.
+  function planEnvelope(report) {
+    if (report.state === 'current') return planBoundary.envelope('READY');
+    const collisions = report.collisions || [];
+    if (collisions.length === 0) return planBoundary.envelope('CHANGES_PENDING', { reasonCode: 'RECONCILIATION_PENDING' });
+    const destinationPath = (relative) => (isStr(relative) && !relative.startsWith('<') ? `${DEST_REL}/${relative}` : null);
+    const blockers = collisions.map((collision) => {
+      const adopt = isStr(collision.action) && collision.action.startsWith('--adopt=');
+      return planBoundary.blocker({
+        reasonCode: adopt ? 'UNOWNED_COLLISION' : 'UNSAFE_COLLISION',
+        message: `${collision.path}: ownership=${collision.ownership} action=${collision.action}`,
+        affectedPaths: [destinationPath(collision.path)],
+        remediation: adopt
+          ? [planBoundary.remediation('adopt', 'Adopt the reviewed destination from this fresh plan; adoption backs it up first.', { command: `${INSTALLER_SCRIPT} --update ${collision.action}` })]
+          : planBoundary.manualRemediation(`Resolve ${collision.path} (${collision.ownership}): ${collision.action}`),
+      });
+    });
+    return planBoundary.blockedEnvelope(blockers);
+  }
+
   function printPlan(report) {
-    if (JSON_OUTPUT) printJsonReport(report);
+    if (JSON_OUTPUT) printJsonReport({ ...report, ...planEnvelope(report) });
     else {
       print(`[install-codex-skills] plan: state=${report.state} receipt_state=${pyStr(report.receipt_state)}`);
       for (const item of report.excluded || []) {
@@ -2690,7 +2746,7 @@ function createInstaller(env, io) {
     if (phase === 'active' || Object.prototype.hasOwnProperty.call(journal, 'fingerprint_algorithm')) recordFingerprintAlgorithm(journal);
     // Checked last so a damaged or unknown-algorithm record keeps its own, more specific message.
     if (phase === 'active' || phase === 'rollback_incomplete') {
-      throw new ValueError(`transaction journal ${run} was left ${phase} by a dhpk 0.72/0.73 installer; this release no longer recovers it. Run this installer's --recover (or \`dhpk-install --recover\`) with dhpk ${journalCore.LEGACY_JOURNAL_RECOVERY_RELEASE}, the last release line that recovers it, then retry`);
+      throw withReasonCode(new ValueError(`transaction journal ${run} was left ${phase} by a dhpk 0.72/0.73 installer; this release no longer recovers it. Run this installer's --recover (or \`dhpk-install --recover\`) with dhpk ${journalCore.LEGACY_JOURNAL_RECOVERY_RELEASE}, the last release line that recovers it, then retry`), 'LEGACY_HOST_JOURNAL');
     }
     return phase;
   }
@@ -2728,6 +2784,23 @@ function createInstaller(env, io) {
     }
   }
 
+  // A plan blocker for a Host journal; `message` is its blocking_recovery line.
+  function hostJournalBlocker(journalName, journal, message, reasonCode) {
+    const legacy = reasonCode === 'LEGACY_HOST_JOURNAL';
+    const fingerprint = ['MISSING_FINGERPRINT_ALGORITHM', 'UNSUPPORTED_FINGERPRINT_ALGORITHM'].includes(reasonCode);
+    let remediation;
+    if (legacy) remediation = planBoundary.transitionRecoverRemediation({ transitionVersion: journalCore.LEGACY_JOURNAL_RECOVERY_RELEASE, recoverCommand: RECOVER_COMMAND });
+    else if (fingerprint) remediation = planBoundary.versionBoundaryRemediation({ updateCommand: lifecycleCommand('update'), uninstallCommand: lifecycleCommand('uninstall') });
+    else remediation = planBoundary.manualRemediation(`Inspect ${DEST_REL}/${journalName} and the backups it names; this release does not recover it.`);
+    return planBoundary.blocker({
+      reasonCode,
+      message,
+      journalVersion: isDict(journal) && isStr(journal.plugin_version) ? journal.plugin_version : null,
+      affectedPaths: [`${DEST_REL}/${journalName}`],
+      remediation,
+    });
+  }
+
   // Inspect journals without mutating state; plans fail closed.
   function inspectStaleTransactionsForPlan() {
     const listing = hostJournalNames();
@@ -2742,7 +2815,7 @@ function createInstaller(env, io) {
           journal = readRelativeJson(root, journalName);
         } catch (error) {
           if (isOSOrValueError(error) || error instanceof SyntaxError) {
-            blocked.push(`${journalName}: unreadable (${errorText(error)})`);
+            blocked.push(hostJournalBlocker(journalName, null, `${journalName}: unreadable (${errorText(error)})`, 'UNREADABLE_TRANSACTION_JOURNAL'));
             continue;
           }
           throw error;
@@ -2752,10 +2825,12 @@ function createInstaller(env, io) {
           phase = classifyJournalEnvelope(journal, journalName, match[1]);
         } catch (error) {
           if (!isValueError(error)) throw error;
-          blocked.push(`${journalName}: ${errorText(error)}`);
+          blocked.push(hostJournalBlocker(journalName, journal, `${journalName}: ${errorText(error)}`, error.reasonCode || 'MALFORMED_TRANSACTION_JOURNAL'));
           continue;
         }
-        if (!['committed', 'rolled_back'].includes(phase)) blocked.push(`${journalName}: unsupported phase ${pyRepr(phase)}`);
+        if (!['committed', 'rolled_back'].includes(phase)) {
+          blocked.push(hostJournalBlocker(journalName, journal, `${journalName}: unsupported phase ${pyRepr(phase)}`, 'MALFORMED_TRANSACTION_JOURNAL'));
+        }
       }
     }
     return blocked.concat(projectionJournalBlockers());
@@ -3191,15 +3266,27 @@ function createInstaller(env, io) {
   }
 
   projectionJournalBlockers = () => {
+    const journalPath = '.agents/.dhpk-projection-journal.json';
     let document;
     try {
       document = readProjectionJournal();
     } catch (error) {
       if (!isValueError(error)) throw error;
-      return [`.agents/.dhpk-projection-journal.json: ${errorText(error)}`];
+      return [planBoundary.blocker({
+        reasonCode: 'UNSUPPORTED_PROJECTION_JOURNAL',
+        message: `${journalPath}: ${errorText(error)}`,
+        affectedPaths: [journalPath],
+        remediation: planBoundary.manualRemediation('Run --recover with the installer release that wrote this Projection Journal, or inspect it manually.'),
+      })];
     }
     if (!document) return [];
-    return [`.agents/.dhpk-projection-journal.json: interrupted ${pyStr(document.host)} transaction ${pyStr(document.run)} requires recovery`];
+    return [planBoundary.blocker({
+      reasonCode: 'INTERRUPTED_PROJECTION_JOURNAL',
+      message: `${journalPath}: interrupted ${pyStr(document.host)} transaction ${pyStr(document.run)} requires recovery`,
+      journalVersion: JOURNAL_SCHEMA,
+      affectedPaths: [journalPath],
+      remediation: planBoundary.recoverRemediation({ recoverCommand: RECOVER_COMMAND }),
+    })];
   };
 
   // Finish or undo the project's Projection Journal by its commit point. A
@@ -4222,6 +4309,89 @@ function createInstaller(env, io) {
   // ---------------------------------------------------------------------
   // Entry point: lines 5114-5781 of the Python, in order.
 
+  // The Shared Projection boundaries a publication would refuse (#1584).
+  function sharedProjectionBoundaryBlockers() {
+    if (!sharedProjectionRelocatable()) return [];
+    const versionBoundary = () => planBoundary.versionBoundaryRemediation({ updateCommand: lifecycleCommand('update'), uninstallCommand: lifecycleCommand('uninstall') });
+    return publisherModule.inspectProjectProjectionBoundaries({ projectRoot: PROJECT_ROOT }).map((finding) => {
+      const base = { message: `${finding.path}: ${finding.message}`, affectedPaths: [finding.path] };
+      const receiptVersion = finding.generatorVersion || finding.sourceVersion || null;
+      switch (finding.kind) {
+        case 'journal-held':
+          return planBoundary.blocker({ ...base, reasonCode: 'HELD_PROJECTION_JOURNAL', journalVersion: finding.schema,
+            remediation: planBoundary.transitionRecoverRemediation({ transitionVersion: finding.recoveryRelease, recoverCommand: RECOVER_COMMAND }) });
+        case 'journal-schema':
+          return planBoundary.blocker({ ...base, reasonCode: 'UNSUPPORTED_PROJECTION_TRANSACTION', journalVersion: finding.schema,
+            remediation: finding.recoveryRelease
+              ? planBoundary.transitionRecoverRemediation({ transitionVersion: finding.recoveryRelease, recoverCommand: RECOVER_COMMAND })
+              : planBoundary.manualRemediation(`Inspect ${finding.path}; no release recovers this schema.`) });
+        case 'receipt-fingerprint-missing':
+          return planBoundary.blocker({ ...base, reasonCode: 'MISSING_FINGERPRINT_ALGORITHM', receiptVersion, remediation: versionBoundary() });
+        case 'receipt-fingerprint-unsupported':
+          return planBoundary.blocker({ ...base, reasonCode: 'UNSUPPORTED_FINGERPRINT_ALGORITHM', receiptVersion, remediation: versionBoundary() });
+        case 'receipt-generator-superseded':
+          return planBoundary.blocker({ ...base, reasonCode: 'SUPERSEDED_GENERATOR_VERSION', receiptVersion, remediation: versionBoundary() });
+        default:
+          return planBoundary.blocker({ ...base, reasonCode: finding.kind === 'receipt-unreadable' ? 'INVALID_SHARED_PROJECTION_RECEIPT' : 'UNSAFE_SHARED_PROJECTION',
+            remediation: planBoundary.manualRemediation(`Inspect ${finding.path}; this release cannot read it.`) });
+      }
+    });
+  }
+
+  // The native receipt's version boundary, read without changing a file.
+  function nativeReceiptBoundaryBlockers() {
+    try {
+      readReceipt();
+      return [];
+    } catch (error) {
+      if (!isValueError(error)) throw error;
+      // Other receipt errors stop the plan where they always did.
+      if (!error.reasonCode) return [];
+      let recorded = null;
+      try {
+        recorded = readManifestDocument();
+      } catch (readError) {
+        rethrowExit(readError);
+      }
+      return [planBoundary.blocker({
+        reasonCode: error.reasonCode,
+        message: errorText(error),
+        receiptVersion: isDict(recorded) && isStr(recorded.plugin_version) ? recorded.plugin_version : null,
+        affectedPaths: [projectRelative(MANIFEST)],
+        remediation: planBoundary.versionBoundaryRemediation({ updateCommand: lifecycleCommand('update'), uninstallCommand: lifecycleCommand('uninstall') }),
+      })];
+    }
+  }
+
+  function printBlockedPlan(report, blockers) {
+    if (JSON_OUTPUT) printJsonReport({ ...report, ...planBoundary.blockedEnvelope(blockers) });
+    else {
+      print(`[install-codex-skills] BLOCKED: ${blockers.map((item) => item.message).join('; ')}`);
+      print(`[install-codex-skills] ACTION REQUIRED: ${report.next_action}`);
+    }
+    exit(2);
+  }
+
+  // Any other fail-closed stop keeps its stderr line; a JSON plan also
+  // answers on stdout.
+  function failClosed(error, prefix = '') {
+    printErr(`[install-codex-skills] ERROR: ${prefix}${errorText(error)}`);
+    if (PLAN && JSON_OUTPUT) {
+      printJsonReport({
+        schema_version: SCHEMA_VERSION,
+        state: 'blocked',
+        receipt_state: 'blocked',
+        next_action: 'resolve the error above, then re-run the plan',
+        ...planBoundary.blockedEnvelope([planBoundary.blocker({
+          reasonCode: error.reasonCode || 'INSTALLER_PRECONDITION_FAILED',
+          message: `${prefix}${errorText(error)}`,
+          remediation: planBoundary.manualRemediation('Resolve the reported error, then re-run the plan.'),
+        })]),
+      });
+    }
+    exit(2);
+  }
+
   function main() {
     PROVIDER_CHECK = probeCodexNativePlugin();
     if (PROVIDER_CHECK.status === 'ENABLED') {
@@ -4235,7 +4405,15 @@ function createInstaller(env, io) {
         receipt_state: 'blocked',
         next_action: `disable ${SURFACE_LABEL} plugin dhpk@dhpk, then re-run project-local sync`,
       };
-      if (JSON_OUTPUT) printJsonReport(blockedReport);
+      if (JSON_OUTPUT) {
+        printJsonReport({
+          ...blockedReport,
+          ...planBoundary.envelope('BLOCKED', {
+            reasonCode: 'CODEX_NATIVE_PLUGIN_ENABLED',
+            remediation: planBoundary.manualRemediation(blockedReport.next_action),
+          }),
+        });
+      }
       else {
         print(`[install-codex-skills] BLOCKED: native ${SURFACE_LABEL} plugin dhpk@dhpk is enabled`);
         print(`[install-codex-skills] ACTION REQUIRED: ${blockedReport.next_action}`);
@@ -4281,21 +4459,16 @@ function createInstaller(env, io) {
     try {
       ensureCodexRootSafe();
       if (PLAN) {
-        const planBlockers = inspectStaleTransactionsForPlan();
+        const planBlockers = [...inspectStaleTransactionsForPlan(), ...sharedProjectionBoundaryBlockers(), ...nativeReceiptBoundaryBlockers()];
         if (planBlockers.length) {
-          const blockedReport = {
+          for (const item of planBlockers) if (item.reasonCode.endsWith('FINGERPRINT_ALGORITHM')) printErr(`[install-codex-skills] ERROR: ${item.message}`);
+          printBlockedPlan({
             schema_version: SCHEMA_VERSION,
             state: 'blocked',
             receipt_state: 'blocked',
             next_action: 'resolve the blocking recovery items listed above, then re-run the plan',
-            blocking_recovery: planBlockers,
-          };
-          if (JSON_OUTPUT) printJsonReport(blockedReport);
-          else {
-            print(`[install-codex-skills] BLOCKED: ${planBlockers.join('; ')}`);
-            print(`[install-codex-skills] ACTION REQUIRED: ${blockedReport.next_action}`);
-          }
-          exit(2);
+            blocking_recovery: planBlockers.map((item) => item.message),
+          }, planBlockers);
         }
       } else {
         acquireInstallLock();
@@ -4303,8 +4476,7 @@ function createInstaller(env, io) {
       }
     } catch (error) {
       if (!isOSOrValueError(error)) throw error;
-      printErr(`[install-codex-skills] ERROR: transaction recovery failed: ${errorText(error)}`);
-      exit(2);
+      failClosed(error, 'transaction recovery failed: ');
     }
     if (RECOVER) {
       print('[install-codex-skills] recovery complete; no interrupted or incomplete transaction remains');
@@ -4318,8 +4490,7 @@ function createInstaller(env, io) {
       [originalReceipt, legacy] = readReceipt(UNINSTALL);
     } catch (error) {
       if (!isValueError(error)) throw error;
-      printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
-      exit(2);
+      failClosed(error);
     }
     if (UNINSTALL && !receiptHasTreeMarker(originalReceipt)) releaseUnmarkedReceiptForUninstall(originalReceipt, pluginVersion);
     const [receipt, releasedEntries] = releaseUnprovableEntries(originalReceipt);
@@ -4327,10 +4498,21 @@ function createInstaller(env, io) {
     let blockedProfileUpdate;
     try {
       blockedProfileUpdate = receiptProfileUpdateBlock(receipt);
+      // A plan stops at a retired named profile; an unknown profile still
+      // plans, reporting its drift reasons and next_action.
+      if (PLAN) {
+        const block = receiptProfileBlock(receipt);
+        if (block && block.reasonCode === 'LEGACY_PROFILE_UPDATE_UNSUPPORTED') blockedProfileUpdate = block;
+      }
     } catch (error) {
       if (!isValueError(error)) throw error;
-      printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
-      exit(2);
+      failClosed(error);
+    }
+    if (blockedProfileUpdate && PLAN) {
+      printBlockedPlan({
+        ...blockedProfileUpdate,
+        receipt_selected_stable_ids: isDict(receipt) && Array.isArray(receipt.selectedStableIds) ? receipt.selectedStableIds : [],
+      }, [receiptProfileBlocker(receipt, blockedProfileUpdate)]);
     }
     if (blockedProfileUpdate) {
       printReceiptProfileUpdateBlock(blockedProfileUpdate);
@@ -4350,8 +4532,7 @@ function createInstaller(env, io) {
       validateSkillMetadata(sources, skillMetadata);
     } catch (error) {
       if (!isValueError(error)) throw error;
-      printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
-      exit(2);
+      failClosed(error);
     }
     const fingerprint = sourceFingerprint(inventory);
 

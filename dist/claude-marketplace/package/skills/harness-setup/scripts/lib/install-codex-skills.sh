@@ -20,7 +20,8 @@
 # the readable installer modules sit beside this script in the skill's scripts/lib/.
 # The installer owns the project lock, the Projection Journal and the schema-v3
 # receipt. Node.js is required. Exit status: 0 done, 1 reconciliation
-# incomplete, 2 refused or failed, 64 retired option.
+# incomplete, 2 refused or failed, 64 command-line argument error (an unknown
+# or retired option, a missing option value, or --plan with --adopt).
 
 set -euo pipefail
 
@@ -42,26 +43,26 @@ while [ "$#" -gt 0 ]; do
         --json) JSON_OUTPUT=1 ;;
         --skill)
             shift
-            if [ "$#" -eq 0 ] || [[ "$1" == --* ]]; then die "--skill requires a stable ID"; fi
+            if [ "$#" -eq 0 ] || [[ "$1" == --* ]]; then die "--skill requires a stable ID" 64; fi
             SKILL_IDS="${SKILL_IDS}${1}"$'\n' ;;
         --skill=*)
-            if [ -z "${arg#--skill=}" ]; then die "--skill requires a stable ID"; fi
+            if [ -z "${arg#--skill=}" ]; then die "--skill requires a stable ID" 64; fi
             SKILL_IDS="${SKILL_IDS}${arg#--skill=}"$'\n' ;;
         --adopt)
             shift
-            if [ "$#" -eq 0 ]; then die "--adopt requires a relative path"; fi
+            if [ "$#" -eq 0 ]; then die "--adopt requires a relative path" 64; fi
             ADOPT_PATHS="${ADOPT_PATHS}${1}"$'\n' ;;
         --adopt=*) ADOPT_PATHS="${ADOPT_PATHS}${arg#--adopt=}"$'\n' ;;
         --force) FORCE=1 ;;
         --help|-h)
             sed -n '2,/^$/{/^$/!p;}' "$0"
             exit 0 ;;
-        *) die "unknown arg: $arg" ;;
+        *) die "unknown arg: $arg" 64 ;;
     esac
     shift
 done
 
-if [ "$PLAN" -eq 1 ] && [ -n "$ADOPT_PATHS" ]; then die "ERROR: --plan cannot be combined with --adopt"; fi
+if [ "$PLAN" -eq 1 ] && [ -n "$ADOPT_PATHS" ]; then die "ERROR: --plan cannot be combined with --adopt" 64; fi
 
 SRC_REL="${DHPK_SRC_REL:-codex}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
