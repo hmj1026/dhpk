@@ -25,7 +25,7 @@
 set -euo pipefail
 
 usage() {
-    echo "usage: release-verify.sh --mode tag|dry-run --out-dir DIR [--tag vX.Y.Z] [--version X.Y.Z] [--run-id ID]" >&2
+    echo "usage: release-verify.sh --mode tag|dry-run --out-dir DIR [--tag vX.Y.Z] [--version X.Y.Z] [--run-id ID] [--rehearse-upgrade]" >&2
     exit 2
 }
 
@@ -34,6 +34,7 @@ out_dir=""
 tag=""
 version=""
 run_id="${GITHUB_RUN_ID:-}"
+rehearse_upgrade=0
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --mode) mode="${2:-}"; shift 2 ;;
@@ -41,6 +42,7 @@ while [ "$#" -gt 0 ]; do
         --tag) tag="${2:-}"; shift 2 ;;
         --version) version="${2:-}"; shift 2 ;;
         --run-id) run_id="${2:-}"; shift 2 ;;
+        --rehearse-upgrade) rehearse_upgrade=1; shift ;;
         *) echo "release-verify: unknown argument '$1'" >&2; usage ;;
     esac
 done
@@ -234,6 +236,14 @@ if [ "$mode" = "dry-run" ]; then
     if ! cmp -s "$notes_file" "$consumer_dir/validated-notes.txt"; then
         echo "release-verify: validated note bytes differ from the extracted notes" >&2
         exit 1
+    fi
+    if [ "$rehearse_upgrade" -eq 1 ]; then
+        stage upgrade-rehearsal
+        node scripts/release/release-rehearsal.js \
+            --repo-root "$root" \
+            --version "$version" \
+            --out-file "$out_dir/dhpk-release-rehearsal.json" \
+            --json
     fi
 fi
 
