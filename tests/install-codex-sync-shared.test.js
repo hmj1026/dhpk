@@ -63,8 +63,8 @@ function prepareManagedSkillSymlinkScenario(entrypoint) {
     assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync(preservedFile)).digest('hex'), expectedDigest, 'recovery copy must match the current receipt fingerprint');
     assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), false, 'the recovery scenario must not have a pending projection transaction');
 
+    assert.strictEqual(fs.lstatSync(path.join(project, '.codex', 'skills', 'dhpk-codex-only'), { throwIfNoEntry: false }), undefined);
     const nativeBindings = {
-      codex: path.join(project, '.codex', 'skills', 'dhpk-codex-only'),
       cursor: path.join(project, '.cursor', 'skills', 'dhpk-portable'),
     };
     const nativeBindingTargets = Object.fromEntries(Object.entries(nativeBindings).map(([host, binding]) => [host, fs.readlinkSync(binding)]));
@@ -174,8 +174,14 @@ for (const entrypoint of sharedSkillRecoveryEntrypoints) {
       assert.deepStrictEqual(receipt.hostBindings[otherHost].selectedStableIds, [otherId]);
       assert.deepStrictEqual(receipt.hostBindings[otherHost].emittedStableIds, [otherId]);
       assert.deepStrictEqual(receipt.hostBindings[otherHost].bindings.map((binding) => binding.stableId), [otherId]);
-      assert.deepStrictEqual(receipt.bindingPaths[otherHost], [{ path: `.${otherHost}/skills/${otherName}`, target: `../../.agents/skills/${otherName}` }]);
-      assert.ok(fs.lstatSync(path.join(project, `.${otherHost}`, 'skills', otherName)).isSymbolicLink());
+      if (otherHost === 'cursor') {
+        assert.deepStrictEqual(receipt.bindingPaths.cursor, [{ path: `.cursor/skills/${otherName}`, target: `../../.agents/skills/${otherName}` }]);
+        assert.ok(fs.lstatSync(path.join(project, '.cursor', 'skills', otherName)).isSymbolicLink());
+      } else {
+        assert.strictEqual(receipt.hostBindings.codex.bindingShape, 'direct');
+        assert.deepStrictEqual(receipt.bindingPaths.codex || [], []);
+        assert.strictEqual(fs.lstatSync(path.join(project, '.codex', 'skills', otherName), { throwIfNoEntry: false }), undefined);
+      }
       assert.ok(!fs.existsSync(path.join(project, '.agents', 'skills', 'dhpk-retired')));
       assert.ok(!fs.existsSync(path.join(project, `.${otherHost}`, 'skills', 'dhpk-retired')));
       assert.strictEqual(fs.readFileSync(path.join(project, '.agents', 'skills', 'consumer-owned', 'README.md'), 'utf8'), '# keep\n');
@@ -311,31 +317,84 @@ function assertOnlySymlinks(skillsRoot) {
   }
 }
 
-test('fresh Codex install delegates declared skills via native-link and keeps native agents', () => {
+test('fresh Codex install defaults to direct Shared Project Projection discovery and keeps native agents', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();
   try {
+    const planned = runCodexInstaller(scratch, ['--copy', '--plan', '--json', '--force'], plugin);
+    const planReport = JSON.parse(planned.stdout);
+    assert.strictEqual(planReport.codexBindingShape, 'direct');
+    assert.match(String(planReport.codexBindingReason || ''), /ADR-0042/);
+
     const res = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     const shared = path.join(scratch, '.agents', 'skills', 'dhpk-codex-only');
     const nativeSkill = path.join(scratch, '.codex', 'skills', 'dhpk-codex-only');
     assert.ok(fs.existsSync(path.join(shared, 'SKILL.md')));
     assert.ok(!fs.lstatSync(shared).isSymbolicLink());
-    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
-    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-codex-only');
+    assert.ok(!fs.existsSync(nativeSkill), 'direct discovery must not emit per-skill .codex/skills/<name> links');
     assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'dhpk-portable')));
-    assertOnlySymlinks(path.join(scratch, '.codex', 'skills'));
     assert.ok(fs.existsSync(path.join(scratch, '.codex', 'agents', 'explorer.toml')));
     const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
     assert.ok(!receipt.managed_entries.skills || !receipt.managed_entries.skills['dhpk-codex-only']);
     const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
-    assert.strictEqual(projection.hostBindings.codex.bindingShape, 'native-link');
+    assert.strictEqual(projection.hostBindings.codex.bindingShape, 'direct');
+    assert.deepStrictEqual(projection.bindingPaths.codex || [], []);
     assert.deepStrictEqual(projection.hostBindings.codex.selectedStableIds, ['codex-only']);
     const rerun = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
     assert.strictEqual(rerun.status, 0, `${rerun.stdout}\n${rerun.stderr}`);
     assert.match(rerun.stdout + rerun.stderr, /already up-to-date/);
     const again = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
     assert.deepStrictEqual(again.hostBindings.codex, projection.hostBindings.codex);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('an explicit non-PASS Codex Consumer Evidence override emits native-link bindings', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const evidence = writeCodexEvidence(scratch, 'FAIL');
+    const overrideEnv = { DHPK_CODEX_CONSUMER_EVIDENCE: evidence };
+    const planned = runCodexInstaller(scratch, ['--copy', '--plan', '--json', '--force'], plugin, overrideEnv);
+    assert.strictEqual(JSON.parse(planned.stdout).codexBindingShape, 'native-link');
+
+    const res = runCodexInstaller(scratch, ['--copy', '--force'], plugin, overrideEnv);
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const nativeSkill = path.join(scratch, '.codex', 'skills', 'dhpk-codex-only');
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-codex-only');
+    assertOnlySymlinks(path.join(scratch, '.codex', 'skills'));
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.codex.bindingShape, 'native-link');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('Codex --update retires native-link bindings left by an earlier install and keeps shared content', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const evidence = writeCodexEvidence(scratch, 'FAIL');
+    const linked = runCodexInstaller(scratch, ['--copy', '--force'], plugin, { DHPK_CODEX_CONSUMER_EVIDENCE: evidence });
+    assert.strictEqual(linked.status, 0, outputOf(linked));
+    const nativeSkill = path.join(scratch, '.codex', 'skills', 'dhpk-codex-only');
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    const shared = path.join(scratch, '.agents', 'skills', 'dhpk-codex-only');
+    const sharedBefore = snapshotTree(shared);
+
+    const updated = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(updated.status, 0, outputOf(updated));
+    assert.strictEqual(fs.lstatSync(nativeSkill, { throwIfNoEntry: false }), undefined);
+    assert.strictEqual(snapshotTree(shared), sharedBefore);
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.codex.bindingShape, 'direct');
+    assert.deepStrictEqual(projection.bindingPaths.codex || [], []);
+    assert.ok(fs.existsSync(path.join(scratch, '.codex', 'agents', 'explorer.toml')));
+    assert.strictEqual(fs.existsSync(path.join(scratch, '.agents', '.dhpk-installed.transaction.json')), false);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
@@ -375,12 +434,13 @@ test('Cursor then Codex unions shared skills and leaves the first Host bindings 
     assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-portable', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md')));
     assert.ok(fs.lstatSync(path.join(scratch, '.cursor', 'skills', 'dhpk-portable')).isSymbolicLink());
-    assert.ok(fs.lstatSync(path.join(scratch, '.codex', 'skills', 'dhpk-codex-only')).isSymbolicLink());
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'dhpk-codex-only')));
     assert.ok(!fs.existsSync(path.join(scratch, '.cursor', 'skills', 'dhpk-codex-only')));
     assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'dhpk-portable')));
     const after = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
     assert.deepStrictEqual(after.hostBindings.cursor, cursorBindings);
     assert.deepStrictEqual(after.bindingPaths.cursor, cursorPaths);
+    assert.strictEqual(after.hostBindings.codex.bindingShape, 'direct');
     assert.deepStrictEqual(after.hostBindings.codex.selectedStableIds, ['codex-only']);
     const again = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
     assert.strictEqual(again.status, 0, `${again.stdout}\n${again.stderr}`);
@@ -452,12 +512,12 @@ test('receipt-owned native Codex skill copies stay until --update', () => {
 
     const updated = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin);
     assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
-    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
-    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-codex-only');
+    assert.strictEqual(fs.lstatSync(nativeSkill, { throwIfNoEntry: false }), undefined);
+    assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md')));
     const nextReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     assert.ok(!nextReceipt.managed_entries.skills || !nextReceipt.managed_entries.skills['dhpk-codex-only']);
     const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
-    assert.strictEqual(projection.hostBindings.codex.bindingShape, 'native-link');
+    assert.strictEqual(projection.hostBindings.codex.bindingShape, 'direct');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
@@ -561,8 +621,8 @@ test('a hand-edited legacy Codex skill survives --update and migrates only with 
       '--force',
     ], plugin);
     assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
-    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
-    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-codex-only');
+    assert.strictEqual(fs.lstatSync(nativeSkill, { throwIfNoEntry: false }), undefined);
+    assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md')));
     const checked = require('../scripts/lib/project-agent-projection-publisher')
       .validateRelocatableAgentsSkillsProjection({ projectRoot: scratch });
     assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
@@ -620,11 +680,12 @@ test('uninstalling Cursor leaves Codex-bound shared skills and Codex native asse
     assert.ok(!fs.existsSync(path.join(scratch, '.cursor', 'agents', 'reviewer.md')));
     assert.ok(fs.existsSync(path.join(scratch, '.cursor', 'skills', 'unrelated', 'keep.txt')));
     assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md')));
-    assert.ok(fs.lstatSync(path.join(scratch, '.codex', 'skills', 'dhpk-codex-only')).isSymbolicLink());
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'dhpk-codex-only')));
     assert.ok(fs.existsSync(path.join(scratch, '.codex', 'agents', 'explorer.toml')));
     assert.strictEqual(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'foreign', 'keep.md'), 'utf8'), '# keep\n');
     const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(projection.hostBindings.cursor, undefined);
+    assert.strictEqual(projection.hostBindings.codex.bindingShape, 'direct');
     assert.deepStrictEqual(projection.hostBindings.codex.selectedStableIds, ['codex-only']);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -814,11 +875,130 @@ for (const { label, edited } of [
       assert.doesNotMatch(outputOf(updated), /retired=1/);
       assert.strictEqual(discoverableReviewSkills(project).length, 2, outputOf(updated));
       assert.strictEqual(fs.readFileSync(path.join(project, edited), 'utf8'), content);
+      if (edited.startsWith('.agents/')) {
+        assert.match(outputOf(updated), /COMPATIBILITY_PROJECTION_STALE: skills\/change-verdict kept: the projected files do not match/);
+      }
     } finally {
       fs.rmSync(project, { recursive: true, force: true });
     }
   });
 }
+
+// A source checkout whose compatibility projection covers several Codex
+// skills, plus one Codex skill the projection does not carry.
+const OVERLAPPING = ['change-verdict', 'code-trace', 'git-worktree', 'tdd-workflow'];
+function overlapCheckout() {
+  const project = selfOverlapPlugin();
+  const inventoryPath = path.join(project, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+  const codexSkills = [...OVERLAPPING, 'codex-local'];
+  inventory.skills = inventory.skills.filter((entry) => entry.id !== 'codex-only').concat(codexSkills.map((name) => ({
+    id: name, name, path: `skills/${name}`, lifecycle: 'promoted', surfaces: ['codex-sync', 'codex-native'], legacy_names: [],
+  })));
+  inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['portable', ...codexSkills];
+  inventory.surface_membership = { 'agent-plugin': OVERLAPPING.slice() };
+  write(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  const profilesPath = path.join(project, 'manifests', 'profile-projection-sets.json');
+  const profiles = JSON.parse(fs.readFileSync(profilesPath, 'utf8'));
+  profiles.profiles.common['codex-sync'] = codexSkills.slice();
+  write(profilesPath, `${JSON.stringify(profiles, null, 2)}\n`);
+  for (const surface of ['skills', 'codex/skills']) {
+    fs.rmSync(path.join(project, surface, 'dhpk-codex-only'), { recursive: true, force: true });
+    for (const name of codexSkills) write(path.join(project, surface, name, 'SKILL.md'), skillBody(name, `Skill ${name}`));
+  }
+  return project;
+}
+
+function codexSkillNames(project) {
+  return skillEntries(path.join(project, '.codex', 'skills'));
+}
+
+test('Codex --update in a source checkout retires every proved overlapping copy and preserves the rest', () => {
+  const project = overlapCheckout();
+  try {
+    const first = runCodexInstaller(project, ['--copy', '--force'], project);
+    assert.strictEqual(first.status, 0, outputOf(first));
+    projectCompatibilitySkills(project);
+    const thirdParty = addThirdPartyReview(project);
+    const thirdPartyBefore = thirdParty();
+    const modified = path.join(project, '.codex', 'skills', 'code-trace', 'SKILL.md');
+    fs.appendFileSync(modified, '\nLocal note.\n');
+    const retargeted = path.join(project, '.codex', 'skills', 'git-worktree');
+    fs.rmSync(retargeted, { recursive: true, force: true });
+    fs.symlinkSync('../../third-party/code-review', retargeted, 'dir');
+    const nonOverlapping = snapshotTree(path.join(project, '.codex', 'skills', 'codex-local'));
+    const agentToml = fs.readFileSync(path.join(project, '.codex', 'agents', 'explorer.toml'), 'utf8');
+    const projected = snapshotTree(path.join(project, '.agents', 'skills'));
+    assert.deepStrictEqual(codexSkillNames(project), ['change-verdict', 'code-review', 'code-trace', 'codex-local', 'git-worktree', 'tdd-workflow']);
+
+    const before = snapshotTree(project);
+    const planned = runCodexInstaller(project, ['--copy', '--update', '--plan', '--json', '--force'], project);
+    assert.strictEqual(snapshotTree(project), before, '--plan must not write');
+    const report = JSON.parse(planned.stdout);
+    const handling = Object.fromEntries((report.compatibilityRetirements || []).map((row) => [row.path, row.handling]));
+    assert.deepStrictEqual(handling, {
+      'skills/change-verdict': 'retire',
+      'skills/code-trace': 'keep-modified',
+      'skills/git-worktree': 'keep-modified',
+      'skills/tdd-workflow': 'retire',
+    });
+    assert.deepStrictEqual(report.diagnostics || [], []);
+    assert.notStrictEqual(report.state, 'current');
+
+    const updated = runCodexInstaller(project, ['--copy', '--update', '--force'], project);
+    assert.strictEqual(updated.status, 1, outputOf(updated));
+    assert.match(outputOf(updated), /retired=2/);
+    assert.match(outputOf(updated), /collision preserved: skills\/code-trace/);
+    assert.match(outputOf(updated), /collision preserved: skills\/git-worktree/);
+    assert.deepStrictEqual(codexSkillNames(project), ['code-review', 'code-trace', 'codex-local', 'git-worktree']);
+    assert.match(fs.readFileSync(modified, 'utf8'), /Local note\./);
+    assert.strictEqual(fs.readlinkSync(retargeted), '../../third-party/code-review');
+    assert.strictEqual(snapshotTree(path.join(project, '.codex', 'skills', 'codex-local')), nonOverlapping);
+    assert.deepStrictEqual(thirdParty(), thirdPartyBefore);
+    assert.strictEqual(fs.readFileSync(path.join(project, '.codex', 'agents', 'explorer.toml'), 'utf8'), agentToml);
+    assert.strictEqual(snapshotTree(path.join(project, '.agents', 'skills')), projected);
+    const receipt = JSON.parse(fs.readFileSync(path.join(project, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.deepStrictEqual(Object.keys(receipt.managed_entries.skills).filter((name) => ['change-verdict', 'tdd-workflow'].includes(name)), []);
+    assert.deepStrictEqual(activeTransactionJournals(path.join(project, '.codex')), []);
+
+    const replanned = JSON.parse(runCodexInstaller(project, ['--copy', '--update', '--plan', '--json', '--force'], project).stdout);
+    assert.deepStrictEqual((replanned.missing || []).map((item) => item.path).filter((relative) => /change-verdict|tdd-workflow/.test(relative)), []);
+    const again = runCodexInstaller(project, ['--copy', '--update', '--force'], project);
+    assert.match(outputOf(again), /retired=0/);
+    assert.deepStrictEqual(codexSkillNames(project), ['code-review', 'code-trace', 'codex-local', 'git-worktree']);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('a stale compatibility projection keeps the overlapping Codex copy and reports COMPATIBILITY_PROJECTION_STALE', () => {
+  const project = overlapCheckout();
+  try {
+    const first = runCodexInstaller(project, ['--copy', '--force'], project);
+    assert.strictEqual(first.status, 0, outputOf(first));
+    projectCompatibilitySkills(project);
+    fs.appendFileSync(path.join(project, 'skills', 'change-verdict', 'SKILL.md'), '\nEdited after projection.\n');
+    const copy = snapshotTree(path.join(project, '.codex', 'skills', 'change-verdict'));
+
+    const planned = runCodexInstaller(project, ['--copy', '--update', '--plan', '--json', '--force'], project);
+    const report = JSON.parse(planned.stdout);
+    const stale = (report.diagnostics || []).filter((item) => item.code === 'COMPATIBILITY_PROJECTION_STALE');
+    assert.deepStrictEqual(stale.map((item) => item.path), ['skills/change-verdict']);
+    assert.match(stale[0].action, /npm run sync:local-skills/);
+    const handling = Object.fromEntries((report.compatibilityRetirements || []).map((row) => [row.path, row.handling]));
+    assert.strictEqual(handling['skills/change-verdict'], undefined);
+    assert.strictEqual(handling['skills/tdd-workflow'], 'retire');
+
+    const updated = runCodexInstaller(project, ['--copy', '--update', '--force'], project);
+    assert.strictEqual(updated.status, 0, outputOf(updated));
+    assert.match(outputOf(updated), /COMPATIBILITY_PROJECTION_STALE: skills\/change-verdict/);
+    assert.match(outputOf(updated), /npm run sync:local-skills/);
+    assert.strictEqual(snapshotTree(path.join(project, '.codex', 'skills', 'change-verdict')), copy);
+    assert.ok(!fs.existsSync(path.join(project, '.codex', 'skills', 'tdd-workflow')));
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
 
 test('Cursor --update inside the canonical source checkout skips relocatable Shared Project Projection', () => {
   const project = selfOverlapPlugin();

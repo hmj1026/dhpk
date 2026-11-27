@@ -2605,7 +2605,7 @@
       "sourcePath": "scripts/lib/cursor-consumer-evidence.js",
       "destination": "skills/harness-setup/scripts/lib/cursor-consumer-evidence.js",
       "kind": "packaging-resource",
-      "sha256": "4642d53eaffada1336d22966b59daa50b7a858a26e9ab63a7736e3da2dcd4d98"
+      "sha256": "2a491330ec31be33c6e611b597c013340889e98ac5438fb84909298db1ddb9d4"
     },
     {
       "skillId": "harness-setup",
@@ -2645,7 +2645,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
       "kind": "packaging-resource",
-      "sha256": "1c8694a79bbc70ca0597b6eeee238c8f8e8d19e92350bd4d387ba1a163ac683a"
+      "sha256": "2df0e85c43754312d660829b8e0aa29ad56e70dd45c774fcab11b891d780c5f3"
     },
     {
       "skillId": "harness-setup",
