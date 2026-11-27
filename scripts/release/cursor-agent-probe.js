@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { assertPhysicalPackageRoot, runCursorConsumerProbe } = require('../lib/cursor-plugin-package');
+const { TIMEOUT_EXIT_CODE } = require('../lib/host-cli-probe');
 const { redactedErrorText } = require('../lib/redaction');
 
 const DEFAULT_PROMPT = 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.';
@@ -125,7 +126,7 @@ function main() {
     agent_package: agentPackage,
     cursor_package: cursorPackage,
   }, null, 2));
-  if (['FAIL', 'BLOCKED', 'SKIP_INCOMPATIBLE'].includes(result.status)) process.exit(1);
+  if (['FAIL', 'BLOCKED', 'SKIP_INCOMPATIBLE'].includes(result.status)) process.exit(result.timed_out === true ? TIMEOUT_EXIT_CODE : 1);
 }
 
 main();

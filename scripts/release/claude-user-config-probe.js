@@ -8,7 +8,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { isInside } = require('../lib/bounded-filesystem');
+const { TIMEOUT_EXIT_CODE, hostCliProbeEvidence, runHostCliProbe } = require('../lib/host-cli-probe');
 const { digest, safeRegularPath } = require('../lib/plugin-user-config-metadata');
+const { redactSensitiveText } = require('../lib/redaction');
 
 function safeCommand(command) {
   const value = typeof command === 'string' && command.trim() ? command.trim() : 'claude';
@@ -32,6 +34,10 @@ function redacted(value, depth = 0) {
     return out;
   }, {});
   return String(value);
+}
+
+function probeEvidence(result) {
+  return hostCliProbeEvidence(result, (text) => redacted(redactSensitiveText(text, { maxLength: 512 })));
 }
 
 function parseJson(stdout) {
@@ -147,8 +153,11 @@ function runClaudeUserConfigProbe({ executable = 'claude', manifestPath, manifes
   if (!stat.isFile()) return { status: 'BLOCKED', reason: 'manifest path is not a regular file', resumeCommand };
   let manifest;
   try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch (_) { return { status: 'FAIL', reason: 'manifest is invalid JSON', resumeCommand }; }
-  const versionResult = runner(command, ['--version'], { encoding: 'utf8', timeout: 5000 });
-  if (versionResult.error || versionResult.status !== 0) {
+  const versionResult = runHostCliProbe(command, ['--version'], { timeoutMs: 5000, maxBuffer: 64 * 1024, spawn: runner });
+  if (versionResult.timedOut) {
+    return { status: 'BLOCKED', reason: 'Claude version check timed out', probe: probeEvidence(versionResult), resumeCommand };
+  }
+  if (versionResult.error || versionResult.exitCode !== 0) {
     return { status: 'NOT_CONFIGURED', reason: 'configured Claude executable is unavailable', resumeCommand };
   }
   const observedVersion = String(versionResult.stdout || versionResult.stderr || '').trim();
@@ -165,9 +174,14 @@ function runClaudeUserConfigProbe({ executable = 'claude', manifestPath, manifes
   if (!executing) {
     return { status: 'NOT_RUN', reason: 'Claude executable is present; installed-manifest observation was not requested', observedVersion: redacted(observedVersion), resumeCommand };
   }
-  const detail = runner(command, ['plugin', 'list', '--json'], { encoding: 'utf8', timeout: 10000 });
+  const detail = runHostCliProbe(command, ['plugin', 'list', '--json'], { timeoutMs: 10000, spawn: runner });
   if (detail.error && (detail.error.code === 'ENOENT' || detail.error.code === 'EACCES')) return { status: 'NOT_CONFIGURED', reason: 'configured Claude executable is unavailable', resumeCommand };
-  if (detail.error || detail.status !== 0) return { status: 'UNAVAILABLE', reason: `Claude plugin inventory exited ${detail.status}`, diagnostic: redacted(detail.stderr || ''), resumeCommand };
+  if (detail.timedOut) {
+    return { status: 'UNAVAILABLE', reason: 'Claude plugin inventory timed out', probe: probeEvidence(detail), resumeCommand };
+  }
+  if (detail.error || detail.exitCode !== 0) {
+    return { status: 'UNAVAILABLE', reason: `Claude plugin inventory exited ${detail.exitCode}`, diagnostic: redacted(detail.stderr), probe: probeEvidence(detail), resumeCommand };
+  }
   const parsed = parseJson(detail.stdout);
   if (parsed.error) return { status: 'UNAVAILABLE', reason: parsed.error, resumeCommand };
   return {
@@ -203,7 +217,7 @@ if (require.main === module) {
     if (!args) process.exit(0);
     const result = runClaudeUserConfigProbe(args);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    process.exit(result.status === 'PASS' ? 0 : 1);
+    process.exit(result.status === 'PASS' ? 0 : (result.probe && result.probe.timedOut ? TIMEOUT_EXIT_CODE : 1));
   } catch (error) {
     console.error(`claude-user-config-probe: ${error.message}`);
     process.exit(2);

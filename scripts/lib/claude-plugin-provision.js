@@ -12,6 +12,8 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { terminateProcessGroup } = require('./bounded-child-process');
 const { readFileBounded } = require('./bounded-filesystem');
+const { hostCliProbeEvidence, runHostCliProbe } = require('./host-cli-probe');
+const { redactSensitiveText } = require('./redaction');
 
 const CLAUDE_PLUGIN_ID = 'dhpk@dhpk';
 const CLAUDE_PLUGIN_PROVISION_SCHEMA = 'dhpk.claude-plugin-provision.v1';
@@ -217,8 +219,8 @@ function provisionOf(status, extra = {}) {
   };
 }
 
-function unknownProvision(reason) {
-  return provisionOf('UNKNOWN', { reason });
+function unknownProvision(reason, extra = {}) {
+  return provisionOf('UNKNOWN', { reason, ...extra });
 }
 
 function windowsExecutableNames(env) {
@@ -279,45 +281,26 @@ function resolveClaudeExecutable({ env = process.env, projectRoot } = {}) {
   return { executable: null, insideProject };
 }
 
-function reapProcessGroup(result, terminate) {
-  if (!result || !Number.isInteger(result.pid)) return true;
-  try {
-    terminate(result.pid, 'SIGKILL');
-    return true;
-  } catch (error) {
-    return Boolean(error && error.code === 'ESRCH');
-  }
-}
-
 function runPluginList({ cwd, env, spawn, timeoutMs, terminate }) {
   const { executable, insideProject } = resolveClaudeExecutable({ env, projectRoot: cwd });
   if (!executable) return insideProject ? { failed: true, reason: 'CLAUDE_CLI_INSIDE_PROJECT' } : { notInstalled: true };
-  let result;
-  try {
-    result = spawn(executable, ['plugin', 'list', '--json'], {
-      cwd,
-      encoding: 'utf8',
-      timeout: timeoutMs,
-      killSignal: 'SIGKILL',
-      maxBuffer: QUERY_OUTPUT_LIMIT_BYTES,
-      detached: process.platform !== 'win32',
-      env,
-    });
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return { notInstalled: true };
-    return { failed: true };
-  }
   // The child runs detached; reap its whole group on every path, not only on error.
-  if (!reapProcessGroup(result, terminate)) return { failed: true };
-  if (result && result.error) {
-    if (result.error.code === 'ENOENT') return { notInstalled: true };
-    return { failed: true };
-  }
-  if (!result || result.status !== 0) return { failed: true };
+  const result = runHostCliProbe(executable, ['plugin', 'list', '--json'], {
+    cwd,
+    env,
+    timeoutMs,
+    maxBuffer: QUERY_OUTPUT_LIMIT_BYTES,
+    reapGroup: 'always',
+    spawn,
+    terminate,
+  });
+  if (result.error && result.error.code === 'ENOENT') return { notInstalled: true };
+  const failed = { failed: true, probe: hostCliProbeEvidence(result, redactSensitiveText) };
+  if (result.reapFailed || result.error || result.exitCode !== 0) return failed;
   try {
     return { payload: JSON.parse(result.stdout) };
   } catch (_) {
-    return { failed: true };
+    return failed;
   }
 }
 
@@ -381,7 +364,7 @@ function probeClaudePluginProvision({
   }
   const listed = runPluginList({ cwd, env, spawn, timeoutMs, terminate });
   if (listed.notInstalled) return provisionOf('CLI_NOT_INSTALLED');
-  if (listed.failed) return unknownProvision(listed.reason || 'CLAUDE_CLI_FAILED');
+  if (listed.failed) return unknownProvision(listed.reason || 'CLAUDE_CLI_FAILED', listed.probe ? { probe: listed.probe } : {});
   const classified = classifyClaudePluginRecords(listed.payload, { projectRoot: cwd });
   if (classified.status === 'UNKNOWN') return unknownProvision(classified.reason);
   if (classified.status !== 'ENABLED') return provisionOf(classified.status);
