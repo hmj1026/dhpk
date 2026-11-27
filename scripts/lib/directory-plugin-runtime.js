@@ -70,7 +70,7 @@ const BUILD_ONLY_FILES = Object.freeze([
     'openai-submission-assets', 'openai-submission-command', 'openai-submission-package',
     'openai-submission-zip', 'plugin-user-config-metadata', 'provider-adapter', 'public-plugin-layout',
     'public-plugin-paths', 'public-plugin-tree', 'publication-conformance', 'reference-registry',
-    'release-parity', 'release-probe-batch', 'release-publication-bundle', 'rule-activation-map',
+    'release-parity', 'release-probe-batch', 'release-publication-bundle', 'release-rehearsal', 'rule-activation-map',
     'skill-command-generation', 'skill-directory-coverage', 'skill-distribution-compile',
     'skill-distribution-extract', 'skill-distribution-source', 'skill-next-map', 'skill-resource-sync',
     'standalone-package-assets', 'terminate-process-group', 'toolchain-identity', 'workflow-package-closure',
