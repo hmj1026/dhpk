@@ -1418,7 +1418,7 @@ function inspectProjectHostSyncSurface({
     } else if (
       codexDiscovery.live
       && codexDiscovery.live.verdict === 'UNAVAILABLE'
-      && ['host-cli-timeout', 'host-cli-failed', 'host-cli-unparseable'].includes(codexDiscovery.live.reason)
+      && codexDiscovery.live.reason !== 'host-cli-missing'
     ) {
       diagnostics.push({
         surface,

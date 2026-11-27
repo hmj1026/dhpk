@@ -524,18 +524,11 @@ test('status performs zero filesystem writes (including install-history) on inst
   const { root, project, home, codexHome } = setupCleanEnv('installed-zero-writes');
   const xdgStateHome = path.join(root, 'xdg-state');
   const historyFile = path.join(xdgStateHome, 'dhpk', 'install-history.jsonl');
-  const installCodex = runInstallCli(['codex-sync', 'install', '--project-root', project, '--mode', 'copy', '--json'], {
-    home,
-    codexHome,
-    env: { XDG_STATE_HOME: xdgStateHome },
-  });
-  assert.strictEqual(installCodex.status, 0, installCodex.stderr);
-  const installCursor = runInstallCli(['cursor', 'install', '--project-root', project, '--mode', 'copy', '--json'], {
-    home,
-    codexHome,
-    env: { XDG_STATE_HOME: xdgStateHome },
-  });
-  assert.strictEqual(installCursor.status, 0, installCursor.stderr);
+  const cliOptions = { home, codexHome, env: { XDG_STATE_HOME: xdgStateHome } };
+  for (const host of ['codex-sync', 'cursor']) {
+    const install = runInstallCli([host, 'install', '--project-root', project, '--mode', 'copy', '--json'], cliOptions);
+    assert.strictEqual(install.status, 0, `${host} install: ${install.stderr}`);
+  }
 
   const historyAfterInstall = fs.readFileSync(historyFile, 'utf8');
   const beforeRoot = snapshotTree(root);
@@ -545,11 +538,7 @@ test('status performs zero filesystem writes (including install-history) on inst
     ['codex-sync', 'status', '--project-root', project, '--offline', '--json'],
     ['cursor', 'status', '--project-root', project, '--offline', '--json'],
   ]) {
-    const res = runInstallCli(args, {
-      home,
-      codexHome,
-      env: { XDG_STATE_HOME: xdgStateHome },
-    });
+    const res = runInstallCli(args, cliOptions);
     assert.strictEqual(res.status, 0, `${args.join(' ')}: ${res.stderr}`);
     assert.strictEqual(res.stderr, '', `${args.join(' ')} unexpected stderr: ${res.stderr}`);
   }
