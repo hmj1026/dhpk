@@ -90,8 +90,12 @@ for (const host of HOSTS) {
       assert.ok(fs.existsSync(target), `default ${host.name} install must include ${SKILL_NAME}`);
       assert.ok(!fs.lstatSync(target).isSymbolicLink(), `default ${host.name} skill directory must be materialized`);
       assertNoSymlinksRecursively(target);
-      assert.ok(fs.lstatSync(binding).isSymbolicLink(), `${host.name} discovery path must bind to the shared project projection`);
-      assert.strictEqual(fs.readlinkSync(binding), `../../.agents/skills/${SKILL_NAME}`);
+      if (host.name === 'Codex') {
+        assert.ok(!fs.existsSync(binding), 'Codex discovers the shared project projection directly (ADR-0042)');
+      } else {
+        assert.ok(fs.lstatSync(binding).isSymbolicLink(), `${host.name} discovery path must bind to the shared project projection`);
+        assert.strictEqual(fs.readlinkSync(binding), `../../.agents/skills/${SKILL_NAME}`);
+      }
     } finally {
       fs.rmSync(project, { recursive: true, force: true });
     }

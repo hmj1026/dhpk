@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## 0.84.0 — 2026-11-27 — Installation reliability: status inspection, boundary envelopes, asset receipts, and cross-Host duplicate discovery
+
+- **feat(install-codex-sync)** — `codex-sync` now discovers the Shared Project Projection directly (ADR-0042), and `--update` retires unchanged receipt-owned Codex skill links or copies that the projection proves; a stale source-checkout projection keeps the copy and reports `COMPATIBILITY_PROJECTION_STALE`.
+- **feat(dhpk-install)** — Replaced the static `NOT_RUN` placeholder in `dhpk-install status` with real read-only cross-scope and cross-Host (`--all`) installation inspection, dual-evidence Claude text-vs-JSON comparison (`VERSION_DRIFT` / `SOURCE_MISMATCH`), `--strict` exit semantics, and strict rejection of the ambiguous `codex` alias.
+- **feat(install)** — check-duplicate-discovery.js reports Codex and Claude Duplicate Discovery in two layers, with each overlap's Skill Identity, path, and ownership class kept separate from the live Host verdict.
+- **feat(install-assets)** — The standalone project-asset installer now records an Asset Receipt (`.dhpk-asset-receipt.json`) with source version and SHA-256 digests, classifies each destination as `updatable`, `unchanged`, `user-modified`, or `unmanaged-existing` through `--plan --json`, updates unchanged earlier snapshots without `--force`, adopts byte-identical pre-receipt files, and saves a timestamped backup under `.dhpk-asset-backups/` before `--force` overwrites differing files.
+- **feat(install)** — Record de-identified, append-only install history JSONL entries across installation lifecycle entrypoints on a strictly best-effort basis.
+- **feat(install)** — `--plan --json` on the Codex, Cursor, and AGY installers and `dhpk-install <codex-sync|cursor> plan --project-root` now reports a fail-closed receipt, journal, profile, or collision boundary as JSON with `verdict`, a stable `reasonCode`, the detected `receiptVersion` or `journalVersion`, `affectedPaths`, and structured `remediation` naming the `0.69.x` or `0.74.x` transition release, `--uninstall`, or `--recover`; plans exit 0 ready, 1 pending or collision, 2 blocked, and 64 only for argument errors.
+- **feat(release)** — Extend release rehearsal to materialize the prior release tag baseline and verify cross-version upgrades, idempotent reruns, rollbacks, generated-to-dist marketplace migration, Cursor local links, AGY Package Receipt lifecycle, and dual-layer Duplicate Discovery.
+- **fix(host-cli-probes)** — Codex, Claude, Cursor, and AGY probes now share one Host CLI probe runner that preserves inner exit codes and timeouts (exit 124), reaps timed-out process groups, and reports duration with bounded output tails.
+- **docs(docs)** — Consolidate the cross-Host installation, migration, and verification matrix SSOT across English and Traditional Chinese guides and update harness-setup references for ADR-0038, ADR-0042, Asset Receipts, status inspection, --plan --json envelopes, release rehearsal, and Install History.
+
 ## 0.83.0 — 2026-11-26 — Bash guard, CLI, and release verification improvements
 
 - **feat(bash-guard)** — Document safe read-only Bash forms, improve credential guard recovery hints, and allow non-content git diff --pathspec-from-file.

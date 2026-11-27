@@ -112,6 +112,21 @@ function registerSweeps({ runIn, scenarios, expectedPoints, label = '' }) {
         const after = snapshot(expected, template.plugin);
         cleanup(expected);
         assert.ok([0, 1].includes(clean.code), `${clean.stdout}\n${clean.stderr}`);
+        // Past the commit point the interrupted transaction is already the new
+        // state: the next ordinary run finishes it and then completes its own run.
+        let secondRun = null;
+        const afterSecondRun = () => {
+          if (secondRun) return secondRun;
+          const twice = clone(template);
+          try {
+            runIn(template.plugin, twice, template.options);
+            const outcome = runIn(template.plugin, twice, template.options);
+            secondRun = { code: outcome.code, state: snapshot(twice, template.plugin) };
+          } finally {
+            cleanup(twice);
+          }
+          return secondRun;
+        };
         let crashes = 0;
         for (const when of ['after', 'mid']) {
           for (let target = 1; target < 400; target += 1) {
@@ -128,13 +143,15 @@ function registerSweeps({ runIn, scenarios, expectedPoints, label = '' }) {
               if (!crashed) break;
               crashes += 1;
               assert.ok(fs.existsSync(path.join(project, JOURNAL)), `${name}: crash ${when} step ${target} left no journal`);
+              const published = JSON.parse(fs.readFileSync(path.join(project, JOURNAL), 'utf8')).phase === 'published';
               markHolderDead(project);
               if (target % 3 === 0) {
                 // REQ-5: the next ordinary run undoes or finishes the
                 // interrupted transaction and completes its own run.
+                const expected = published ? afterSecondRun() : { code: clean.code, state: after };
                 const rerun = runIn(template.plugin, project, template.options);
-                assert.strictEqual(rerun.code, clean.code, `${name}: rerun after crash ${when} step ${target}\n${rerun.stdout}\n${rerun.stderr}`);
-                assert.deepStrictEqual(snapshot(project, template.plugin), after, `${name}: rerun after crash ${when} step ${target}`);
+                assert.strictEqual(rerun.code, expected.code, `${name}: rerun after crash ${when} step ${target}\n${rerun.stdout}\n${rerun.stderr}`);
+                assert.deepStrictEqual(snapshot(project, template.plugin), expected.state, `${name}: rerun after crash ${when} step ${target}`);
               } else {
                 const recovered = runIn(template.plugin, project, { recover: true });
                 assert.strictEqual(recovered.code, 0, `${name}: recover after crash ${when} step ${target}\n${recovered.stdout}\n${recovered.stderr}`);

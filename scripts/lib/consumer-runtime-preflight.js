@@ -7,7 +7,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { runHostCliProbe } = require('./host-cli-probe');
 const { redactSensitiveText } = require('./redaction');
 
 const COMMIT = /^[a-f0-9]{40}$/i;
@@ -426,14 +426,12 @@ function resolveExecutable(name, pathValue = process.env.PATH) {
 
 function commandVersion(executable, args = ['--version'], env = process.env) {
   if (!executable) return null;
-  const result = spawnSync(executable, args, {
-    encoding: 'utf8',
+  const result = runHostCliProbe(executable, args, {
     env: { ...env, HOME: undefined, USERPROFILE: undefined },
-    timeout: 5000,
+    timeoutMs: 5000,
     maxBuffer: 16 * 1024,
-    stdio: ['ignore', 'pipe', 'pipe'],
   });
-  if (result.error || result.status !== 0) return null;
+  if (result.error || result.exitCode !== 0) return null;
   const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim().split(/\r?\n/, 1)[0];
   return output ? boundedDiagnostic(output) : null;
 }

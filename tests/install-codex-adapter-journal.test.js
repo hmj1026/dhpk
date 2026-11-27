@@ -69,10 +69,10 @@ const SCENARIOS = {
 // points than this has stopped covering a step (update this table with a step
 // the adapter adds or removes on purpose).
 const EXPECTED_POINTS = {
-  install: { crash: 38, failure: 20 },
-  update: { crash: 50, failure: 26 },
-  uninstall: { crash: 28, failure: 15 },
-  adoption: { crash: 50, failure: 26 },
+  install: { crash: 36, failure: 19 },
+  update: { crash: 46, failure: 24 },
+  uninstall: { crash: 26, failure: 14 },
+  adoption: { crash: 46, failure: 24 },
 };
 
 registerSweeps({ runIn, scenarios: SCENARIOS, expectedPoints: EXPECTED_POINTS });

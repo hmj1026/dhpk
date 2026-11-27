@@ -426,6 +426,32 @@ jobs:
       - name: Rehearse release verification (dry-run)
         run: bash scripts/release/release-verify.sh --mode dry-run --out-dir "$RUNNER_TEMP"
 
+      - name: Rehearse cross-version upgrade from prior release tag
+        run: |
+          rehearsal_file="$RUNNER_TEMP/dhpk-release-rehearsal.json"
+          set +e
+          node scripts/release/release-rehearsal.js --repo-root "$PWD" --out-file "$rehearsal_file" --json
+          rehearsal_exit="$?"
+          set -e
+          if [ -f "$rehearsal_file" ]; then
+            {
+              echo "## Cross-version upgrade rehearsal"
+              echo ""
+              node -e "
+                const fs = require('fs');
+                const r = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+                console.log('Range: \`' + (r.priorTag || 'none') + ' -> ' + r.targetVersion + '\`');
+                console.log('');
+                console.log('Verdict: \`' + r.verdict + '\`');
+                console.log('');
+                for (const [k, v] of Object.entries(r.stages || {})) {
+                  console.log('- ' + k + ': ' + v.status);
+                }
+              " "$rehearsal_file"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          [ "$rehearsal_exit" -eq 0 ] || exit "$rehearsal_exit"
+
       # Same CLI install and outcome mapping as the tag job's consumer-verify.
       - name: Install claude CLI
         run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
@@ -483,7 +509,7 @@ jobs:
         with:
           persist-credentials: false
       - name: markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
+        uses: DavidAnson/markdownlint-cli2-action@3ce8f712b5d8f31acd8e201be6d97e3d2bb23eb7 # v25.1.0
         with:
           globs: |
             *.md

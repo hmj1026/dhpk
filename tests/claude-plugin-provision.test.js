@@ -658,4 +658,30 @@ test('testProbe_noClaudeAnywhere_stillReturnsCliNotInstalled', () => {
   assert.strictEqual(result.status, 'CLI_NOT_INSTALLED');
 });
 
+test('testProbe_realClaudeExit124_keepsInnerExitCodeTimeoutAndRedactedStderr', () => {
+  const projectRoot = tempDir('real-124-project');
+  const binDir = tempDir('real-124-bin');
+  fs.writeFileSync(path.join(binDir, 'claude'), '#!/bin/sh\necho "plugin list deadline token=sk-ant-abcdefghijklmnopqrstuvwxyz0123456789" >&2\nexit 124\n', { mode: 0o755 });
+  const result = provision.probeClaudePluginProvision({ projectRoot, env: { PATH: binDir } });
+  assert.strictEqual(result.status, 'UNKNOWN');
+  assert.strictEqual(result.reason, 'CLAUDE_CLI_FAILED');
+  assert.strictEqual(result.probe.exitCode, 124, JSON.stringify(result));
+  assert.strictEqual(result.probe.timedOut, true);
+  assert.ok(Number.isInteger(result.probe.durationMs));
+  assert.match(result.probe.stderrTail, /plugin list deadline/);
+  assert.doesNotMatch(result.probe.stderrTail, /sk-ant-abcdefghijklmnopqrstuvwxyz0123456789/);
+});
+
+test('testProbe_realClaudeHang_timesOutWithPartialStderr', () => {
+  const projectRoot = tempDir('real-hang-project');
+  const binDir = tempDir('real-hang-bin');
+  fs.writeFileSync(path.join(binDir, 'claude'), '#!/bin/sh\necho "contacting marketplace" >&2\n/bin/sleep 30\n', { mode: 0o755 });
+  const result = provision.probeClaudePluginProvision({ projectRoot, env: { PATH: binDir }, timeoutMs: 300 });
+  assert.strictEqual(result.status, 'UNKNOWN');
+  assert.strictEqual(result.probe.timedOut, true, JSON.stringify(result));
+  assert.strictEqual(result.probe.exitCode, null);
+  assert.strictEqual(result.probe.signal, 'SIGKILL');
+  assert.match(result.probe.stderrTail, /contacting marketplace/);
+});
+
 run('claude-plugin-provision');

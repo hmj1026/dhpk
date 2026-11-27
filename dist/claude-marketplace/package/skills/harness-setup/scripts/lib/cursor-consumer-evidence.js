@@ -85,6 +85,12 @@ function isPassingHostConsumerProbe(host, evidence) {
 function classifyHostConsumerEvidence(host, raw) {
   const spec = probeSpec(host);
   if (raw == null) {
+    if (host === 'codex') {
+      return {
+        bindingShape: DIRECT_SHAPE,
+        reason: 'Codex discovers the Shared Project Projection directly (ADR-0042)',
+      };
+    }
     return {
       bindingShape: NATIVE_LINK_SHAPE,
       reason: `${spec.label} discovery consumer probe record is missing`,

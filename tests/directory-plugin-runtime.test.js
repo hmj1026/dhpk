@@ -32,7 +32,11 @@ test('per-skill build metadata, OpenAI listing metadata, and eval fixtures are d
 });
 
 test('build-only libraries and manifests are dropped while runtime ones are kept', () => {
-  const dropped = ['scripts/lib/publication-conformance.js', 'scripts/lib/openai-submission-zip.js', 'manifests/skill-resources.json', 'scripts/dhpk-install.js'];
+  const dropped = [
+    'scripts/lib/publication-conformance.js', 'scripts/lib/openai-submission-zip.js',
+    'scripts/lib/duplicate-discovery.js', 'scripts/lib/host-cli-probe.js', 'scripts/lib/terminate-process-group.js',
+    'manifests/skill-resources.json', 'scripts/dhpk-install.js',
+  ];
   const kept = ['scripts/lib/dispatch-config.js', 'manifests/host-profiles.json', 'scripts/hooks/install-codex-skills.sh'];
   assert.deepStrictEqual(selected([...dropped, ...kept]), [...kept].sort());
 });

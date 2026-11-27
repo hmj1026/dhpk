@@ -2533,7 +2533,7 @@
       "sourcePath": "skills/harness-setup/references/claude-setup.md",
       "destination": "skills/harness-setup/references/claude-setup.md",
       "kind": "entry",
-      "sha256": "21fc236897a9287c958f2bb5d638f1c52d55b24a6368171c4255f5d785d13be5"
+      "sha256": "2c376564964d1deb9b524eac33e3d058144604bf3c42919c53d4abcb47344ae3"
     },
     {
       "skillId": "harness-setup",
@@ -2541,7 +2541,7 @@
       "sourcePath": "skills/harness-setup/references/codex-setup.md",
       "destination": "skills/harness-setup/references/codex-setup.md",
       "kind": "entry",
-      "sha256": "aaeff933b8783b64054cef7657731604605fc26b066b27c7feddb3867e051b07"
+      "sha256": "9f8eb1ae37df9a58bb5ff33961e861676c32ad254926c29c48fa2647d1b6edb8"
     },
     {
       "skillId": "harness-setup",
@@ -2557,7 +2557,7 @@
       "sourcePath": "skills/harness-setup/references/manual-procedure.md",
       "destination": "skills/harness-setup/references/manual-procedure.md",
       "kind": "entry",
-      "sha256": "4d650c7527fa552c331a9b1b90fe85f72432224224009a7d275f0630b65ce0b4"
+      "sha256": "5a29b099da3fd7c99e2b41cbd565d4a77a0a63a7f0b3305bdec580415fb2e2a1"
     },
     {
       "skillId": "harness-setup",
@@ -2605,7 +2605,7 @@
       "sourcePath": "scripts/lib/cursor-consumer-evidence.js",
       "destination": "skills/harness-setup/scripts/lib/cursor-consumer-evidence.js",
       "kind": "packaging-resource",
-      "sha256": "4642d53eaffada1336d22966b59daa50b7a858a26e9ab63a7736e3da2dcd4d98"
+      "sha256": "2a491330ec31be33c6e611b597c013340889e98ac5438fb84909298db1ddb9d4"
     },
     {
       "skillId": "harness-setup",
@@ -2626,10 +2626,18 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/host-cli-probe.js",
+      "destination": "skills/harness-setup/scripts/lib/host-cli-probe.js",
+      "kind": "packaging-resource",
+      "sha256": "eb0cda19a8f5b5b9ab59bd42ef5f081a8d7b32e16d588c211dea65d09da410b4"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex-cli.js",
       "kind": "packaging-resource",
-      "sha256": "27ec7727102e72b62929d215471ba605f243b2141a065991aecf2cd699cbe833"
+      "sha256": "4e64e10c25b4f92ccfb933111aa0ab30cdb171bb5dace4f96529b0cf6897182a"
     },
     {
       "skillId": "harness-setup",
@@ -2637,7 +2645,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
       "kind": "packaging-resource",
-      "sha256": "27f633cb517aab997e7e290478092d297193e5f8d7eb39f036bec7887c5f5efc"
+      "sha256": "1c755260996c1959b265a2a25c5d6996ae7c9c04fe7738fe478c18104ded7d91"
     },
     {
       "skillId": "harness-setup",
@@ -2661,7 +2669,7 @@
       "sourcePath": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "destination": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "kind": "entry",
-      "sha256": "c9027d631003a336be01e0865383f9174f3e318e0f1fd5ca1aea7b429c1e0c67"
+      "sha256": "8a73190e6f79a0618bcefe25fc09ef4757cb83fe21c3714adda47e337d36b749"
     },
     {
       "skillId": "harness-setup",
@@ -2669,7 +2677,15 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "d1f95a846268f94f5c5eb30e8f353359c3147b2398260aa126f54376b9f5caab"
+      "sha256": "2857169361178a2aad1a8536f46c54ec742a724ea78f5691403cc8f19eab2b94"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/install-history.js",
+      "destination": "skills/harness-setup/scripts/lib/install-history.js",
+      "kind": "packaging-resource",
+      "sha256": "c7a18757368cf0c0975f693716bd2a68629a0cdb08c0dd0d5bb929b7e9ade498"
     },
     {
       "skillId": "harness-setup",
@@ -2678,6 +2694,14 @@
       "destination": "skills/harness-setup/scripts/lib/native-shared-skill-install.js",
       "kind": "packaging-resource",
       "sha256": "da0626ed359846127f89526e7457a1ed5b51eb0b7c2d2115cad927c7db12c97e"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/plan-boundary-envelope.js",
+      "destination": "skills/harness-setup/scripts/lib/plan-boundary-envelope.js",
+      "kind": "packaging-resource",
+      "sha256": "a08ef4f566b6acd57cdac3df73cb8e359d15accc613ee252ec17e58ee64c3436"
     },
     {
       "skillId": "harness-setup",
@@ -2709,7 +2733,7 @@
       "sourcePath": "scripts/lib/project-agent-projection-publisher.js",
       "destination": "skills/harness-setup/scripts/lib/project-agent-projection-publisher.js",
       "kind": "packaging-resource",
-      "sha256": "69be16fec04f95309a5c59460e25635fae07907eb1c5a255fd9f997e8cd44f97"
+      "sha256": "5d74b20ce486f3ea971c6520567d947141f9c86a0d64af73de47bf13f91c5475"
     },
     {
       "skillId": "harness-setup",
@@ -2774,6 +2798,14 @@
       "destination": "skills/harness-setup/scripts/lib/standalone-skill-dependencies.js",
       "kind": "packaging-resource",
       "sha256": "1ab83b8a5c2bb3587449b03782259b6a8ff9f0769ccc274f5ea4f04160a923a9"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/terminate-process-group.js",
+      "destination": "skills/harness-setup/scripts/lib/terminate-process-group.js",
+      "kind": "packaging-resource",
+      "sha256": "f04b72d60a64e7058f732ee7ee5b86c7b07744307d43c34e7f92b92b96f7621c"
     },
     {
       "skillId": "harness-setup",

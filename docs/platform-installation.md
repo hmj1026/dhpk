@@ -15,22 +15,52 @@ This is the installation and support-status SSOT for dhpk distribution
 surfaces. A package or manifest is structural evidence only; a client is
 callable only after the named consumer probe discovers the projected content.
 
+<a id="surface-matrix"></a>
+
 ## Surface matrix
 
 | Surface | Install | Update / remove | Verify | Support boundary |
 |---|---|---|---|---|
-| Claude Code Full Plugin (Repository Marketplace) | `/plugin marketplace add hmj1026/dhpk`, then `/plugin install dhpk@dhpk` (from a checkout: `bash scripts/install.sh`) | `/plugin marketplace update dhpk`, then `/reload-plugins`; remove with `/plugin uninstall dhpk@dhpk` | Fresh-session `/dhpk:flow-guide help` | Structural checks can pass; consumer discovery stays `NOT_RUN` until observed |
+| Claude Code Full Plugin (Repository Marketplace) | `/plugin marketplace add hmj1026/dhpk`, then `/plugin install dhpk@dhpk` (from a checkout: `bash scripts/install.sh`) | `/plugin marketplace update dhpk`, then `/reload-plugins`; remove with `/plugin uninstall dhpk@dhpk` | Fresh-session `/dhpk:flow-guide help`; `dhpk-install claude status --strict` | Structural checks can pass; consumer discovery stays `NOT_RUN` until observed |
 | Claude Code stack modules | `/plugin install dhpk-stacks@dhpk` (requires Full Plugin `dhpk`) | Same as above; `modules` lives in this plugin's settings | Fresh-session `/dhpk:harness-setup --show` | Stack skills and modules only; no module is active until `modules` selects it |
 | Claude Code Directory Plugin (`dhpk-lite`, instruction-only) | Official Claude Plugin Directory (`dist/claude-directory/package`); mutually exclusive with Full Plugin `dhpk` | Disable/uninstall `dhpk-lite` via `/plugin uninstall dhpk-lite` before installing `dhpk@dhpk` | Fresh-session `/dhpk-lite:flow-drive` | Instruction-only (`/dhpk-lite:<skill>`); ships all 17 catalog skills (6 via Manual Procedures in `mode: manual`) and 29 agents; omits hooks, scripts, `userConfig`, `agents/INDEX.md`, and external CLI agents |
-| Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`. Sync requires a repository checkout; an installed Claude plugin does not include `codex/` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
-| Codex Public Plugin (native) | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
+| Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh` or `dhpk-install codex-sync install --project-root <dir>` (data source: `DHPK_INSTALLER_ROOT`, never `CLAUDE_PLUGIN_ROOT`). Sync requires a repository checkout; an installed Claude plugin does not include `codex/` | `--update`, `--migrate`, `--uninstall` (or `dhpk-install codex-sync update\|uninstall --project-root <dir>`); `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, `.agents/skills/` direct discovery, `$dhpk-<name>` / `$change-verdict` discovery, `dhpk-install codex-sync status` | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
+| Codex Public Plugin (native) | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe, `dhpk-install codex-native status` | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory (Codex and ChatGPT Work) | Search for DHPK in the product's Plugins Directory after the public listing appears | Use that product's plugin manager | Approved public listing and a fresh-session workflow probe per Host | Candidate only; currently `NOT_PUBLISHED`; local/repository marketplaces are development sources |
-| Standard Agent Plugin | Download `dhpk-agent-<version>.tar.gz` from the GitHub Release, or run `bin/dhpk distribution build agent-plugin`; install `dist/on-demand/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
+| Standard Agent Plugin | Download `dhpk-agent-<version>.tar.gz` from the GitHub Release, or run `bin/dhpk distribution build agent-plugin`; install `dist/on-demand/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance, `dhpk-install agent-plugin status` | Structural conformance is not Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
 | Cursor Plugin | Download `dhpk-cursor-<version>.tar.gz` from the GitHub Release, or run `bin/dhpk distribution build cursor-plugin`; copy to `~/.cursor/plugins/local/dhpk-cursor` and install `dhpk-agent` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
-| Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`. Sync requires a repository checkout; an installed Claude plugin does not include `cursor/` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
+| Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh` or `dhpk-install cursor install --project-root <dir>` (data source: `DHPK_INSTALLER_ROOT`, never `CLAUDE_PLUGIN_ROOT`). Sync requires a repository checkout; an installed Claude plugin does not include `cursor/` | `--update`, `--migrate`, `--uninstall` (or `dhpk-install cursor update\|uninstall --project-root <dir>`); `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries, `dhpk-install cursor status` | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; release probes use an isolated shared-network bubblewrap namespace, never unrestricted execution |
-| AGY native plugin | Download `dhpk-agy-<version>.tar.gz` from the GitHub Release, or run `bin/dhpk distribution build agy-plugin`, then receipt-owned install to the inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`, explicit `migrate`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
+| AGY native plugin | Download `dhpk-agy-<version>.tar.gz` from the GitHub Release, or run `bin/dhpk distribution build agy-plugin`, then receipt-owned install to the inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`, explicit `migrate`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; `dhpk-install agy-plugin status`; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
+
+<a id="cross-host-installation-matrix"></a>
+
+## Cross-Host installation and verification matrix
+
+Use this matrix as the single linkable entry index for Host entrypoints, explicit installer data-source selection, migration/recovery boundaries, and verification commands.
+
+| Host / surface | Canonical entrypoint(s) | Data-source selector (ADR-0038) | Migration & ownership notes | Verification commands |
+|---|---|---|---|---|
+| Claude Code (`claude`) | `/plugin install dhpk@dhpk`, `/plugin install dhpk-stacks@dhpk`, `bash scripts/install.sh`, `scripts/setup/install-assets.sh` (or Skill-local `skills/harness-setup/scripts/install-assets.sh`) | Owning plugin/package root (`dhpk_plugin_root` / `package-root.js`); `install-assets.sh` uses `--source <dir>` / `--source-artifact <dir>` | Never enable `dhpk@dhpk` and `dhpk-lite` together; project assets use standalone Asset Receipt `.claude/dhpk/.dhpk-asset-receipt.json` (`dhpk.asset-receipt.v1`) | `dhpk-install claude status --project-root <dir> --strict --json`, `node scripts/ci/check-duplicate-discovery.js --host claude --project-root <dir>`, `claude plugin validate /path/to/dhpk --strict` |
+| Claude Code Directory (`dhpk-lite`) | Official Claude Plugin Directory (`dist/claude-directory/package`) | Self-contained reduced package (`mode: manual` for script-backed skills) | Uninstall `dhpk-lite` before installing `dhpk@dhpk` | `npm run validate:directory-plugin`, fresh-session `/dhpk-lite:flow-drive` |
+| Codex project-local sync (`codex-sync`) | `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh` or `dhpk-install codex-sync <plan\|install\|update\|uninstall> --project-root <dir>` | `DHPK_INSTALLER_ROOT` (never `CLAUDE_PLUGIN_ROOT`); executable code always loads from the installer's own package | Direct `.agents/skills/` discovery ([ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)); `--update` retires unchanged `.codex/skills/<name>` links; blocked if native `dhpk@dhpk` is enabled | `dhpk-install codex-sync status --project-root <dir> --strict`, `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --update --plan --json`, `node scripts/ci/check-duplicate-discovery.js --host codex --project-root <dir>` |
+| Codex Public Plugin (`codex-native`) | `codex plugin marketplace add <repo-or-path>` + `codex plugin add dhpk@dhpk` | Physical `plugins/dhpk/` package (zero symlinks) | Experimental; disposable isolated `CODEX_HOME` only; mutually exclusive with `codex-sync` | `bin/dhpk distribution codex-native verify --json`, `dhpk-install codex-native status --strict`, `node tests/codex-native-install-smoke.test.js` |
+| Cursor project-local sync (`cursor`) | `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh` or `dhpk-install cursor <plan\|install\|update\|uninstall> --project-root <dir>` | `DHPK_INSTALLER_ROOT` (never `CLAUDE_PLUGIN_ROOT`); executable code always loads from the installer's own package | Schema-v3 `.cursor/.dhpk-installed.json` + shared `.agents/.dhpk-installed.json`; retains Consumer Evidence gate ([ADR-0023](adr/0023-native-installers-delegate-skills-to-the-shared-projection.md)) | `dhpk-install cursor status --project-root <dir> --strict`, `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --update --plan --json`, `node scripts/ci/validate-cursor-sync.js` |
+| Cursor / Standard Agent Plugin (`agent-plugin`, `cursor-plugin`) | `bin/dhpk distribution build agent-plugin` / `cursor-plugin` -> `~/.cursor/plugins/local/dhpk-{agent,cursor}` | Built on-demand archive or `dist/on-demand/dhpk-{agent,cursor}` | Portable skills owned by `dhpk-agent`; Cursor UI marketplace hash cache (`~/.cursor/plugins/cache/dhpk/`) is not SSOT (`CACHE_DRIFT`) | `bin/dhpk distribution agent-plugin validate --json`, `bin/dhpk distribution cursor-plugin validate --json`, `dhpk-install agent-plugin status --strict` |
+| AGY native plugin (`agy-plugin`) | `bin/dhpk distribution build agy-plugin` + `node scripts/ci/install-agy-plugin.js install --source dist/on-demand/dhpk-agy --json` | `--source <package>` (built archive or staging dir); canonical target `~/.gemini/antigravity-cli/plugins/dhpk/` | Legacy `$HOME/.gemini/config/plugins/dhpk/` requires explicit `install-agy-plugin.js migrate`; `FOREIGN_CHECKOUT` and `AMBIGUOUS_TARGETS` fail closed | `bin/dhpk distribution agy-plugin validate --json`, `node scripts/ci/install-agy-plugin.js status --json`, `dhpk-install agy-plugin status --strict` |
+| Cross-Host diagnostics & recovery | `dhpk-install status --all`, `dhpk-install --recover`, `node scripts/ci/check-duplicate-discovery.js`, `node scripts/release/release-rehearsal.js` | Owning checkout/package root (`scripts/lib/package-root.js`); Install History uses `DHPK_INSTALL_HISTORY_FILE` / `XDG_STATE_HOME` | Never pass bare `codex` to `dhpk-install` (exit 64); use `codex-sync` or `codex-native` | `dhpk-install status --all --project-root <dir> --strict --json`, `node scripts/ci/check-duplicate-discovery.js --project-root <dir>` |
+
+<a id="dhpk-installer-root-contract"></a>
+
+### Data-source selection contract (`DHPK_INSTALLER_ROOT`, ADR-0038)
+
+Per [ADR-0038](adr/0038-resolve-runtime-resources-from-the-owning-package.md), runtime executable code and installer payload data have a strict boundary:
+
+- **Executable code root**: Bash scripts (`dhpk_plugin_root` / `$HERE`) and Node.js modules (`scripts/lib/package-root.js` `resolveOwningPackageRoot`) always resolve executable code from their own physical owning package. They **never** read or inject `CLAUDE_PLUGIN_ROOT` to select runtime scripts or installer logic.
+- **Explicit installer data-source selector (`DHPK_INSTALLER_ROOT`)**: `scripts/hooks/install-codex-skills.sh`, `scripts/hooks/install-cursor-harness.sh`, and `scripts/lib/install-adapters/codex-cli.js` accept `DHPK_INSTALLER_ROOT` as the sole explicit override for payload data (`codex/`, `cursor/`, `manifests/`, `skills/`). `CLAUDE_PLUGIN_ROOT` **never** selects a Codex or Cursor installer data source.
+- **Fail-closed invalid source**: If `DHPK_INSTALLER_ROOT` is set to a missing, relative-via-`CDPATH`, or incomplete directory (for example, lacking `codex/` or `cursor/`), installation stops immediately with zero fallback search and zero target writes.
+- **Checkout validator variable (`DHPK_ROOT`)**: When running repository validators or tests outside a consumer project (`scripts/ci/...`, `tests/...`), `DHPK_ROOT=/absolute/path/to/dhpk` is only a shell variable in maintainer commands; it is not read by the Codex/Cursor installers (`DHPK_INSTALLER_ROOT` is).
 
 Codex users who need only Flow Drive can install the complete pinned canonical
 skill into the current project. Follow the [standalone Flow Drive guide](./flow-drive-standalone.md)
@@ -56,7 +86,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
 | Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`, Node.js (the Cursor installer runs on Node.js) | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, a logged-in Cursor session, and verified bubblewrap on Linux; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI/sandbox is `UNAVAILABLE`/`BLOCKED`, and discovery must be recorded separately; API-key-only auth is not accepted |
-| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available; AGY 1.2.2 has been observed loading the canonical path | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` without an applicable explicitly requested native probely used |
+| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available; AGY 1.2.2 has been observed loading the canonical path | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` without an applicable explicitly requested native probe |
 
 The Claude Bash gate requires `python3`; if it is unavailable, the gate blocks with
 exit 2. See [credential read protection](./hook-extension.md#credential-read-protection)
@@ -175,6 +205,46 @@ Generic `dhpk-install` writes remain `BLOCKED` / `NOT_IMPLEMENTED`; use the
 host-specific adapters below. Roll back to the package identity in the previous
 receipt or a version-pinned compatibility package. Rollback restores no alias.
 
+<a id="claude-asset-installer"></a>
+
+### Claude project asset installer and standalone Asset Receipt
+
+For copying selected Claude project assets (`hooks`, `rules`, `scripts`, or
+`all`) into `<project>/.claude/dhpk`, use `scripts/setup/install-assets.sh` (or
+the Skill-local wrapper `skills/harness-setup/scripts/install-assets.sh` via
+`/dhpk:harness-setup --source-artifact <dir> --install <group>`):
+
+```bash
+bash scripts/setup/install-assets.sh \
+  --source /path/to/dhpk \
+  --target /path/to/project/.claude/dhpk \
+  --install all --plan --json
+```
+
+`TARGET/.dhpk-asset-receipt.json` (`schema: dhpk.asset-receipt.v1`) is the
+standalone **Asset Receipt** (independent of the multi-Host Projection Journal).
+Each destination is classified as:
+
+- `updatable`: absent, or unchanged since the Asset Receipt recorded its SHA-256
+  digest (auto-updated without `--force`).
+- `unchanged`: byte-identical to the new source (skipped, and adopted into the
+  receipt even if another conflict stops the run).
+- `user-modified`: receipt-owned, but edited since the receipt recorded it.
+- `unmanaged-existing`: not in the Asset Receipt and differs from the source.
+
+`--plan --json` emits `schema: dhpk.asset-plan.v1` (`verdict: READY | CONFLICT | BLOCKED`)
+without writing. `user-modified` and `unmanaged-existing` conflicts stop with
+exit `3` unless `--force` is supplied, in which case differing files are first
+saved under `TARGET/.dhpk-asset-backups/<UTC timestamp>/` before overwrite.
+Symlinks in any path component fail closed (exit `4`) even with `--force`;
+unowned legacy runners (`precommit-runner.js`, `verify-runner.js`,
+`harness-audit.js` under `TARGET/scripts/`) stop with exit `3`
+(`LEGACY_RUNNER_CONFLICT`) and are never overwritten by `--force`. Missing
+`python3` descriptor capabilities exit `2` before mutation (plain-text
+`--dry-run` remains available without `python3`). Default `--install rules` /
+`--install all` writes `<parent-of-TARGET>/rules/dhpk-overrides.md` instead of
+copying upstream policy (`--vendor` restores the discouraged verbatim copy).
+
 ## Controlled authenticated runner preflight
 
 Issue #237 release evidence starts on a clean checkout of the exact merged
@@ -212,16 +282,22 @@ temporary files, revoke/refresh the session through the provider, and roll
 back the deployment before retrying. Never reuse a dirty checkout or promote
 preflight `PASS` to `COMPLETE`.
 
-## Unified lifecycle CLI (read-only slice)
+<a id="unified-lifecycle-cli"></a>
 
-`dhpk-install <surface> <action>` is the common lifecycle entrypoint. The
-accepted surfaces are `claude`, `codex-sync`, `codex-native`, `agent-plugin`,
-`cursor`, and `agy-plugin`; actions are `plan`, `install`, `verify`, `update`, `uninstall`,
-`rollback`, and `status`. This initial slice enables deterministic read-only
-`plan`, `status`, and `verify` result construction only. For example:
+## Unified lifecycle CLI
+
+`dhpk-install <surface> <action>` is the common lifecycle entrypoint (with
+`dhpk-install status --all` and `dhpk-install --recover` as cross-surface
+commands). The accepted canonical surfaces are `claude`, `codex-sync`,
+`codex-native`, `agent-plugin`, `cursor`, and `agy-plugin`; actions are `plan`,
+`install`, `verify`, `update`, `uninstall`, `rollback`, and `status`. Passing
+the ambiguous bare surface `codex` fails with exit `64` (`INVALID_ARGUMENT`)
+and directs the caller to `codex-sync`, `codex-native`, or `dhpk-install status --all`.
+For example:
 
 ```bash
 dhpk-install cursor plan --scope project --json
+dhpk-install status --all --project-root /path/to/project --strict --json
 ```
 
 When running from a source checkout, invoke the bundled entrypoint directly:
@@ -247,6 +323,87 @@ other write action returns `BLOCKED` with the stable `NOT_IMPLEMENTED`
 diagnostic before any mutation. Both installer scripts remain supported routes. The generic route
 stays fail-closed until a future change explicitly transfers ArtifactStore
 write ownership; adapter characterization alone never enables mutation.
+
+<a id="dhpk-install-status"></a>
+
+### Read-only cross-Host inspection (`dhpk-install status`)
+
+`dhpk-install status --all [--project-root <dir>] [--scope <project|user|local>] [--offline] [--strict] [--json]`
+(and `dhpk-install <surface> status [...]`) performs zero filesystem writes
+(`schema: dhpk.install-status.v1`, `mutation.performed: false`):
+
+- **Scopes & surfaces**: inspects all six canonical surfaces (`claude`,
+  `codex-sync`, `codex-native`, `agent-plugin`, `cursor`, `agy-plugin`),
+  project/user/local/managed scopes, symlink health (`BROKEN_LINK`,
+  `LEGACY_MIGRATED_LINK`), Asset Receipt (`.claude/dhpk/.dhpk-asset-receipt.json`),
+  version pins (`.claude/dhpk-versions.json`), Cursor hash cache drift, AGY
+  candidate paths, and dual-layer Duplicate Discovery.
+- **Claude dual evidence**: compares plain-text `claude plugin list`, JSON
+  `claude plugin list --json`, and `~/.claude/plugins/installed_plugins.json`
+  side-by-side, reporting `VERSION_DRIFT`, `SOURCE_MISMATCH`, and
+  `ENABLED_STATE_MISMATCH` alongside raw CLI evidence.
+- **`--offline` vs live probes**: `--offline` skips live Host CLI probes and
+  keeps their status as `NOT_RUN` (`reason: 'offline'`). Missing CLIs report
+  `CLI_NOT_INSTALLED`; failing or unparseable probes report `PROBE_FAILED` /
+  `CLAUDE_TEXT_PROBE_FAILED` / `CLAUDE_JSON_PROBE_FAILED` / `CODEX_PROBE_FAILED`
+  without turning failures into `PASS`.
+- **Exit codes**: default runs exit `0` (`64` on invalid arguments such as bare
+  `codex`). With `--strict`, exit `0` means `CURRENT`/`ABSENT` with no
+  diagnostics, exit `1` means drift diagnostics exist (`VERSION_DRIFT`,
+  `SOURCE_MISMATCH`, `ENABLED_STATE_MISMATCH`, `CACHE_DRIFT`, `SURFACE_STALE`,
+  `DUPLICATE_DISCOVERY`, `COLLISION`, `BROKEN_LINK`, `LEGACY_MIGRATED_LINK`,
+  `ASSET_RECEIPT_STALE`, `VERSION_PIN_MISMATCH`), and exit `2` means blocked
+  diagnostics exist (boundary blockers, failed probes, invalid registries or
+  receipts, `AMBIGUOUS_TARGETS`).
+
+<a id="plan-json-boundary-remediation"></a>
+
+### Structured `--plan --json` boundary remediation
+
+`install-codex-skills.sh --update --plan --json`,
+`install-cursor-harness.sh --update --plan --json`,
+`install-agy-plugin.js plan --json`, and
+`dhpk-install <codex-sync|cursor> plan --project-root <dir> --json` share one
+fail-closed boundary envelope (`scripts/lib/plan-boundary-envelope.js`):
+
+- **Verdicts and exit codes**: `READY` (exit `0`), `CHANGES_PENDING` (exit `1`),
+  and `BLOCKED` (exit `2`, project left byte-for-byte unchanged).
+- **Envelope fields**: `verdict`, `reasonCode`, `receiptVersion`,
+  `journalVersion`, `affectedPaths`, `remediation[]` (each entry carries `kind`,
+  `summary`, `command`, `transitionVersion`, `releasesEntries`), and `blockers[]`
+  when fail-closed blockers stop the plan.
+- **Boundary transition guidance**: missing or unsupported
+  `fingerprint_algorithm` (requires `tree-merkle-v1`) or superseded generator
+  versions report `MISSING_FINGERPRINT_ALGORITHM` /
+  `UNSUPPORTED_FINGERPRINT_ALGORITHM` / `SUPERSEDED_GENERATOR_VERSION` with
+  `transitionVersion: "0.69.x"` or `--uninstall` (`releasesEntries: true`).
+  Unfinished 0.72/0.73 Python Host journals (`LEGACY_HOST_JOURNAL`) or held
+  projection journals (`HELD_PROJECTION_JOURNAL`) report `transitionVersion: "0.74.x"`
+  with `dhpk-install --recover`. Retired named-profile receipts report
+  `LEGACY_PROFILE_UPDATE_UNSUPPORTED` with `--uninstall` then reinstall.
+
+<a id="install-history"></a>
+
+### Install History JSONL
+
+Lifecycle entrypoints (`dhpk-install`, `install-codex-skills.sh`,
+`install-cursor-harness.sh`, `install-agy-plugin.js`, `install-assets.sh`, and
+`install.sh`) append one de-identified JSONL record (`schema: dhpk.install-history.v1`)
+per invocation:
+
+- **Default location**: `$XDG_STATE_HOME/dhpk/install-history.jsonl`, or
+  `~/.local/state/dhpk/install-history.jsonl` when `XDG_STATE_HOME` is unset.
+- **Environment variables**:
+  - `DHPK_INSTALL_HISTORY_FILE`: overrides the JSONL output file path.
+  - `DHPK_NO_INSTALL_HISTORY=1` (or `true`): disables Install History logging.
+  - `DHPK_INSTALL_HISTORY_DELEGATED=1`: internal deduplication flag set when
+    `dhpk-install` delegates to `codex-cli.js` so one call emits one record.
+- **De-identification and failure contract**: hashes `projectRoot` to
+  `projectId: "sha256:..."`, redacts home prefixes, usernames, credentials, and
+  tokens, and never writes raw project paths or secrets. Writing is best-effort
+  warning-only on failure (prints a sanitized warning to stderr and never alters
+  the command's exit code). Install History owns no project files and never
+  replaces the Projection Journal for crash recovery.
 
 ### Cutover planning and owned-path recovery
 
@@ -343,7 +500,7 @@ Release, so consumers can download them instead of building:
 ```bash
 bin/dhpk distribution build agent-plugin --json
 bin/dhpk distribution build cursor-plugin --json
-bin/dhpk distribution build agy-plugin --version=0.83.0 --json
+bin/dhpk distribution build agy-plugin --version=0.84.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -417,10 +574,13 @@ For this source-directory projection, the default materializes skill trees and
 configuration layers. Supporting assets remain relative symlinks by default,
 and `--copy` makes those physical too. This rule describes source-directory
 materialization; Codex discovers project skills from `.agents/skills`
-([Codex skills](https://developers.openai.com/codex/skills)), and the native
-Shared Project discovery bindings under `.codex/skills/<name>` are
-compatibility symlinks to `../../.agents/skills/<name>` that the installer
-creates and receipt-owns:
+([Codex skills](https://developers.openai.com/codex/skills)) directly, so the
+installer creates no per-skill `.codex/skills/<name>` links
+([ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)). `--update`
+retires unchanged receipt-owned `.codex/skills/<name>` links or copies left by
+earlier installs; in a source checkout it reports
+`COMPATIBILITY_PROJECTION_STALE` and keeps the copy when `.agents/skills` needs
+`npm run sync:local-skills`:
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy
@@ -555,8 +715,38 @@ delete the whole `.codex/` directory.
 Project-local sync and the experimental native package are separately published
 and acquired surfaces, but runtime activation is mutually exclusive. A host
 using `codex-sync` must not also activate `dhpk@dhpk`; otherwise one public
-skill name can appear twice. Run this read-only check from the consumer project
-root after setting `DHPK_ROOT` to the source checkout:
+skill name can appear twice.
+
+<a id="duplicate-discovery-diagnostics"></a>
+
+#### Cross-Host dual-layer Duplicate Discovery (`check-duplicate-discovery.js`)
+
+Run the shared dual-layer Duplicate Discovery diagnostic across Codex and Claude
+(`schema: dhpk.duplicate-discovery.v1`):
+
+```bash
+node "$DHPK_ROOT/scripts/ci/check-duplicate-discovery.js" \
+  --project-root "$PWD" \
+  --host all
+```
+
+- **Baseline layer**: read-only scan of filesystem skill roots, receipts
+  (`.agents/.dhpk-installed.json`, `.agents/skills/.dhpk-projection.json`,
+  `.codex/.dhpk-installed.json`, `.claude/.dhpk-installed.json`), and enabled
+  plugins, classifying entries by `ownershipClass` (`plugin`, `receipt-owned`,
+  `third-party`, `unmanaged`). Still produces `PASS` or `DUPLICATE` under `--offline`.
+- **Live layer**: runs the Host CLI probe (`codex debug prompt-input` for Codex,
+  `claude plugin list --json` for Claude) and reports `PASS`, `DUPLICATE`,
+  `NOT_RUN` (`--offline`), or `UNAVAILABLE` (`host-cli-missing`,
+  `host-cli-timeout`, `host-cli-failed`, `host-cli-unparseable`). Neither layer
+  overwrites the other.
+- **Exit codes**: `0` when clean, `1` when any Host `baseline` or `live`
+  verdict is `DUPLICATE`, `2` on invalid CLI arguments. `dhpk-install status`
+  embeds this same diagnostic.
+
+For the Codex-provider-specific `check-codex-discovery.js` check, run this
+read-only command from the consumer project root after setting `DHPK_ROOT` to
+the source checkout:
 
 ```bash
 node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
@@ -727,9 +917,13 @@ Claude packages under `$PROJECT_ROOT/.agents/claude-skills/`; AGY receives
 `<name>.md` direct files under `$PROJECT_ROOT/.agents/skills/`. One schema-v3
 lifecycle receipt at `$PROJECT_ROOT/.agents/.dhpk-installed.json` owns both
 trees and every Host binding. Claude discovery uses receipt-owned
-`.claude/skills/<name>` symlinks to the structured Claude sibling, while
-Codex/Cursor discovery bindings may remain symlinks to the physical portable
-tree. The portable tree keeps metadata values as strings; the Claude sibling
+`.claude/skills/<name>` symlinks to the structured Claude sibling; Codex
+discovers `.agents/skills/` directly ([ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md))
+without per-skill `.codex/skills/<name>` links (unless an explicit non-PASS
+`DHPK_CODEX_CONSUMER_EVIDENCE` override is supplied for compatibility tests),
+while Cursor retains [ADR-0023](adr/0023-native-installers-delegate-skills-to-the-shared-projection.md)'s
+Consumer Evidence gate with symlinks to the physical portable tree. The portable
+tree keeps metadata values as strings; the Claude sibling
 preserves structured metadata values. The compatibility
 `.agents/skills/.dhpk-projection.json`, when present, is only a generated
 manifest. AGY consumes the embedded direct-file body. No generated instruction
@@ -1286,7 +1480,7 @@ Maintainers may build and validate the package from a clean checkout (the build
 also writes the release archive beside it):
 
 ```bash
-bin/dhpk distribution build agy-plugin --version=0.83.0 --json
+bin/dhpk distribution build agy-plugin --version=0.84.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1346,3 +1540,29 @@ route, probe result, and every unexecuted gate. See the versioned normative
 specifications under `openspec/specs/` (especially
 `agy-cli-subagent-plugin/spec.md` and `platform-installation-documentation/spec.md`) and the
 [distribution surface guide](./distribution-surfaces.md).
+
+<a id="cross-version-release-rehearsal"></a>
+
+### Cross-version release rehearsal (`v(N-1)` -> `HEAD`)
+
+Every release candidate exercises cross-version upgrade and rollback via
+`scripts/release/release-rehearsal.js` (also invoked by
+`scripts/release/release-verify.sh --mode dry-run --rehearse-upgrade`,
+`schema: dhpk.release-rehearsal.v1`):
+
+```bash
+node scripts/release/release-rehearsal.js \
+  --repo-root /path/to/dhpk \
+  --offline \
+  --json
+```
+
+The rehearsal automatically resolves the prior release tag `v(N-1)` from full
+Git history (or accepts `--prior-tag <vX.Y.Z>`), materializes a clean baseline
+checkout, and exercises `v(N-1)` -> `HEAD` upgrade, idempotent rerun, rollback,
+`generated/` -> `dist/` marketplace path migration, Cursor local plugin link
+validation, AGY Package Receipt update/rollback, and dual-layer Duplicate
+Discovery. `--offline` honestly preserves live probe outcomes as `NOT_RUN` /
+`UNAVAILABLE` rather than synthesizing `PASS`; pass `--execute-live` only when
+live CLI probes are explicitly authorized. Pass `--out-file <path>` to write
+the report with `0600` permissions.
