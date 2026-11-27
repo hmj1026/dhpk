@@ -3,10 +3,12 @@
 // Lifecycle orchestration deliberately reuses the projection contracts. It is
 // read-only until a surface adapter is characterized for ArtifactStore writes.
 
+const path = require('node:path');
 const { sha256Hex } = require('./content-fingerprint');
 const { compileDistribution } = require('./distribution-compiler');
 const { createEvidenceResult, VERDICTS } = require('./distribution-projection-contract');
 const { resolveCapabilitySelection } = require('./capability-bundle-selection');
+const { inspectStatus } = require('./dhpk-install-status');
 
 const SURFACES = Object.freeze(['claude', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor', 'agy-plugin']);
 const ACTIONS = Object.freeze(['plan', 'install', 'verify', 'update', 'uninstall', 'rollback', 'status']);
@@ -17,10 +19,11 @@ const LIFECYCLE_VERDICTS = Object.freeze(['INSTALL_PASS', 'CONSUMER_BLOCKED', 'N
 const VALUE_OPTIONS = new Set(['--scope', '--mode', '--source', '--agent-profile', '--agent', '--project-root']);
 const INSTALL_OPTIONS_HELP = [
   'options: --scope <project|user|local> --mode <auto|copy|symlink|client-managed> --project-root <dir> --source <source>',
-  '         --skill <id> --standalone <id> --agent-profile <core|extended|full> --agent <id> --offline --dry-run --yes --json --help',
+  '         --skill <id> --standalone <id> --agent-profile <core|extended|full> --agent <id> --offline --strict --dry-run --yes --json --help',
 ].join('\n');
 const HELP = [
   'usage: dhpk install <surface> <action> [options]',
+  '       dhpk install status --all [--project-root <dir>] [--offline] [--strict] [--json]',
   '       dhpk install --recover [--project-root <dir>] [--json]',
   `surfaces: ${SURFACES.join(' | ')}`,
   `actions: ${ACTIONS.join(' | ')}`,
@@ -28,10 +31,14 @@ const HELP = [
   '',
 ].join('\n');
 
-function helpFor({ surface = null, action = null, recover = false } = {}) {
+function helpFor({ surface = null, action = null, recover = false, all = false } = {}) {
   if (recover) {
     return 'usage: dhpk install --recover [--project-root <dir>] [--json]\n'
       + 'options: --project-root <dir> --json --help\n';
+  }
+  if (all || (!surface && action === 'status')) {
+    return 'usage: dhpk install status --all [--project-root <dir>] [--offline] [--strict] [--json]\n'
+      + 'options: --all --project-root <dir> --offline --strict --json --help\n';
   }
   if (!surface) return HELP;
   if (!action) {
@@ -80,6 +87,47 @@ function defaultScope(surface) {
   return null;
 }
 
+function parseAllStatusRequest(rest) {
+  let help = false;
+  const request = {
+    surface: null,
+    all: true,
+    action: 'status',
+    scope: null,
+    mode: 'auto',
+    source: 'local',
+    offline: false,
+    strict: false,
+    dryRun: false,
+    yes: false,
+    json: false,
+  };
+  let seenAll = false;
+  for (let index = 0; index < rest.length; index += 1) {
+    const option = rest[index];
+    if (option === '--help' || option === '-h') help = true;
+    else if (option === '--all') seenAll = true;
+    else if (option === '--offline') request.offline = true;
+    else if (option === '--strict') request.strict = true;
+    else if (option === '--json') request.json = true;
+    else if (option === '--project-root' || option === '--scope') {
+      const value = rest[index + 1];
+      if (!value || value.startsWith('--') || value === '-h') throw failure(`${option} requires a value`);
+      index += 1;
+      if (option === '--project-root') request.projectRoot = value;
+      else request.scope = value;
+    } else if (option.startsWith('--project-root=')) {
+      const value = option.slice('--project-root='.length);
+      if (!value) throw failure('--project-root requires a value');
+      request.projectRoot = value;
+    } else throw failure(`unknown option '${option}'`);
+  }
+  if (request.scope && !SCOPES.includes(request.scope)) throw failure(`unsupported scope '${request.scope}'`);
+  if (help) return Object.freeze({ help: true, surface: null, action: 'status', all: true });
+  if (!seenAll) throw failure('status without a surface requires --all (or specify a surface: dhpk-install <surface> status)');
+  return Object.freeze(request);
+}
+
 function parseRequest(argv) {
   if (!Array.isArray(argv)) throw failure('usage: dhpk install <surface> <action> [options]');
   if (argv.length === 0) return Object.freeze({ help: true, surface: null, action: null });
@@ -87,8 +135,12 @@ function parseRequest(argv) {
     validateTrailingHelpArgs(argv.slice(1));
     return Object.freeze({ help: true, surface: null, action: null });
   }
+  if (argv[0] === 'status') return parseAllStatusRequest(argv.slice(1));
   const [surface, action, ...rest] = argv;
   if (surface.startsWith('-')) rejectLeadingOption(surface, action);
+  if (surface === 'codex') {
+    throw failure("unknown surface 'codex'; use canonical surface 'codex-sync' or 'codex-native', or run 'dhpk-install status --all'");
+  }
   if (!SURFACES.includes(surface)) throw failure(`unknown surface '${surface}'`);
   if (action === '--help' || action === '-h') {
     validateTrailingHelpArgs(rest);
@@ -105,6 +157,7 @@ function parseRequest(argv) {
     mode: 'auto',
     source: 'local',
     offline: false,
+    strict: false,
     dryRun: false,
     yes: false,
     json: false,
@@ -113,12 +166,15 @@ function parseRequest(argv) {
     skillIds: [],
     standaloneSkillIds: [],
   };
+  let seenAll = false;
   for (let index = 0; index < rest.length; index += 1) {
     const option = rest[index];
     if (option === '--help' || option === '-h') help = true;
+    else if (option === '--all') seenAll = true;
     else if (option === '--profile' || option.startsWith('--profile=')) {
       throw failure('--profile is no longer supported; the common collection is selected automatically');
     } else if (option === '--offline') request.offline = true;
+    else if (option === '--strict') request.strict = true;
     else if (option === '--dry-run') request.dryRun = true;
     else if (option === '--yes') request.yes = true;
     else if (option === '--json') request.json = true;
@@ -152,11 +208,15 @@ function parseRequest(argv) {
       if (!request.standaloneSkillIds.includes(value)) request.standaloneSkillIds.push(value);
     } else throw failure(`unknown option '${option}'`);
   }
+  if (seenAll) throw failure(action === 'status' ? '--all cannot be combined with a surface' : '--all is only valid with status');
+  if (request.strict && action !== 'status') throw failure('--strict is only valid with status');
   if (request.standaloneSkillIds.length > 0 && request.skillIds.length > 0) {
     throw failure('--standalone cannot be combined with --skill');
   }
-  request.scope = request.scope || defaultScope(surface);
-  if (!request.scope && !help) throw failure(`--scope is required for '${surface}'`);
+  if (action !== 'status') {
+    request.scope = request.scope || defaultScope(surface);
+    if (!request.scope && !help) throw failure(`--scope is required for '${surface}'`);
+  }
   if (request.scope && !SCOPES.includes(request.scope)) throw failure(`unsupported scope '${request.scope}'`);
   if (!MODES.includes(request.mode)) throw failure(`unsupported mode '${request.mode}'`);
   if (typeof request.source !== 'string' || request.source.length === 0) throw failure('source must be non-empty');
@@ -173,6 +233,7 @@ function parseRequest(argv) {
   request.skillIds = request.skillIds.slice().sort();
   request.standaloneSkillIds = request.standaloneSkillIds.slice().sort();
   const normalized = { ...request };
+  if (!normalized.strict) delete normalized.strict;
   if (normalized.skillIds.length === 0) delete normalized.skillIds;
   else normalized.skillIds = Object.freeze(normalized.skillIds);
   if (normalized.standaloneSkillIds.length === 0) delete normalized.standaloneSkillIds;
@@ -363,8 +424,29 @@ function unsupportedWriteResult(request) {
   });
 }
 
+function statusResult(request, inventory, selectionConfig = {}) {
+  const root = selectionConfig.root || path.resolve(__dirname, '..', '..');
+  let plan = null;
+  if (!request.all && request.surface) {
+    const planRequest = request.scope ? request : { ...request, scope: defaultScope(request.surface) || 'project' };
+    const compiled = compileLifecyclePlan(planRequest, inventory, selectionConfig);
+    if (compiled.ok) plan = compiled.value;
+  }
+  return inspectStatus({
+    request,
+    root,
+    inventory,
+    profiles: selectionConfig.profiles || null,
+    sourceVersion: selectionConfig.sourceVersion || '0.0.0',
+    plan,
+    env: selectionConfig.env || process.env,
+    spawn: selectionConfig.spawn,
+  });
+}
+
 function execute(request, inventory, selectionConfig = {}) {
-  if (request.action === 'plan' || request.action === 'status' || request.action === 'verify') return readOnlyResult(request, inventory, selectionConfig);
+  if (request.action === 'status') return statusResult(request, inventory, selectionConfig);
+  if (request.action === 'plan' || request.action === 'verify') return readOnlyResult(request, inventory, selectionConfig);
   return unsupportedWriteResult(request);
 }
 
