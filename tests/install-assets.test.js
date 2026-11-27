@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -439,6 +440,219 @@ test('scripts installation reports leftover legacy resume helpers without blocki
     assert.match(output, /opsx-apply-resume Skill/);
     assert.doesNotMatch(output, /LEGACY PRESERVED .*detect-phase\.sh/);
     assert.strictEqual(fs.readFileSync(helper, 'utf8'), 'consumer-edited helper\n');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+const RECEIPT_NAME = '.dhpk-asset-receipt.json';
+const BACKUP_DIR = '.dhpk-asset-backups';
+
+function sha256(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function setSourceVersion(ctx, version) {
+  fs.writeFileSync(path.join(ctx.source, 'package.json'), `${JSON.stringify({ name: 'dhpk', version })}\n`);
+}
+
+function readReceipt(ctx) {
+  return JSON.parse(fs.readFileSync(path.join(ctx.target, RECEIPT_NAME), 'utf8'));
+}
+
+function receiptDigests(receipt) {
+  return Object.fromEntries(receipt.entries.map((entry) => [`${entry.anchor}:${entry.path}`, entry.sha256]));
+}
+
+function planJson(ctx, args) {
+  const res = install(ctx, [...args, '--plan', '--json']);
+  let report = null;
+  try { report = JSON.parse(res.stdout); } catch (error) {
+    assert.fail(`--plan --json stdout must be JSON (${error.message}):\n${res.stdout}\n${res.stderr}`);
+  }
+  return { res, report };
+}
+
+function planStates(report) {
+  return Object.fromEntries(report.entries.map((entry) => [`${entry.anchor}:${entry.path}`, entry.state]));
+}
+
+function installedState(ctx) {
+  return { target: fileSnapshot(ctx.target), siblingRules: fileSnapshot(path.join(path.dirname(ctx.target), 'rules')) };
+}
+
+test('install writes an Asset Receipt with the source version and SHA-256 digests of every copied asset', () => {
+  const ctx = fixture();
+  try {
+    setSourceVersion(ctx, '1.2.3');
+    const res = install(ctx, ['--install', 'all']);
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const receipt = readReceipt(ctx);
+    assert.strictEqual(receipt.schema, 'dhpk.asset-receipt.v1');
+    assert.strictEqual(receipt.source_version, '1.2.3');
+    const digests = receiptDigests(receipt);
+    for (const relative of [
+      'hooks/hooks.json',
+      'scripts/hooks/guard.sh',
+      'scripts/lib/runner.js',
+      'skills/precommit/scripts/precommit-runner.js',
+      'skills/repo-verify/scripts/lib/runner-utils.js',
+    ]) {
+      assert.strictEqual(digests[`target:${relative}`], sha256(path.join(ctx.target, relative)), relative);
+    }
+    assert.strictEqual(digests['target-parent:rules/dhpk-overrides.md'], sha256(rulesStubPath(ctx.target)),
+      'the sibling rule-override stub must be receipt-owned');
+    assert.strictEqual(Object.keys(digests).length, receipt.entries.length, 'receipt entries must be unique');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--plan --json classifies every target path in four states without writing', () => {
+  const ctx = fixture();
+  try {
+    setSourceVersion(ctx, '1.0.0');
+    assert.strictEqual(install(ctx, ['--install', 'rules', '--vendor']).status, 0);
+    fs.writeFileSync(path.join(ctx.target, 'rules', 'tool-routing.md'), '# routing, edited locally\n');
+    fs.writeFileSync(path.join(ctx.target, 'rules', 'review.md'), '# consumer review notes\n');
+    setSourceVersion(ctx, '1.1.0');
+    fs.writeFileSync(path.join(ctx.source, 'rules', 'execution-policy.md'), '# policy v2\n');
+    fs.writeFileSync(path.join(ctx.source, 'rules', 'tool-routing.md'), '# routing v2\n');
+    fs.writeFileSync(path.join(ctx.source, 'rules', 'review.md'), '# review v2\n');
+    fs.writeFileSync(path.join(ctx.source, 'rules', 'new-rule.md'), '# brand new\n');
+    fs.writeFileSync(path.join(ctx.source, 'rules', 'stable.md'), '# stable\n');
+    fs.writeFileSync(path.join(ctx.target, 'rules', 'stable.md'), '# stable\n');
+    const before = installedState(ctx);
+
+    const { res, report } = planJson(ctx, ['--install', 'rules', '--vendor']);
+    assert.strictEqual(res.status, 3, `${res.stdout}\n${res.stderr}`);
+    assert.deepStrictEqual(installedState(ctx), before, '--plan --json must not write');
+    assert.strictEqual(report.schema, 'dhpk.asset-plan.v1');
+    assert.strictEqual(report.source_version, '1.1.0');
+    assert.strictEqual(report.receipt.source_version, '1.0.0');
+    assert.deepStrictEqual(planStates(report), {
+      'target:rules/execution-policy.md': 'updatable',
+      'target:rules/new-rule.md': 'updatable',
+      'target:rules/review.md': 'unmanaged-existing',
+      'target:rules/stable.md': 'unchanged',
+      'target:rules/tool-routing.md': 'user-modified',
+    });
+    assert.deepStrictEqual(report.summary, { updatable: 2, unchanged: 1, 'user-modified': 1, 'unmanaged-existing': 1 });
+    assert.strictEqual(report.verdict, 'CONFLICT');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('a receipt-owned unchanged snapshot updates without --force while user edits stay protected', () => {
+  const ctx = fixture();
+  try {
+    setSourceVersion(ctx, '1.0.0');
+    assert.strictEqual(install(ctx, ['--install', 'hooks']).status, 0);
+    const guard = path.join(ctx.target, 'scripts', 'hooks', 'guard.sh');
+    const manifest = path.join(ctx.target, 'hooks', 'hooks.json');
+    setSourceVersion(ctx, '1.1.0');
+    fs.writeFileSync(path.join(ctx.source, 'scripts', 'hooks', 'guard.sh'), '#!/usr/bin/env bash\necho guard v2\n');
+
+    const updated = install(ctx, ['--install', 'hooks']);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.strictEqual(fs.readFileSync(guard, 'utf8'), '#!/usr/bin/env bash\necho guard v2\n');
+    assert.strictEqual(readReceipt(ctx).source_version, '1.1.0');
+    assert.strictEqual(receiptDigests(readReceipt(ctx))['target:scripts/hooks/guard.sh'], sha256(guard));
+
+    fs.writeFileSync(manifest, '{"hooks":{}}\n');
+    fs.writeFileSync(path.join(ctx.source, 'scripts', 'hooks', 'guard.sh'), '#!/usr/bin/env bash\necho guard v3\n');
+    const receiptBefore = fs.readFileSync(path.join(ctx.target, RECEIPT_NAME), 'utf8');
+    const blocked = install(ctx, ['--install', 'hooks']);
+    assert.strictEqual(blocked.status, 3, `${blocked.stdout}\n${blocked.stderr}`);
+    assert.match(blocked.stderr, /CONFLICT .*hooks\.json.*user-modified/);
+    assert.strictEqual(fs.readFileSync(manifest, 'utf8'), '{"hooks":{}}\n', 'user edit must be preserved');
+    assert.strictEqual(fs.readFileSync(guard, 'utf8'), '#!/usr/bin/env bash\necho guard v2\n',
+      'a blocked run must not update other files');
+    assert.strictEqual(fs.readFileSync(path.join(ctx.target, RECEIPT_NAME), 'utf8'), receiptBefore);
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('first upgrade of a pre-receipt snapshot adopts identical files and fails closed on differing ones', () => {
+  const ctx = fixture();
+  try {
+    setSourceVersion(ctx, '2.0.0');
+    fs.mkdirSync(path.join(ctx.target, 'hooks'), { recursive: true });
+    fs.mkdirSync(path.join(ctx.target, 'scripts', 'hooks'), { recursive: true });
+    fs.copyFileSync(path.join(ctx.source, 'hooks', 'hooks.json'), path.join(ctx.target, 'hooks', 'hooks.json'));
+    const guard = path.join(ctx.target, 'scripts', 'hooks', 'guard.sh');
+    fs.writeFileSync(guard, '#!/usr/bin/env bash\necho older snapshot\n');
+
+    const { res: planned, report } = planJson(ctx, ['--install', 'hooks']);
+    assert.strictEqual(planned.status, 3, `${planned.stdout}\n${planned.stderr}`);
+    assert.strictEqual(report.receipt.state, 'absent');
+    assert.deepStrictEqual(planStates(report), {
+      'target:hooks/hooks.json': 'unchanged',
+      'target:scripts/hooks/guard.sh': 'unmanaged-existing',
+    });
+    assert.ok(!fs.existsSync(path.join(ctx.target, RECEIPT_NAME)), 'plan must not adopt');
+
+    const applied = install(ctx, ['--install', 'hooks']);
+    assert.strictEqual(applied.status, 3, `${applied.stdout}\n${applied.stderr}`);
+    assert.match(applied.stderr, /CONFLICT .*guard\.sh.*unmanaged-existing/);
+    assert.strictEqual(fs.readFileSync(guard, 'utf8'), '#!/usr/bin/env bash\necho older snapshot\n');
+    const receipt = readReceipt(ctx);
+    assert.deepStrictEqual(receiptDigests(receipt), {
+      'target:hooks/hooks.json': sha256(path.join(ctx.source, 'hooks', 'hooks.json')),
+    });
+    assert.ok(!fs.existsSync(path.join(ctx.target, BACKUP_DIR)), 'fail-closed adoption must not create backups');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--force saves a timestamped backup inside the target before overwriting differing files', () => {
+  const ctx = fixture();
+  try {
+    setSourceVersion(ctx, '3.0.0');
+    const policy = path.join(ctx.target, 'rules', 'execution-policy.md');
+    fs.mkdirSync(path.dirname(policy), { recursive: true });
+    fs.writeFileSync(policy, '# local policy\n');
+    const stub = rulesStubPath(ctx.target);
+    fs.mkdirSync(path.dirname(stub), { recursive: true });
+    fs.writeFileSync(stub, '# edited override\n');
+
+    const forcedVendor = install(ctx, ['--install', 'rules', '--vendor', '--force']);
+    assert.strictEqual(forcedVendor.status, 0, `${forcedVendor.stdout}\n${forcedVendor.stderr}`);
+    const backups = fs.readdirSync(path.join(ctx.target, BACKUP_DIR));
+    assert.strictEqual(backups.length, 1, `expected one backup run: ${backups}`);
+    assert.match(backups[0], /^\d{8}T\d{6}Z/);
+    const backupRoot = path.join(ctx.target, BACKUP_DIR, backups[0]);
+    assert.ok(forcedVendor.stdout.includes(`BACKUP ${backupRoot}`), forcedVendor.stdout);
+    assert.strictEqual(fs.readFileSync(path.join(backupRoot, 'target', 'rules', 'execution-policy.md'), 'utf8'), '# local policy\n');
+    assert.ok(!fs.existsSync(path.join(backupRoot, 'target', 'rules', 'tool-routing.md')),
+      'only overwritten differing files are backed up');
+    assert.strictEqual(fs.readFileSync(policy, 'utf8'), '# policy\n');
+
+    const forcedStub = install(ctx, ['--install', 'rules', '--force']);
+    assert.strictEqual(forcedStub.status, 0, `${forcedStub.stdout}\n${forcedStub.stderr}`);
+    const stubBackups = fs.readdirSync(path.join(ctx.target, BACKUP_DIR)).filter((name) => name !== backups[0]);
+    assert.strictEqual(stubBackups.length, 1, `expected a second backup run: ${stubBackups}`);
+    assert.strictEqual(
+      fs.readFileSync(path.join(ctx.target, BACKUP_DIR, stubBackups[0], 'target-parent', 'rules', 'dhpk-overrides.md'), 'utf8'),
+      '# edited override\n',
+    );
+    assert.match(fs.readFileSync(stub, 'utf8'), /dhpk execution-policy overrides/);
+    assert.strictEqual(receiptDigests(readReceipt(ctx))['target-parent:rules/dhpk-overrides.md'], sha256(stub));
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--plan --json reports a structured blocker when Python3 is unavailable', () => {
+  const ctx = fixture();
+  try {
+    const tools = ['bash', 'dirname', 'find', 'cmp', 'mkdir', 'cp', 'chmod'];
+    const res = install(ctx, ['--install', 'hooks', '--plan', '--json'], { PATH: allowlistedToolPath(ctx, tools) });
+    assert.strictEqual(res.status, 2, `${res.stdout}\n${res.stderr}`);
+    const report = JSON.parse(res.stdout);
+    assert.strictEqual(report.verdict, 'BLOCKED');
+    assert.strictEqual(report.reasonCode, 'PYTHON_UNAVAILABLE');
+    assert.ok(!fs.existsSync(ctx.target));
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--json without --plan is a usage error', () => {
+  const ctx = fixture();
+  try {
+    const res = install(ctx, ['--install', 'hooks', '--json']);
+    assert.strictEqual(res.status, 64, `${res.stdout}\n${res.stderr}`);
+    assert.ok(!fs.existsSync(ctx.target));
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
 });
 
