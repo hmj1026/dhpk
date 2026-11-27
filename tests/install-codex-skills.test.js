@@ -59,7 +59,8 @@ test('fresh Codex install selects the common collection and keeps Flow Drive por
     for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport', 'dhpk-codex-bridge', 'dhpk-agy-fast-worker']) {
       assert.ok(!receipt.managed_entries.skills[name], `${name} must remain retired`);
     }
-    const flowDrive = path.join(scratch, '.codex', 'skills', 'flow-drive');
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'flow-drive')));
+    const flowDrive = path.join(scratch, '.agents', 'skills', 'flow-drive');
     assert.strictEqual(fs.existsSync(path.join(flowDrive, 'scripts')), false,
       'the native task skill does not install a separate runtime');
     assert.ok(fs.statSync(path.join(flowDrive, 'references', 'migration.md')).isFile());
@@ -596,7 +597,7 @@ test('Codex sync installs Flow Drive as instructions without a transport runtime
     assert.ok(!receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
     assert.ok(!receipt.managed_entries.skills['dhpk-cli-transport']);
     assert.ok(receipt.emittedStableIds.includes('flow-drive'));
-    const flowDrive = path.join(scratch, '.codex/skills/flow-drive');
+    const flowDrive = path.join(scratch, '.agents/skills/flow-drive');
     assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
     assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
     assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'references')), ['migration.md']);

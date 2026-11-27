@@ -373,10 +373,13 @@ bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 `.codex/agents/*.toml` materialize 為實體檔；Codex 必須把後者作為
 configuration layer 載入。Supporting asset 預設仍使用 relative symlink，
 `--copy` 會一併將它們改為實體檔。此規則適用於 source-directory materialization；
-Codex 從 `.agents/skills` 探索 project skill
-（[Codex skills](https://developers.openai.com/codex/skills)），native Shared
-Project 在 `.codex/skills/<name>` 建立的 discovery binding 是 installer 建立並由
-receipt 擁有、指向 `../../.agents/skills/<name>` 的 compatibility symlink：
+Codex 直接從 `.agents/skills` 探索 project skill
+（[Codex skills](https://developers.openai.com/codex/skills)），因此 installer
+不建立逐一 skill 的 `.codex/skills/<name>` link
+（[ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)）。`--update`
+會退役先前安裝留下、未變更且由 receipt 擁有的 `.codex/skills/<name>` link 或副本；
+在 source checkout 中，若 `.agents/skills` 需要 `npm run sync:local-skills`，
+會回報 `COMPATIBILITY_PROJECTION_STALE` 並保留該副本：
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy

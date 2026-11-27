@@ -66,6 +66,26 @@ function write(file, content) {
   fs.writeFileSync(file, content);
 }
 
+// ADR-0042: Codex emits native-link bindings only for an explicit non-PASS override.
+function codexProbeRecord(status) {
+  return {
+    stage: 'CONSUMER',
+    producer: 'consumer-platform-probe',
+    adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+    surfaceResults: [{
+      surface: 'codex-project',
+      status,
+      adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+      commands: [{ cmd: 'node scripts/release/consumer-platform-probe.js --platform codex-project', exitCode: status === 'PASS' ? 0 : 1 }],
+      environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [`bounded Codex project probe ${status}`],
+      checkedClaims: ['project-artifact-structure', 'codex-project-discovery', 'consumer-route'],
+    }],
+  };
+}
+
 function fixture() {
   const sourceRoot = tmpDir('dhpk-native-shared-src-');
   write(path.join(sourceRoot, 'skills', 'dhpk-sample', 'SKILL.md'), [
@@ -306,7 +326,29 @@ function hiddenVisibleFixture() {
   return sourceRoot;
 }
 
-test('installNativeSharedSkills materializes Codex native-link bindings', () => {
+test('installNativeSharedSkills binds Codex directly to the Shared Project Projection by default', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-codex-direct-');
+  try {
+    const result = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      env: {},
+    });
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')));
+    assert.strictEqual(result.receipt.hostBindings.codex.bindingShape, 'direct');
+    assert.deepStrictEqual(result.receipt.bindingPaths.codex || [], []);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('installNativeSharedSkills materializes Codex native-link bindings for a non-PASS override', () => {
   const sourceRoot = fixture();
   const projectRoot = tmpDir('dhpk-native-shared-codex-');
   try {
@@ -316,6 +358,7 @@ test('installNativeSharedSkills materializes Codex native-link bindings', () => 
       host: 'codex',
       selectedStableIds: ['sample'],
       declaredSelection: true,
+      consumerEvidence: codexProbeRecord('FAIL'),
     });
     const nativeSkill = path.join(projectRoot, '.codex', 'skills', 'dhpk-sample');
     assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
@@ -355,7 +398,8 @@ test('installNativeSharedSkills unions shared skills and preserves the first Hos
     assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-other', 'SKILL.md')));
     assert.ok(fs.lstatSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')).isSymbolicLink());
-    assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-other')).isSymbolicLink());
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-other')));
+    assert.strictEqual(second.receipt.hostBindings.codex.bindingShape, 'direct');
     assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-other')));
     assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')));
     assert.deepStrictEqual(second.receipt.hostBindings.cursor, cursorBindings);
@@ -431,6 +475,7 @@ test('installNativeSharedSkills recreates missing Host dests without --update', 
       host: 'codex',
       selectedStableIds: ['sample'],
       declaredSelection: true,
+      consumerEvidence: codexProbeRecord('FAIL'),
     });
     const nativeSkill = path.join(projectRoot, '.codex', 'skills', 'dhpk-sample');
     fs.rmSync(nativeSkill, { force: true });
@@ -440,6 +485,7 @@ test('installNativeSharedSkills recreates missing Host dests without --update', 
       host: 'codex',
       selectedStableIds: ['sample'],
       declaredSelection: true,
+      consumerEvidence: codexProbeRecord('FAIL'),
     });
     assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
     assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-sample');
@@ -501,7 +547,7 @@ test('uninstallNativeSharedSkills drops one Host and keeps skills the other Host
     assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
     assert.ok(!fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-other', 'SKILL.md')));
-    assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-other')).isSymbolicLink());
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-other')));
     assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), 'utf8'), '# keep\n');
     assert.strictEqual(result.receipt.hostBindings.cursor, undefined);
     assert.deepStrictEqual(result.receipt.hostBindings.codex.selectedStableIds, ['other']);
@@ -536,9 +582,8 @@ test('uninstallNativeSharedSkills rejects invalid current inventories before ret
       assert.throws(() => uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', inventory: mutate(inventory) }));
       assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), beforeReceipt);
       assert.strictEqual(fs.readFileSync(skillPath, 'utf8'), beforeSkill);
-      for (const host of ['cursor', 'codex']) {
-        assert.strictEqual(fs.readlinkSync(path.join(projectRoot, `.${host}`, 'skills', 'dhpk-sample')), '../../.agents/skills/dhpk-sample');
-      }
+      assert.strictEqual(fs.readlinkSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')), '../../.agents/skills/dhpk-sample');
+      assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')));
       assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), 'utf8'), '# keep\n');
     } finally {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
@@ -1312,10 +1357,25 @@ const crypto = require('node:crypto');
     }
   });
 
-  test('CLI installs Codex native-link bindings from a declared selection', () => {
+  test('CLI installs Codex native-link bindings from a declared selection only for a non-PASS override', () => {
     const sourceRoot = fixture();
     const projectRoot = tmpDir('dhpk-install-native-codex-project-');
+    const directRoot = tmpDir('dhpk-install-native-codex-direct-');
+    const evidence = path.join(sourceRoot, 'codex-probe.json');
     try {
+      write(evidence, `${JSON.stringify(codexProbeRecord('FAIL'))}\n`);
+      const direct = invoke([
+        'install',
+        '--source', sourceRoot,
+        '--project-root', directRoot,
+        '--host', 'codex',
+        '--selected-id', 'sample',
+        '--declared-selection',
+        '--json',
+      ]);
+      assert.strictEqual(direct.status, 0, `${direct.stdout}\n${direct.stderr}`);
+      assert.strictEqual(JSON.parse(direct.stdout).bindingShape, 'direct');
+      assert.ok(!fs.existsSync(path.join(directRoot, '.codex', 'skills', 'dhpk-sample')));
       const result = invoke([
         'install',
         '--source', sourceRoot,
@@ -1323,6 +1383,7 @@ const crypto = require('node:crypto');
         '--host', 'codex',
         '--selected-id', 'sample',
         '--declared-selection',
+        '--consumer-evidence', evidence,
         '--json',
       ]);
       assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
@@ -1336,6 +1397,7 @@ const crypto = require('node:crypto');
     } finally {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
       fs.rmSync(projectRoot, { recursive: true, force: true });
+      fs.rmSync(directRoot, { recursive: true, force: true });
     }
   });
 
@@ -1442,7 +1504,7 @@ const crypto = require('node:crypto');
       ]);
       assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
       assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
-      assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')).isSymbolicLink());
+      assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')));
       assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
       const receipt = JSON.parse(fs.readFileSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'), 'utf8'));
       assert.strictEqual(receipt.hostBindings.cursor, undefined);
@@ -1496,7 +1558,7 @@ test('testCodexInstallAfterWithdraw_doesNotRebuildClaudeBinding', () => {
     });
     assert.ok(result.receipt, 'install returns a receipt');
     assert.strictEqual(fs.existsSync(claudeLink), false, 'Codex install must not rebuild the withdrawn Claude binding');
-    assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')).isSymbolicLink());
+    assert.strictEqual(result.receipt.hostBindings.codex.bindingShape, 'direct');
     const receipt = JSON.parse(fs.readFileSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(receipt.entries.find((entry) => entry.stableId === 'sample').claudePluginProvided, true);
     assert.deepStrictEqual(receipt.bindingPaths.claude || [], []);

@@ -2586,14 +2586,6 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
-      "sourcePath": "scripts/lib/bounded-child-process.js",
-      "destination": "skills/harness-setup/scripts/lib/bounded-child-process.js",
-      "kind": "packaging-resource",
-      "sha256": "4d228207c2c8067c54c09784082ccf36ad0a020cff870de3b441470ed6435fd9"
-    },
-    {
-      "skillId": "harness-setup",
-      "ownerId": "harness-setup",
       "sourcePath": "scripts/lib/bounded-filesystem.js",
       "destination": "skills/harness-setup/scripts/lib/bounded-filesystem.js",
       "kind": "packaging-resource",
@@ -2613,7 +2605,7 @@
       "sourcePath": "scripts/lib/cursor-consumer-evidence.js",
       "destination": "skills/harness-setup/scripts/lib/cursor-consumer-evidence.js",
       "kind": "packaging-resource",
-      "sha256": "4642d53eaffada1336d22966b59daa50b7a858a26e9ab63a7736e3da2dcd4d98"
+      "sha256": "2a491330ec31be33c6e611b597c013340889e98ac5438fb84909298db1ddb9d4"
     },
     {
       "skillId": "harness-setup",
@@ -2637,7 +2629,7 @@
       "sourcePath": "scripts/lib/host-cli-probe.js",
       "destination": "skills/harness-setup/scripts/lib/host-cli-probe.js",
       "kind": "packaging-resource",
-      "sha256": "313f035e3dea200e9ba6a54e91d2bec7b50924c23000c218eb5ec8e64a7cbcd5"
+      "sha256": "eb0cda19a8f5b5b9ab59bd42ef5f081a8d7b32e16d588c211dea65d09da410b4"
     },
     {
       "skillId": "harness-setup",
@@ -2653,7 +2645,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
       "kind": "packaging-resource",
-      "sha256": "12a308bfe20b0fdadbb305be1f1c6478f9c658b8fd99638742396bb673e1986e"
+      "sha256": "1c755260996c1959b265a2a25c5d6996ae7c9c04fe7738fe478c18104ded7d91"
     },
     {
       "skillId": "harness-setup",
@@ -2798,6 +2790,14 @@
       "destination": "skills/harness-setup/scripts/lib/standalone-skill-dependencies.js",
       "kind": "packaging-resource",
       "sha256": "1ab83b8a5c2bb3587449b03782259b6a8ff9f0769ccc274f5ea4f04160a923a9"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/terminate-process-group.js",
+      "destination": "skills/harness-setup/scripts/lib/terminate-process-group.js",
+      "kind": "packaging-resource",
+      "sha256": "f04b72d60a64e7058f732ee7ee5b86c7b07744307d43c34e7f92b92b96f7621c"
     },
     {
       "skillId": "harness-setup",

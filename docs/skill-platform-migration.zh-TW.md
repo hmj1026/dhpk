@@ -93,7 +93,7 @@ metadata 檔案推論可用。
 Codex 內建 command（`/hooks`、`/agent`）不是 dhpk 自訂 `/dhpk:*` command。
 `flow-guide` 擁有唯讀 usage help、routing、policy、progression 與 closeout；`flow-drive`
 是使用目前 Host 和 Model 的 explicit native task/help entry，沒有 dispatch selector。可用性證據是 receipt-owned 的
-`.codex/skills/flow-drive` 能解析為 `$flow-drive`；`codex plugin list` 只是管理層
+`.agents/skills/flow-drive` 能解析為 `$flow-drive`；`codex plugin list` 只是管理層
 證據。若 family 未被發現，instruction routing 與明確 `/opsx:*` OpenSpec command
 仍可用——不要宣稱 Codex 有可呼叫的 `/dhpk:do`。
 
