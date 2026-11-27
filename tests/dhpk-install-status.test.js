@@ -77,7 +77,7 @@ if [ "$1" = "debug" ] && [ "$2" = "prompt-input" ]; then
   if [ -n "\${DHPK_TEST_CODEX_PROMPT_FILE:-}" ]; then
     /bin/cat "$DHPK_TEST_CODEX_PROMPT_FILE"
   else
-    printf '[{"type":"message","content":[{"type":"input_text","text":"<skills_instructions>\\n### Skill roots\\n### Available skills\\n</skills_instructions>"}]}]\\n'
+    printf '[{"type":"message","content":[{"type":"input_text","text":"<skills_instructions>\\\\n### Skill roots\\\\n### Available skills\\\\n</skills_instructions>"}]}]\\n'
   fi
   exit "\${DHPK_TEST_CODEX_PROMPT_EXIT:-0}"
 fi
@@ -458,6 +458,22 @@ test('strict exits 2 on blocked receipts (boundary blockers, invalid asset recei
     const report = parseJson(strictRes, 'probe failure');
     assert.ok(report.surfaces.claude.diagnostics.some((d) => d.severity === 'blocked'));
   }
+
+  // Case E: Codex live prompt-input probe failure exits 0 by default and 2 under --strict
+  {
+    const { project, home, codexHome, binDir } = setupCleanEnv('codex-probe-fail');
+    writeStub(binDir, 'codex', CODEX_DUAL_STUB);
+    const defRes = runInstallCli(['codex-sync', 'status', '--project-root', project, '--json'], {
+      home, codexHome, binDir, env: { DHPK_TEST_CODEX_PROMPT_EXIT: '7' },
+    });
+    assert.strictEqual(defRes.status, 0, defRes.stderr);
+    const strictRes = runInstallCli(['codex-sync', 'status', '--project-root', project, '--strict', '--json'], {
+      home, codexHome, binDir, env: { DHPK_TEST_CODEX_PROMPT_EXIT: '7' },
+    });
+    assert.strictEqual(strictRes.status, 2, strictRes.stderr);
+    const report = parseJson(strictRes, 'codex probe failure');
+    assert.ok(report.surfaces['codex-sync'].diagnostics.some((d) => d.code === 'CODEX_PROBE_FAILED' && d.severity === 'blocked'));
+  }
 });
 
 test('cursor status reports hash-cache drift warnings and codex-native reports package + live CLI probe', () => {
@@ -502,6 +518,44 @@ test('codex-sync status reports unowned collisions from plan-boundary inspection
   assert.ok(['STALE', 'DRIFT'].includes(report.surfaces['codex-sync'].state));
   assert.ok(report.surfaces['codex-sync'].diagnostics.some((d) => d.severity === 'drift'));
   assert.strictEqual(snapshotTree(project), before);
+});
+
+test('status performs zero filesystem writes (including install-history) on installed codex-sync and cursor projects', () => {
+  const { root, project, home, codexHome } = setupCleanEnv('installed-zero-writes');
+  const xdgStateHome = path.join(root, 'xdg-state');
+  const historyFile = path.join(xdgStateHome, 'dhpk', 'install-history.jsonl');
+  const installCodex = runInstallCli(['codex-sync', 'install', '--project-root', project, '--mode', 'copy', '--json'], {
+    home,
+    codexHome,
+    env: { XDG_STATE_HOME: xdgStateHome },
+  });
+  assert.strictEqual(installCodex.status, 0, installCodex.stderr);
+  const installCursor = runInstallCli(['cursor', 'install', '--project-root', project, '--mode', 'copy', '--json'], {
+    home,
+    codexHome,
+    env: { XDG_STATE_HOME: xdgStateHome },
+  });
+  assert.strictEqual(installCursor.status, 0, installCursor.stderr);
+
+  const historyAfterInstall = fs.readFileSync(historyFile, 'utf8');
+  const beforeRoot = snapshotTree(root);
+
+  for (const args of [
+    ['status', '--all', '--project-root', project, '--offline', '--json'],
+    ['codex-sync', 'status', '--project-root', project, '--offline', '--json'],
+    ['cursor', 'status', '--project-root', project, '--offline', '--json'],
+  ]) {
+    const res = runInstallCli(args, {
+      home,
+      codexHome,
+      env: { XDG_STATE_HOME: xdgStateHome },
+    });
+    assert.strictEqual(res.status, 0, `${args.join(' ')}: ${res.stderr}`);
+    assert.strictEqual(res.stderr, '', `${args.join(' ')} unexpected stderr: ${res.stderr}`);
+  }
+
+  assert.strictEqual(fs.readFileSync(historyFile, 'utf8'), historyAfterInstall, 'status must not append install-history');
+  assert.strictEqual(snapshotTree(root), beforeRoot, 'status must perform zero filesystem writes across project, home, and XDG_STATE_HOME');
 });
 
 run('dhpk-install-status');

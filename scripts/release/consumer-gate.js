@@ -2483,25 +2483,25 @@ function claudeCliVersion() {
 }
 
 function teardownClaudeProjectRegistry(project, commands, warnings, root) {
-  const uninstall = spawnSync(
+  const uninstall = runHostCliProbe(
     'claude',
     ['plugin', 'uninstall', 'dhpk@dhpk', '--scope', 'project', '-y'],
-    { cwd: project, encoding: 'utf8' },
+    { cwd: project, timeoutMs: 60000, maxBuffer: 1024 * 1024 },
   );
-  commands.push({ cmd: 'claude plugin uninstall dhpk@dhpk --scope project', exitCode: uninstall.status });
-  if (uninstall.status !== 0) {
+  commands.push({ cmd: 'claude plugin uninstall dhpk@dhpk --scope project', exitCode: uninstall.exitCode });
+  if (uninstall.exitCode !== 0) {
     const detail = redactEvidence((uninstall.stderr || '').trim(), root);
-    warnings.push(`plugin uninstall exited ${uninstall.status}${detail ? `: ${detail}` : ''}`);
+    warnings.push(`plugin uninstall exited ${uninstall.exitCode}${detail ? `: ${detail}` : ''}`);
   }
-  const remove = spawnSync(
+  const remove = runHostCliProbe(
     'claude',
     ['plugin', 'marketplace', 'remove', 'dhpk', '--scope', 'project'],
-    { cwd: project, encoding: 'utf8' },
+    { cwd: project, timeoutMs: 60000, maxBuffer: 1024 * 1024 },
   );
-  commands.push({ cmd: 'claude plugin marketplace remove dhpk --scope project', exitCode: remove.status });
-  if (remove.status !== 0) {
+  commands.push({ cmd: 'claude plugin marketplace remove dhpk --scope project', exitCode: remove.exitCode });
+  if (remove.exitCode !== 0) {
     const detail = redactEvidence((remove.stderr || '').trim(), root);
-    warnings.push(`marketplace remove exited ${remove.status}${detail ? `: ${detail}` : ''}`);
+    warnings.push(`marketplace remove exited ${remove.exitCode}${detail ? `: ${detail}` : ''}`);
   }
 }
 
@@ -2547,6 +2547,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
   });
   const strictFailureDetail = (result) => {
     const output = redactEvidence(`${result.stdout || ''}\n${result.stderr || ''}`.trim(), root);
+    if (result.timedOut && !output) return ': timed out';
     return output ? `: ${output}` : '';
   };
   if (versionDiscovery.status !== 'PASS') {
@@ -2581,15 +2582,19 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
       }
     }
     const stagedManifest = path.join(validationStage, '.claude-plugin', 'plugin.json');
-    const strict = spawnSync('claude', ['plugin', 'validate', stagedManifest, '--strict'], { cwd: validationStage, encoding: 'utf8' });
+    const strict = runHostCliProbe('claude', ['plugin', 'validate', stagedManifest, '--strict'], {
+      cwd: validationStage,
+      timeoutMs: 60000,
+      maxBuffer: 1024 * 1024,
+    });
     strictEvidence = {
       cmd: strictCommand,
       manifest: '<staged>/.claude-plugin/plugin.json',
-      exitCode: strict.status,
+      exitCode: strict.exitCode,
       claudeVersion: cliVersion,
     };
     commands.push(strictEvidence);
-    if (strict.status !== 0) {
+    if (strict.exitCode !== 0) {
       return finish({
         verdict: VERDICTS.FAIL,
         commands,
@@ -2597,7 +2602,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
           verdict: 'FAIL',
           ...strictEvidence,
         },
-        reasons: [`official Claude strict validation failed (exit ${strict.status})${strictFailureDetail(strict)}`],
+        reasons: [`official Claude strict validation failed (exit ${strict.exitCode})${strictFailureDetail(strict)}`],
       });
     }
   } finally {
@@ -2608,22 +2613,34 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
   const fail = (reason) => finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [reason], warnings });
   const project = mkTempProject();
   try {
-    const add = spawnSync('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], { cwd: project, encoding: 'utf8' });
-    commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.status });
-    if (add.status !== 0) {
-      return fail(`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`);
+    const add = runHostCliProbe('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], {
+      cwd: project,
+      timeoutMs: 60000,
+      maxBuffer: 1024 * 1024,
+    });
+    commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.exitCode });
+    if (add.exitCode !== 0) {
+      return fail(`marketplace add exited ${add.exitCode}: ${redactEvidence((add.stderr || '').trim(), root)}`);
     }
 
-    const install = spawnSync('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], { cwd: project, encoding: 'utf8' });
-    commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.status });
-    if (install.status !== 0) {
-      return fail(`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`);
+    const install = runHostCliProbe('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], {
+      cwd: project,
+      timeoutMs: 120000,
+      maxBuffer: 1024 * 1024,
+    });
+    commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.exitCode });
+    if (install.exitCode !== 0) {
+      return fail(`plugin install exited ${install.exitCode}: ${redactEvidence((install.stderr || '').trim(), root)}`);
     }
 
-    const list = spawnSync('claude', ['plugin', 'list', '--json'], { cwd: project, encoding: 'utf8' });
-    commands.push({ cmd: 'claude plugin list --json', exitCode: list.status });
-    if (list.status !== 0) {
-      return fail(`plugin list exited ${list.status}`);
+    const list = runHostCliProbe('claude', ['plugin', 'list', '--json'], {
+      cwd: project,
+      timeoutMs: 60000,
+      maxBuffer: 1024 * 1024,
+    });
+    commands.push({ cmd: 'claude plugin list --json', exitCode: list.exitCode });
+    if (list.exitCode !== 0) {
+      return fail(`plugin list exited ${list.exitCode}`);
     }
     const installedEntries = JSON.parse(list.stdout || '[]');
     const matchingEntries = installedEntries.filter((p) => p.id === 'dhpk@dhpk');
@@ -2646,23 +2663,24 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
     if (installed.installPath) {
       const installedRoot = path.resolve(installed.installPath);
       const installedManifest = path.join(installedRoot, '.claude-plugin', 'plugin.json');
-      const installedStrict = spawnSync('claude', ['plugin', 'validate', installedManifest, '--strict'], {
+      const installedStrict = runHostCliProbe('claude', ['plugin', 'validate', installedManifest, '--strict'], {
         cwd: installedRoot,
-        encoding: 'utf8',
+        timeoutMs: 60000,
+        maxBuffer: 1024 * 1024,
       });
       const installedEvidence = {
         cmd: 'claude plugin validate <installed>/.claude-plugin/plugin.json --strict',
         manifest: '<installed>/.claude-plugin/plugin.json',
-        exitCode: installedStrict.status,
+        exitCode: installedStrict.exitCode,
         claudeVersion: cliVersion,
       };
       commands.push(installedEvidence);
-      if (installedStrict.status !== 0) {
+      if (installedStrict.exitCode !== 0) {
         return finish({
           verdict: VERDICTS.FAIL,
           commands,
           officialValidation: { verdict: 'FAIL', ...installedEvidence },
-          reasons: [`official Claude strict validation failed on installed cache (exit ${installedStrict.status})${strictFailureDetail(installedStrict)}`],
+          reasons: [`official Claude strict validation failed on installed cache (exit ${installedStrict.exitCode})${strictFailureDetail(installedStrict)}`],
           warnings,
         });
       }

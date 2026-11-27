@@ -1276,6 +1276,7 @@ function inspectProjectHostSyncSurface({
       update: true,
       plan: true,
       json: true,
+      historyDelegated: true,
       baseEnv: { ...env, PATH: '' },
     }));
     try {
@@ -1413,6 +1414,19 @@ function inspectProjectHostSyncSurface({
         severity: 'drift',
         message: `Codex live skill listing detected ${codexDiscovery.live.duplicates.length} duplicate skill(s)`,
         affectedPaths: codexDiscovery.live.duplicates.flatMap((d) => d.entries.map((e) => e.path)),
+      });
+    } else if (
+      codexDiscovery.live
+      && codexDiscovery.live.verdict === 'UNAVAILABLE'
+      && ['host-cli-timeout', 'host-cli-failed', 'host-cli-unparseable'].includes(codexDiscovery.live.reason)
+    ) {
+      diagnostics.push({
+        surface,
+        scope: 'all',
+        code: 'CODEX_PROBE_FAILED',
+        severity: 'blocked',
+        message: `codex debug prompt-input probe failed (${codexDiscovery.live.reason})`,
+        probe: codexDiscovery.live.probe,
       });
     }
   }
