@@ -103,7 +103,7 @@ Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`
 commands. `flow-guide` owns read-only usage help, routing, policy, progression,
 and closeout; `flow-drive` is an explicit native task/help entry that uses the
 current Host and Model. It has no dispatch selectors. Availability evidence is a
-receipt-owned `.codex/skills/flow-guide` or `.codex/skills/flow-drive` that
+receipt-owned `.agents/skills/flow-guide` or `.agents/skills/flow-drive` that
 resolves as the corresponding `$name`; `codex plugin list` is management
 evidence only. If a family is not discovered, instruction routing and explicit
 `/opsx:*` OpenSpec commands remain available — do not claim the missing `$name`

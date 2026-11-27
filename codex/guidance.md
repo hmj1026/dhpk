@@ -34,7 +34,7 @@ receipt, not this file, own that selection.
 
 | Concern | Claude Code | Codex CLI |
 |---------|-------------|-----------|
-| **Loading path** | `agents/`, `skills/`, `hooks/`, `modules/` at plugin root (no `commands/`) | `.codex/agents/` in the project (after sync); skills are discovered from `.agents/skills`, and the `.codex/skills/<name>` entries are compatibility symlinks to `../../.agents/skills/<name>` created by the installer; Codex lifecycle hooks use `~/.codex/hooks.json`, project `.codex/hooks.json`, or inline `[hooks]` in `config.toml` |
+| **Loading path** | `agents/`, `skills/`, `hooks/`, `modules/` at plugin root (no `commands/`) | `.codex/agents/` in the project (after sync); skills are discovered directly from `.agents/skills`, with no per-skill `.codex/skills/<name>` links (ADR-0042); Codex lifecycle hooks use `~/.codex/hooks.json`, project `.codex/hooks.json`, or inline `[hooks]` in `config.toml` |
 | **userConfig** | Yes — Claude prompts at install | Codex has no equivalent; configure via the synced `config.toml.example` |
 | **Modules (`modules/<stack>-<version>/`)** | Selective activation via `userConfig.modules` | Not directly mirrored — Codex sees a flat skills set |
 | **MCP** | Full (servers declared in plugin or user settings) | Configured via `config.toml` and `codex mcp add` |
@@ -137,8 +137,8 @@ catalogue is
 [`skills/flow-guide/references/codex-usage-catalog.json`](../skills/flow-guide/references/codex-usage-catalog.json).
 Help does not load target procedures, execute a target, or grant its authority.
 
-Availability evidence is a receipt-owned `.codex/skills/flow-guide` or
-`.codex/skills/flow-drive` package that resolves as the corresponding `$name`.
+Availability evidence is a receipt-owned `.agents/skills/flow-guide` or
+`.agents/skills/flow-drive` package that resolves as the corresponding `$name`.
 `codex plugin list` is management evidence only. If the family is not
 discovered, follow the canonical [execution policy](../rules/execution-policy.md),
 invoke roles with `/agent <role-name>`, and use the external OpenSpec plugin's

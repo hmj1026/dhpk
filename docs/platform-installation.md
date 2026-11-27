@@ -417,10 +417,13 @@ For this source-directory projection, the default materializes skill trees and
 configuration layers. Supporting assets remain relative symlinks by default,
 and `--copy` makes those physical too. This rule describes source-directory
 materialization; Codex discovers project skills from `.agents/skills`
-([Codex skills](https://developers.openai.com/codex/skills)), and the native
-Shared Project discovery bindings under `.codex/skills/<name>` are
-compatibility symlinks to `../../.agents/skills/<name>` that the installer
-creates and receipt-owns:
+([Codex skills](https://developers.openai.com/codex/skills)) directly, so the
+installer creates no per-skill `.codex/skills/<name>` links
+([ADR-0042](adr/0042-codex-direct-shared-projection-discovery.md)). `--update`
+retires unchanged receipt-owned `.codex/skills/<name>` links or copies left by
+earlier installs; in a source checkout it reports
+`COMPATIBILITY_PROJECTION_STALE` and keeps the copy when `.agents/skills` needs
+`npm run sync:local-skills`:
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy

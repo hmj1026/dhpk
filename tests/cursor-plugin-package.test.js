@@ -179,6 +179,8 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
     NATIVE_LINK_SHAPE,
     classifyCursorConsumerEvidence,
     classifyCodexConsumerEvidence,
+    classifyCodexHostBinding,
+    classifyCursorHostBinding,
     loadCursorConsumerEvidence,
   } = require('../scripts/lib/cursor-consumer-evidence');
 
@@ -326,6 +328,43 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
     assert.strictEqual(result.bindingShape, DIRECT_SHAPE);
     const cursorPass = classifyCodexConsumerEvidence(passRecord());
     assert.strictEqual(cursorPass.bindingShape, NATIVE_LINK_SHAPE);
+  });
+
+  test('missing Codex evidence selects direct discovery while Cursor keeps its Consumer Evidence gate', () => {
+    const codex = classifyCodexHostBinding({ env: {} });
+    assert.strictEqual(codex.bindingShape, DIRECT_SHAPE);
+    assert.match(codex.reason, /ADR-0042/);
+    const cursor = classifyCursorHostBinding({ env: {} });
+    assert.strictEqual(cursor.bindingShape, NATIVE_LINK_SHAPE);
+    assert.match(cursor.reason, /missing/i);
+  });
+
+  test('an unreadable or non-PASS Codex evidence override selects native-link', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-evidence-'));
+    try {
+      const missing = classifyCodexHostBinding({ consumerEvidencePath: path.join(dir, 'absent.json') });
+      assert.strictEqual(missing.bindingShape, NATIVE_LINK_SHAPE);
+      assert.match(missing.reason, /unreadable/i);
+      const failed = classifyCodexConsumerEvidence({
+        stage: 'CONSUMER',
+        producer: 'consumer-platform-probe',
+        adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+        surfaceResults: [{
+          surface: 'codex-project',
+          status: 'FAIL',
+          adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+          commands: [],
+          environment: { CI: 'true' },
+          artifacts: [],
+          diagnostics: [],
+          reasons: ['Codex project probe failed'],
+          checkedClaims: ['project-artifact-structure', 'codex-project-discovery', 'consumer-route'],
+        }],
+      });
+      assert.strictEqual(failed.bindingShape, NATIVE_LINK_SHAPE);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 }
 
