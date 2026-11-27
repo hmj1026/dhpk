@@ -8,6 +8,7 @@ const { findInternalPathReferences } = require('./public-plugin-paths');
 const { unquote } = require('./agent-frontmatter');
 
 const MANIFEST_PATHS = Object.freeze(['plugin.json', '.codex-plugin/plugin.json']);
+const CLAUDE_VALIDATE_TIMEOUT_MS = 120000;
 
 // Parsed JSON of a package file, or null when it is absent or invalid (the
 // invalid case adds an error, prefixed with `label` when one is given).
@@ -216,10 +217,14 @@ function checkDirectoryPlugin(files, { version } = {}) {
 }
 
 function defaultValidateRunner(directory) {
-  const { spawnSync } = require('node:child_process');
-  const child = spawnSync('claude', ['plugin', 'validate', '--strict', '--profile', 'directory', '--json', directory], { encoding: 'utf8' });
+  const { runHostCliProbe } = require('./host-cli-probe');
+  const child = runHostCliProbe('claude', ['plugin', 'validate', '--strict', '--profile', 'directory', '--json', directory], {
+    timeoutMs: CLAUDE_VALIDATE_TIMEOUT_MS,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  if (child.timedOut && child.exitCode === null) return { error: `timed out after ${child.durationMs} ms` };
   if (child.error) return { error: child.error.message };
-  return { status: child.status, output: `${child.stdout || ''}${child.stderr || ''}` };
+  return { status: child.exitCode, output: `${child.stdout}${child.stderr}` };
 }
 
 function isMissingIconAdvisory(output) {

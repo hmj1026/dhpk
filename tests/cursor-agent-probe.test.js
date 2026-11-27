@@ -80,7 +80,7 @@ test('Cursor CLI wrapper maps a silent hang to SKIP_INCOMPATIBLE', () => {
       '--cursor-package', path.join(root, 'cursor'),
       '--timeout-ms', '200',
     ], { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` });
-    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    assert.strictEqual(result.status, 124, result.stdout + result.stderr);
     const report = JSON.parse(result.stdout);
     assert.strictEqual(report.status, 'SKIP_INCOMPATIBLE');
     assert.strictEqual(report.timed_out, true);
@@ -273,6 +273,55 @@ test('Cursor CLI wrapper stages under a symlinked temp root without a false phys
   } finally {
     fs.unlinkSync(linkedTmp);
     fs.rmSync(realRoot, { recursive: true, force: true });
+  }
+});
+
+test('Cursor CLI wrapper preserves an inner exit 124 as a timeout and exits 124', () => {
+  if (!HAS_SHARED_SANDBOX) return;
+  const root = temp('dhpk-cursor-cli-probe-124-');
+  const bin = path.join(root, 'bin');
+  fs.mkdirSync(path.join(root, 'agent'));
+  fs.mkdirSync(path.join(root, 'cursor'));
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'cursor-agent'), '#!/bin/sh\necho "agent deadline exceeded" >&2\nexit 124\n', { mode: 0o755 });
+  try {
+    const result = invoke([
+      '--agent-package', path.join(root, 'agent'),
+      '--cursor-package', path.join(root, 'cursor'),
+      '--timeout-ms', '5000',
+    ], { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` });
+    assert.strictEqual(result.status, 124, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.status, 'BLOCKED', JSON.stringify(report));
+    assert.strictEqual(report.timed_out, true);
+    assert.strictEqual(report.exit_code, 124);
+    assert.ok(Number.isInteger(report.duration_ms), JSON.stringify(report));
+    assert.ok(report.diagnostic, 'partial client output must survive as a (redacted) diagnostic');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor CLI wrapper reports elapsed duration and exits 124 for a runner timeout', () => {
+  if (!HAS_SHARED_SANDBOX) return;
+  const root = temp('dhpk-cursor-cli-probe-hang-124-');
+  const bin = path.join(root, 'bin');
+  fs.mkdirSync(path.join(root, 'agent'));
+  fs.mkdirSync(path.join(root, 'cursor'));
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'cursor-agent'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
+  try {
+    const result = invoke([
+      '--agent-package', path.join(root, 'agent'),
+      '--cursor-package', path.join(root, 'cursor'),
+      '--timeout-ms', '300',
+    ], { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` });
+    assert.strictEqual(result.status, 124, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.timed_out, true);
+    assert.ok(report.duration_ms >= 250, JSON.stringify(report));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

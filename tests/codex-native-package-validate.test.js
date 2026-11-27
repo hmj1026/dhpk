@@ -366,6 +366,34 @@ test('verifyNativePackage checks per-skill tree-merkle-v1 hashes in fingerprints
     assert.strictEqual(result.status, 'UNAVAILABLE');
   });
 
+  function codexStubEnv(script) {
+    const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-activation-stub-')));
+    process.on('exit', () => fs.rmSync(bin, { recursive: true, force: true }));
+    fs.writeFileSync(path.join(bin, 'codex'), `#!/bin/sh\n${script}\n`, { mode: 0o755 });
+    return { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` };
+  }
+
+  test('a real codex exit 124 stays UNAVAILABLE with the inner exit code, timeout flag, and stderr tail', () => {
+    const env = codexStubEnv('echo "codex plugin list deadline" >&2\nexit 124');
+    const result = probeCodexNativeActivation({ env });
+    assert.strictEqual(result.status, 'UNAVAILABLE');
+    assert.strictEqual(result.probe.exitCode, 124);
+    assert.strictEqual(result.probe.timedOut, true);
+    assert.ok(Number.isInteger(result.probe.durationMs));
+    assert.match(result.probe.stderrTail, /codex plugin list deadline/);
+  });
+
+  test('a real hung codex is killed at the probe timeout with partial stderr kept', () => {
+    const env = codexStubEnv('echo "listing marketplaces" >&2\nsleep 30');
+    const result = probeCodexNativeActivation({ env, timeoutMs: 300 });
+    assert.strictEqual(result.status, 'UNAVAILABLE');
+    assert.strictEqual(result.probe.timedOut, true);
+    assert.strictEqual(result.probe.exitCode, null);
+    assert.strictEqual(result.probe.signal, 'SIGKILL');
+    assert.ok(result.probe.durationMs >= 250 && result.probe.durationMs < 10000, String(result.probe.durationMs));
+    assert.match(result.probe.stderrTail, /listing marketplaces/);
+  });
+
   test('normalizeActivationOverride accepts auto/enabled/inactive and rejects anything else', () => {
     assert.strictEqual(normalizeActivationOverride('auto'), 'auto');
     assert.strictEqual(normalizeActivationOverride('enabled'), 'enabled');

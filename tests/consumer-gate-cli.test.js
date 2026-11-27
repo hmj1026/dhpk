@@ -326,6 +326,33 @@ exit 99
   });
 });
 
+test('Codex named-role probe treats an inner exit 124 as a timeout with partial diagnostics', () => {
+  withConsumerGateBin((bin) => {
+    const sourceCodexHome = path.join(bin, 'source-codex-home');
+    fs.mkdirSync(sourceCodexHome);
+    fs.writeFileSync(path.join(sourceCodexHome, 'auth.json'), '{"fixture":"unchanged"}\n', { mode: 0o600 });
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+echo 'spawned explorer; waiting for children' >&2
+exit 124
+`);
+    const project = projectRootForCodexProbe();
+    try {
+      const result = runCodexNamedRoleProbe(project, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(result.status, 'BLOCKED', JSON.stringify(result));
+      assert.strictEqual(result.probe.exitCode, 124);
+      assert.strictEqual(result.probe.timedOut, true);
+      assert.ok(Number.isInteger(result.probe.durationMs));
+      assert.match(result.diagnostic, /timed out/);
+      assert.match(result.probe.stderrTail, /waiting for children/);
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+    }
+  });
+});
+
 test('Codex named-role probe reports NOT_RUN when the CLI is absent', () => {
   const project = projectRootForCodexProbe();
   try {
