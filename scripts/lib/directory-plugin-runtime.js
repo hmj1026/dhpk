@@ -52,7 +52,7 @@ const BUILD_ONLY_FILES = Object.freeze([
   ...[
     'agent-frontmatter', 'capability-bundle-selection', 'consumer-runtime-preflight', 'cursor-consumer-evidence',
     'dhpk-install-lifecycle', 'dhpk-install-recover', 'harness', 'harness-receipt', 'harness-result',
-    'installer-modules', 'marketplace-skill-content', 'native-shared-skill-install', 'physical-file', 'platform-provenance',
+    'install-history', 'installer-modules', 'marketplace-skill-content', 'native-shared-skill-install', 'physical-file', 'platform-provenance',
     'portable-skill-metadata', 'profile-projection-sets', 'project-agent-projection-publisher',
     'projection-artifact-store', 'projection-journal', 'receipt-json-primitives', 'receipt-primitives',
     'receipt-store-budget', 'redaction', 'release-artifact-manifest', 'release-evidence', 'secret-patterns',

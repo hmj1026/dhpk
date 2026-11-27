@@ -2637,7 +2637,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex-cli.js",
       "kind": "packaging-resource",
-      "sha256": "27ec7727102e72b62929d215471ba605f243b2141a065991aecf2cd699cbe833"
+      "sha256": "4e64e10c25b4f92ccfb933111aa0ab30cdb171bb5dace4f96529b0cf6897182a"
     },
     {
       "skillId": "harness-setup",
@@ -2669,7 +2669,7 @@
       "sourcePath": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "destination": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "kind": "entry",
-      "sha256": "fbb70b7827a6d2d1c478cb69d933702458044c67de63b10ff2b1d00e6d9a3fae"
+      "sha256": "8a73190e6f79a0618bcefe25fc09ef4757cb83fe21c3714adda47e337d36b749"
     },
     {
       "skillId": "harness-setup",
@@ -2678,6 +2678,14 @@
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
       "sha256": "2857169361178a2aad1a8536f46c54ec742a724ea78f5691403cc8f19eab2b94"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/install-history.js",
+      "destination": "skills/harness-setup/scripts/lib/install-history.js",
+      "kind": "packaging-resource",
+      "sha256": "c7a18757368cf0c0975f693716bd2a68629a0cdb08c0dd0d5bb929b7e9ade498"
     },
     {
       "skillId": "harness-setup",

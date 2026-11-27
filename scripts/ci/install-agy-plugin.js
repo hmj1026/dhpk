@@ -22,6 +22,7 @@ const {
   uninstallAgyPlugin,
 } = require('../lib/agy-plugin-install');
 const planBoundary = require('../lib/plan-boundary-envelope');
+const { appendInstallHistory, readPackageSourceVersion } = require('../lib/install-history');
 
 const ROOT = path.join(__dirname, '..', '..');
 const ACTIONS = ['plan', 'status', 'install', 'update', 'migrate', 'uninstall', 'rollback'];
@@ -99,11 +100,38 @@ function errorEnvelope(error, sourceRoot) {
   });
 }
 
+function readAgyVersionSummary(targetRoot) {
+  if (!targetRoot) return { version: null, state: 'absent' };
+  const provenancePath = path.join(targetRoot, 'provenance.json');
+  try {
+    const stat = fs.lstatSync(provenancePath);
+    if (stat.isSymbolicLink() || !stat.isFile()) return { version: null, state: 'invalid' };
+    const doc = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { version: null, state: 'invalid' };
+    const version = typeof doc.sourceVersion === 'string' && doc.sourceVersion.trim()
+      ? doc.sourceVersion.trim()
+      : (typeof doc.version === 'string' && doc.version.trim() ? doc.version.trim() : null);
+    return { version, state: 'present' };
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return { version: null, state: 'absent' };
+    return { version: null, state: 'invalid' };
+  }
+}
+
 let options;
 try {
   options = parseArgs(process.argv.slice(2));
 } catch (error) {
   console.error(`install-agy-plugin.js: ${error.message}\n${USAGE}`);
+  appendInstallHistory({
+    surface: 'agy-plugin',
+    action: 'invalid-args',
+    scope: 'user',
+    sourceVersion: readPackageSourceVersion(ROOT),
+    exitCode: 64,
+    verdict: 'BLOCKED',
+    reasonCodes: ['INVALID_ARGUMENT'],
+  });
   process.exitCode = 64;
 }
 
@@ -112,6 +140,13 @@ if (options) {
   const targetRoot = options.target ? path.resolve(options.target) : null;
   const sourceRoot = path.resolve(options.source || path.join(ROOT, 'dist', 'on-demand', 'dhpk-agy'));
   const inspection = ['plan', 'status'].includes(action);
+  const resolvedTarget = targetRoot || (() => {
+    try { return resolveAgyInstallTarget({ targetRoot: null, homeDirectory: os.homedir() }); } catch (_) {
+      try { return resolveAgyInstallRoot(os.homedir()); } catch (__) { return null; }
+    }
+  })();
+  const beforeSummary = readAgyVersionSummary(resolvedTarget);
+  const sourceVersion = readPackageSourceVersion(sourceRoot) || readPackageSourceVersion(ROOT);
   try {
     const result = inspection
       ? inspectAgyInstallTargets({ sourceRoot, targetRoot, homeDirectory: os.homedir() })
@@ -123,11 +158,62 @@ if (options) {
     const report = { surface: 'agy-plugin', action, ...(targetRoot ? { targetRoot } : {}), ...result, ...(inspection ? inspectionEnvelope(result) : {}) };
     if (json) console.log(JSON.stringify(report, null, 2));
     else console.log(`${report.status || 'PASS'} [install-agy-plugin]: ${action} ${report.targetRoot || report.target?.root || ''}${report.classification ? ` (${report.classification})` : ''}`);
-    if (action === 'plan') process.exitCode = { READY: 0, CHANGES_PENDING: 1, BLOCKED: 2 }[report.verdict];
-    else if (action === 'status' && report.status !== 'PASS') process.exitCode = 1;
+    let exitCode = 0;
+    if (action === 'plan') exitCode = { READY: 0, CHANGES_PENDING: 1, BLOCKED: 2 }[report.verdict];
+    else if (action === 'status' && report.status !== 'PASS') exitCode = 1;
+    process.exitCode = exitCode;
+    const effectiveTarget = report.targetRoot || (report.target && report.target.root) || resolvedTarget;
+    const effectiveBefore = report.previousReceipt
+      ? { version: report.previousReceipt.sourceVersion || report.previousReceipt.version || null, state: 'present' }
+      : report.receiptVersion
+        ? { version: report.receiptVersion, state: report.classification || 'present' }
+        : (report.target && report.target.receipt && report.target.receipt.source_version
+          ? { version: report.target.receipt.source_version, state: report.classification || 'present' }
+          : (action === 'rollback' || action === 'uninstall') && report.receipt
+            ? { version: report.receipt.sourceVersion || report.receipt.version || null, state: 'present' }
+            : beforeSummary);
+    const effectiveAfter = inspection
+      ? effectiveBefore
+      : (action === 'rollback' || action === 'uninstall')
+        ? { version: null, state: 'absent' }
+        : (report.receipt ? { version: report.receipt.sourceVersion || report.receipt.version || null, state: 'current' } : readAgyVersionSummary(effectiveTarget));
+    const verdict = action === 'plan'
+      ? report.verdict
+      : action === 'status'
+        ? (report.status === 'PASS' ? (report.state === 'STALE' ? 'CHANGES_PENDING' : 'READY') : 'BLOCKED')
+        : 'INSTALL_PASS';
+    const reasonCodes = [];
+    if (report.reasonCode) reasonCodes.push(report.reasonCode);
+    else if (verdict === 'BLOCKED' && report.classification) reasonCodes.push(report.classification);
+    appendInstallHistory({
+      surface: 'agy-plugin',
+      action,
+      scope: 'user',
+      sourceVersion: (report.receipt && (report.receipt.sourceVersion || report.receipt.version)) || sourceVersion,
+      projectRoot: effectiveTarget,
+      exitCode,
+      verdict,
+      reasonCodes,
+      beforeVersion: effectiveBefore,
+      afterVersion: effectiveAfter,
+    });
   } catch (error) {
     if (json) console.log(JSON.stringify({ surface: 'agy-plugin', action, status: 'FAIL', error: error.message, ...(action === 'plan' ? errorEnvelope(error, sourceRoot) : {}) }, null, 2));
     else console.error(`FAIL [install-agy-plugin]: ${error.message}`);
-    process.exitCode = action === 'plan' ? 2 : 1;
+    const exitCode = action === 'plan' ? 2 : 1;
+    process.exitCode = exitCode;
+    const envelope = action === 'plan' ? errorEnvelope(error, sourceRoot) : null;
+    appendInstallHistory({
+      surface: 'agy-plugin',
+      action,
+      scope: 'user',
+      sourceVersion,
+      projectRoot: resolvedTarget,
+      exitCode,
+      verdict: 'BLOCKED',
+      reasonCodes: [envelope ? envelope.reasonCode : 'AGY_ACTION_FAILED'],
+      beforeVersion: beforeSummary,
+      afterVersion: beforeSummary,
+    });
   }
 }

@@ -22,6 +22,10 @@ FORCE=0
 VENDOR=0
 RULES_STUB_NAME="dhpk-overrides.md"
 STUB_SOURCE_DIR=""
+HIST_RECORDED=0
+HIST_HELP=0
+HIST_VERDICT="BLOCKED"
+HIST_REASON=""
 
 usage() {
     cat <<'EOF'
@@ -56,21 +60,175 @@ while [ "$#" -gt 0 ]; do
         --json) JSON=1; shift ;;
         --force) FORCE=1; shift ;;
         --vendor) VENDOR=1; shift ;;
-        -h|--help) usage; exit 0 ;;
-        *) echo "Unknown argument: $1" >&2; usage >&2; exit 64 ;;
+        -h|--help) HIST_HELP=1; usage; exit 0 ;;
+        *) echo "Unknown argument: $1" >&2; usage >&2; HIST_REASON="INVALID_ARGUMENT"; exit 64 ;;
     esac
 done
 
-case "$INSTALL" in hooks|rules|scripts|all) ;; *) echo "--install is required" >&2; usage >&2; exit 64 ;; esac
-[ -n "$TARGET" ] || { echo "--target is required" >&2; usage >&2; exit 64; }
+record_install_history_bash() {
+    local exit_code="$1" verdict="$2" reason_code="$3" action="install"
+    [ "$HIST_HELP" -eq 1 ] && return 0
+    case "${DHPK_NO_INSTALL_HISTORY:-}" in 1|true|TRUE|True) return 0 ;; esac
+    case "${DHPK_INSTALL_HISTORY_DELEGATED:-}" in 1|true|TRUE|True) return 0 ;; esac
+    if [ "$PLAN" -eq 1 ]; then
+        action="plan"
+    elif [ "$DRY_RUN" -eq 1 ]; then
+        action="dry-run"
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -I -S - "$exit_code" "$verdict" "$reason_code" "$action" "$SOURCE" "$TARGET" <<'PY' || true
+import hashlib
+import json
+import os
+import re
+import sys
+import time
+
+try:
+    import pwd
+except Exception:
+    pwd = None
+
+def sanitize_text(val, max_len=200, redact_user=True):
+    if val is None:
+        return None
+    text = str(val)
+    text = re.sub(r'\b((?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/)[^\s/@:]+:[^\s/@]+@', r'\1<redacted>@', text, flags=re.I)
+    text = re.sub(r'\b(authorization|proxy-authorization)\s*[:=]\s*(?:bearer|basic)\s+[^\r\n,;]+', r'\1: <redacted>', text, flags=re.I)
+    text = re.sub(r'\b(bearer|basic)\s+[^\s,;\r\n]+', r'\1 <redacted>', text, flags=re.I)
+    text = re.sub(r'(["\']?)(authorization|proxy-authorization|token|access[_-]?token|refresh[_-]?token|oauth[_-]?token|id[_-]?token|session[_-]?token|password|secret|api[_-]?key|credential|(?:set-)?cookie)\1\s*[:=]\s*(?:"[^"\r\n]*"|\'[^\'\r\n]*\'|[^\s,;}\]]+)', r'\2: <redacted>', text, flags=re.I)
+    text = re.sub(r'\b(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})\b', '<redacted-token>', text)
+    for k in ('HOME', 'USERPROFILE'):
+        h = os.environ.get(k, '').strip()
+        if h and h != '/':
+            for cand in (os.path.abspath(h), os.path.realpath(h)):
+                text = text.replace(cand, '<home>')
+    text = re.sub(r'(/(?:Users|home)/)[^/\s"\'`,;)}\]]+', r'\1<redacted>', text)
+    text = re.sub(r'([A-Za-z]:[\\/]Users[\\/])[^\\/\s"\'`,;)}\]]+', r'\1<redacted>', text)
+    if redact_user:
+        users = set()
+        for k in ('USER', 'LOGNAME', 'USERNAME'):
+            u = os.environ.get(k, '').strip()
+            if u:
+                users.add(u)
+        if pwd is not None:
+            try:
+                users.add(pwd.getpwuid(os.getuid()).pw_name)
+            except Exception:
+                pass
+        safe = {'user', 'local', 'project', 'install', 'plan', 'dry-run', 'claude-assets', 'unknown'}
+        for u in sorted(users, key=len, reverse=True):
+            if len(u) >= 2 and u.lower() not in safe:
+                text = re.sub(r'(?<![A-Za-z0-9])' + re.escape(u) + r'(?![A-Za-z0-9])', '<user>', text)
+    return text[:max_len]
+
+def read_source_version(root):
+    if not root:
+        return None
+    for rel in ('package.json', '.claude-plugin/plugin.json'):
+        p = os.path.join(root, rel)
+        try:
+            if os.path.islink(p) or not os.path.isfile(p):
+                continue
+            with open(p, 'r', encoding='utf-8') as f:
+                val = json.load(f).get('version')
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        except Exception:
+            pass
+    return None
+
+def read_before_summary(target):
+    if not target:
+        return {'version': None, 'state': 'absent'}
+    p = os.path.join(target, '.dhpk-asset-receipt.json')
+    try:
+        if os.path.islink(p):
+            return {'version': None, 'state': 'invalid'}
+        if not os.path.isfile(p):
+            return {'version': None, 'state': 'absent'}
+        with open(p, 'r', encoding='utf-8') as f:
+            doc = json.load(f)
+        if not isinstance(doc, dict):
+            return {'version': None, 'state': 'invalid'}
+        ver = doc.get('source_version')
+        return {'version': sanitize_text(ver, 64) if isinstance(ver, str) and ver.strip() else None, 'state': 'present'}
+    except Exception:
+        return {'version': None, 'state': 'invalid'}
+
+def resolve_history_file():
+    override = os.environ.get('DHPK_INSTALL_HISTORY_FILE', '').strip()
+    if override:
+        return os.path.abspath(override)
+    xdg = os.environ.get('XDG_STATE_HOME', '').strip()
+    if xdg:
+        return os.path.join(os.path.abspath(xdg), 'dhpk', 'install-history.jsonl')
+    home = os.environ.get('HOME', '').strip() or os.environ.get('USERPROFILE', '').strip() or os.path.expanduser('~')
+    return os.path.join(os.path.abspath(home), '.local', 'state', 'dhpk', 'install-history.jsonl')
+
+try:
+    exit_code = int(sys.argv[1])
+    verdict = sys.argv[2] or 'BLOCKED'
+    reason = sys.argv[3].strip()
+    action = sys.argv[4] or 'install'
+    source_dir = sys.argv[5]
+    target_dir = sys.argv[6]
+    project_id = None
+    if target_dir:
+        canonical = os.path.realpath(target_dir)
+        project_id = 'sha256:' + hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+    before = read_before_summary(target_dir)
+    record = {
+        'schema': 'dhpk.install-history.v1',
+        'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'surface': 'claude-assets',
+        'action': action,
+        'scope': 'project',
+        'sourceVersion': sanitize_text(read_source_version(source_dir), 64),
+        'projectId': project_id,
+        'exitCode': exit_code,
+        'verdict': verdict,
+        'reasonCodes': [sanitize_text(reason, 96)] if reason else [],
+        'versions': {'before': before, 'after': dict(before)},
+    }
+    history_file = resolve_history_file()
+    os.makedirs(os.path.dirname(history_file), mode=0o700, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, 'O_NOFOLLOW', 0)
+    fd = os.open(history_file, flags, 0o600)
+    try:
+        os.write(fd, (json.dumps(record, separators=(',', ':')) + '\n').encode('utf-8'))
+    finally:
+        os.close(fd)
+except Exception as err:
+    print('[install-assets] warning: failed to append install history: {}'.format(sanitize_text(err, 200)), file=sys.stderr)
+PY
+    else
+        echo "[install-assets] warning: install history skipped (python3 unavailable)" >&2
+    fi
+}
+
+on_exit_install_assets() {
+    local rc=$?
+    if [ -n "${STUB_SOURCE_DIR:-}" ] && [ -d "$STUB_SOURCE_DIR" ]; then
+        rm -rf "$STUB_SOURCE_DIR"
+    fi
+    if [ "$HIST_RECORDED" -eq 0 ] && [ "$HIST_HELP" -eq 0 ]; then
+        record_install_history_bash "$rc" "$HIST_VERDICT" "$HIST_REASON" || true
+    fi
+    exit "$rc"
+}
+trap on_exit_install_assets EXIT
+
+case "$INSTALL" in hooks|rules|scripts|all) ;; *) echo "--install is required" >&2; usage >&2; HIST_REASON="INVALID_ARGUMENT"; exit 64 ;; esac
+[ -n "$TARGET" ] || { echo "--target is required" >&2; usage >&2; HIST_REASON="INVALID_ARGUMENT"; exit 64; }
 if [ "$JSON" -eq 1 ] && [ "$PLAN" -ne 1 ]; then
-    echo "--json is only valid with --plan" >&2; usage >&2; exit 64
+    echo "--json is only valid with --plan" >&2; usage >&2; HIST_REASON="INVALID_ARGUMENT"; exit 64
 fi
-[ -d "$SOURCE" ] || { echo "Source directory does not exist: $SOURCE" >&2; exit 66; }
+[ -d "$SOURCE" ] || { echo "Source directory does not exist: $SOURCE" >&2; HIST_REASON="MISSING_SOURCE"; exit 66; }
 if [ "$VENDOR" -eq 1 ]; then
     case "$INSTALL" in
         rules|all) ;;
-        *) echo "--vendor is only valid with --install rules or --install all" >&2; usage >&2; exit 64 ;;
+        *) echo "--vendor is only valid with --install rules or --install all" >&2; HIST_REASON="INVALID_ARGUMENT"; exit 64 ;;
     esac
 fi
 
@@ -118,7 +276,6 @@ prepare_rules_stub_source() {
     write_rules_stub_template "$STUB_SOURCE_DIR"
 }
 
-trap cleanup_rules_stub_source EXIT
 prepare_rules_stub_source
 
 report_legacy_vendored_rules() {
@@ -220,15 +377,21 @@ walk_tree() {
 
 run_receipt_installer() {
     local mode="$1"
-    python3 -I -S - "$mode" "$JSON" "$FORCE" "$INSTALL" "$SOURCE" "$TARGET" "${TREE_ARGS[@]}" <<'PY'
+    DHPK_ASSETS_PLAN="$PLAN" python3 -I -S - "$mode" "$JSON" "$FORCE" "$INSTALL" "$SOURCE" "$TARGET" "${TREE_ARGS[@]}" <<'PY'
 import errno
 import hashlib
 import inspect
 import json
 import os
+import re
 import stat
 import sys
 import time
+
+try:
+    import pwd
+except Exception:
+    pwd = None
 
 RECEIPT_NAME = '.dhpk-asset-receipt.json'
 RECEIPT_SCHEMA = 'dhpk.asset-receipt.v1'
@@ -887,15 +1050,17 @@ def blocked_report(error):
     }
 
 
-def run(mode, force, install, source, target, tree_arguments, opened):
+def run(mode, force, install, source, target, tree_arguments, opened, history_state):
     require_capabilities()
     target_path = os.path.abspath(target)
+    history_state['target_path'] = target_path
     anchor_paths = {'target': target_path, 'target-parent': os.path.dirname(target_path)}
     receipt_path = os.path.join(target_path, RECEIPT_NAME)
 
     source_root = physical_root(source, False, 'source')
     opened.append(source_root)
     source_version = read_source_version(source_root)
+    history_state['source_version'] = source_version
 
     trees = []
     for index in range(0, len(tree_arguments), 4):
@@ -919,6 +1084,11 @@ def run(mode, force, install, source, target, tree_arguments, opened):
         if existing_roots[anchor] is not None:
             opened.append(existing_roots[anchor])
     receipt = load_receipt(existing_roots['target'], receipt_path)
+    if receipt is not None:
+        history_state['before_version'] = receipt['source_version']
+        history_state['before_state'] = 'present'
+        history_state['after_version'] = receipt['source_version']
+        history_state['after_state'] = 'present'
     recorded = receipt['entries'] if receipt is not None else {}
 
     items = []
@@ -956,6 +1126,9 @@ def run(mode, force, install, source, target, tree_arguments, opened):
     }
 
     if mode == 'plan':
+        history_state['verdict'] = 'BLOCKED' if blocked else 'READY'
+        history_state['reason_codes'] = ['CONFLICT'] if blocked else []
+        history_state['exit_code'] = 3 if blocked else 0
         if JSON_OUTPUT:
             print(json.dumps(plan_report(context, items, blocked), indent=2, sort_keys=True))
         for path in skipped:
@@ -969,6 +1142,9 @@ def run(mode, force, install, source, target, tree_arguments, opened):
         return
 
     if blocked:
+        history_state['verdict'] = 'BLOCKED'
+        history_state['reason_codes'] = ['CONFLICT']
+        history_state['exit_code'] = 3
         for item in conflicts:
             emit(describe(item, force, '')[0], True)
         adopted = dict(recorded)
@@ -1008,24 +1184,135 @@ def run(mode, force, install, source, target, tree_arguments, opened):
     data = render_receipt(source_version, updated)
     if receipt is None or receipt['raw'] != data:
         write_receipt(roots['target'], data, receipt_path)
+    history_state['verdict'] = 'INSTALL_PASS'
+    history_state['after_version'] = source_version
+    history_state['after_state'] = 'current'
+    history_state['exit_code'] = 0
     emit('RECEIPT {} ({} entries; source version {})'.format(receipt_path, len(updated), source_version))
 
 
-def main():
+def sanitize_history_text(val, max_len=200, redact_user=True):
+    if val is None:
+        return None
+    text = str(val)
+    text = re.sub(r'\b((?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/)[^\s/@:]+:[^\s/@]+@', r'\1<redacted>@', text, flags=re.I)
+    text = re.sub(r'\b(authorization|proxy-authorization)\s*[:=]\s*(?:bearer|basic)\s+[^\r\n,;]+', r'\1: <redacted>', text, flags=re.I)
+    text = re.sub(r'\b(bearer|basic)\s+[^\s,;\r\n]+', r'\1 <redacted>', text, flags=re.I)
+    text = re.sub(r'(["\']?)(authorization|proxy-authorization|token|access[_-]?token|refresh[_-]?token|oauth[_-]?token|id[_-]?token|session[_-]?token|password|secret|api[_-]?key|credential|(?:set-)?cookie)\1\s*[:=]\s*(?:"[^"\r\n]*"|\'[^\'\r\n]*\'|[^\s,;}\]]+)', r'\2: <redacted>', text, flags=re.I)
+    text = re.sub(r'\b(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})\b', '<redacted-token>', text)
+    for k in ('HOME', 'USERPROFILE'):
+        h = os.environ.get(k, '').strip()
+        if h and h != '/':
+            for cand in (os.path.abspath(h), os.path.realpath(h)):
+                text = text.replace(cand, '<home>')
+    text = re.sub(r'(/(?:Users|home)/)[^/\s"\'`,;)}\]]+', r'\1<redacted>', text)
+    text = re.sub(r'([A-Za-z]:[\\/]Users[\\/])[^\\/\s"\'`,;)}\]]+', r'\1<redacted>', text)
+    if redact_user:
+        users = set()
+        for k in ('USER', 'LOGNAME', 'USERNAME'):
+            u = os.environ.get(k, '').strip()
+            if u:
+                users.add(u)
+        if pwd is not None:
+            try:
+                users.add(pwd.getpwuid(os.getuid()).pw_name)
+            except Exception:
+                pass
+        safe = {'user', 'local', 'project', 'install', 'plan', 'dry-run', 'claude-assets', 'unknown'}
+        for u in sorted(users, key=len, reverse=True):
+            if len(u) >= 2 and u.lower() not in safe:
+                text = re.sub(r'(?<![A-Za-z0-9])' + re.escape(u) + r'(?![A-Za-z0-9])', '<user>', text)
+    return text[:max_len]
+
+
+def resolve_history_file():
+    override = os.environ.get('DHPK_INSTALL_HISTORY_FILE', '').strip()
+    if override:
+        return os.path.abspath(override)
+    xdg = os.environ.get('XDG_STATE_HOME', '').strip()
+    if xdg:
+        return os.path.join(os.path.abspath(xdg), 'dhpk', 'install-history.jsonl')
+    home = os.environ.get('HOME', '').strip() or os.environ.get('USERPROFILE', '').strip() or os.path.expanduser('~')
+    return os.path.join(os.path.abspath(home), '.local', 'state', 'dhpk', 'install-history.jsonl')
+
+
+def record_history(history_state):
+    if os.environ.get('DHPK_NO_INSTALL_HISTORY', '').strip().lower() in ('1', 'true'):
+        return
+    if os.environ.get('DHPK_INSTALL_HISTORY_DELEGATED', '').strip().lower() in ('1', 'true'):
+        return
+    try:
+        target_path = history_state.get('target_path')
+        project_id = None
+        if target_path:
+            canonical = os.path.realpath(target_path)
+            project_id = 'sha256:' + hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+        record = {
+            'schema': 'dhpk.install-history.v1',
+            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            'surface': 'claude-assets',
+            'action': history_state.get('action') or 'install',
+            'scope': 'project',
+            'sourceVersion': sanitize_history_text(history_state.get('source_version'), 64),
+            'projectId': project_id,
+            'exitCode': history_state.get('exit_code', 0),
+            'verdict': history_state.get('verdict') or 'BLOCKED',
+            'reasonCodes': [sanitize_history_text(c, 96) for c in history_state.get('reason_codes') or [] if c],
+            'versions': {
+                'before': {
+                    'version': sanitize_history_text(history_state.get('before_version'), 64),
+                    'state': history_state.get('before_state') or 'absent',
+                },
+                'after': {
+                    'version': sanitize_history_text(history_state.get('after_version'), 64),
+                    'state': history_state.get('after_state') or 'absent',
+                },
+            },
+        }
+        history_file = resolve_history_file()
+        os.makedirs(os.path.dirname(history_file), mode=0o700, exist_ok=True)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, 'O_NOFOLLOW', 0)
+        fd = os.open(history_file, flags, 0o600)
+        try:
+            os.write(fd, (json.dumps(record, separators=(',', ':')) + '\n').encode('utf-8'))
+        finally:
+            os.close(fd)
+    except Exception as err:
+        print('[install-assets] warning: failed to append install history: {}'.format(sanitize_history_text(err, 200)), file=sys.stderr)
+
+
+def main(history_state):
     if len(sys.argv) < 7 or (len(sys.argv) - 7) % 4 != 0 or sys.argv[1] not in ('plan', 'apply'):
         failure('UNSAFE DESTINATION invalid installer arguments', 4)
     opened = []
     try:
-        run(sys.argv[1], sys.argv[3] == '1', sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7:], opened)
+        run(sys.argv[1], sys.argv[3] == '1', sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7:], opened, history_state)
     finally:
         for descriptor in opened:
             os.close(descriptor)
 
 
 if __name__ == '__main__':
+    mode_arg = sys.argv[1] if len(sys.argv) > 1 else 'apply'
+    action_name = ('plan' if os.environ.get('DHPK_ASSETS_PLAN') == '1' else 'dry-run') if mode_arg == 'plan' else 'install'
+    history_state = {
+        'action': action_name,
+        'target_path': os.path.abspath(sys.argv[6]) if len(sys.argv) > 6 else '',
+        'source_version': None,
+        'before_version': None,
+        'before_state': 'absent',
+        'after_version': None,
+        'after_state': 'absent',
+        'verdict': 'BLOCKED',
+        'reason_codes': [],
+        'exit_code': 0,
+    }
     try:
-        main()
+        main(history_state)
     except InstallerFailure as error:
+        history_state['verdict'] = 'BLOCKED'
+        history_state['reason_codes'] = [REASON_CODES.get(error.code, 'INSTALLER_FAILURE')]
+        history_state['exit_code'] = error.code
         if JSON_OUTPUT:
             print(json.dumps(blocked_report(error), indent=2, sort_keys=True))
         print(str(error), file=sys.stderr)
@@ -1034,10 +1321,15 @@ if __name__ == '__main__':
         raise
     except Exception as error:
         failure_error = InstallerFailure('UNSAFE DESTINATION installer copy failed: {}'.format(error), 4)
+        history_state['verdict'] = 'BLOCKED'
+        history_state['reason_codes'] = ['UNSAFE_PATH']
+        history_state['exit_code'] = 4
         if JSON_OUTPUT:
             print(json.dumps(blocked_report(failure_error), indent=2, sort_keys=True))
         print(str(failure_error), file=sys.stderr)
         raise SystemExit(4)
+    finally:
+        record_history(history_state)
 PY
 }
 
@@ -1152,18 +1444,22 @@ report_vendor_rules_copy
 walk_groups check
 if [ "$HAS_LEGACY_RUNNER_CONFLICT" -eq 1 ]; then
     echo "Installation aborted: reconcile unowned legacy runner files before installing the Skill-local pilot trees." >&2
+    HIST_REASON="LEGACY_RUNNER_CONFLICT"
     exit 3
 fi
 if [ "$HAS_UNSAFE_PILOT_SOURCE" -eq 1 ]; then
     echo "Installation aborted: pilot Skill resources must be physical files with no symlinked path components." >&2
+    HIST_REASON="UNSAFE_PATH"
     exit 4
 fi
 if [ "$HAS_MISSING_PILOT_RESOURCE" -eq 1 ]; then
     echo "Installation aborted: required pilot Skill resources are missing; no target files were changed." >&2
+    HIST_REASON="MISSING_SOURCE"
     exit 66
 fi
 if [ "$HAS_UNSAFE_SYMLINK" -eq 1 ] || [ "$HAS_UNSAFE_DESTINATION" -eq 1 ]; then
     echo "Installation aborted: destination path is unsafe." >&2
+    HIST_REASON="UNSAFE_PATH"
     exit 4
 fi
 
@@ -1171,26 +1467,32 @@ if [ "$HAVE_PYTHON" -ne 1 ]; then
     if [ "$JSON" -eq 1 ]; then
         printf '%s\n' '{"exitCode":2,"message":"Python3 is required to classify assets against the Asset Receipt.","reasonCode":"PYTHON_UNAVAILABLE","schema":"dhpk.asset-plan.v1","verdict":"BLOCKED"}'
         echo "Plan aborted: Python3 is required to classify assets against the Asset Receipt." >&2
+        HIST_REASON="PYTHON_UNAVAILABLE"
         exit 2
     fi
     if [ "$DRY_RUN" -eq 1 ]; then
         if [ "$HAS_CONFLICT" -eq 1 ] && [ "$FORCE" -ne 1 ]; then
             echo "Installation aborted: resolve conflicts or re-run with --force." >&2
+            HIST_REASON="CONFLICT"
             exit 3
         fi
         echo "NOTE Python3 is unavailable: this dry run compares bytes only and does not consult the Asset Receipt." >&2
         walk_groups report
+        HIST_VERDICT="NOT_RUN"
         exit 0
     fi
     echo "Installation aborted: Python3 is required for physical descriptor-relative asset installation." >&2
+    HIST_REASON="PYTHON_UNAVAILABLE"
     exit 2
 fi
 
 walk_groups collect
 if [ "$DRY_RUN" -eq 1 ]; then
+    HIST_RECORDED=1
     run_receipt_installer plan
     exit 0
 fi
+HIST_RECORDED=1
 run_receipt_installer apply
 if installs_rules_stub; then
     echo "Installed $INSTALL assets from $SOURCE to $TARGET (rules stub: $(rules_stub_path))"

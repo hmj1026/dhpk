@@ -29,6 +29,10 @@ const DHPK_INSTALL = path.join(ROOT, 'scripts', 'dhpk-install.js');
 const PLAN = ['--copy', '--update', '--plan', '--json', '--force'];
 
 const tempDir = (label) => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-plan-json-${label}-`)));
+const ISOLATED_STATE_HOME = tempDir('state');
+process.on('exit', () => {
+  fs.rmSync(ISOLATED_STATE_HOME, { recursive: true, force: true });
+});
 const output = (result) => `status=${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`;
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
@@ -38,7 +42,7 @@ function runHook(surface, project, args, plugin) {
     cwd: project,
     encoding: 'utf8',
     timeout: 90_000,
-    env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, HOME: project, DHPK_INSTALLER_ROOT: plugin },
+    env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, HOME: project, XDG_STATE_HOME: ISOLATED_STATE_HOME, DHPK_INSTALLER_ROOT: plugin },
   });
 }
 
@@ -47,12 +51,17 @@ function runDhpkInstall(args, home) {
     cwd: ROOT,
     encoding: 'utf8',
     timeout: 90_000,
-    env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, HOME: home },
+    env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`, HOME: home, XDG_STATE_HOME: ISOLATED_STATE_HOME },
   });
 }
 
 function runAgy(args) {
-  return spawnSync(process.execPath, [AGY_CLI, ...args], { cwd: ROOT, encoding: 'utf8', timeout: 30_000 });
+  return spawnSync(process.execPath, [AGY_CLI, ...args], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 30_000,
+    env: { ...process.env, XDG_STATE_HOME: ISOLATED_STATE_HOME },
+  });
 }
 
 function stdoutJson(result, label) {

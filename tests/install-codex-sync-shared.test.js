@@ -113,8 +113,9 @@ for (const entrypoint of sharedSkillRecoveryEntrypoints) {
     const project = projectRoot();
     const plugin = fakePlugin();
     const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-installer-home-'));
+    const isolatedState = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-installer-state-'));
     try {
-      const env = { HOME: isolatedHome };
+      const env = { HOME: isolatedHome, XDG_STATE_HOME: isolatedState };
       write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '0.65.9' }));
       const inventoryPath = path.join(plugin, 'manifests', 'distribution-inventory.json');
       const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
@@ -190,6 +191,7 @@ for (const entrypoint of sharedSkillRecoveryEntrypoints) {
       fs.rmSync(project, { recursive: true, force: true });
       fs.rmSync(plugin, { recursive: true, force: true });
       fs.rmSync(isolatedHome, { recursive: true, force: true });
+      fs.rmSync(isolatedState, { recursive: true, force: true });
     }
   });
 

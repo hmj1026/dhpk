@@ -202,7 +202,7 @@
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {
       "skill_id": "harness-setup",
       "source": "scripts/setup/install-assets.sh",
-      "sha256": "sha256:fbb70b7827a6d2d1c478cb69d933702458044c67de63b10ff2b1d00e6d9a3fae",
+      "sha256": "sha256:8a73190e6f79a0618bcefe25fc09ef4757cb83fe21c3714adda47e337d36b749",
       "mode": "0755"
     },
     "skills/harness-setup/templates/settings.local.example.json": {
