@@ -2482,11 +2482,14 @@ function claudeCliVersion() {
   return { cmd: 'claude --version', status: 'PASS', exitCode: result.exitCode, version: output };
 }
 
+const CLAUDE_CLI_TIMEOUT_MS = 60000;
+const CLAUDE_PLUGIN_INSTALL_TIMEOUT_MS = 120000;
+
 function teardownClaudeProjectRegistry(project, commands, warnings, root) {
   const uninstall = runHostCliProbe(
     'claude',
     ['plugin', 'uninstall', 'dhpk@dhpk', '--scope', 'project', '-y'],
-    { cwd: project, timeoutMs: 60000, maxBuffer: 1024 * 1024 },
+    { cwd: project, timeoutMs: CLAUDE_CLI_TIMEOUT_MS },
   );
   commands.push({ cmd: 'claude plugin uninstall dhpk@dhpk --scope project', exitCode: uninstall.exitCode });
   if (uninstall.exitCode !== 0) {
@@ -2496,7 +2499,7 @@ function teardownClaudeProjectRegistry(project, commands, warnings, root) {
   const remove = runHostCliProbe(
     'claude',
     ['plugin', 'marketplace', 'remove', 'dhpk', '--scope', 'project'],
-    { cwd: project, timeoutMs: 60000, maxBuffer: 1024 * 1024 },
+    { cwd: project, timeoutMs: CLAUDE_CLI_TIMEOUT_MS },
   );
   commands.push({ cmd: 'claude plugin marketplace remove dhpk --scope project', exitCode: remove.exitCode });
   if (remove.exitCode !== 0) {
@@ -2584,8 +2587,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
     const stagedManifest = path.join(validationStage, '.claude-plugin', 'plugin.json');
     const strict = runHostCliProbe('claude', ['plugin', 'validate', stagedManifest, '--strict'], {
       cwd: validationStage,
-      timeoutMs: 60000,
-      maxBuffer: 1024 * 1024,
+      timeoutMs: CLAUDE_CLI_TIMEOUT_MS,
     });
     strictEvidence = {
       cmd: strictCommand,
@@ -2615,8 +2617,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
   try {
     const add = runHostCliProbe('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], {
       cwd: project,
-      timeoutMs: 60000,
-      maxBuffer: 1024 * 1024,
+      timeoutMs: CLAUDE_CLI_TIMEOUT_MS,
     });
     commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.exitCode });
     if (add.exitCode !== 0) {
@@ -2625,8 +2626,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
 
     const install = runHostCliProbe('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], {
       cwd: project,
-      timeoutMs: 120000,
-      maxBuffer: 1024 * 1024,
+      timeoutMs: CLAUDE_PLUGIN_INSTALL_TIMEOUT_MS,
     });
     commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.exitCode });
     if (install.exitCode !== 0) {
@@ -2635,8 +2635,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
 
     const list = runHostCliProbe('claude', ['plugin', 'list', '--json'], {
       cwd: project,
-      timeoutMs: 60000,
-      maxBuffer: 1024 * 1024,
+      timeoutMs: CLAUDE_CLI_TIMEOUT_MS,
     });
     commands.push({ cmd: 'claude plugin list --json', exitCode: list.exitCode });
     if (list.exitCode !== 0) {
@@ -2665,8 +2664,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
       const installedManifest = path.join(installedRoot, '.claude-plugin', 'plugin.json');
       const installedStrict = runHostCliProbe('claude', ['plugin', 'validate', installedManifest, '--strict'], {
         cwd: installedRoot,
-        timeoutMs: 60000,
-        maxBuffer: 1024 * 1024,
+        timeoutMs: CLAUDE_CLI_TIMEOUT_MS,
       });
       const installedEvidence = {
         cmd: 'claude plugin validate <installed>/.claude-plugin/plugin.json --strict',
