@@ -1,19 +1,9 @@
 'use strict';
 
 const { spawnSync } = require('node:child_process');
+const { terminateProcessGroup } = require('./terminate-process-group');
 
 const MAX_CAPTURE_BYTES = 16 * 1024 * 1024;
-
-function terminateProcessGroup(pid, signal = 'SIGTERM') {
-  if (process.platform === 'win32' || !Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(-pid, signal);
-    return true;
-  } catch (error) {
-    if (error && error.code === 'ESRCH') return false;
-    throw error;
-  }
-}
 
 function runNodeTest(file, { env = process.env, timeoutMs = 60000, captureOutput = false } = {}) {
   const detached = process.platform !== 'win32';

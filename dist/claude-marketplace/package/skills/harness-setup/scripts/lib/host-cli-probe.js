@@ -6,7 +6,7 @@
 // timeout is never reported as a silent success.
 
 const { spawnSync } = require('node:child_process');
-const { terminateProcessGroup } = require('./bounded-child-process');
+const { terminateProcessGroup } = require('./terminate-process-group');
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_BUFFER_BYTES = 1024 * 1024;
