@@ -276,7 +276,20 @@ try {
     return;
   }
   const { inventory, profiles, moduleCatalog, plugin } = loadManifests();
-  const result = execute(request, inventory, { profiles, moduleCatalog, sourceVersion: plugin.version });
+  if (request.action === 'status') {
+    const { formatStatusReport } = require('./lib/dhpk-install-status');
+    const { exitCode, ...result } = execute(request, inventory, {
+      root,
+      profiles,
+      moduleCatalog,
+      sourceVersion: plugin.version,
+    });
+    if (request.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    else process.stdout.write(formatStatusReport(result));
+    process.exitCode = Number.isInteger(exitCode) ? exitCode : 0;
+    return;
+  }
+  const result = execute(request, inventory, { root, profiles, moduleCatalog, sourceVersion: plugin.version });
   if (request.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   else process.stdout.write(`${result.lifecycle.verdict}: ${request.surface} ${request.action}\n`);
   const exitCode = result.lifecycle.verdict === 'BLOCKED' ? 2 : 0;

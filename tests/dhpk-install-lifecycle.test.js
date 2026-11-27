@@ -225,7 +225,7 @@ test('every lifecycle surface declares operation capability while generic writes
 });
 
 test('non-Cursor plans select actual inventory entries and retain their IDs for status and verify', () => {
-  for (const action of ['plan', 'status', 'verify']) {
+  for (const action of ['plan', 'verify']) {
     const result = invoke(['codex-sync', action, '--scope', 'project', '--json']);
     assert.strictEqual(result.status, 0, result.stderr);
     const output = json(result);
@@ -234,6 +234,14 @@ test('non-Cursor plans select actual inventory entries and retain their IDs for 
     assert.deepStrictEqual(output.plan.selectedIds, output.plan.distribution.entries.map((entry) => entry.stableId));
     assert.strictEqual(output.lifecycle.verdict, 'NOT_RUN');
   }
+  const status = invoke(['codex-sync', 'status', '--scope', 'project', '--offline', '--json']);
+  assert.strictEqual(status.status, 0, status.stderr);
+  const statusOutput = json(status);
+  assert.strictEqual(statusOutput.schema, 'dhpk.install-status.v1');
+  assert.ok(statusOutput.plan.selectedIds.length > 0, 'status must retain Codex inventory IDs in plan');
+  assert.strictEqual(statusOutput.plan.selection.profileId, 'common');
+  assert.deepStrictEqual(statusOutput.plan.selectedIds, statusOutput.plan.distribution.entries.map((entry) => entry.stableId));
+  assert.notStrictEqual(statusOutput.lifecycle.verdict, 'NOT_RUN');
 });
 
 test('Cursor agent additions and dangling surface membership fail closed before a plan is accepted', () => {

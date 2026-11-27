@@ -51,7 +51,7 @@ const BUILD_ONLY_FILES = Object.freeze([
   ...['codex', 'codex-cli', 'cursor-plan', 'python-compat'].map((name) => `scripts/lib/install-adapters/${name}.js`),
   ...[
     'agent-frontmatter', 'capability-bundle-selection', 'consumer-runtime-preflight', 'cursor-consumer-evidence',
-    'dhpk-install-lifecycle', 'dhpk-install-recover', 'harness', 'harness-receipt', 'harness-result',
+    'dhpk-install-lifecycle', 'dhpk-install-recover', 'dhpk-install-status', 'harness', 'harness-receipt', 'harness-result',
     'install-history', 'installer-modules', 'marketplace-skill-content', 'native-shared-skill-install', 'physical-file', 'platform-provenance',
     'portable-skill-metadata', 'profile-projection-sets', 'project-agent-projection-publisher',
     'projection-artifact-store', 'projection-journal', 'receipt-json-primitives', 'receipt-primitives',
