@@ -40,10 +40,170 @@ NON_INTERACTIVE=0
 ASSUME_YES=0
 HOOK_PROFILE_ARG=""
 HOOK_PROFILE_SET=0
+HIST_HELP=0
+HIST_ACTION="install"
+HIST_SCOPE="user"
+HIST_VERDICT="BLOCKED"
+HIST_REASON=""
+HIST_BEFORE_VERSION=""
+HIST_BEFORE_STATE="absent"
+HIST_AFTER_VERSION=""
+HIST_AFTER_STATE="absent"
+
+dhpk_record_install_history() {
+  local rc="$1"
+  [ "$HIST_HELP" -eq 1 ] && return 0
+  case "${DHPK_NO_INSTALL_HISTORY:-}" in 1|true|TRUE|True) return 0 ;; esac
+  case "${DHPK_INSTALL_HISTORY_DELEGATED:-}" in 1|true|TRUE|True) return 0 ;; esac
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -I -S - "$rc" "$HIST_ACTION" "$HIST_SCOPE" "$HIST_VERDICT" "$HIST_REASON" "$PLUGIN_ROOT" "$HIST_BEFORE_VERSION" "$HIST_BEFORE_STATE" "$HIST_AFTER_VERSION" "$HIST_AFTER_STATE" <<'PY' || true
+import json
+import os
+import re
+import sys
+import time
+
+try:
+    import pwd
+except Exception:
+    pwd = None
+
+def read_source_version(root):
+    for rel, key in (('.claude-plugin/plugin.json', 'version'), ('package.json', 'version')):
+        p = os.path.join(root, rel)
+        try:
+            if os.path.islink(p) or not os.path.isfile(p):
+                continue
+            with open(p, 'r', encoding='utf-8') as f:
+                val = json.load(f).get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        except Exception:
+            pass
+    return None
+
+def sanitize_text(val, max_len=200, redact_user=True):
+    if val is None:
+        return None
+    text = str(val)
+    text = re.sub(r'\b((?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/)[^\s/@:]+:[^\s/@]+@', r'\1<redacted>@', text, flags=re.I)
+    text = re.sub(r'\b(authorization|proxy-authorization)\s*[:=]\s*(?:bearer|basic)\s+[^\r\n,;]+', r'\1: <redacted>', text, flags=re.I)
+    text = re.sub(r'\b(bearer|basic)\s+[^\s,;\r\n]+', r'\1 <redacted>', text, flags=re.I)
+    text = re.sub(r'(["\']?)(authorization|proxy-authorization|token|access[_-]?token|refresh[_-]?token|oauth[_-]?token|id[_-]?token|session[_-]?token|password|secret|api[_-]?key|credential|(?:set-)?cookie)\1\s*[:=]\s*(?:"[^"\r\n]*"|\'[^\'\r\n]*\'|[^\s,;}\]]+)', r'\2: <redacted>', text, flags=re.I)
+    text = re.sub(r'\b(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})\b', '<redacted-token>', text)
+    for k in ('HOME', 'USERPROFILE'):
+        h = os.environ.get(k, '').strip()
+        if h and h != '/':
+            for cand in (os.path.abspath(h), os.path.realpath(h)):
+                text = text.replace(cand, '<home>')
+    text = re.sub(r'(/(?:Users|home)/)[^/\s"\'`,;)}\]]+', r'\1<redacted>', text)
+    text = re.sub(r'([A-Za-z]:[\\/]Users[\\/])[^\\/\s"\'`,;)}\]]+', r'\1<redacted>', text)
+    if redact_user:
+        users = set()
+        for k in ('USER', 'LOGNAME', 'USERNAME'):
+            u = os.environ.get(k, '').strip()
+            if u:
+                users.add(u)
+        if pwd is not None:
+            try:
+                users.add(pwd.getpwuid(os.getuid()).pw_name)
+            except Exception:
+                pass
+        safe = {'user', 'local', 'project', 'install', 'update', 'plan', 'claude', 'unknown'}
+        for u in sorted(users, key=len, reverse=True):
+            if len(u) >= 2 and u.lower() not in safe:
+                text = re.sub(r'(?<![A-Za-z0-9])' + re.escape(u) + r'(?![A-Za-z0-9])', '<user>', text)
+    return text[:max_len]
+
+def resolve_history_file():
+    override = os.environ.get('DHPK_INSTALL_HISTORY_FILE', '').strip()
+    if override:
+        return os.path.abspath(override)
+    xdg = os.environ.get('XDG_STATE_HOME', '').strip()
+    if xdg:
+        return os.path.join(os.path.abspath(xdg), 'dhpk', 'install-history.jsonl')
+    home = os.environ.get('HOME', '').strip() or os.environ.get('USERPROFILE', '').strip() or os.path.expanduser('~')
+    return os.path.join(os.path.abspath(home), '.local', 'state', 'dhpk', 'install-history.jsonl')
+
+try:
+    exit_code = int(sys.argv[1])
+    action = sys.argv[2] or 'install'
+    scope = sys.argv[3] or 'user'
+    verdict = sys.argv[4] or 'BLOCKED'
+    reason = sys.argv[5].strip()
+    plugin_root = sys.argv[6]
+    before_ver = sys.argv[7].strip() or None
+    before_state = sys.argv[8].strip() or ('present' if before_ver else 'absent')
+    after_ver = sys.argv[9].strip() or None
+    after_state = sys.argv[10].strip() or ('present' if after_ver else 'absent')
+    src_ver = read_source_version(plugin_root)
+    if exit_code == 0 and action in ('install', 'update') and after_ver is None:
+        after_ver = src_ver
+        after_state = 'current'
+    record = {
+        'schema': 'dhpk.install-history.v1',
+        'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'surface': 'claude',
+        'action': action,
+        'scope': scope,
+        'sourceVersion': sanitize_text(src_ver, 64),
+        'projectId': None,
+        'exitCode': exit_code,
+        'verdict': verdict,
+        'reasonCodes': [sanitize_text(reason, 96)] if reason else [],
+        'versions': {
+            'before': {'version': sanitize_text(before_ver, 64), 'state': before_state},
+            'after': {'version': sanitize_text(after_ver, 64), 'state': after_state},
+        },
+    }
+    history_file = resolve_history_file()
+    os.makedirs(os.path.dirname(history_file), mode=0o700, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, 'O_NOFOLLOW', 0)
+    fd = os.open(history_file, flags, 0o600)
+    try:
+        os.write(fd, (json.dumps(record, separators=(',', ':')) + '\n').encode('utf-8'))
+    finally:
+        os.close(fd)
+except Exception as err:
+    print('[install] warning: failed to append install history: {}'.format(sanitize_text(err, 200)), file=sys.stderr)
+PY
+  elif command -v node >/dev/null 2>&1; then
+    DHPK_HIST_RC="$rc" DHPK_HIST_ACTION="$HIST_ACTION" DHPK_HIST_SCOPE="$HIST_SCOPE" DHPK_HIST_VERDICT="$HIST_VERDICT" DHPK_HIST_REASON="$HIST_REASON" DHPK_HIST_ROOT="$PLUGIN_ROOT" DHPK_HIST_BV="$HIST_BEFORE_VERSION" DHPK_HIST_BS="$HIST_BEFORE_STATE" DHPK_HIST_AV="$HIST_AFTER_VERSION" DHPK_HIST_AS="$HIST_AFTER_STATE" node -e '
+      const path = require("node:path");
+      const h = require(path.join(process.env.DHPK_HIST_ROOT, "scripts/lib/install-history"));
+      const srcVer = h.readPackageSourceVersion(process.env.DHPK_HIST_ROOT);
+      const rc = Number(process.env.DHPK_HIST_RC || 0);
+      const action = process.env.DHPK_HIST_ACTION || "install";
+      const av = process.env.DHPK_HIST_AV || (rc === 0 && (action === "install" || action === "update") ? srcVer : null);
+      const as = process.env.DHPK_HIST_AS || (rc === 0 && (action === "install" || action === "update") ? "current" : "absent");
+      h.appendInstallHistory({
+        surface: "claude",
+        action,
+        scope: process.env.DHPK_HIST_SCOPE || "user",
+        sourceVersion: srcVer,
+        projectRoot: null,
+        exitCode: rc,
+        verdict: process.env.DHPK_HIST_VERDICT || "BLOCKED",
+        reasonCodes: process.env.DHPK_HIST_REASON ? [process.env.DHPK_HIST_REASON] : [],
+        beforeVersion: { version: process.env.DHPK_HIST_BV || null, state: process.env.DHPK_HIST_BS || "absent" },
+        afterVersion: { version: av, state: as },
+      });
+    ' 2>/dev/null || true
+  fi
+}
+
+dhpk_install_on_exit() {
+  local rc=$?
+  dhpk_record_install_history "$rc" || true
+  exit "$rc"
+}
+trap dhpk_install_on_exit EXIT
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dry-run|--print) DRY_RUN=1; shift ;;
+    --dry-run|--print) DRY_RUN=1; HIST_ACTION="plan"; shift ;;
     -h|--help)
+      HIST_HELP=1
       sed -n '1,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
@@ -51,11 +211,13 @@ while [[ $# -gt 0 ]]; do
     --yes) ASSUME_YES=1; shift ;;
     --profile|--profile=*)
       echo "[install] --profile has been retired; fresh installs use the common collection" >&2
+      HIST_REASON="RETIRED_PROFILE"
       exit 64
       ;;
     --hook-profile)
       if [[ $# -lt 2 || "$2" == --* || -z "$2" ]]; then
         echo "[install] ERROR hook-profile: --hook-profile requires a profile id (minimal|standard|strict); no installation started." >&2
+        HIST_REASON="INVALID_ARGUMENT"
         exit 64
       fi
       HOOK_PROFILE_ARG="$2"; HOOK_PROFILE_SET=1; shift 2
@@ -63,21 +225,23 @@ while [[ $# -gt 0 ]]; do
     --hook-profile=*)
       if [[ -z "${1#--hook-profile=}" || "${1#--hook-profile=}" == --* ]]; then
         echo "[install] ERROR hook-profile: --hook-profile requires a profile id (minimal|standard|strict); no installation started." >&2
+        HIST_REASON="INVALID_ARGUMENT"
         exit 64
       fi
       HOOK_PROFILE_ARG="${1#--hook-profile=}"; HOOK_PROFILE_SET=1; shift
       ;;
-    *)  echo "Unknown flag: $1 (try --help)" >&2; exit 64 ;;
+    *)  echo "Unknown flag: $1 (try --help)" >&2; HIST_REASON="INVALID_ARGUMENT"; exit 64 ;;
   esac
 done
 
-dhpk_prompts_init "$CATALOG" || exit 1
+dhpk_prompts_init "$CATALOG" || { HIST_REASON="CATALOG_UNAVAILABLE"; exit 1; }
 
 # Validate --hook-profile against the catalog. The raw value is never echoed.
 if [[ $HOOK_PROFILE_SET -eq 1 ]]; then
   if [[ "$HOOK_PROFILE_ARG" == *$'\n'* ]] \
     || ! dhpk_catalog_query '.hook_profiles[].id' | grep -Fxq -- "$HOOK_PROFILE_ARG"; then
     echo "[install] ERROR hook-profile: unknown hook profile id (expected one of the catalog hook_profiles); no installation started." >&2
+    HIST_REASON="INVALID_HOOK_PROFILE"
     exit 64
   fi
 fi
@@ -282,6 +446,7 @@ check_cmd gum     optional "nicer interactive UI; falls back to plain shell prom
 echo
 if [[ $MISSING_REQUIRED -ne 0 ]]; then
   echo "✗ Required tools missing — install them and re-run."
+  HIST_REASON="MISSING_PREREQUISITE"
   exit 1
 fi
 
@@ -292,15 +457,18 @@ USE_PRESET=""
 if [[ -f "$PROFILES" ]]; then
   if ! dhpk_validate_profiles "$PROFILES"; then
     dhpk_install_error profile-extraction
+    HIST_REASON="PROFILE_EXTRACTION_FAILED"
     exit 1
   fi
   if ! dhpk_validate_profile_modules "$PROFILES" "$CATALOG"; then
     dhpk_install_error module-extraction
+    HIST_REASON="MODULE_EXTRACTION_FAILED"
     exit 1
   fi
   PROFILE_IDS=()
   if ! profile_ids_output="$(dhpk_profile_ids "$PROFILES")"; then
     dhpk_install_error profile-extraction
+    HIST_REASON="PROFILE_EXTRACTION_FAILED"
     exit 1
   fi
   while IFS= read -r p; do
@@ -308,11 +476,13 @@ if [[ -f "$PROFILES" ]]; then
   done <<<"$profile_ids_output"
   if [[ ${#PROFILE_IDS[@]} -eq 0 ]]; then
     dhpk_install_error profile-extraction
+    HIST_REASON="PROFILE_EXTRACTION_FAILED"
     exit 1
   fi
   if [[ $NON_INTERACTIVE -eq 0 ]] && dhpk_yes_no "Use a curated preset from manifests/install-profiles.json?" n; then
     if ! USE_PRESET="$(dhpk_single_select "Pick a preset:" "${PROFILE_IDS[@]}")"; then
       dhpk_install_error preset-selection
+      HIST_REASON="PRESET_SELECTION_FAILED"
       exit 1
     fi
   fi
@@ -326,6 +496,7 @@ HOOK_PROFILE="standard"
 if [[ -n "$USE_PRESET" ]]; then
   if ! profile_modules_output="$(dhpk_profile_modules "$PROFILES" "$USE_PRESET")"; then
     dhpk_install_error module-extraction
+    HIST_REASON="MODULE_EXTRACTION_FAILED"
     exit 1
   fi
   while IFS= read -r m; do
@@ -404,6 +575,7 @@ else
       else
         if ! chosen="$(dhpk_single_select "Version for $sid:" "${VERSIONS[@]}")"; then
           dhpk_install_error version-selection
+          HIST_REASON="VERSION_SELECTION_FAILED"
           exit 1
         fi
         CHOSEN_VERSIONS=("$chosen")
@@ -448,6 +620,7 @@ else
     while IFS= read -r p; do PROFILE_IDS+=("$p"); done < <(dhpk_catalog_query '.hook_profiles[].id')
     if ! HOOK_PROFILE="$(dhpk_single_select "Hook profile:" "${PROFILE_IDS[@]}")"; then
       dhpk_install_error hook-selection
+      HIST_REASON="HOOK_SELECTION_FAILED"
       exit 1
     fi
   fi
@@ -486,15 +659,19 @@ printf '\n\n'
 
 if [[ $DRY_RUN -eq 1 ]]; then
   echo "(--dry-run set — not executing.)"
+  HIST_VERDICT="NOT_RUN"
   exit 0
 fi
 
 if [[ $NON_INTERACTIVE -eq 1 && $ASSUME_YES -eq 0 ]]; then
   echo "[install] --non-interactive cannot confirm the install; re-run with --yes (or use --dry-run). No installation started." >&2
+  HIST_REASON="CONFIRMATION_REQUIRED"
   exit 64
 fi
 if [[ $ASSUME_YES -eq 0 ]] && ! dhpk_yes_no "Run this now?" y; then
   echo "Aborted."
+  HIST_VERDICT="NOT_RUN"
+  HIST_REASON="USER_ABORTED"
   exit 130
 fi
 
@@ -610,6 +787,36 @@ dhpk_run_plugin_update() {
 }
 
 install_scope="$(dhpk_install_target_scope)"
+HIST_SCOPE="$install_scope"
+if command -v python3 >/dev/null 2>&1; then
+  listed_json="$(claude plugin list --json 2>/dev/null || true)"
+  if [[ -n "${listed_json//[[:space:]]/}" ]]; then
+    installed_ver="$(python3 -I -S -c '
+import json, sys
+scope, raw = sys.argv[1], sys.argv[2]
+try:
+    data = json.loads(raw)
+    if isinstance(data, dict):
+        data = data.get("plugins") or data.get("items") or []
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict) and (item.get("id") or item.get("name")) == "dhpk@dhpk":
+                if item.get("scope") in (None, scope):
+                    ver = item.get("version")
+                    if isinstance(ver, str) and ver.strip():
+                        print(ver.strip())
+                    break
+except Exception:
+    pass
+' "$install_scope" "$listed_json" 2>/dev/null || true)"
+    if [[ -n "$installed_ver" ]]; then
+      HIST_BEFORE_VERSION="$installed_ver"
+      HIST_BEFORE_STATE="present"
+      HIST_AFTER_VERSION="$installed_ver"
+      HIST_AFTER_STATE="present"
+    fi
+  fi
+fi
 rc=0
 ran_update=0
 if dhpk_plugin_installed_for_scope "$install_scope"; then
@@ -630,9 +837,15 @@ else
 fi
 
 if [[ $ran_update -eq 1 ]]; then
+  HIST_ACTION="update"
   if [[ $rc -eq 0 ]]; then
+    HIST_VERDICT="INSTALL_PASS"
+    HIST_AFTER_VERSION=""
+    HIST_AFTER_STATE="current"
     dhpk_print_installed
   else
+    HIST_VERDICT="BLOCKED"
+    HIST_REASON="CLAUDE_PLUGIN_UPDATE_FAILED"
     echo
     echo "✗ 'claude plugin update' exited with status $rc."
   fi
@@ -640,8 +853,13 @@ if [[ $ran_update -eq 1 ]]; then
 fi
 
 if [[ $rc -eq 0 ]]; then
+  HIST_VERDICT="INSTALL_PASS"
+  HIST_AFTER_VERSION=""
+  HIST_AFTER_STATE="current"
   dhpk_print_installed
 else
+  HIST_VERDICT="BLOCKED"
+  HIST_REASON="CLAUDE_PLUGIN_INSTALL_FAILED"
   echo
   echo "✗ 'claude plugin install' exited with status $rc."
 fi
