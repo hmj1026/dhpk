@@ -7,14 +7,17 @@
 // on real activation state instead of on-disk artifact presence (issue #437).
 
 const { spawnSync } = require('node:child_process');
-const { terminateProcessGroup } = require('./bounded-child-process');
+const { hostCliProbeEvidence, runHostCliProbe } = require('./host-cli-probe');
+const { redactSensitiveText } = require('./redaction');
 
 const CODEX_NATIVE_PLUGIN_ID = 'dhpk@dhpk';
 const QUERY_TIMEOUT_MS = 30000;
 const QUERY_OUTPUT_LIMIT_BYTES = 1024 * 1024;
 
-function unavailable() {
-  return { status: 'UNAVAILABLE', source: 'codex-plugin-list' };
+function unavailable(probe = null) {
+  const result = { status: 'UNAVAILABLE', source: 'codex-plugin-list' };
+  if (probe) result.probe = hostCliProbeEvidence(probe, redactSensitiveText);
+  return result;
 }
 
 function resolveProbeTimeoutMs(env = {}) {
@@ -26,34 +29,19 @@ function resolveProbeTimeoutMs(env = {}) {
 }
 
 function probeCodexNativeActivation({ env = process.env, spawn = spawnSync, timeoutMs = resolveProbeTimeoutMs(env) } = {}) {
-  let result;
-  try {
-    result = spawn('codex', ['plugin', 'list', '--json'], {
-      encoding: 'utf8',
-      timeout: timeoutMs,
-      killSignal: 'SIGKILL',
-      maxBuffer: QUERY_OUTPUT_LIMIT_BYTES,
-      detached: process.platform !== 'win32',
-      env,
-    });
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return { status: 'NOT_INSTALLED', source: 'codex-plugin-list' };
-    return unavailable();
-  }
-  if (result && result.error) {
-    if (result.error.code === 'ENOENT') return { status: 'NOT_INSTALLED', source: 'codex-plugin-list' };
-    if (Number.isInteger(result.pid)) {
-      terminateProcessGroup(result.pid, 'SIGTERM');
-      terminateProcessGroup(result.pid, 'SIGKILL');
-    }
-    return unavailable();
-  }
-  if (!result || result.status !== 0) return unavailable();
+  const result = runHostCliProbe('codex', ['plugin', 'list', '--json'], {
+    env,
+    timeoutMs,
+    maxBuffer: QUERY_OUTPUT_LIMIT_BYTES,
+    spawn,
+  });
+  if (result.error && result.error.code === 'ENOENT') return { status: 'NOT_INSTALLED', source: 'codex-plugin-list' };
+  if (result.error || result.exitCode !== 0) return unavailable(result);
   let payload;
   try {
     payload = JSON.parse(result.stdout);
   } catch (_) {
-    return unavailable();
+    return unavailable(result);
   }
   if (!payload || typeof payload !== 'object' || !Array.isArray(payload.installed)) return unavailable();
 

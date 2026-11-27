@@ -10,7 +10,12 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const {
+  TIMEOUT_EXIT_CODE,
+  hostCliProbeEvidence,
+  refusedHostCliProbe,
+  runHostCliProbe,
+} = require('../lib/host-cli-probe');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
 const { verifyNativePackage } = require('../lib/codex-native-package');
 const {
@@ -128,29 +133,29 @@ function boundedCodexLimits() {
   };
 }
 
-function terminateSandboxProcess(result) {
-  if (process.platform === 'win32' || !result || !result.pid) return;
-  try { process.kill(-result.pid, 'SIGTERM'); } catch (_) { /* child group already exited */ }
-  try { process.kill(-result.pid, 'SIGKILL'); } catch (_) { /* child group already exited */ }
+function probeEvidence(result) {
+  return hostCliProbeEvidence(result, redactSensitiveText);
 }
 
 const SANDBOX_REFUSAL_CODES = ['DHPK_NETWORK_SANDBOX_UNAVAILABLE', 'DHPK_SANDBOX_PATH_UNSAFE'];
 
 // One sandbox-result classifier for the Codex, AGY, and Claude probes. It maps
-// a timeout, an output overflow, or a sandbox refusal to a BLOCKED result, and
-// (when `unavailableSubject` is given) any other spawn error to UNAVAILABLE. The
-// caller's `build(status, reason)` owns the result shape and key order.
+// a timeout (including an inner exit 124), an output overflow, or a sandbox
+// refusal to a BLOCKED result, and (when `unavailableSubject` is given) any
+// other spawn error to UNAVAILABLE. The caller's `build(status, reason, extra)`
+// owns the result shape and key order.
 function classifySandboxError(result, limits, { subject, unavailableSubject = null, build }) {
+  if (result.timedOut) {
+    const reason = result.exitCode === TIMEOUT_EXIT_CODE
+      ? `${subject} reported a timeout (exit ${TIMEOUT_EXIT_CODE})`
+      : `${subject} timed out after ${limits.timeoutMs} ms`;
+    return build('BLOCKED', reason, { probe: probeEvidence(result) });
+  }
+  if (result.outputLimited) {
+    return build('BLOCKED', `${subject} output exceeded ${limits.maxOutputBytes} bytes`, { probe: probeEvidence(result) });
+  }
   const error = result.error;
   if (!error) return null;
-  if (error.code === 'ETIMEDOUT') {
-    terminateSandboxProcess(result);
-    return build('BLOCKED', `${subject} timed out after ${limits.timeoutMs} ms`);
-  }
-  if (error.code === 'ENOBUFS') {
-    terminateSandboxProcess(result);
-    return build('BLOCKED', `${subject} output exceeded ${limits.maxOutputBytes} bytes`);
-  }
   if (SANDBOX_REFUSAL_CODES.includes(error.code)) return build('BLOCKED', error.message);
   if (unavailableSubject) return build('UNAVAILABLE', `${unavailableSubject}: ${redactedErrorText(error)}`);
   return null;
@@ -166,21 +171,22 @@ function classifyProjectProbeRun(result, limits, { display, cli, marker, build }
     build,
   });
   if (sandboxed) return sandboxed;
-  if (result.status !== 0) {
+  const probe = probeEvidence(result);
+  if (result.exitCode !== 0) {
     const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
     const lower = output.toLowerCase();
     if (/unknown argument|unknown flag|flag provided but not defined/.test(lower)) {
-      return build('SKIP_INCOMPATIBLE', `${cli} CLI does not support the bounded project skill probe route`, { diagnostic: diagnostic(result) });
+      return build('SKIP_INCOMPATIBLE', `${cli} CLI does not support the bounded project skill probe route`, { diagnostic: diagnostic(result), probe });
     }
     if (/authentication|unauthorized|api key|credential|network|connection|timed out|timeout|dns|resolve/.test(lower)) {
-      return build('UNAVAILABLE', `${subject} is unavailable in the isolated runtime`, { diagnostic: diagnostic(result) });
+      return build('UNAVAILABLE', `${subject} is unavailable in the isolated runtime`, { diagnostic: diagnostic(result), probe });
     }
-    return build('FAIL', `${subject} failed with exit ${result.status}`, { diagnostic: diagnostic(result) });
+    return build('FAIL', `${subject} failed with exit ${result.exitCode}`, { diagnostic: diagnostic(result), probe });
   }
   if (String(result.stdout || '').trim() !== marker) {
-    return build('FAIL', `${subject} did not return the exact ${marker} marker`, { diagnostic: diagnostic(result) });
+    return build('FAIL', `${subject} did not return the exact ${marker} marker`, { diagnostic: diagnostic(result), probe });
   }
-  return build('PASS', `bounded ${display} project probe returned ${marker}`, { network: 'disabled' });
+  return build('PASS', `bounded ${display} project probe returned ${marker}`, { network: 'disabled', probe });
 }
 
 function executeWithSandbox(command, args, options) {
@@ -195,28 +201,22 @@ function executeWithSandbox(command, args, options) {
   } = options;
   const sandbox = networkSandboxProbe(pathValue, 'disabled', true);
   if (!sandbox) {
-    return {
-      status: 125,
-      error: Object.assign(new Error('OS filesystem/network sandbox is unavailable'), { code: 'DHPK_NETWORK_SANDBOX_UNAVAILABLE' }),
-    };
+    return refusedHostCliProbe(
+      Object.assign(new Error('OS filesystem/network sandbox is unavailable'), { code: 'DHPK_NETWORK_SANDBOX_UNAVAILABLE' }),
+    );
   }
   const invocation = sandboxInvocation(sandbox, command, args, writablePaths, privateRoot);
   if (!invocation) {
-    return {
-      status: 125,
-      error: Object.assign(new Error('sandbox paths are outside the private temporary root'), { code: 'DHPK_SANDBOX_PATH_UNSAFE' }),
-    };
+    return refusedHostCliProbe(
+      Object.assign(new Error('sandbox paths are outside the private temporary root'), { code: 'DHPK_SANDBOX_PATH_UNSAFE' }),
+    );
   }
   const [sandboxCommand, sandboxArgs] = invocation;
-  return spawnSync(sandboxCommand, sandboxArgs, {
-    encoding: 'utf8',
+  return runHostCliProbe(sandboxCommand, sandboxArgs, {
     env,
     cwd,
-    timeout: timeoutMs,
+    timeoutMs,
     maxBuffer: maxOutputBytes,
-    killSignal: 'SIGKILL',
-    detached: process.platform !== 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
@@ -354,6 +354,7 @@ function runCodexProbe(root, execute = false) {
       network: extra.network || 'unknown',
       reason,
       ...(extra.diagnostic !== undefined ? { diagnostic: extra.diagnostic } : {}),
+      ...(extra.probe !== undefined ? { probe: extra.probe } : {}),
       commands,
     });
     const versionBuild = codexResult(['codex --version']);
@@ -364,15 +365,15 @@ function runCodexProbe(root, execute = false) {
       build: versionBuild,
     });
     if (versionBlocked) return versionBlocked;
-    if (version.status !== 0) {
-      return versionBuild('BLOCKED', `codex --version failed with exit ${version.status}`, { diagnostic: diagnostic(version) });
+    if (version.exitCode !== 0) {
+      return versionBuild('BLOCKED', `codex --version failed with exit ${version.exitCode}`, { diagnostic: diagnostic(version), probe: probeEvidence(version) });
     }
     const routeBuild = codexResult([commandDescription]);
     const result = executeWithSandbox(codexPath, ['plugin', 'marketplace', 'add', stagedPackage], sandboxOptions);
     const routeBlocked = classifySandboxError(result, limits, { subject: 'sandboxed Codex route', build: routeBuild });
     if (routeBlocked) return routeBlocked;
-    if (result.status === 0) return routeBuild('PASS', 'sandboxed Codex marketplace route completed', { network: 'disabled' });
-    return routeBuild('FAIL', `sandboxed Codex route failed with exit ${result.status}`, { network: 'disabled', diagnostic: diagnostic(result) });
+    if (result.exitCode === 0) return routeBuild('PASS', 'sandboxed Codex marketplace route completed', { network: 'disabled', probe: probeEvidence(result) });
+    return routeBuild('FAIL', `sandboxed Codex route failed with exit ${result.exitCode}`, { network: 'disabled', diagnostic: diagnostic(result), probe: probeEvidence(result) });
   } catch (error) {
     return {
       status: 'BLOCKED',
@@ -923,7 +924,9 @@ function main() {
   } catch (error) {
     emit({ platform: args.platform, packageRoot: root, manifest: manifest && manifest.path || null, version: args.version || null, ...result, normalizationError: redactedErrorText(error) }, 1);
   }
-  emit({ platform: args.platform, packageRoot: root, manifest: manifest && manifest.path || null, version: args.version || null, ...result, ...normalized }, ['FAIL', 'BLOCKED'].includes(result.status) ? 1 : 0);
+  const timedOut = (result.probe && result.probe.timedOut) || result.timed_out === true;
+  const failureCode = timedOut ? TIMEOUT_EXIT_CODE : 1;
+  emit({ platform: args.platform, packageRoot: root, manifest: manifest && manifest.path || null, version: args.version || null, ...result, ...normalized }, ['FAIL', 'BLOCKED'].includes(result.status) ? failureCode : 0);
 }
 
 main();
