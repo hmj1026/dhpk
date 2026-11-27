@@ -84,6 +84,14 @@ _Avoid_: Directory symlink, native copy
 A former receipt entry whose ownership the receipt gave up because ownership could no longer be proven; its files stay in place and no receipt manages them any more.
 _Avoid_: Orphan, retired skill, deleted entry
 
+**Asset Receipt**:
+The project-local ownership record for copied **Host** support assets (such as hooks, scripts, and rule overrides), recording their installed source version and content digests so upgrades distinguish unchanged snapshots from user edits.
+_Avoid_: Projection Receipt, Package Receipt, asset manifest
+
+**Install History**:
+A user-local, de-identified append-only record of installation lifecycle attempts, exit outcomes, and before-and-after state summaries used for diagnostics; it owns no files and never drives recovery.
+_Avoid_: Projection Journal, install log, receipt
+
 ## Skill Distribution
 
 **Public Plugin**:
@@ -183,6 +191,7 @@ _Avoid_: Supported (when no environment-specific observation exists)
 - A Target Agent is an agent identity (`claude-code`, `codex-cli`, `cursor`, `agy`); the Route to it is looked up, so the same target may be `native` on one Host and `headless-cli` on another.
 - A Role Alias carries a Role, never a backend; Host/Role Defaults remain the only automatic selection policy.
 - A Host reads portable skills through Host Bindings to the Shared Project Projection; its Native Projection holds only what cannot be shared. Removing a Host removes its bindings, not shared content another Host still binds.
+- A **Projection Receipt**, a **Package Receipt**, and an **Asset Receipt** own distinct artifact sets; **Install History** owns no files and never replaces a **Projection Journal** for crash recovery.
 
 ## Release Evidence
 
