@@ -2586,6 +2586,14 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/bounded-child-process.js",
+      "destination": "skills/harness-setup/scripts/lib/bounded-child-process.js",
+      "kind": "packaging-resource",
+      "sha256": "4d228207c2c8067c54c09784082ccf36ad0a020cff870de3b441470ed6435fd9"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
       "sourcePath": "scripts/lib/bounded-filesystem.js",
       "destination": "skills/harness-setup/scripts/lib/bounded-filesystem.js",
       "kind": "packaging-resource",
@@ -2626,6 +2634,14 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/host-cli-probe.js",
+      "destination": "skills/harness-setup/scripts/lib/host-cli-probe.js",
+      "kind": "packaging-resource",
+      "sha256": "313f035e3dea200e9ba6a54e91d2bec7b50924c23000c218eb5ec8e64a7cbcd5"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex-cli.js",
       "kind": "packaging-resource",
@@ -2637,7 +2653,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
       "kind": "packaging-resource",
-      "sha256": "bacc3998a7ad5c9efb38229f870bd964810a06846c4647a5d7570fd2d1441ab8"
+      "sha256": "12a308bfe20b0fdadbb305be1f1c6478f9c658b8fd99638742396bb673e1986e"
     },
     {
       "skillId": "harness-setup",
@@ -2661,7 +2677,7 @@
       "sourcePath": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "destination": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "kind": "entry",
-      "sha256": "c9027d631003a336be01e0865383f9174f3e318e0f1fd5ca1aea7b429c1e0c67"
+      "sha256": "fbb70b7827a6d2d1c478cb69d933702458044c67de63b10ff2b1d00e6d9a3fae"
     },
     {
       "skillId": "harness-setup",

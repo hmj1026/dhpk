@@ -8,6 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { TIMEOUT_EXIT_CODE, runHostCliProbe } = require('../lib/host-cli-probe');
 
 const SCHEMA = 'dhpk.model.discovery-observation.v1';
 const DEFAULT_OUTPUT = path.join('.dhpk', 'model-observations.json');
@@ -42,22 +43,24 @@ function statusForObservation({ executableFound, exitCode, stderr = '' } = {}) {
 function discoverModels({ agent, executable, listArgs, versionArgs, runner = spawnSync, now = new Date() } = {}) {
   if (typeof agent !== 'string' || agent.trim() === '') throw new TypeError('agent is required');
   if (typeof executable !== 'string' || executable.trim() === '') throw new TypeError('executable is required');
-  const list = runner(executable, listArgs || [], { encoding: 'utf8', timeout: 30_000, maxBuffer: 2 * 1024 * 1024 });
-  const version = runner(executable, versionArgs || ['--version'], { encoding: 'utf8', timeout: 10_000, maxBuffer: 64 * 1024 });
+  const list = runHostCliProbe(executable, listArgs || [], { timeoutMs: 30_000, maxBuffer: 2 * 1024 * 1024, spawn: runner });
+  const version = runHostCliProbe(executable, versionArgs || ['--version'], { timeoutMs: 10_000, maxBuffer: 64 * 1024, spawn: runner });
   const executableFound = list.error ? list.error.code !== 'ENOENT' : true;
-  const exitCode = typeof list.status === 'number' ? list.status : list.error ? 127 : 1;
-  const stderr = String(list.stderr || list.error && list.error.message || '').trim();
-  const output = String(list.stdout || '');
+  let exitCode = list.exitCode;
+  if (exitCode === null) exitCode = list.timedOut ? TIMEOUT_EXIT_CODE : list.error ? 127 : 1;
+  const stderr = (list.stderrTail || (list.error && !list.timedOut && list.error.message) || '').trim();
+  const output = list.stdout;
+  const failureEvidence = list.timedOut ? `timed out (exit ${exitCode}) after ${list.durationMs} ms` : `exit ${exitCode}`;
   return {
     schema: SCHEMA,
     agent,
     executable,
     source: `${executable} ${[...(listArgs || [])].join(' ')}`.trim(),
-    client_version: String(version.stdout || version.stderr || '').trim().split(/\r?\n/u)[0] || null,
+    client_version: (version.stdout || version.stderr).trim().split(/\r?\n/u)[0] || null,
     observed_at: now.toISOString(),
     status: statusForObservation({ executableFound, exitCode, stderr }),
     model_ids: exitCode === 0 ? parseModelIds(output) : [],
-    evidence: stderr || (exitCode === 0 ? 'model list command completed' : `exit ${exitCode}`),
+    evidence: exitCode === 0 ? (stderr || 'model list command completed') : [failureEvidence, stderr].filter(Boolean).join(': '),
   };
 }
 

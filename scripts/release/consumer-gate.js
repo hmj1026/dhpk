@@ -52,6 +52,7 @@ const {
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 const { redactSensitiveText } = require('../lib/redaction');
+const { TIMEOUT_EXIT_CODE, hostCliProbeEvidence, runHostCliProbe } = require('../lib/host-cli-probe');
 const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
@@ -1476,15 +1477,18 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
 }
 
 function discoverCodexIdentityVersion(project, commands) {
-  const result = spawnSync('codex', ['--version'], {
+  const result = runHostCliProbe('codex', ['--version'], {
     cwd: project,
-    encoding: 'utf8',
     env: process.env,
-    timeout: 10000,
+    timeoutMs: 10000,
     maxBuffer: 64 * 1024,
   });
-  commands.push({ cmd: 'codex --version (consumer-check identity)', exitCode: result.status });
-  if (result.error || result.status !== 0) return { version: null, reason: 'current Codex CLI version could not be established' };
+  commands.push({
+    cmd: 'codex --version (consumer-check identity)',
+    exitCode: result.exitCode,
+    ...(result.timedOut ? { timedOut: true, durationMs: result.durationMs } : {}),
+  });
+  if (result.error || result.exitCode !== 0) return { version: null, reason: 'current Codex CLI version could not be established' };
   const version = (result.stdout || result.stderr || '').trim();
   if (version.length === 0 || version.length > 200 || /[\u0000-\u001f\u007f]/.test(version)) {
     return { version: null, reason: 'current Codex CLI version output was malformed' };
@@ -1516,11 +1520,11 @@ function runCodexNamedRoleProbe(project, {
       return { status: 'FAIL', cliVersion: null, diagnostic: `Codex named-role runtime probe requires physical ${role}.toml`, roles };
     }
   }
-  const version = spawnSync('codex', ['--version'], {
+  const version = runHostCliProbe('codex', ['--version'], {
     cwd: project,
-    encoding: 'utf8',
     env,
-    timeout: 10000,
+    timeoutMs: 10000,
+    maxBuffer: 64 * 1024,
   });
   if (version.error && version.error.code === 'ENOENT') {
     return {
@@ -1530,12 +1534,13 @@ function runCodexNamedRoleProbe(project, {
       roles,
     };
   }
-  if (version.error || version.status !== 0) {
-    const detail = version.error ? version.error.message : (version.stderr || version.stdout || '').trim();
+  if (version.error || version.exitCode !== 0) {
+    const detail = version.error ? version.error.message : (version.stderr || version.stdout).trim();
     return {
       status: 'BLOCKED',
       cliVersion: null,
       diagnostic: redactedTail(`codex --version failed: ${detail}`),
+      probe: hostCliProbeEvidence(version, redactSensitiveText),
       roles,
     };
   }
@@ -1595,30 +1600,34 @@ function runCodexNamedRoleProbe(project, {
       'If any role cannot be started or completed, print CODEX_DHPK_NAMED_ROLES=FAIL followed by the exact error.',
     ].join(' '));
 
-    const probe = spawnSync('codex', args, {
+    const probe = runHostCliProbe('codex', args, {
       cwd: project,
-      encoding: 'utf8',
       env: { ...env, CODEX_HOME: disposableCodexHome },
-      timeout: timeoutMs,
+      timeoutMs,
       maxBuffer: 4 * 1024 * 1024,
     });
-    const stdout = probe.stdout || '';
-    const stderr = probe.stderr || '';
+    const probeFields = { probe: hostCliProbeEvidence(probe, redactSensitiveText) };
+    const stdout = probe.stdout;
+    const stderr = probe.stderr;
     const combined = `${stdout}\n${stderr}`.trim();
     const diagnostic = redactedTail(combined);
-    if (probe.error && probe.error.code === 'ETIMEDOUT') {
-      return { status: 'BLOCKED', cliVersion, diagnostic: `Codex named-role runtime probe timed out after ${timeoutMs}ms`, roles };
+    if (probe.timedOut) {
+      const timeoutDiagnostic = probe.exitCode === TIMEOUT_EXIT_CODE
+        ? `Codex named-role runtime probe timed out (exit ${TIMEOUT_EXIT_CODE})`
+        : `Codex named-role runtime probe timed out after ${timeoutMs}ms`;
+      return { status: 'BLOCKED', cliVersion, diagnostic: timeoutDiagnostic, ...probeFields, roles };
     }
     if (probe.error) {
       return {
         status: 'BLOCKED',
         cliVersion,
         diagnostic: redactedTail(`Codex named-role runtime probe could not execute: ${probe.error.message}`),
+        ...probeFields,
         roles,
       };
     }
-    if (probe.status === null) {
-      return { status: 'BLOCKED', cliVersion, diagnostic: `Codex named-role runtime probe ended by signal ${probe.signal || 'unknown'}`, roles };
+    if (probe.exitCode === null) {
+      return { status: 'BLOCKED', cliVersion, diagnostic: `Codex named-role runtime probe ended by signal ${probe.signal || 'unknown'}`, ...probeFields, roles };
     }
     const events = stdout.split(/\r?\n/).flatMap((line) => {
       try {
@@ -1705,7 +1714,7 @@ function runCodexNamedRoleProbe(project, {
       || agentMessages.some((message) => /spawn_agent\s+(?:does not|doesn't)\s+support\s+(?:an?\s+)?agent_type\s+parameter/i.test(message))
     );
     const dispatchFailure = genericDispatchFailure || registryUnavailable;
-    const passed = probe.status === 0
+    const passed = probe.exitCode === 0
       && agentMessages.some((message) => /CODEX_DHPK_NAMED_ROLES=PASS/.test(message))
       && missingSpawnRoles.length === 0
       && ambiguousSpawnRoles.length === 0
@@ -1739,8 +1748,9 @@ function runCodexNamedRoleProbe(project, {
     return {
       status: passed ? 'PASS' : 'FAIL',
       cliVersion,
-      diagnostic: redactedTail([diagnostic || `codex exec exited ${probe.status} without a named-role result marker`, evidenceFailure]
+      diagnostic: redactedTail([diagnostic || `codex exec exited ${probe.exitCode} without a named-role result marker`, evidenceFailure]
         .filter(Boolean).join('\n')),
+      ...probeFields,
       roles,
       runtimeEvidence,
       ...(registryUnavailable ? { reasonCode: 'CUSTOM_AGENT_REGISTRY_UNAVAILABLE' } : {}),
@@ -2417,9 +2427,8 @@ function verifyCursorSync(root, version) {
 }
 
 function claudeCliVersion() {
-  const result = spawnSync('claude', ['--version'], { encoding: 'utf8' });
+  const result = runHostCliProbe('claude', ['--version'], { timeoutMs: 10000, maxBuffer: 64 * 1024 });
   const output = [result.stdout, result.stderr]
-    .filter((value) => typeof value === 'string')
     .flatMap((value) => value.split(/\r?\n/))
     .map((value) => value.trim())
     .find(Boolean) || null;
@@ -2432,34 +2441,45 @@ function claudeCliVersion() {
       diagnostic: 'claude CLI not found on PATH',
     };
   }
+  if (result.timedOut) {
+    return {
+      cmd: 'claude --version',
+      status: 'FAIL',
+      exitCode: result.exitCode,
+      timedOut: true,
+      durationMs: result.durationMs,
+      version: null,
+      diagnostic: `claude --version timed out after ${result.durationMs} ms`,
+    };
+  }
   if (result.error) {
     return {
       cmd: 'claude --version',
       status: 'FAIL',
-      exitCode: result.status,
+      exitCode: result.exitCode,
       version: null,
       diagnostic: `claude --version failed: ${result.error.message}`,
     };
   }
-  if (result.status !== 0) {
+  if (result.exitCode !== 0) {
     return {
       cmd: 'claude --version',
       status: 'FAIL',
-      exitCode: result.status,
+      exitCode: result.exitCode,
       version: null,
-      diagnostic: `claude --version exited ${result.status}`,
+      diagnostic: `claude --version exited ${result.exitCode}`,
     };
   }
   if (!output || !CLAUDE_CLI_VERSION_PATTERN.test(output)) {
     return {
       cmd: 'claude --version',
       status: 'FAIL',
-      exitCode: result.status,
+      exitCode: result.exitCode,
       version: null,
       diagnostic: 'claude --version returned malformed version output',
     };
   }
-  return { cmd: 'claude --version', status: 'PASS', exitCode: result.status, version: output };
+  return { cmd: 'claude --version', status: 'PASS', exitCode: result.exitCode, version: output };
 }
 
 function teardownClaudeProjectRegistry(project, commands, warnings, root) {
@@ -2683,8 +2703,8 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
 }
 
 function codexCliVersion() {
-  const res = spawnSync('codex', ['--version'], { encoding: 'utf8' });
-  return res.status === 0 ? res.stdout.trim() : null;
+  const res = runHostCliProbe('codex', ['--version'], { timeoutMs: 10000, maxBuffer: 64 * 1024 });
+  return res.exitCode === 0 ? res.stdout.trim() : null;
 }
 
 // Native Codex marketplace consumer proof (task 3.4/4.1-4.3): installs the

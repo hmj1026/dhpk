@@ -29,6 +29,7 @@ const {
   linkLeafDigest,
   directoryDigest,
 } = require('../content-fingerprint');
+const { runHostCliProbe } = require('../host-cli-probe');
 
 const {
   ValueError,
@@ -271,24 +272,19 @@ function createInstaller(env, io) {
   // Provider check
 
   function runBoundedProviderQuery(codex) {
-    const result = childProcess.spawnSync(codex, ['plugin', 'list', '--json'], {
-      timeout: PROVIDER_QUERY_TIMEOUT_SECONDS * 1000,
-      killSignal: 'SIGKILL',
-      maxBuffer: PROVIDER_QUERY_OUTPUT_LIMIT,
-      detached: true,
+    const result = runHostCliProbe(codex, ['plugin', 'list', '--json'], {
       env,
+      timeoutMs: PROVIDER_QUERY_TIMEOUT_SECONDS * 1000,
+      maxBuffer: PROVIDER_QUERY_OUTPUT_LIMIT,
+      encoding: 'buffer',
+      reapGroup: 'always',
+      spawn: (...args) => childProcess.spawnSync(...args),
     });
-    if (Number.isInteger(result.pid)) {
-      try {
-        process.kill(-result.pid, 'SIGKILL');
-      } catch (_) {
-        // the process group already exited
-      }
-    }
-    if (result.error || result.status !== 0) return null;
-    if ((result.stdout ? result.stdout.length : 0) + (result.stderr ? result.stderr.length : 0) > PROVIDER_QUERY_OUTPUT_LIMIT) return null;
+    const probe = { exitCode: result.exitCode, signal: result.signal, timedOut: result.timedOut, durationMs: result.durationMs };
+    if (result.error || result.exitCode !== 0) return { output: null, probe };
+    if (result.stdout.length + result.stderr.length > PROVIDER_QUERY_OUTPUT_LIMIT) return { output: null, probe };
     const decoder = new TextDecoder('utf-8', { fatal: true });
-    return [decoder.decode(result.stdout), decoder.decode(result.stderr)];
+    return { output: [decoder.decode(result.stdout), decoder.decode(result.stderr)], probe };
   }
 
   // Best-effort evidence about the native dhpk Codex plugin; an enabled native
@@ -298,18 +294,18 @@ function createInstaller(env, io) {
     if (HARNESS_KIND !== 'codex') return { status: 'NOT_APPLICABLE' };
     const codex = which('codex', env);
     if (!codex) return { status: 'UNAVAILABLE' };
-    let output;
+    let query;
     try {
-      output = runBoundedProviderQuery(codex);
+      query = runBoundedProviderQuery(codex);
     } catch (_) {
       return { status: 'UNAVAILABLE' };
     }
-    if (output === null) return { status: 'UNAVAILABLE' };
+    if (query.output === null) return { status: 'UNAVAILABLE', probe: query.probe };
     let payload;
     try {
-      payload = JSON.parse(output[0]);
+      payload = JSON.parse(query.output[0]);
     } catch (_) {
-      return { status: 'UNAVAILABLE' };
+      return { status: 'UNAVAILABLE', probe: query.probe };
     }
     if (!isDict(payload) || !Array.isArray(payload.installed)) return { status: 'UNAVAILABLE' };
     let disabledMatch = null;
