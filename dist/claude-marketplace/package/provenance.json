@@ -2586,6 +2586,14 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/bounded-child-process.js",
+      "destination": "skills/harness-setup/scripts/lib/bounded-child-process.js",
+      "kind": "packaging-resource",
+      "sha256": "4d228207c2c8067c54c09784082ccf36ad0a020cff870de3b441470ed6435fd9"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
       "sourcePath": "scripts/lib/bounded-filesystem.js",
       "destination": "skills/harness-setup/scripts/lib/bounded-filesystem.js",
       "kind": "packaging-resource",
@@ -2626,6 +2634,14 @@
     {
       "skillId": "harness-setup",
       "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/host-cli-probe.js",
+      "destination": "skills/harness-setup/scripts/lib/host-cli-probe.js",
+      "kind": "packaging-resource",
+      "sha256": "313f035e3dea200e9ba6a54e91d2bec7b50924c23000c218eb5ec8e64a7cbcd5"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex-cli.js",
       "kind": "packaging-resource",
@@ -2637,7 +2653,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex.js",
       "destination": "skills/harness-setup/scripts/lib/install-adapters/codex.js",
       "kind": "packaging-resource",
-      "sha256": "27f633cb517aab997e7e290478092d297193e5f8d7eb39f036bec7887c5f5efc"
+      "sha256": "1c8694a79bbc70ca0597b6eeee238c8f8e8d19e92350bd4d387ba1a163ac683a"
     },
     {
       "skillId": "harness-setup",
