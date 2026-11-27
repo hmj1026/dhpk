@@ -89,6 +89,65 @@ function hostWrite(request, host) {
   };
 }
 
+// A Codex or Cursor plan against a project runs the installer's read-only
+// `--update --plan --json` and keeps its envelope and exit status (#1584):
+// 0 ready, 1 non-fatal reconciliation or collision, 2 blocked.
+function hostPlan(request, host) {
+  const { installerEnv, runCaptured, looksLikeProjectRoot } = require('./lib/install-adapters/codex-cli');
+  const { envelope, manualRemediation } = require('./lib/plan-boundary-envelope');
+  const blocked = (reasonCode, message, summary, installer = null) => ({
+    request,
+    plan: null,
+    lifecycle: { verdict: 'BLOCKED' },
+    ...envelope('BLOCKED', { reasonCode, remediation: manualRemediation(summary) }),
+    diagnostics: [{ code: reasonCode, message }],
+    ...(installer ? { installer } : {}),
+    exitCode: 2,
+  });
+  const projectRoot = path.resolve(request.projectRoot);
+  if (request.mode === 'client-managed') return blocked('UNSUPPORTED_MODE', `${request.surface} supports --mode copy, symlink, or auto`, 'Re-run with --mode copy, symlink, or auto.');
+  if (!request.yes && !looksLikeProjectRoot(projectRoot)) {
+    return blocked('NOT_A_PROJECT_ROOT', `'${projectRoot}' does not look like a project root`, 'Re-run with --yes to bypass this check.');
+  }
+  const outcome = runCaptured(installerEnv({
+    host,
+    pluginRoot: root,
+    installerRoot: root,
+    projectRoot,
+    mode: request.mode === 'copy' ? 'copy' : 'symlink',
+    modeExplicit: request.mode !== 'auto',
+    update: true,
+    plan: true,
+    json: true,
+    skillIds: request.skillIds || [],
+  }));
+  const installer = { exitCode: outcome.code, stderr: outcome.stderr.split('\n').filter(Boolean) };
+  let report;
+  try {
+    report = JSON.parse(outcome.stdout);
+  } catch (error) {
+    report = null;
+  }
+  if (!report || typeof report !== 'object' || typeof report.verdict !== 'string') {
+    return blocked('INSTALLER_OUTPUT_INVALID', `${request.surface} plan exited ${outcome.code} without a plan report`, 'Run the installer plan directly and inspect its output.', installer);
+  }
+  const { verdict, reasonCode, receiptVersion, journalVersion, affectedPaths, remediation } = report;
+  return {
+    request,
+    plan: report,
+    lifecycle: { verdict: outcome.code === 2 ? 'BLOCKED' : 'NOT_RUN' },
+    verdict,
+    reasonCode,
+    receiptVersion,
+    journalVersion,
+    affectedPaths,
+    remediation,
+    diagnostics: reasonCode ? [{ code: reasonCode, message: (report.blockers && report.blockers[0] && report.blockers[0].message) || reasonCode }] : [],
+    installer,
+    exitCode: [0, 1, 2].includes(outcome.code) ? outcome.code : 2,
+  };
+}
+
 try {
   const request = parseRequest(argv);
   if (request.help) {
@@ -97,6 +156,17 @@ try {
     return;
   }
   const writeHost = WRITE_HOSTS[request.surface];
+  if (writeHost && request.scope === 'project' && request.action === 'plan' && request.projectRoot) {
+    const { exitCode, ...result } = hostPlan(request, writeHost);
+    if (request.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    else {
+      for (const line of (result.installer && result.installer.stderr) || []) process.stderr.write(`${line}\n`);
+      process.stdout.write(`${result.verdict}: ${request.surface} plan${result.reasonCode ? ` (${result.reasonCode})` : ''}\n`);
+      for (const entry of result.remediation) process.stdout.write(`  ${entry.summary}${entry.command ? `: ${entry.command}` : ''}\n`);
+    }
+    process.exitCode = exitCode;
+    return;
+  }
   if (writeHost && request.scope === 'project' && ['install', 'update', 'uninstall'].includes(request.action)) {
     const result = hostWrite(request, writeHost);
     if (request.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

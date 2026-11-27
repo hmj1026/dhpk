@@ -1,0 +1,2 @@
+scope: install
+note: `--plan --json` on the Codex, Cursor, and AGY installers and `dhpk-install <codex-sync|cursor> plan --project-root` now reports a fail-closed receipt, journal, profile, or collision boundary as JSON with `verdict`, a stable `reasonCode`, the detected `receiptVersion` or `journalVersion`, `affectedPaths`, and structured `remediation` naming the `0.69.x` or `0.74.x` transition release, `--uninstall`, or `--recover`; plans exit 0 ready, 1 pending or collision, 2 blocked, and 64 only for argument errors.
